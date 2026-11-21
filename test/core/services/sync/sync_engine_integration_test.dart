@@ -20,6 +20,7 @@ import 'package:Cuplivo/core/services/business_state_reloader.dart';
 import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_endpoint_prober.dart';
+import 'package:Cuplivo/core/services/sync/sync_family_registry.dart';
 import 'package:Cuplivo/core/services/sync/sync_engine.dart';
 import 'package:Cuplivo/core/services/sync/sync_identity.dart';
 import 'package:Cuplivo/core/services/sync/sync_limits.dart';
@@ -28,6 +29,7 @@ import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
+import '../../../support/sync_payload.dart';
 import 'package:Cuplivo/core/services/sync/workspace_content_sync.dart';
 import 'package:Cuplivo/features/home/controllers/chat_controller.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_pairing_dialogs.dart';
@@ -243,11 +245,21 @@ class _CrossReferencingPlane extends SyncDataPlane {
     final subtree = await super.readSubtree(conversationId);
     final extra = craft();
     if (subtree == null || extra.isEmpty) return subtree;
-    return SyncSubtreePayload(
+    return subtreePayload(
       conversation: subtree.conversation,
-      messages: [...subtree.messages, ...extra],
-      parts: subtree.parts,
-      mcpServers: subtree.mcpServers,
+      // The families this double does not name are carried through, not rebuilt:
+      // a payload composed from three families drops the conversation's
+      // documents, which the same side's manifest still counts, so the sender
+      // would re-plan `iSend` every session and the peer would never receive them.
+      families: subtree.families,
+      messages: [
+        ...subtree.rowsOf(syncFamilyOfTable('message_rows')),
+        ...extra,
+      ],
+      parts: subtree.rowsOf(syncFamilyOfTable('message_part_rows')),
+      mcpServers: subtree.rowsOf(
+        syncFamilyOfTable('conversation_mcp_server_rows'),
+      ),
     );
   }
 }
@@ -469,15 +481,12 @@ class _Side {
   /// The skills root the data plane hashes, zips and swaps in.
   Directory get skillsRoot => Directory('${dir.path}/skills');
 
-  /// This side's conversation digest, computed the way the manifest computes it:
-  /// message rows only. A restore that writes the conversation row is therefore
-  /// invisible here, which is the whole reason the announcement needed a clock.
-  Future<String> conversationDigest(String id) async {
-    final rows = await repository.syncMessageDigestInputs();
-    return digestFromDigestInput(
-      rows.firstWhere((row) => row.conversationId == id).digestInput,
-    );
-  }
+  /// This side's conversation digest, composed the way the manifest composes it:
+  /// every travelling family, but not the conversation row's own clock. A restore
+  /// that writes that row is therefore invisible here, which is the whole reason
+  /// the announcement needed a clock.
+  Future<String> conversationDigest(String id) =>
+      repository.syncConversationDigest(id);
 
   /// This side's files root for one managed workspace. One test process hosts
   /// both peers, so `AppDirectories`' single global root cannot serve both —
@@ -6478,6 +6487,39 @@ void main() {
       'conv-b-m0',
     }, reason: "the other conversation's row must not move, nor gain a ghost");
     expect(await _messageIds(b, 'conv-a'), {'conv-a-m0', 'conv-a-m1'});
+  });
+
+  test('the crafted-row double still sends the conversation documents', () async {
+    // The double rebuilds the payload from the families it names, and the
+    // manifest the same side publishes is computed from the database. Before it
+    // spread the real families, a conversation that owned a document travelled
+    // with a payload missing it: the peer never received the document, and the
+    // sender's checkpoint — composed from the payload — disagreed with its own
+    // next manifest, so the conversation was re-planned `iSend` forever.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(root, craftedRows: () => const []);
+    await b.start(root);
+    sides.addAll([a, b]);
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+    await _seedConversation(a, id: 'conv-doc', contents: ['hello']);
+    await ExtensionEntityStore(a.database).upsert(
+      'conversationCompression',
+      'conv-doc',
+      const {'formatVersion': 1, 'operations': <Object>[]},
+      ownerId: 'conv-doc',
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(
+      await ExtensionEntityStore(
+        b.database,
+      ).get('conversationCompression', 'conv-doc'),
+      isNotNull,
+      reason: 'the crafted double dropped the document family from the payload',
+    );
   });
 
   // ---- slice 3: blobs ----

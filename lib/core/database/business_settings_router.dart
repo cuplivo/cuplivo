@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../models/assistant.dart';
+import '../models/compression_config.dart';
 import 'business_data.dart';
 
 /// What a key does: where it lives, and what carries it.
@@ -1452,6 +1453,12 @@ final class BusinessKeyRegistry {
     // A group and its topics are rows; the sidebar's mixed order is this key.
     BusinessEntityKind.groupChat: {'chat_owner_order_v1'},
     BusinessEntityKind.userProfileField: {},
+    // The global compression defaults name the template a conversation falls
+    // back to, so they organize the library exactly as the active world-book
+    // selections organize theirs. A recipe needs no companion of its own: it
+    // carries the template it was saved from.
+    BusinessEntityKind.compressionTemplate: {'compression_defaults_v1'},
+    BusinessEntityKind.compressionRecipe: {},
   };
 
   static KeyRule? ruleFor(String key) => rules[key];
@@ -1649,7 +1656,7 @@ final class BusinessSettingsRouter {
                   : row.id;
             }
             if (kind == BusinessEntityKind.assistant) {
-              _validateRuntimeAssistant(payload);
+              _validateRuntimePayload(kind, payload, Assistant.fromJson);
             }
             return payload;
           }(),
@@ -1765,8 +1772,9 @@ final class BusinessSettingsRouter {
     final id = hasPayloadId
         ? rawId.toString()
         : rowId ?? _stableGeneratedId(kind.sourceKey, index, payload);
-    if (kind == BusinessEntityKind.assistant) {
-      _validateRuntimeAssistant({...payload, 'id': id});
+    final decode = runtimePayloadDecoder(kind);
+    if (decode != null) {
+      _validateRuntimePayload(kind, {...payload, 'id': id}, decode);
     }
     String? assistantId;
     if (kind == BusinessEntityKind.assistantMemory) {
@@ -1784,16 +1792,63 @@ final class BusinessSettingsRouter {
     );
   }
 
-  // Validate with the same decoder used by AssistantProvider, before migration
-  // cleanup or exposing a startup snapshot. Keep the original payload intact,
-  // including unknown fields and IDs projected only for runtime use.
-  static void _validateRuntimeAssistant(Map<String, Object?> payload) {
+  /// The decoder the runtime reads [kind]'s payloads with, or null when the kind
+  /// has none.
+  ///
+  /// One table, because the rows reach the app through more than one entrance: a
+  /// settings import and a LAN-sync apply must be held to the same reader. The
+  /// compression kinds are why this matters — `CompressionRepository` decodes
+  /// every template of the kind in one loop, so a row these decoders reject is
+  /// not a row that looks odd, it is a library that cannot be listed at all.
+  static void Function(Map<String, dynamic>)? runtimePayloadDecoder(
+    BusinessEntityKind kind,
+  ) => switch (kind) {
+    BusinessEntityKind.assistant => Assistant.fromJson,
+    BusinessEntityKind.compressionTemplate => CompressionTemplate.fromJson,
+    BusinessEntityKind.compressionRecipe => CompressionRecipe.fromJson,
+    _ => null,
+  };
+
+  /// Whether [payload] — the stored JSON string of one row — is a row this build
+  /// can read back for [kind].
+  ///
+  /// A kind with no runtime decoder is readable here by construction; its
+  /// per-field checks belong to the import path.
+  static bool isReadablePayload(BusinessEntityKind kind, String payload) {
+    final decode = runtimePayloadDecoder(kind);
+    if (decode == null) return true;
     try {
-      Assistant.fromJson(payload);
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map) return false;
+      decode(Map<String, dynamic>.from(decoded));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Validate with the same decoder the readers use, before migration cleanup or
+  // exposing a startup snapshot. Keep the original payload intact, including
+  // unknown fields and IDs projected only for runtime use.
+  //
+  // The compression kinds are why this exists at all. `CompressionRepository`
+  // decodes every row of a kind in one loop, so a row these decoders reject is
+  // not a row that looks wrong — it is a library that cannot be listed, and the
+  // page that would let the user delete it reads that same list. The type checks
+  // in [_validateEntityPayload] cannot see it: `formatVersion` is optional there,
+  // `name`/`prompt` are only checked for being strings, and a recipe's `template`
+  // may be absent.
+  static void _validateRuntimePayload(
+    BusinessEntityKind kind,
+    Map<String, Object?> payload,
+    void Function(Map<String, dynamic>) decode,
+  ) {
+    try {
+      decode(payload);
     } catch (error) {
       throw FormatException(
-        BusinessEntityKind.assistant.sourceKey,
-        'assistant=${payload['id']}; $error',
+        kind.sourceKey,
+        '${kind.name}=${payload['id']}; $error',
       );
     }
   }
@@ -2053,6 +2108,27 @@ final class BusinessSettingsRouter {
           strings: const {'avatar'},
           numbers: const {'v', 'maxSpeakerTurns'},
           stringLists: const {'memberIds'},
+        );
+        return;
+      case BusinessEntityKind.compressionTemplate:
+        // A prompt the user wrote for the summariser: opaque to this router, so
+        // it is type-checked at the import boundary and never interpreted.
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name', 'prompt'},
+          strings: const {'scene', 'outputLanguage'},
+          integers: const {'formatVersion'},
+        );
+        return;
+      case BusinessEntityKind.compressionRecipe:
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name'},
+          strings: const {'focus'},
+          maps: const {'template', 'settings'},
+          integers: const {'formatVersion'},
         );
         return;
       case BusinessEntityKind.userProfileField:

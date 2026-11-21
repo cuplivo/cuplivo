@@ -4,7 +4,9 @@ import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/business_data.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/compression_repository.dart';
 import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -603,5 +605,131 @@ void main() {
     await preferences.reload();
     expect(preferences.getString('theme_mode_v1'), 'dark');
     expect(preferences.getString('user_name'), 'Local');
+  });
+
+  test('the compression library travels as a business kind', () async {
+    // A template is a prompt the user wrote for the summariser and a recipe is
+    // that template plus its settings: both are global, shared by every
+    // conversation that names one, so they ride the business face like a world
+    // book. Until they did, a new device showed `compressionTemplateMissing` for
+    // conversations whose template only ever existed on the other one.
+    final at = DateTime.now().microsecondsSinceEpoch;
+    final applied = await repository.syncApplyBusinessRows(
+      entities: {
+        'compressionTemplate': [
+          {
+            'kind': 'compressionTemplate',
+            'id': 't1',
+            'sort_order': 0,
+            'owner_id': null,
+            'payload': jsonEncode({
+              'formatVersion': 1,
+              'id': 't1',
+              'name': 'Brief',
+              'prompt': 'Summarise in five lines.',
+            }),
+            'updated_at': at,
+          },
+        ],
+        'compressionRecipe': [
+          {
+            'kind': 'compressionRecipe',
+            'id': 'r1',
+            'sort_order': 0,
+            'owner_id': null,
+            'payload': jsonEncode({
+              'formatVersion': 1,
+              'id': 'r1',
+              'name': 'Tight',
+              // A whole template: `CompressionRecipe.fromJson` parses this map
+              // with `CompressionTemplate.fromJson`, so a reference would be a
+              // row the library cannot read back once it lands.
+              'template': {
+                'formatVersion': 1,
+                'id': 't1',
+                'name': 'Brief',
+                'prompt': 'Summarise in five lines.',
+              },
+              'settings': {'keepRecentUserTurns': 2},
+            }),
+            'updated_at': at,
+          },
+        ],
+      },
+      preferences: const [],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+
+    expect(applied.entityRowsWritten, 2);
+    // The manifest is what makes the next session plan them: a row that lands but
+    // is not in the refs would be re-sent forever, and one in the refs but not
+    // written would be planned against nothing.
+    final refs = await repository.syncEntityRefs();
+    expect(
+      refs
+          .where((ref) => ref.kindWire == 'compressionTemplate')
+          .map((ref) => ref.id),
+      ['t1'],
+    );
+    expect(
+      refs
+          .where((ref) => ref.kindWire == 'compressionRecipe')
+          .map((ref) => ref.id),
+      ['r1'],
+    );
+    final read = await repository.syncReadEntityRows('compressionTemplate', {
+      't1',
+    });
+    expect(jsonDecode(read.single['payload'] as String)['name'], 'Brief');
+  });
+
+  test('a row this build cannot read back is refused, not deleted', () async {
+    // `CompressionRepository` decodes every template of the kind in one loop, so
+    // one unreadable row is an unlistable library — and the page that would let
+    // the user delete it reads that same list. The row is refused on apply, but it
+    // stays in the manifest: hiding it there is how a peer reads "deleted", and
+    // the peer's copy may still be readable. Refused-but-unacknowledged leaves the
+    // peer offering it instead of deleting its own.
+    final store = ExtensionEntityStore(database);
+    await store.upsert(CompressionTemplate.entityKind, 'bad', {
+      'id': 'bad',
+      'name': 'Mine',
+      'prompt': '',
+    });
+    expect(
+      (await repository.syncEntityRefs()).where((ref) => ref.id == 'bad'),
+      hasLength(1),
+      reason: 'the manifest still names it, so no peer reads a deletion',
+    );
+    await store.delete(CompressionTemplate.entityKind, 'bad');
+
+    final at = DateTime.now().microsecondsSinceEpoch;
+    final applied = await repository.syncApplyBusinessRows(
+      entities: {
+        'compressionTemplate': [
+          {
+            'kind': 'compressionTemplate',
+            'id': 'bad2',
+            'sort_order': 0,
+            'owner_id': null,
+            'payload': jsonEncode({'id': 'bad2', 'name': 'Mine', 'prompt': ''}),
+            'updated_at': at,
+          },
+        ],
+      },
+      preferences: const [],
+      myDeviceId: 'me',
+      peerDeviceId: 'peer',
+    );
+    expect(applied.entityRowsWritten, 0);
+    expect(
+      applied.acceptedKeys,
+      isNot(contains('compressionTemplate\u0000bad2')),
+    );
+
+    // The refusal is what keeps the library listable: the row never landed.
+    final templates = await CompressionRepository(store).templates();
+    expect(templates.map((template) => template.id), isNot(contains('bad2')));
   });
 }

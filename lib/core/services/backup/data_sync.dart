@@ -47,6 +47,7 @@ import 'restore_workspace_lock.dart';
 import 'restore_business_lease.dart';
 import 'backup_staging.dart';
 import 'backup_partials.dart';
+import 'backup_archive_naming.dart';
 import 'backup_cancel_token.dart';
 import 'backup_encryption.dart';
 import 'backup_isolate_runner.dart';
@@ -811,11 +812,14 @@ class DataSync {
   }) async {
     await BackupStaging.sweep();
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    // The archive is named for the reader it is written for; a crash leaves a
+    // staging directory with the same name, swept by the same prefix rule.
+    final archiveName = BackupArchiveNaming.fileNameFor(target, timestamp);
     final workDir = await BackupStaging.createDirectory(
-      'kelivo_backup_$timestamp',
+      p.basenameWithoutExtension(archiveName),
     );
 
-    final outPath = p.join(workDir.path, 'kelivo_backup_$timestamp.zip');
+    final outPath = p.join(workDir.path, archiveName);
     final outFile = File(outPath);
     if (await outFile.exists()) await outFile.delete();
 
@@ -881,6 +885,9 @@ class DataSync {
           databaseFile,
           scope: scope,
           target: target,
+          // The same call writes `settings.json` from the same scope, so the
+          // library is in that half and must not also stay in this one.
+          libraryInSettings: scope.includes(BackupCategory.instructions),
         );
       }
 
@@ -942,6 +949,7 @@ class DataSync {
               businessEntityRowIds: businessExport.entityRowIds,
               scope: scope,
               formatVersion: _formatVersionFor(target),
+              target: target,
               assetRootPaths: assetRootPaths,
               publishedDraftFiles: publishedDraftFiles,
             ),
@@ -1205,6 +1213,34 @@ class DataSync {
   static Future<void> debugCleanupPreviousBackupTempFiles(Directory tmp) =>
       BackupStaging.sweep(temporary: tmp);
 
+  /// Builds a manifest with a forced omission, so the root key set a target
+  /// produces can be asserted without inducing an unreadable directory.
+  @visibleForTesting
+  static Map<String, dynamic> debugBuildManifestJson({
+    required BackupTarget target,
+    required List<String> skippedEntries,
+  }) {
+    return jsonDecode(
+          _buildBackupManifestJson(
+            entries: const {},
+            snapshotInfo: (
+              schemaVersion: AppDatabase.currentSchemaVersion,
+              conversationCount: 0,
+              messageCount: 0,
+            ),
+            includeChats: true,
+            includeFiles: true,
+            appVersion: 'test',
+            businessEntityRowIds: const {},
+            scope: const BackupScope(),
+            skippedEntries: skippedEntries,
+            formatVersion: _formatVersionFor(target),
+            target: target,
+          ),
+        )
+        as Map<String, dynamic>;
+  }
+
   static ({int verifiedBytes, List<String> skippedEntries})
   _packAndVerifyInIsolate(BackupIsolateContext ctx, _BackupPackArgs args) {
     final packed = _packZipSync(
@@ -1219,6 +1255,7 @@ class DataSync {
       businessEntityRowIds: args.businessEntityRowIds,
       scope: args.scope,
       formatVersion: args.formatVersion,
+      target: args.target,
       assetRootPaths: args.assetRootPaths,
       publishedDraftFiles: args.publishedDraftFiles,
       ctx: ctx,
@@ -1297,6 +1334,7 @@ class DataSync {
     required Map<String, List<String>> businessEntityRowIds,
     required BackupScope scope,
     required int formatVersion,
+    required BackupTarget target,
     required Map<String, String> assetRootPaths,
     Set<String> publishedDraftFiles = const {},
     BackupIsolateContext? ctx,
@@ -1411,6 +1449,7 @@ class DataSync {
         scope: scope,
         skippedEntries: skippedEntries.toList(),
         formatVersion: formatVersion,
+        target: target,
       );
       final manifestFile = File(manifestPath)
         ..writeAsStringSync(manifestJson, flush: true);
@@ -1983,23 +2022,11 @@ class DataSync {
         continue;
       }
 
-      // If mtime is null, try to extract from filename (format: kelivo_backup_2025-01-19T12-34-56.123456.zip)
+      // If mtime is null, try to extract it from the name — the writer stamps
+      // it as `cuplivo_backup_2025-01-19T12-34-56.123456.zip` (or the Kelivo
+      // prefix), and both prefixes parse.
       if (!partialsOnly && mtime == null) {
-        final match = RegExp(
-          r'kelivo_backup_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d+)\.(?:zip|kbackup)',
-        ).firstMatch(name);
-        if (match != null) {
-          try {
-            // Replace hyphens in time part back to colons
-            final timestamp = match
-                .group(1)!
-                .replaceAll(
-                  RegExp(r'T(\d{2})-(\d{2})-(\d{2})'),
-                  'T\$1:\$2:\$3',
-                );
-            mtime = DateTime.parse(timestamp);
-          } catch (_) {}
-        }
+        mtime = BackupArchiveNaming.timestampFromFileName(name);
       }
 
       // Skip directories
@@ -2076,6 +2103,9 @@ class DataSync {
 
   /// Manifest keys this build understands. Anything else is dropped from a
   /// backup that declares a newer schema, and rejected in any other backup.
+  ///
+  /// `skippedEntries` stays here for archives 4.7.0 wrote; this build only
+  /// writes it into its own archives (see [_buildBackupManifestJson]).
   static const _knownManifestKeys = <String>{
     'format',
     'formatVersion',
@@ -2481,6 +2511,7 @@ class DataSync {
     required BackupScope scope,
     required List<String> skippedEntries,
     required int formatVersion,
+    required BackupTarget target,
   }) {
     return jsonEncode({
       'format': _backupFormat,
@@ -2501,7 +2532,15 @@ class DataSync {
       'secretsIncluded': true,
       'businessEntityRowIds': businessEntityRowIds,
       'scope': scope.toJson(),
-      if (skippedEntries.isNotEmpty) 'skippedEntries': skippedEntries,
+      // A diagnostic, and one this build's own archives only. A Kelivo reader
+      // checks the manifest's root key set exactly; `skippedEntries` is newer
+      // than the Kelivo target's floor release (upstream added it after
+      // v1.3.5), and its unknown-key trim only runs for a manifest that
+      // declares a newer build — so an extra key here makes that reader refuse
+      // the restore after the user consented. The omissions are still reported
+      // to the user by the export progress.
+      if (target == BackupTarget.cuplivo && skippedEntries.isNotEmpty)
+        'skippedEntries': skippedEntries,
       if (snapshotInfo != null)
         'database': {
           'entry': _databaseEntryName,
@@ -3465,6 +3504,7 @@ class DataSync {
     File file, {
     BackupScope scope = const BackupScope(),
     BackupTarget target = BackupTarget.cuplivo,
+    bool libraryInSettings = false,
   }) async {
     final database = AppDatabase.open(file: file);
     try {
@@ -3472,6 +3512,7 @@ class DataSync {
         database,
         scope: scope,
         target: target,
+        libraryInSettings: libraryInSettings,
       );
       for (final sql in MessageTimelineIndex.discardStatements) {
         await database.customStatement(sql);
@@ -3481,6 +3522,18 @@ class DataSync {
     }
     await ChatDatabaseRepository.normalizeSnapshotJournal(file);
   }
+
+  /// Whether an archive's `settings.json` is a *complete* carrier of the
+  /// compression library — both keys, not one.
+  ///
+  /// Those keys are what makes the snapshot database's copy of the same rows
+  /// redundant. An archive from a build that did not export them has the database
+  /// as its only carrier, so this is asked of the archive and not assumed; and
+  /// the answer is "both", so a half-carrying archive keeps the database's copy
+  /// and errs towards a duplicate (recoverable) rather than a lost template.
+  static bool _settingsCarryCompressionLibrary(Map<String, dynamic> settings) =>
+      settings.containsKey('compression_templates_v1') &&
+      settings.containsKey('compression_recipes_v1');
 
   /// Reads a backup file's manifest and reports what restoring it would mean.
   ///
@@ -3702,6 +3755,11 @@ class DataSync {
           await _sanitizeBackupDatabase(
             File(p.join(extractDir.path, _databaseEntryName)),
             scope: scope,
+            // This archive's settings half is the same `settings` map the merge
+            // below imports. When it carries the library, the database's copy of
+            // it is one fact in two carriers: an archive made by a build that
+            // exported both would otherwise list every template twice.
+            libraryInSettings: _settingsCarryCompressionLibrary(settings),
           );
           beginNonCancellableCommit();
           _lastMergeReport = await chatService.mergeDatabaseSnapshot(
@@ -4100,6 +4158,7 @@ class _BackupPackArgs {
     required this.businessEntityRowIds,
     required this.scope,
     required this.formatVersion,
+    required this.target,
     required this.assetRootPaths,
     this.publishedDraftFiles = const {},
   });
@@ -4114,6 +4173,12 @@ class _BackupPackArgs {
   final String appVersion;
   final Map<String, List<String>> businessEntityRowIds;
   final BackupScope scope;
+
+  /// The reader this archive is written for. [formatVersion] is derived from it,
+  /// but the manifest also needs the reader itself: `skippedEntries` is only
+  /// safe in an archive this build will read back.
+  final BackupTarget target;
+
   final int formatVersion;
   final Map<String, String> assetRootPaths;
   final Set<String> publishedDraftFiles;

@@ -3382,11 +3382,11 @@ abstract class AppLocalizations {
   /// **'Everything this version can restore, group chats included'**
   String get backupPageTargetCuplivoNote;
 
-  /// Backup target option: an archive Kelivo 1.3.4 can import.
+  /// Backup target option: an archive every Kelivo release from {version} on can import.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo 1.3.4'**
-  String get backupPageTargetKelivo;
+  /// **'Kelivo {version}+'**
+  String backupPageTargetKelivo(String version);
 
   /// One-line explanation under the Kelivo backup target: it imports there, but group chats are not in it.
   ///
@@ -3448,10 +3448,10 @@ abstract class AppLocalizations {
   /// **'Quick phrases'**
   String get backupPageQuickPhrasesLabel;
 
-  /// Backup category label for prompt injections (instruction snippets).
+  /// Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library’s summary templates and recipes. It must name the material, not one of the two features that write it.
   ///
   /// In en, this message translates to:
-  /// **'Prompt injections'**
+  /// **'Prompt library'**
   String get backupPageInstructionsLabel;
 
   /// Backup category label for workspaces.
@@ -7272,6 +7272,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Embedding'**
   String get modelDetailSheetEmbeddingType;
+
+  /// Model type segment and model tag for a decision model: it answers typed yes/no or choice questions with probabilities and never generates chat text.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision'**
+  String get modelDetailSheetDecisionType;
+
+  /// Label of the segmented control that picks which decision protocol a decision model speaks (System One or OpenAI decisions).
+  ///
+  /// In en, this message translates to:
+  /// **'Decision API'**
+  String get modelDetailSheetDecisionDialectLabel;
+
+  /// Label of the optional field that overrides the endpoint address of a decision model.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision URL'**
+  String get modelDetailSheetDecisionUrlLabel;
+
+  /// Placeholder of the decision address field: leaving it empty appends the dialect's default path to the provider URL.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: appended to the provider URL'**
+  String get modelDetailSheetDecisionUrlHint;
+
+  /// First paragraph of the help sheet behind the info icon next to the decision address field: some providers serve decision models on a separate endpoint, so the default address has to be overridden.
+  ///
+  /// In en, this message translates to:
+  /// **'Some providers serve decision models on their own endpoint; enter the path to override the default address.'**
+  String get modelDetailSheetDecisionUrlHelp;
+
+  /// Button in the decision address help sheet that writes the shown example path into the address field.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill'**
+  String get modelDetailSheetDecisionUrlFill;
+
+  /// Small tag in the decision address help sheet marking the example row that matches the current provider's host.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get modelDetailSheetDecisionUrlCurrent;
+
+  /// Name of Alibaba's Bailian model platform, used as the provider name of a decision address example.
+  ///
+  /// In en, this message translates to:
+  /// **'Bailian'**
+  String get modelDetailSheetDecisionUrlBailian;
 
   /// Section header and field label for supported input modalities (text/image/audio) in the model spec form.
   ///
@@ -30558,6 +30606,24 @@ abstract class AppLocalizations {
   /// **'Skill'**
   String get recycleBinKindSkill;
 
+  /// Recycle-bin label for a conversation's record of context operations (compressions and clears), which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression history'**
+  String get recycleBinKindCompressionHistory;
+
+  /// Recycle-bin label for a conversation's pinned images and image-recall switches, which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Image context'**
+  String get recycleBinKindImageContext;
+
+  /// Recycle-bin label for a conversation's own compression configuration, which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression settings'**
+  String get recycleBinKindCompressionSettings;
+
   /// Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised.
   ///
   /// In en, this message translates to:
@@ -30641,6 +30707,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This file\'s workspace was deleted, so there is no folder to put it back into.'**
   String get recycleBinRestoreNoWorkspace;
+
+  /// Toast explaining that the entry belongs to a conversation that no longer exists, so the record has nowhere to go back to. Restoring the conversation from the bin brings it back.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry\'s conversation was deleted, so there is nothing to put it back into.'**
+  String get recycleBinRestoreNoConversation;
 
   /// Toast shown when restoring a recycle-bin entry failed for any other reason.
   ///
@@ -31445,6 +31517,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)'**
   String lanSyncReportRowsLost(Object n);
+
+  /// Sync report count of conversations whose compression history, image-context switches or compression settings the peer's newer copy replaced. Each of those is stored as one whole record per conversation, so a divergence is settled by replacing the record, never by merging it field by field; n is a count of conversations, not of records.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} conversations\' compression history, image-context switches or compression settings replaced by the peer\'s newer copy'**
+  String lanSyncReportDocumentsReplaced(Object n);
 
   /// Sync report warning that the two devices' clocks differ, so the times of the sync cannot be trusted; n is the difference in minutes.
   ///

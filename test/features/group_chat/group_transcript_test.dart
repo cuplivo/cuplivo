@@ -205,4 +205,59 @@ void main() {
     expect(transcript.last['name'], 'Alice');
     expect(transcript.last['text'], contains('second'));
   });
+
+  test('a line is clipped to its own length, not to the budget left over', () {
+    ChatMessage user(String id, int length) => ChatMessage(
+      id: id,
+      role: 'user',
+      content: 'x' * length,
+      conversationId: 'c1',
+    );
+
+    // Step 1 and step 2 of one round: the second adds a reply, which shrinks
+    // the budget the old window had but must not change a line already sent.
+    final step1 = GroupTranscript.forDirector(
+      [user('u1', 4000), user('u2', 500)],
+      resolve: resolve,
+      maxChars: 4000,
+      maxCharsPerMessage: 1200,
+    );
+    final step2 = GroupTranscript.forDirector(
+      [user('u1', 4000), user('u2', 500), user('u3', 500)],
+      resolve: resolve,
+      maxChars: 4000,
+      maxCharsPerMessage: 1200,
+    );
+
+    expect(step1.first['text'], hasLength(1200));
+    expect(step2.first['text'], step1.first['text']);
+  });
+
+  test('the budget drops whole messages and never the newest', () {
+    ChatMessage user(String id, int length) => ChatMessage(
+      id: id,
+      role: 'user',
+      content: 'x' * length,
+      conversationId: 'c1',
+    );
+
+    final transcript = GroupTranscript.forDirector(
+      [user('u1', 1200), user('u2', 1200), user('u3', 900)],
+      resolve: resolve,
+      maxChars: 2500,
+      maxCharsPerMessage: 1200,
+    );
+
+    // 900 + 1200 fits; the third 1200 does not, and is dropped rather than cut.
+    expect(transcript, hasLength(2));
+    expect(transcript.every((line) => (line['text']!).length <= 1200), isTrue);
+
+    final onlyNewest = GroupTranscript.forDirector(
+      [user('u1', 9000)],
+      resolve: resolve,
+      maxChars: 2500,
+      maxCharsPerMessage: 1200,
+    );
+    expect(onlyNewest.single['text'], hasLength(9000));
+  });
 }

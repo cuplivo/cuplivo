@@ -83,9 +83,9 @@ Future<({int restored, int skipped, int failed})> restoreRecycleGroup(
     } else if (outcome == RecycleRestoreOutcome.skippedExisting) {
       skipped++;
     } else {
-      // `unreadable`, `unsupported`, `workspaceGone`, `failed`: the entry is
-      // still there because it could not be brought back, which is not "already
-      // back" and must not be reported as such.
+      // `unreadable`, `unsupported`, `workspaceGone`, `conversationGone`,
+      // `failed`: the entry is still there because it could not be brought back,
+      // which is not "already back" and must not be reported as such.
       failed++;
     }
   }
@@ -223,6 +223,8 @@ String _outcomeMessage(RecycleRestoreOutcome outcome, AppLocalizations l10n) =>
       RecycleRestoreOutcome.skippedExisting => l10n.recycleBinRestoreSkipped,
       RecycleRestoreOutcome.unreadable => l10n.recycleBinRestoreUnreadable,
       RecycleRestoreOutcome.workspaceGone => l10n.recycleBinRestoreNoWorkspace,
+      RecycleRestoreOutcome.conversationGone =>
+        l10n.recycleBinRestoreNoConversation,
       RecycleRestoreOutcome.unsupported => l10n.recycleBinRestoreUnsupported,
       RecycleRestoreOutcome.failed => l10n.recycleBinRestoreFailed,
     };

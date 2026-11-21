@@ -25,9 +25,11 @@ import 'package:Cuplivo/core/database/business_restore_service.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/database/schema_migrations.dart';
 import 'package:Cuplivo/core/services/backup/backup_archive_format.dart';
+import 'package:Cuplivo/core/services/backup/backup_archive_naming.dart';
 import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/utils/kelivo_file_uri.dart';
 import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
@@ -2668,6 +2670,18 @@ void main() {
             items.map((item) => item.displayName),
             contains(p.basename(archivePath)),
           );
+          if (!useS3) {
+            // This PROPFIND returns no getlastmodified, so the listing has to
+            // fall back to the timestamp in the archive's name. Pinned here
+            // rather than at the parser: dropping the call in the listing is
+            // the regression, and it would leave the file sorting as undated.
+            expect(
+              items
+                  .singleWhere((i) => i.displayName.endsWith('.kbackup'))
+                  .lastModified,
+              isNotNull,
+            );
+          }
           if (useS3) {
             denyBucketListing = true;
             final manifestItems = await s3.listRemote();
@@ -3529,7 +3543,7 @@ void main() {
     test('a Kelivo-target export names no entity key that release lacks', () async {
       // The reverse direction, which every other test in this tree leaves out:
       // Cuplivo restores its own archives, so a key the fork adds round-trips
-      // perfectly and only breaks on the older reader. Kelivo v1.3.4 throws
+      // perfectly and only breaks on the older reader. Kelivo v1.3.2 throws
       // FormatException on `group_chats_v1` in its row-id routing, after every
       // compatibility check on the archive has passed.
       final forThisBuild = await DataSync.exportBusinessSettingsFrom(
@@ -3537,7 +3551,7 @@ void main() {
       );
       final forKelivo = await DataSync.exportBusinessSettingsFrom(
         businessRepository,
-        target: BackupTarget.kelivoV1_3_4,
+        target: BackupTarget.kelivo,
       );
 
       // The guard is only a guard if the key is really there without it.
@@ -3557,7 +3571,7 @@ void main() {
       expect(forKelivo.entityRowIds.keys, contains('assistants_v1'));
       expect(
         forKelivo.entityRowIds.keys.toSet().difference(
-          KelivoVocabulary.v1_3_4.entitySourceKeys,
+          KelivoVocabulary.v1_3_2.entitySourceKeys,
         ),
         isEmpty,
       );
@@ -3571,8 +3585,14 @@ void main() {
               businessRepository: businessRepository,
               chatService: ChatService(),
             ).exportToFile(
-              _withoutChatsOrAssets.copyWith(target: BackupTarget.kelivoV1_3_4),
+              _withoutChatsOrAssets.copyWith(target: BackupTarget.kelivo),
             );
+        // The name carries the reader too: a departing user picks the file they
+        // can take back, and the extension is all either app lists by.
+        expect(
+          p.basename(zipFile.path),
+          startsWith(BackupArchiveNaming.kelivoPrefix),
+        );
         final archive = ZipDecoder().decodeBytes(await zipFile.readAsBytes());
         final manifest =
             jsonDecode(
@@ -3592,6 +3612,47 @@ void main() {
         );
       },
     );
+
+    test('a Kelivo-target manifest carries no key the floor release refuses', () {
+      // That reader stages the candidate and then compares the root key set
+      // exactly. `skippedEntries` is newer than the floor (upstream added it
+      // after v1.3.5), and the reader's unknown-key trim only runs for a
+      // manifest that declares a newer build — so an omission recorded here
+      // would surface as a refusal after the user consented to the restore.
+      final forKelivo = DataSync.debugBuildManifestJson(
+        target: BackupTarget.kelivo,
+        skippedEntries: const ['upload/omitted.bin'],
+      );
+      expect(
+        forKelivo.keys.toSet().difference(
+          KelivoVocabulary.v1_3_2.manifestRootKeys,
+        ),
+        isEmpty,
+        reason:
+            'A root key the floor release does not accept is refused by its '
+            'exact candidate check, not ignored.',
+      );
+      expect(forKelivo, isNot(contains('skippedEntries')));
+
+      // This build's own archive keeps the diagnostic; its reader knows the key.
+      final forThisBuild = DataSync.debugBuildManifestJson(
+        target: BackupTarget.cuplivo,
+        skippedEntries: const ['upload/omitted.bin'],
+      );
+      expect(forThisBuild['skippedEntries'], ['upload/omitted.bin']);
+    });
+
+    test('a Cuplivo-target export is named for this build', () async {
+      final zipFile = await DataSync(
+        businessRepository: businessRepository,
+        chatService: ChatService(),
+      ).exportToFile(_withoutChatsOrAssets);
+      addTearDown(() => DataSync.cleanupTemporaryBackupFile(zipFile));
+      expect(
+        p.basename(zipFile.path),
+        startsWith(BackupArchiveNaming.cuplivoPrefix),
+      );
+    });
 
     test('accepts a newer settings-only backup with unknown entries', () async {
       // A settings-only backup carries no database block at all, so a
@@ -3748,6 +3809,48 @@ void main() {
             BusinessPreferences(businessRepository),
           ).getAll(),
           isEmpty,
+        );
+      },
+    );
+
+    test(
+      'versioned settings-only overwrite keeps a library the archive never names',
+      () async {
+        // A pre-promotion archive carries the compression library in its
+        // snapshot database and no key for it in settings.json. A settings-only
+        // restore reads only the settings half, so the missing key must keep the
+        // live library instead of erasing it.
+        await ExtensionEntityStore(businessDatabase).upsert(
+          CompressionTemplate.entityKind,
+          'custom',
+          const CompressionTemplate(
+            id: 'custom',
+            name: 'My RP',
+            prompt: 'Keep secrets separate {content}',
+          ).toJson(),
+        );
+        final zipFile = await _createSqliteBackupFixture(
+          root: root,
+          prefix: 'unstated_library_overwrite',
+          settings: const {'theme_mode_v1': 'dark'},
+        );
+
+        await DataSync(
+          businessRepository: businessRepository,
+          chatService: ChatService(),
+        ).restoreFromLocalFile(zipFile, _withoutChatsOrAssets);
+
+        expect(
+          (await BusinessRestoreService(
+            businessRepository,
+          ).exportSettings())['theme_mode_v1'],
+          'dark',
+        );
+        expect(
+          await ExtensionEntityStore(
+            businessDatabase,
+          ).get(CompressionTemplate.entityKind, 'custom'),
+          isNotNull,
         );
       },
     );

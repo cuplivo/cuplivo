@@ -170,20 +170,43 @@ void main() {
       expect(await store.bodyFile(entry), isNull);
     });
 
-    test('listing collapses entries that staged the same identity', () async {
-      final first = await stageEntity('a1', title: 'First');
-      await Future<void>.delayed(const Duration(milliseconds: 2));
-      final second = await stageEntity('a1', title: 'Second');
+    test(
+      'listing collapses one record and keeps a same-id record of another kind',
+      () async {
+        final first = await stageEntity('a1', title: 'First');
+        await Future<void>.delayed(const Duration(milliseconds: 2));
+        final second = await stageEntity('a1', title: 'Second');
 
-      expect(first!.id, isNot(second!.id));
-      final listed = await store.list();
-      expect(listed, hasLength(1));
-      expect(listed.single.id, second.id);
-      expect(listed.single.title, 'Second');
+        expect(first!.id, isNot(second!.id));
+        final listed = await store.list();
+        expect(listed, hasLength(1));
+        expect(listed.single.id, second.id);
+        expect(listed.single.title, 'Second');
 
-      expect(await store.purgeKey(RecycleEntryType.businessEntity, 'a1'), 2);
-      expect(await store.list(), isEmpty);
-    });
+        // The purge matches the record, so it names the kind as well: a kind-less
+        // purge would take the same-id entries of every other kind with it.
+        expect(
+          await store.purgeKey(
+            RecycleEntryType.businessEntity,
+            'a1',
+            kindWire: 'assistant_rows',
+          ),
+          2,
+        );
+        expect(await store.list(), isEmpty);
+        // A different kind on the same id is a different record and survives.
+        await stageEntity('a1', title: 'Other kind');
+        expect(
+          await store.purgeKey(
+            RecycleEntryType.businessEntity,
+            'a1',
+            kindWire: 'workspace_rows',
+          ),
+          0,
+        );
+        expect(await store.list(), hasLength(1));
+      },
+    );
 
     test('the entry just staged is never the one evicted', () async {
       final entry = await stageEntity('a1');

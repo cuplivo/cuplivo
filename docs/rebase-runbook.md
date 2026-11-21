@@ -301,12 +301,13 @@ Units from earlier series that are **gone, and must not come back**:
     added `BusinessEntityKind.groupChat` (`sourceKey: 'group_chats_v1'`), and
     `exportSnapshotWithRowIds` writes a key for *every* kind, so every backup since carries
     `"group_chats_v1": []` in the manifest's `businessEntityRowIds` — the list is empty and does not
-    save it, because the key is what the older reader rejects. Kelivo v1.3.4 reads that archive as
-    **its own**: the unit moved neither the archive format (`_backupFormatVersion` 3) nor the schema
-    (`AppDatabase.currentSchemaVersion` 5), so no compatibility decision is raised and nothing is
-    stripped. The restore then dies inside the business step, in
-    `BusinessSettingsRouter._rowIdsByKind`, whose first loop throws on a source key it has no kind
-    for — `FormatException('group_chats_v1')`, after every check that exists has already passed.
+    save it, because the key is what the older reader rejects. Kelivo v1.3.2 — and every release after
+    it — reads that archive as **its own**: the unit moved neither the archive format
+    (`_backupFormatVersion` 3) nor the schema (`AppDatabase.currentSchemaVersion` 5), so no
+    compatibility decision is raised and nothing is stripped. The restore then dies inside the
+    business step, in `BusinessSettingsRouter._rowIdsByKind`, whose first loop throws on a source key
+    it has no kind for — `FormatException('group_chats_v1')`, after every check that exists has
+    already passed.
     `_stripUnknownManifestKeys` cannot help even in principle:
     `businessEntityRowIds` is a *known* manifest key, so the whole map is carried through verbatim,
     and nothing inspects a known key's *contents* for a vocabulary the reader does not have.
@@ -323,22 +324,32 @@ Units from earlier series that are **gone, and must not come back**:
       or `List<String>` (`BackupSettingsValidator.validateValue`) — and note that a value it *would*
       reject fails the same archive in our own build too, so this axis is the one the gates do see;
     - an added `conversation.extras` key is opaque to the reader (and a group conversation's null
-      `assistantId` is legal upstream), so it rides along as baggage, not as a break.
+      `assistantId` is legal upstream), so it rides along as baggage, not as a break;
+    - an added **root key in the manifest** reaches a check unlike any of the above: the reader
+      stages a candidate and compares the root key set *exactly*, and its unknown-key trim only runs
+      for an archive that declares a newer build. A key outside `KelivoVocabulary.manifestRootKeys`
+      is therefore refused **after** the user consented. `skippedEntries` (upstream 1.3.6) is the
+      case that shipped; the writer may only add such a key to an archive this build reads back.
 
     Per re-base, after the gates: `test/core/database/kelivo_vocabulary_test.dart` is the mechanical
     check — it refuses a `BusinessEntityKind` that is neither in the pinned vocabulary nor in
     `unreadableKindDispositions`, so a new kind cannot ship without someone writing down what a Kelivo
     user loses. Pinning a *newer* Kelivo release is the other half: add a constant to
-    `lib/core/models/backup_target.dart` generated from that tag (`git show <kelivo-tag>:lib/core/database/business_data.dart`
-    and `.../lib/core/models/backup_scope.dart`) beside `v1_3_4` rather than editing it, and check the
-    reader at that tag — `_rowIdsByKind`, `BackupScope.fromJson` and
-    `BackupSettingsValidator.validateValue` — before trusting the pin. The end-to-end proof is still a
-    restore of a backup taken from the rebased tree into the last released Kelivo build; no local test
-    can stand in for it, and its tell is that `flutter test` is entirely green while the archive is
-    unusable. What to *do* about a new kind stays a decision of its own — a narrower export for archives
-    Kelivo may read ([ADR-0017](adr/0017-kelivo-reverse-import.md) is the first one), a format-version
-    bump that makes the refusal loud and early, or nothing because the kind is tolerated — and this rule
-    asks only that the re-base knows which one the tree currently does.
+    `lib/core/models/backup_target.dart` generated from that tag
+    (`git show <kelivo-tag>:lib/core/database/business_data.dart`,
+    `.../lib/core/models/backup_scope.dart` and `.../lib/core/database/app_database.dart` for the
+    schema) beside `v1_3_2` rather than editing it, and check the reader at that tag —
+    `_rowIdsByKind`, `BackupScope.fromJson` and `BackupSettingsValidator.validateValue` — before
+    trusting the pin. The target labels itself from the constant's `release`, so a moved pin moves
+    「Kelivo {version}+」 with it; the schema assertion in `kelivo_vocabulary_test.dart` is what turns
+    "the floor no longer opens what we write" into a red suite instead of a stale label. The
+    end-to-end proof is still a restore of a backup taken from the rebased tree into the last released
+    Kelivo build; no local test can stand in for it, and its tell is that `flutter test` is entirely
+    green while the archive is unusable. What to *do* about a new kind stays a decision of its own — a
+    narrower export for archives Kelivo may read ([ADR-0017](adr/0017-kelivo-reverse-import.md) is the
+    first one), a format-version bump that makes the refusal loud and early, or nothing because the
+    kind is tolerated — and this rule asks only that the re-base knows which one the tree currently
+    does.
 18. **A built-in removal the identity unit only *claims* is a standing gate, not one commit.**
     `87f613717`'s message says the built-in `KelivoIN` provider lost its seeding, defaults, prefill,
     migration and free token; the tree deleted the token and kept the seeding, and the next baseline
@@ -815,7 +826,7 @@ resolution.
 | image | #925/#946 compression editor, #992 crop + #1012 focus, #1067 viewer paging, #1070 view-image test |
 | sync | LAN sync, #1068 policy table |
 | care | care port, #1064 backgrounded letter |
-| group-chat | #1052 topics, #1069 group exit, #1072 phone composer |
+| group-chat | #1052 topics, #1092 owner switch (replaces #1069 group exit: the owner pipeline owns those hunks), #1072 phone composer |
 | markdown-image | #1075 render, #1077 per-tab input |
 
 The fold conflicts were 0-1 files each except sync's policy table (7) and the group-chat quick entries
@@ -897,7 +908,7 @@ fixture; what must not is anything naming where data already lives.
 
 One ARB exception, recorded because the standing gate says `git grep -c Kelivo
 master -- lib/l10n/` prints **nothing**: at this tip it prints two keys.
-`backupPageTargetKelivo` ("Kelivo 1.3.4") and `backupPageTargetKelivoNote`
+`backupPageTargetKelivo` ("Kelivo {version}+") and `backupPageTargetKelivoNote`
 ("Imports into Kelivo, but group chats are lost") exist on the fork's old tip and
 on neither `4a7da9b6f` nor `cb95d6af0`, and they name the *other* application as a
 backup target. Renaming them would rename a third-party product, not this one, so

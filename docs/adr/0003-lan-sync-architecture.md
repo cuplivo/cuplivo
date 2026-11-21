@@ -2057,3 +2057,239 @@ The listener's graceful stop is no longer the exit flush's job, and a close that
 no longer answered as a quit. That decision, its platform evidence and its rejected alternatives live
 in [ADR-0015](0015-close-to-tray-listener.md); the parenthetical in the slice-16 amendment above ("the
 graceful stop is the exit flush's job") is superseded by it.
+
+## Amendment (2026-11, projection): a family is a registration, and the protocol moves
+
+### Context
+
+"Does this row cross devices?" was answered by five separate enumerations — the subtree read
+list, the apply list, the digest SQL, the blob scan, the session report — so a family added to
+the schema could be silently absent from some of them. The re-based baseline made that concrete:
+four conversation-scoped kinds (the compression history, the image-context switches, the
+compression configuration) and `provider_artifact_rows` hang off a conversation and travelled
+nowhere. A peer therefore showed the uncompressed text while holding the summary, lost every pin,
+and could not sign the history it continued. The same shape hid a second defect: a conversation's
+identity was a hash of its message rows, so a change to any of those families was invisible to the
+plan until something happened to a message.
+
+### Decision
+
+**A family is a registration.** `lib/core/services/sync/sync_family_registry.dart` holds one entry
+per family: table, scope (conversation or business), the `extension_entity_rows.kind` filter, how
+it enters an identity, which of its columns may carry a `kelivo-file` URI, and whether it is
+`synced` or `deviceLocal` **with a reason**. The subtree read (`syncReadFamilyRows`), the payload's
+keys (`SyncSubtreePayload` maps family name → rows over the registered wire keys), the blob scan
+(each family's declared columns) and the digest all read that entry. Adding a family is adding an
+entry; the wire struct does not grow.
+
+**The registration is guarded.** A test fails when the source grows an `extension_entity_rows`
+kind nobody registered (declarations whatever their casing; uses only when the literal is
+camelCase, which separates an extension kind from `message_part_rows`' word-shaped ones), and when
+the schema grows a table carrying `conversation_id` or `revision_id` with no family. A family is
+`synced`, or `deviceLocal` with a reason — there is no third answer.
+
+**A conversation's identity is composed from the families.** Every `synced` conversation family
+contributes what its entry says: one `key:clock` line per row, or one `key:value` line per row where
+the family has no clock. A whole document is one row per conversation, so its line is its id and its
+`updated_at` — the clock the LWW comparison already reads, which is what decides that document's
+version. (The first shape hashed every document payload on every manifest build: 6.5 ms/MB, on the
+app isolate, per session. The clock is the same fact without the read.) The family's name is part of
+the text, so two families contributing the same lines cannot compose the same identity. The
+conversation row's own clock still rides beside the digest in the manifest entry, for the row-only
+writes the digest cannot see. Two readers implement this one rule — an SQL aggregate per family for
+the manifest (a manifest must not materialise a row per message) and a Dart re-read for a checkpoint —
+and a test holds them equal on a conversation that has something in every family.
+
+**A document family is applied whole.** The compression history, the image context and the
+compression configuration are one row per conversation whose payload is the entire document
+(`readContextOperations` reads one row whose payload is the whole operation array), so there is no
+row set to merge: the newer `updated_at` wins and an exact tie falls to the higher deviceId, as on
+the business face. A local document that loses is **replaced and counted** (`documentReplaced` on the
+apply outcome, `conversationsWithDocumentsReplaced` on the session report and the card). Those
+families were
+device-local until this version, so the first sessions after the upgrade are exactly when both
+sides hold their own copy; the newer one winning is fine as a rule and unacceptable as a secret. A
+row is accepted only where it says it belongs — its conversation column names this conversation,
+and an extension row carries exactly its family's kind.
+
+**A checkpoint describes what was sent, not what is here now.** A sent conversation's entry is
+composed from the payload; an applied one is the identity the apply composed inside its own
+transaction. A re-read outside either would record a row written while the session was in flight as
+one the peer already has, and the next merge would read the peer's silence as a deletion.
+
+**References are parsed, not pattern-matched.** `)` is a legal URI path character, so a character
+class matched the closing bracket of `![…](kelivo-file:///a.png)`, the strict parser rejected the
+candidate, and the file was silently never advertised. Discovery takes the maximal run of path
+characters — cut where the next `kelivo-file://` starts, because a second reference is not part of
+this one — trims prose punctuation from its end, and shortens until the strict parser accepts what is
+left. A name that carries an unbalanced `)` therefore keeps it: the bracket that ends a Markdown
+reference is the last one. `'` is not a path character here, and the writer is the other half of that
+rule: `encodeComponent` leaves it raw, so `KelivoFileUri` escapes a real one as `%27` — a raw `'`
+after a reference is prose. The run is capped, so a value that mentions the
+scheme and then continues for hundreds of kilobytes costs a bounded scan rather than a quadratic one.
+What the sender cannot serve is returned as a list of misses and logged, instead of skipped.
+
+**The compression library is a business kind.** Templates and recipes are global rows shared by
+every conversation that names one, so they join `BusinessEntityKind` and ride the business face. A
+new kind there is also a reverse-import decision: a Kelivo-target archive drops them (recorded in
+`unreadableKindDispositions` with what the user loses), the settings export and the payload
+validator gained their cases, and the global compression defaults are the template kind's companion
+key.
+
+**Protocol 9.** The subtree carries four more sections and the identity is composed differently, so
+a v8 peer cannot be spoken to half-way: it would ignore the sections, keep a document it never
+received as its local version, and disagree about the digest of every conversation for good. The
+existing hello gate refuses it with the upgrade reason it already carries.
+
+### Consequences
+
+- **An upgrade window**: both devices must be updated before they sync again (the usual cost of a
+  protocol revision; the panel already says so).
+- **One re-baseline, not a re-send**: every conversation's digest changes, so the first session
+  after the upgrade rewrites every checkpoint entry. That is a local re-read per settled
+  conversation; `planRowSync` still compares the two manifests first and answers `none` when they
+  agree, so only genuinely diverged conversations transfer.
+- **A replaced document is counted and recoverable.** The report counts the conversations whose
+  compression history, image-context switches or compression settings the peer's newer copy replaced,
+  and the losing row is staged in the recycle bin before the write — the rule the business face
+  already applied to a losing entity row. The bin names these rows by their extension kind, because
+  they are not `BusinessEntityKind` members. A document removed with its *conversation* is the other
+  path: the bin's conversation entry carries it (#1093), and the kinds that entry captures are
+  derived from this same registration — a new synced conversation document is captured and deleted
+  without a second list to edit.
+- **A row the decoders reject travels nowhere.** The settings import already refused a payload its
+  runtime decoder could not read; the wire gave the same rows a second entrance with no such check.
+  One unreadable template is not a row that looks odd — `CompressionRepository` decodes every row of
+  the kind in one loop, so it is a library that cannot be listed, and the page that would let the
+  user delete it reads that same list. The refusal is the apply's, not the manifest's: the row still
+  appears in the manifest and the peer still offers it, because absence from a manifest is a
+  *deletion* signal — `planBusinessSync` reads a row this device no longer lists as one it must
+  delete — and a row this device cannot read is not a row it deleted. The apply skips the row and
+  leaves it out of the acknowledgement, so the peer re-offers it next session instead of removing
+  the only copy that can be read. That is the rule a linked workspace already followed, in the one
+  direction that survives: the peer keeps the copy, and neither side deletes on the strength of a
+  refusal.
+- **The apply refuses what SQLite would refuse.** A `conversationContext` payload that is not JSON is
+  parsed by the context index's AFTER trigger, and a provider artifact whose clocks invert violates
+  `CHECK (updated_at >= created_at)`; a refusal inside SQLite aborts the transaction, and with it the
+  checkpoint, so the peer would re-send the same row every session. Both are dropped before the
+  write, like every other bad row in that loop.
+- **An archive from before the promotion keeps its library in either restore mode.** The library's
+  carrier moved from the snapshot database to `settings.json`, so an older archive names neither key
+  while its database half holds every template and recipe. Merge already read key presence;
+  `overwrite` now keeps those two kinds' rows when the archive is silent about them, because the
+  empty list a missing key routes to would delete the archive's only copy. The rule is scoped to the
+  two kinds whose carrier moved: every other kind keeps `overwrite` meaning "exactly what this
+  archive says", memory entries in particular being derived state that must not outlive the history
+  the archive replaced.
+- **A deletion still pending at the upgrade is undone once.** A conversation deleted on one device
+  but not yet synced when both upgrade comes back in the first v9 session: this device holds no
+  manifest entry for it, so the plan compares the peer's v9 digest with the v8 digest the checkpoint
+  still carries (or with nothing at all), reads a difference, and answers `peerSends` — "the peer
+  modified it, and an edit beats a delete". The peer reads this device's announced deletion, written
+  in v8 terms, the same way. Nothing can re-baseline it: a digest is composed from the rows a
+  deletion removed. Delete it again — the second deletion propagates normally, because by then both
+  sides speak v9. The direction is safe (nothing is lost; the copy is in the recycle bin), and the
+  alternative — deciding "the digest changed, therefore the content did not" by clock — would delete
+  a conversation a peer had genuinely written to, since a message edit does not move the conversation
+  row's clock.
+- **A new family costs one entry plus, at most, a payload case** — and the guard refuses the ones
+  nobody classified. It reads four shapes: a declaration (`entityKind =`, `extensionKind:`,
+  `static const kind =`, `…Kind =`, and the store's own front form `kindWorkspace =`), a camelCase
+  use (`kind =`, `kind:`, `kind.equals`, `kind IN (…)`), and a kind passed positionally to
+  `ExtensionEntityStore` (`upsert`, `get`, `delete`, `listByKind`, `watchKind`). A synced
+  conversation family also names its `conflictTarget` — the applier writes its rows through it — and
+  the guard refuses a family that does not, or one naming a column the table does not have; a
+  whole-document family on a table without a `payload` column is refused too, because the applier
+  would drop every row it read. The front form is
+  claimed with two carve-outs, because the same shape also names things that are not rows at all:
+  `provider_artifact_rows` values (`image_ocr_v1`, the table syncs whole) and the blob plane's entry
+  kinds (`file`, `skill-dir`). Four review rounds found four blind spots in this scan — a compound
+  identifier, a capture that stopped at the first non-letter, a literal in an argument position, and
+  the declaration style the store itself teaches — so the next fix of this shape should not widen
+  the scan a fifth time: it should make the store take a registered token, where an unregistered
+  kind cannot be written at all. What a source scan cannot see is a kind
+  that never appears as a literal, and there will always be one.
+- **`apply` defaults to the rule that fails loudly.** A family that says nothing gets
+  `rowLastWriteWins`, which asks the applier for a conflict target and is a `StateError` on the first
+  session if the table has none. The other value — `specialised` — means one of the four tables the
+  merge body has a rule for, and a family that asks for it by accident is read, sent and digested
+  while nothing ever writes its rows: convergeless and silent. The guard refuses that request for any
+  other table, which is the only thing standing between the registry's invitation and that failure.
+
+### Two grains of "this does not travel"
+
+A *family* can be device-local (`SyncFamilyOwnership.deviceLocal` plus its reason): none of its rows
+are registered to travel. A *column* can be device-local too, and that is a different grain — the row
+travels, one of its columns is this device's own fact. `#1087` established the shape: the read side
+strips it (`syncReadWireConversationRow`) and the applier restores it from the local row, because
+`_upsertSyncRow` writes every column the schema has. An omitted key becomes NULL, so a peer value
+would claim something this device never did, and for a conversation that arrives new there is no
+local row to restore from at all — the strip is the whole protection.
+
+The rule for a future one: strip it on the wire read, restore it in the apply, and keep it out of
+every identity contribution. A device-local value inside a digest would make two devices disagree
+permanently about a conversation neither of them touched. `conversation_rows` contributes
+`conversationClock` — its `updated_at` — so today's column is invisible to the digest by
+construction, and `the wire subtree carries no device-local column` holds the read half of the rule.
+
+One conflation worth naming: the conversation row's merge is not pure LWW.
+`last_memory_extracted_order` is monotone on both sides and joins with `max` in the applier, after
+`mergeConversationRow` has picked a winner. It is not a second merge — the join is symmetric, so both
+peers compute the same value whoever won the row — but "who wins" and "what the row ends up as" are
+now two places. A third such column should become a registration in the family table, not a third
+patch in the applier.
+
+### The third grain: a key inside a column that does travel
+
+The conversation-grant fix added the narrowest grain of the same question. The conversation row's
+`extras_json` is one column of shared state, and two of its keys are not: `tools.permission_mode` and
+the older build's `workspace.allowAll`. The row travels; the grant does not.
+
+The column-level shape above cannot be reused here, because the column is shared: omitting it on the
+wire would drop the title flags and `workspace.id` with it. So the rule is per key, and it still has
+the two halves — the wire read removes the grant keys, the applier deletes whatever arrived and puts
+back only the keys the local row already held. Both halves are load-bearing in a way that is easy to
+get wrong: a strip alone loses the grant the first time a peer wins the row, and a merge alone lets
+the grant cross. "Delete first, then restore" is also what protects against a peer on the older
+build, which still puts its grant on the wire, and it is the whole protection for a conversation that
+arrives new, where there is no local row to restore from.
+
+One condition on the restore, the only state this grain has: the winner's `workspace.id` must equal
+the local one. A grant is issued against the binding (writing a binding clears it,
+`WorkspaceBinding.applyTo`), so restoring one across a rebind would carry an approval to a workspace
+the user never approved.
+
+The first cut of this rule also took `workspace.cwd`, on the reading that a path is this device's own
+fact. That reading was wrong, and the reason is worth keeping: the key stored next to a device fact
+may look like one and not be. `workspace.cwd` is a **workspace-relative** folder — the picker
+validates it as one (`FileBrowserOps.isValidRelativePath`) and `WorkspacePaths.normalizeCwd` resolves
+it against the workspace root — and a managed workspace's *content* is itself a synced plane, so the
+same relative folder exists on the peer. Stripping it dropped the peer's conversation onto the
+workspace root and changed where its file and shell tools resolved; the archive has always kept it
+for the same reason. It follows the winner like the rest of the bag, and a rebind then needs no
+special case: the winner's folder belongs to the winner's binding.
+
+Nothing here moves an identity: `conversation_rows` contributes its clock, not its column values, so
+a key only one device holds cannot make the two disagree, and the extras merge rides the winner's own
+upsert rather than a second write that would bump `updated_at`. No protocol field changed either, so
+the schema version does not move. The key set is `ToolPermissionMode.grantExtrasKeys`, and the backup
+sanitizer derives its removal lists from it rather than repeating the literals — the fourth copy of a
+key is the one nobody updates.
+
+**A mixed-version pair costs the older device its own grant, once.** A build without the restore half
+writes the stripped bag over its `extras_json` when it accepts a row from this one, so a grant it held
+is gone and has to be given again. The other direction is safe by construction, because the strip runs
+on arrival. Nothing can carry "keep yours" without a protocol field, so this is a rollout note rather
+than a code path: the cost is one re-grant per conversation, and the next tool call asks instead of
+running.
+
+**The boundary of this rule**, stated because the next reader will ask why one approval travels while
+the other does not: a *workspace's* policy is not a grant. `shellNeedsApproval` rides inside the
+workspace row beside `disabledTools` and `defaultCwd`, and the receiving device does not ask where a
+policy was authored (`business_repository.dart` filters only linked and malformed workspace rows). What
+bounds it is what the flag does: `workspace_tools_service.dart` requires approval whenever the runtime
+is not sandboxed, whatever the flag says, so a loosened copy skips a prompt *inside* a sandbox rather
+than widening what the sandbox confines. Whether the flag should be device-local is a product question
+about policy versus grant, and it is not decided by this rule — a policy that turns out to be the same
+kind of fact needs its own argument.

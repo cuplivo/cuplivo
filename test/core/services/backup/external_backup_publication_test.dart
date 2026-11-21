@@ -27,9 +27,13 @@ void main() {
       final debris = [
         File('${root.path}/discard.kbackup'),
         File('${tmp.path}/kelivo_backup_old.kbackup'),
+        File('${tmp.path}/cuplivo_backup_old.zip'),
         File('${tmp.path}/kelivo_restore_interrupted.zip'),
         File('${tmp.path}/_bk_kelivo.db'),
       ];
+      final cuplivoStaging = Directory(
+        '${tmp.path}/cuplivo_backup_2026-11-19T12-31-05.123456',
+      )..createSync();
       for (final file in debris) {
         file.createSync();
       }
@@ -46,6 +50,7 @@ void main() {
       expect(snap.existsSync(), isTrue);
       expect(user.readAsStringSync(), 'keep');
       expect(debris.where((f) => f.existsSync()), isEmpty);
+      expect(cuplivoStaging.existsSync(), isFalse);
     },
   );
 
@@ -86,11 +91,22 @@ void main() {
           'kelivo_backup_recent.zip.partial': now,
           'kelivo_backup_no_date.zip.partial': null,
           'kelivo_backup_final.zip': older,
+          'cuplivo_backup_old.zip.partial': older,
+          // The store can change case; the sweep must still own it.
+          'CUPLIVO_BACKUP_cased.zip.partial': older,
           'foreign.zip.partial': older,
         },
         remove: (n) async => deleted.add(n),
       );
-      expect(deleted, unorderedEquals([marked, old]));
+      expect(
+        deleted,
+        unorderedEquals([
+          marked,
+          old,
+          'cuplivo_backup_old.zip.partial',
+          'CUPLIVO_BACKUP_cased.zip.partial',
+        ]),
+      );
       finish.complete();
       await publish;
       expect(journal.marked(scope), isEmpty);
@@ -109,8 +125,12 @@ void main() {
       final local = LocalFolderBackup(dest, id, const BackupPartials(null));
       final epoch = DateTime.utc(2026);
       File output(int i) => File(
-        '${dest.path}/kelivo_auto_${id}_${epoch.add(Duration(seconds: i)).microsecondsSinceEpoch}.zip',
+        '${dest.path}/cuplivo_auto_${id}_${epoch.add(Duration(seconds: i)).microsecondsSinceEpoch}.zip',
       );
+      // Written by 4.7.0: still owned, still counted by retention.
+      final legacy = File(
+        '${dest.path}/kelivo_auto_${id}_${epoch.subtract(const Duration(seconds: 1)).microsecondsSinceEpoch}.zip',
+      )..createSync();
       final manual = File('${dest.path}/kelivo_backup_manual.zip')
         ..createSync();
       final other = File(
@@ -122,6 +142,12 @@ void main() {
       expect(
         jsonDecode(manifest.readAsStringSync())['files'],
         contains(output(0).uri.pathSegments.last),
+      );
+      // The 4.7.0 name is not foreign debris: it is this installation's, and
+      // dropping it here would strand it outside retention forever.
+      expect(
+        jsonDecode(manifest.readAsStringSync())['files'],
+        contains(legacy.uri.pathSegments.last),
       );
       for (var i = 1; i <= 10; i++) {
         await local.publish(
@@ -164,6 +190,7 @@ void main() {
         expect(output(i - keep).existsSync(), isFalse);
         expect(output(i).readAsStringSync(), 'archive');
       }
+      expect(legacy.existsSync(), isFalse);
       expect(manual.existsSync() && other.existsSync(), isTrue);
       expect(
         dest.listSync().where((f) => f.path.endsWith('.partial')),

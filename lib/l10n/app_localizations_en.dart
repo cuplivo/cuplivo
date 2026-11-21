@@ -1791,7 +1791,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Everything this version can restore, group chats included';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>
@@ -1826,7 +1828,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Quick phrases';
 
   @override
-  String get backupPageInstructionsLabel => 'Prompt injections';
+  String get backupPageInstructionsLabel => 'Prompt library';
 
   @override
   String get backupPageWorkspacesLabel => 'Workspaces';
@@ -3972,6 +3974,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Embedding';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Decision';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Decision API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Decision URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Empty: appended to the provider URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Some providers serve decision models on their own endpoint; enter the path to override the default address.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Fill';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Current';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Input Modes';
@@ -17376,6 +17404,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindSkill => 'Skill';
 
   @override
+  String get recycleBinKindCompressionHistory => 'Compression history';
+
+  @override
+  String get recycleBinKindImageContext => 'Image context';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Compression settings';
+
+  @override
   String get recycleBinKindConfig => 'Configuration';
 
   @override
@@ -17422,6 +17459,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get recycleBinRestoreNoWorkspace =>
       'This file\'s workspace was deleted, so there is no folder to put it back into.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      'This entry\'s conversation was deleted, so there is nothing to put it back into.';
 
   @override
   String get recycleBinRestoreFailed => 'Could not restore that entry';
@@ -17932,6 +17973,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n local rows replaced by newer versions on the peer (recoverable in the recycle bin)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n conversations\' compression history, image-context switches or compression settings replaced by the peer\'s newer copy';
   }
 
   @override

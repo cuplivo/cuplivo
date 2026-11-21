@@ -96,8 +96,11 @@ def write(path, data):
     content = json.dumps(data, ensure_ascii=False, indent=2) + '\n'
     if path.exists() and path.read_text(encoding='utf-8') == content:
         return
-    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
-                                     delete=False) as handle:
+    # newline='' keeps the file LF-only on Windows: the default text mode
+    # translates \n to os.linesep, which rewrote every line of the four state
+    # files the first time this ran there.
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', newline='',
+                                     dir=path.parent, delete=False) as handle:
         handle.write(content)
         temporary = Path(handle.name)
     temporary.replace(path)

@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'blob_sync.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
+import 'sync_family_registry.dart';
 import 'sync_endpoint_prober.dart';
 import 'sync_identity.dart';
 import 'sync_limits.dart';
@@ -117,6 +118,14 @@ class SyncSessionReport {
   final int entityRowsLost;
   final int preferencesLost;
 
+  /// Conversations whose own document the peer's newer copy replaced (D-7):
+  /// compression history, image context, compression config — one per
+  /// conversation, however many of its documents changed. The same rule as
+  /// above — an overwritten local edit is never silent — for the families that
+  /// were device-local until this protocol version. Provider artifacts are not
+  /// counted: they are continuation state, not the user's work.
+  final int conversationsWithDocumentsReplaced;
+
   /// Workspace content in either direction (slice 18), counted the same way the
   /// blob face is: what this device itself landed, deleted, lost and could not
   /// apply — plus how many workspaces it shared no content for (turned off, or
@@ -166,6 +175,7 @@ class SyncSessionReport {
     this.blobsMissing = 0,
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
+    this.conversationsWithDocumentsReplaced = 0,
     this.workspaceFiles = 0,
     this.workspaceBytes = 0,
     this.workspaceFilesRemoved = 0,
@@ -195,6 +205,7 @@ class SyncSessionReport {
     blobsMissing: blobsMissing,
     entityRowsLost: entityRowsLost,
     preferencesLost: preferencesLost,
+    conversationsWithDocumentsReplaced: conversationsWithDocumentsReplaced,
     workspaceFiles: workspaceFiles,
     workspaceBytes: workspaceBytes,
     workspaceFilesRemoved: workspaceFilesRemoved,
@@ -215,6 +226,10 @@ class SyncSessionReport {
 /// session per initiator so `hello`, the incoming apply and the outgoing
 /// subtree fetch share a single plan and checkpoint.
 class SyncEngine implements SyncServerHandler {
+  /// The family a sent payload's message rows travel under, named because the
+  /// checkpoint entry is built from exactly those rows.
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
+
   SyncEngine({
     required this.identity,
     required this.store,
@@ -2411,9 +2426,16 @@ class SyncEngine implements SyncServerHandler {
           } else {
             final sent = sentSubtrees[id];
             if (sent != null) {
+              // Composed from the payload itself. A re-read would be wrong here:
+              // a row written while the session was in flight was never sent, and
+              // recording it as peer-seen makes the next merge read the peer's
+              // silence as a deletion.
               next[id] = buildCheckpointConversation(
                 conversationRow: sent.conversation,
-                messageRows: sent.messages,
+                messageRows: sent.rowsOf(_messageFamily),
+                digest: composeConversationDigest(
+                  identityContributionsOf(sent),
+                ),
               );
             } else if (prior != null) {
               next[id] = prior;
@@ -2433,10 +2455,20 @@ class SyncEngine implements SyncServerHandler {
             if (prior != null) next[id] = prior;
             break;
           }
-          next[id] = buildCheckpointConversation(
-            conversationRow: conversationRow,
-            messageRows: outcome.messageRows,
-          );
+          // The identity the apply composed inside its own transaction: the state
+          // the two sides agreed on, not whatever a writer added afterwards.
+          final digest =
+              outcome.digest ??
+              (await dataPlane.checkpointFromLocal(id))?.digest;
+          if (digest != null) {
+            next[id] = buildCheckpointConversation(
+              conversationRow: conversationRow,
+              messageRows: outcome.messageRows,
+              digest: digest,
+            );
+          } else if (prior != null) {
+            next[id] = prior;
+          }
         case SyncConvAction.iDelete:
           if (failedDeletes.contains(id) && prior != null) next[id] = prior;
         case SyncConvAction.peerDeletes:
@@ -3727,9 +3759,11 @@ class SyncEngine implements SyncServerHandler {
   }) {
     var upserted = 0;
     var deleted = 0;
+    var conversationsWithDocumentsReplaced = 0;
     for (final outcome in outcomes) {
       upserted += outcome.upsertedMessages;
       deleted += outcome.deletedMessages;
+      if (outcome.documentReplaced) conversationsWithDocumentsReplaced++;
     }
     final entityRows =
         _entityRowCount(business) + _entityRowCount(receivedBusiness);
@@ -3807,6 +3841,8 @@ class SyncEngine implements SyncServerHandler {
       if (appliedBusiness?.deferred == true) 'business deferred',
       if (entityRowsLost > 0) 'lost $entityRowsLost entity rows',
       if (preferencesLost > 0) 'lost $preferencesLost prefs',
+      if (conversationsWithDocumentsReplaced > 0)
+        'replaced documents in $conversationsWithDocumentsReplaced convs',
       if (skewMinutes != null) 'clock skew ~$skewMinutes min',
     ];
     return SyncSessionReport(
@@ -3830,6 +3866,7 @@ class SyncEngine implements SyncServerHandler {
       blobsMissing: blobsMissing,
       entityRowsLost: entityRowsLost,
       preferencesLost: preferencesLost,
+      conversationsWithDocumentsReplaced: conversationsWithDocumentsReplaced,
       workspaceFiles: workspaceFiles,
       workspaceBytes: workspaceBytes,
       workspaceFilesRemoved: workspace?.filesRemoved ?? 0,

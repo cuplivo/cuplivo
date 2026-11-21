@@ -1753,7 +1753,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backupPageTargetCuplivoNote => '이 버전에서 복원할 수 있는 모든 항목, 그룹 채팅 포함';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>
@@ -1788,7 +1790,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => '빠른 문구';
 
   @override
-  String get backupPageInstructionsLabel => '프롬프트 주입';
+  String get backupPageInstructionsLabel => '프롬프트 라이브러리';
 
   @override
   String get backupPageWorkspacesLabel => '작업 공간';
@@ -3876,6 +3878,31 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => '임베딩';
+
+  @override
+  String get modelDetailSheetDecisionType => '결정';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '결정 API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '결정 주소';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '비워 두면 provider 주소 뒤에 붙습니다';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      '일부 공급자의 결정 모델은 별도 인터페이스를 사용하므로 기본 주소를 덮어써야 합니다.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '채우기';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '현재';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '바이리안';
 
   @override
   String get modelDetailSheetInputModesLabel => '입력 모드';
@@ -16846,6 +16873,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get recycleBinKindSkill => '스킬';
 
   @override
+  String get recycleBinKindCompressionHistory => '압축 기록';
+
+  @override
+  String get recycleBinKindImageContext => '이미지 컨텍스트';
+
+  @override
+  String get recycleBinKindCompressionSettings => '압축 설정';
+
+  @override
   String get recycleBinKindConfig => '구성';
 
   @override
@@ -16886,6 +16922,10 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recycleBinRestoreNoWorkspace => '이 파일의 작업 공간이 삭제되어 되돌릴 폴더가 없어요.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      '이 항목의 대화가 삭제되어 되돌려 놓을 곳이 없습니다.';
 
   @override
   String get recycleBinRestoreFailed => '이 항목을 복원하지 못했어요';
@@ -17385,6 +17425,11 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '상대 기기의 최신 버전으로 대체된 로컬 기록 $n개(휴지통에서 복원 가능)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '상대 기기의 최신 버전으로 대체된 대화 $n개의 압축 기록, 이미지 컨텍스트 설정 또는 압축 설정';
   }
 
   @override

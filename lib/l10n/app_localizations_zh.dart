@@ -1713,7 +1713,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
@@ -1747,7 +1749,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => '快捷短语';
 
   @override
-  String get backupPageInstructionsLabel => '提示词注入';
+  String get backupPageInstructionsLabel => '提示词库';
 
   @override
   String get backupPageWorkspacesLabel => '工作区';
@@ -3806,6 +3808,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -16462,6 +16488,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinKindSkill => '技能';
 
   @override
+  String get recycleBinKindCompressionHistory => '压缩历史';
+
+  @override
+  String get recycleBinKindImageContext => '图片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '压缩设置';
+
+  @override
   String get recycleBinKindConfig => '配置';
 
   @override
@@ -16502,6 +16537,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreNoConversation => '该条目的对话已被删除，没有可以放回的位置。';
 
   @override
   String get recycleBinRestoreFailed => '恢复失败';
@@ -16995,6 +17033,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 个会话的压缩历史、图片上下文开关或压缩设置被对端较新的版本替换';
   }
 
   @override
@@ -19666,7 +19709,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
@@ -19700,7 +19745,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageQuickPhrasesLabel => '快捷短语';
 
   @override
-  String get backupPageInstructionsLabel => '提示词注入';
+  String get backupPageInstructionsLabel => '提示词库';
 
   @override
   String get backupPageWorkspacesLabel => '工作区';
@@ -21759,6 +21804,30 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -34415,6 +34484,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get recycleBinKindSkill => '技能';
 
   @override
+  String get recycleBinKindCompressionHistory => '压缩历史';
+
+  @override
+  String get recycleBinKindImageContext => '图片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '压缩设置';
+
+  @override
   String get recycleBinKindConfig => '配置';
 
   @override
@@ -34455,6 +34533,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreNoConversation => '该条目的对话已被删除，没有可以放回的位置。';
 
   @override
   String get recycleBinRestoreFailed => '恢复失败';
@@ -34948,6 +35029,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 个会话的压缩历史、图片上下文开关或压缩设置被对端较新的版本替换';
   }
 
   @override
@@ -37624,7 +37710,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageTargetCuplivoNote => '目前版本可還原的全部內容，含群組聊天';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中匯入，但會遺失群組聊天資料';
@@ -37658,7 +37746,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageQuickPhrasesLabel => '快捷短語';
 
   @override
-  String get backupPageInstructionsLabel => '提示詞注入';
+  String get backupPageInstructionsLabel => '提示詞庫';
 
   @override
   String get backupPageWorkspacesLabel => '工作區';
@@ -39717,6 +39805,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '決策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '決策介面';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '決策位址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空則接在 provider 位址後';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供應商的決策模型使用獨立介面，需要覆寫預設請求網址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '目前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百煉';
 
   @override
   String get modelDetailSheetInputModesLabel => '輸入模式';
@@ -52379,6 +52491,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get recycleBinKindSkill => '技能';
 
   @override
+  String get recycleBinKindCompressionHistory => '壓縮歷史';
+
+  @override
+  String get recycleBinKindImageContext => '圖片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '壓縮設定';
+
+  @override
   String get recycleBinKindConfig => '設定';
 
   @override
@@ -52419,6 +52540,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recycleBinRestoreNoWorkspace => '該檔案所屬的工作區已被刪除，沒有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreNoConversation => '該條目的對話已被刪除，沒有可以放回的位置。';
 
   @override
   String get recycleBinRestoreFailed => '還原失敗';
@@ -52912,6 +53036,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 條本地記錄被對端更新的版本覆蓋（可在回收站還原）';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 個對話的壓縮歷史、圖片上下文開關或壓縮設定被對端較新的版本取代';
   }
 
   @override

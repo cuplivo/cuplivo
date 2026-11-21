@@ -700,6 +700,33 @@ void main() {
             'updatedAt': '2026-09-08T00:00:00Z',
           },
         ]),
+        'compression_templates_v1': jsonEncode([
+          {
+            'formatVersion': 1,
+            'id': 'template-1',
+            'name': 'Brief',
+            'prompt': 'Summarise in five lines.',
+            'scene': 'general',
+            'outputLanguage': 'conversation',
+          },
+        ]),
+        'compression_recipes_v1': jsonEncode([
+          {
+            'formatVersion': 1,
+            'id': 'recipe-1',
+            'name': 'Tight',
+            // A whole template, not a reference: `CompressionRecipe.fromJson`
+            // parses this map with `CompressionTemplate.fromJson`, so a
+            // reference-only map is a recipe the app cannot read back.
+            'template': {
+              'formatVersion': 1,
+              'id': 'template-1',
+              'name': 'Brief',
+              'prompt': 'Summarise in five lines.',
+            },
+            'settings': {'keepRecentUserTurns': 2},
+          },
+        ]),
       });
 
       for (final kind in BusinessEntityKind.values) {
@@ -784,6 +811,15 @@ void main() {
         ],
         'instruction_injections_v1': [
           {'id': 'injection-1', 'prompt': 1},
+        ],
+        // Optional to the field check, required by the decoder — and the readers
+        // decode every row of a kind in one loop, so this row would be a library
+        // that cannot be listed rather than a row that looks odd.
+        'compression_templates_v1': [
+          {'id': 'template-1', 'name': 'Brief', 'prompt': 'Summarise.'},
+        ],
+        'compression_recipes_v1': [
+          {'formatVersion': 1, 'id': 'recipe-1', 'name': 'Tight'},
         ],
       };
 

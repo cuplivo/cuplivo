@@ -849,6 +849,23 @@ WHERE id IN ($placeholders);
           // be able to plant one here. The id is half of the same rule — it is
           // what names the folder Cuplivo would create, index and delete.
           if (_syncSkipsRow(kind, id, row['payload'])) continue;
+          // A row this build cannot read back is refused *here*, not in the
+          // manifest. Hiding it from the manifest would make this device look
+          // like it had deleted the row, and the peer — whose copy may still be
+          // readable — would remove it and stage it in the bin: one unreadable
+          // payload would cost the other side a good row. Refused on apply
+          // instead, it stays unacknowledged, so the peer keeps offering it and
+          // nothing is destroyed. The compression kinds are why the check
+          // exists: `CompressionRepository` decodes every template of the kind in
+          // one loop, so a row that lands here is an unlistable library.
+          final incomingPayload = row['payload'];
+          if (incomingPayload is! String ||
+              !BusinessSettingsRouter.isReadablePayload(
+                kind,
+                incomingPayload,
+              )) {
+            continue;
+          }
           final incomingAt = (row['updated_at'] as num?)?.toInt();
           if (incomingAt == null) continue;
           // An extension kind travels under its own wire name; the row must

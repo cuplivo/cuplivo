@@ -528,6 +528,18 @@ void main() {
         ),
         'kelivo-file:///upload/a%23b.png',
       );
+      // `encodeComponent` leaves `'` raw, and the blob scan reads a raw
+      // apostrophe as prose — so a name that carries one has to be escaped here
+      // or it is never advertised. `%27` decodes back to the same segment.
+      final apostrophe = KelivoFileUri.encodeFromAbsolute(
+        "/data/app/upload/Bob's photo.png",
+        root: '/data/app',
+      );
+      expect(apostrophe, 'kelivo-file:///upload/Bob%27s%20photo.png');
+      expect(KelivoFileUri.decodeToSegments(apostrophe!), [
+        'upload',
+        "Bob's photo.png",
+      ]);
     });
   });
 }

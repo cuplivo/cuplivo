@@ -5,8 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/models/chat_owner.dart';
+import '../../../../core/models/conversation.dart';
 import '../../../../core/providers/assistant_provider.dart';
+import '../../../../core/providers/group_chat_provider.dart';
 import '../../../../core/providers/settings_provider.dart';
+import '../../../../core/services/chat/chat_service.dart';
 import '../../../../utils/sandbox_path_resolver.dart';
 import '../chat_gradient_background.dart';
 
@@ -102,20 +106,48 @@ class ChatBackdropSpec {
     final size = MediaQuery.sizeOf(context);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
-    final backgroundRaw = context.select<AssistantProvider, String>(
-      (p) => (p.currentAssistant?.background ?? '').trim(),
+    // Both providers are optional: previews and tests render this spec without
+    // chat state, and there nothing can be a group topic.
+    final openConversation = context.select<ChatService?, Conversation?>(
+      (chat) => chat?.getConversation(chat.currentConversationId ?? ''),
     );
-    final useGradientBackground = context.select<AssistantProvider, bool>(
-      (p) => p.currentAssistant?.useGradientBackground ?? false,
+    // `ownerOfConversation` is the one statement of "who owns the open chat". A
+    // topic whose group row is gone is listed as an ordinary conversation, so it
+    // paints like one too; a live group topic belongs to no assistant, so it
+    // shows neither the wallpaper nor the gradient. The chat's own backdrop
+    // widget decided this a second time before; both ask here now.
+    final groupTopic = context.select<GroupChatProvider?, bool>(
+      (groups) =>
+          ownerOfConversation(
+            openConversation,
+            isLiveGroup: (id) => groups?.byId(id) != null,
+            // Only the group half matters here: an assistant owner still
+            // means "paint the selected assistant's artwork".
+            resolveAssistantId: (_) => null,
+          )?.isGroup ==
+          true,
     );
+    final assistantBackdrop = !groupTopic;
+    final backgroundRaw = assistantBackdrop
+        ? context.select<AssistantProvider, String>(
+            (p) => (p.currentAssistant?.background ?? '').trim(),
+          )
+        : '';
+    final useGradientBackground =
+        assistantBackdrop &&
+        context.select<AssistantProvider, bool>(
+          (p) => p.currentAssistant?.useGradientBackground ?? false,
+        );
     final gradientOptions = context
         .select<AssistantProvider, (bool, double, double, double)>(
-          (p) => (
-            p.currentAssistant?.gradientBackgroundAnimated ?? true,
-            p.currentAssistant?.gradientBackgroundOffsetX ?? 0,
-            p.currentAssistant?.gradientBackgroundOffsetY ?? 0,
-            p.currentAssistant?.gradientBackgroundPhase ?? 0,
-          ),
+          (p) => assistantBackdrop
+              ? (
+                  p.currentAssistant?.gradientBackgroundAnimated ?? true,
+                  p.currentAssistant?.gradientBackgroundOffsetX ?? 0,
+                  p.currentAssistant?.gradientBackgroundOffsetY ?? 0,
+                  p.currentAssistant?.gradientBackgroundPhase ?? 0,
+                )
+              : (false, 0.0, 0.0, 0.0),
         );
     final maskStrength = context.select<SettingsProvider, double>(
       (s) => s.chatBackgroundMaskStrength,

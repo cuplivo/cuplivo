@@ -17,6 +17,7 @@ import '../../../l10n/app_localizations.dart';
 import '../widgets/side_drawer.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/models/assistant.dart';
+import '../../../core/models/chat_owner.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/providers/assistant_provider.dart';
@@ -26,7 +27,6 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../widgets/model_icon.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../desktop/hotkeys/chat_action_bus.dart';
-import '../../../desktop/hotkeys/sidebar_tab_bus.dart';
 import '../../chat/widgets/frosted/chat_frosted_backdrop.dart';
 import '../widgets/assistant_avatar.dart';
 import '../widgets/assistant_entry_actions.dart';
@@ -56,6 +56,8 @@ class HomeDesktopScaffold extends StatelessWidget {
     required this.onToggleSidebar,
     required this.onSelectConversation,
     required this.onNewConversation,
+    required this.onOpenOwner,
+    required this.onRevealTopics,
     required this.onCreateNewConversation,
     required this.onToggleTemporaryConversation,
     required this.onSelectModel,
@@ -92,6 +94,14 @@ class HomeDesktopScaffold extends StatelessWidget {
   final VoidCallback onToggleSidebar;
   final void Function(String id) onSelectConversation;
   final VoidCallback onNewConversation;
+
+  /// One owner tap, whichever kind it was: the page decides which conversation
+  /// it means. The sidebar does not resolve owners any more.
+  final Future<void> Function(ChatOwner owner) onOpenOwner;
+
+  /// Shows the list the open chat belongs to, in whichever pane this layout
+  /// gives the topics.
+  final VoidCallback onRevealTopics;
   final Future<void> Function() onCreateNewConversation;
   final Future<void> Function() onToggleTemporaryConversation;
   final VoidCallback onSelectModel;
@@ -268,6 +278,7 @@ class HomeDesktopScaffold extends StatelessWidget {
       },
       onOpenGlobalSearchResult: onOpenGlobalSearchResult,
       onNewConversation: ({closeDrawer = true}) => onNewConversation(),
+      onOpenOwner: onOpenOwner,
       onSelectConversation: (id, {closeDrawer = true}) =>
           onSelectConversation(id),
     );
@@ -530,9 +541,7 @@ class HomeDesktopScaffold extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         baseColor: Colors.transparent,
         padding: const EdgeInsets.all(2),
-        onTap: _isDesktop
-            ? () => _revealAssistantTopics(context)
-            : onToggleSidebar,
+        onTap: _isDesktop ? () => _revealAssistantTopics() : onToggleSidebar,
         onLongPress: !_isDesktop && assistant != null
             ? () {
                 AssistantEntryActions.openAssistantSettings(
@@ -550,19 +559,10 @@ class HomeDesktopScaffold extends StatelessWidget {
     );
   }
 
-  void _revealAssistantTopics(BuildContext context) {
-    final topicsOnRight =
-        context.read<SettingsProvider>().desktopTopicPosition ==
-        DesktopTopicPosition.right;
-    if (topicsOnRight) {
-      DesktopSidePanelController.instance.open(kind: SidePanelTabKind.topics);
-      return;
-    }
-    if (!tabletSidebarOpen) {
-      onToggleSidebar();
-    }
-    DesktopSidebarTabBus.instance.switchToTopics();
-  }
+  /// Revealing the topics is one step with one implementation (the controller's
+  /// [HomePageController.revealTopics]); this layout only decides that its header
+  /// avatar is a place to ask for it.
+  void _revealAssistantTopics() => onRevealTopics();
 
   List<Widget> _buildActions(BuildContext context, bool topicsOnRight) {
     final l10n = AppLocalizations.of(context)!;

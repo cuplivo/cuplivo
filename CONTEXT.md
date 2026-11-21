@@ -39,9 +39,11 @@ contradicts one of them is a bug, not a preference.
   - `kelivo_backups`, `kelivo.db`, `kelivo.restore-*`, `.kelivo_restore`, `kelivo-schedule`,
     `kelivo_background` and other persisted keys/format ids.
   - Backup archive names are not legacy but reader-facing: a writer names the file for its target
-    (`cuplivo_backup_*` for this build, `kelivo_backup_*` for Kelivo 1.3.4), and every reader accepts
-    both, so a file from either version is still discovered, reclaimed and restorable. The local
-    snapshot prefix `kelivo-snapshot-` is untouched — older builds' recovery reads it.
+    (`cuplivo_backup_*` for this build, `kelivo_backup_*` for the Kelivo 1.3.2+ target), and every
+    reader accepts both, so a file from either version is still discovered, reclaimed and restorable.
+    The local snapshot prefix `kelivo-snapshot-` is untouched — older builds' recovery reads it —
+    while an exported copy is minted as `cuplivo-snapshot-*`, and the auto-backup written into the
+    user's own folder is `cuplivo_auto_*` (the 4.7.0 `kelivo_auto_*` names stay owned by retention).
   - `kelivo.psycheas.top`, `search.psycheas.top`, `afdian.com/a/kelivo`, `kelivo-helper` — external
     infrastructure Cuplivo does not control.
   - `KelivoImageSettingsMapper` and "Kelivo backup" interop terms — they describe the upstream
@@ -125,7 +127,10 @@ contradicts one of them is a bug, not a preference.
   blobs; every business entity kind — assistant, provider, MCP server, world book, quick
   phrase, memory entry, search/TTS service, instruction injection, tag, skill, user profile
   field, and **workspace** (its record; its files ride a face of their own, see Workspace
-  carriage); and the `syncedPreference` keys below.
+  carriage); and the `syncedPreference` keys below. A conversation also carries its **own**
+  families — its compression history, its image-context switches and pins, its compression
+  configuration, and the provider artifacts a native continuation needs — and the compression
+  library (templates and recipes) is a business kind like the world books.
 - **A workspace rides as a record, and — when managed — as files (工作区)**: the *record* (name,
   kind, bindings, position) is an ordinary entity row and travels like any other. A **managed**
   workspace's directory also travels, on its own file face and under its own rules (Workspace
@@ -133,6 +138,27 @@ contradicts one of them is a bug, not a preference.
   nothing on the peer, so its row is filtered out at the row level — the one entity kind with a
   per-row exclusion, and it has to stay that way, because a row that never entered the manifest
   cannot be read as a deletion.
+- **A family is a registration (家族登记)**: what crosses devices, how it enters a
+  conversation's identity, and which of its columns may reference a file are **one entry** in
+  `sync_family_registry.dart` — table, scope, kind filter, identity rule, blob columns, and
+  `synced` or `deviceLocal` *with a reason*. The subtree read, the payload's keys, the blob scan
+  and the digest all read that entry, so a family that starts travelling is an entry rather than
+  five edits; and a guard fails when the source grows an `extension_entity_rows` kind, or the
+  schema grows a table hanging off a conversation, that nobody registered. "Nobody said" is not
+  one of the two answers.
+- **A grant is device-local (授予不过线)**: "this device approved" lives in the conversation row's
+  `extras_json` — `tools.permission_mode`, plus the `workspace.allowAll` an older build honoured.
+  That column travels whole under row-level LWW, so the rule has two halves: the wire read strips the
+  grant keys and the applier merges them back from the local row key by key. Either half alone is a
+  bug of its own kind — a strip alone loses the grant the first time a peer wins the row, a merge
+  alone lets the grant cross — and neither crosses a **rebind** of `workspace.id`, because a grant is
+  issued against a binding and a new binding clears it here as well (`WorkspaceBinding.applyTo`).
+  The **folder** beside it does not follow suit: `workspace.cwd` is a workspace-*relative* path
+  (`FileBrowserOps` validates the picker's value as one, `WorkspacePaths.normalizeCwd` resolves it
+  against the workspace root) and the workspace's content is itself synced, so the peer must keep the
+  same folder — stripping it would drop the conversation onto the workspace root there. One key set
+  (`ToolPermissionMode.grantExtrasKeys`) serves both halves and the backup sanitizer; no protocol
+  field changed, so the schema version does not move.
 - **Skill = record + directory blob**: a skill rides sync as two pieces — its entity
   record (LWW for settings) and its on-disk directory as one zip blob keyed by a directory
   hash (sha256 over sorted (relative path, file digest); the record's `updatedAt` does not
@@ -561,12 +587,18 @@ contradicts one of them is a bug, not a preference.
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.
 - **What the plan compares**: each face's digest covers the whole state that face means. A
-  conversation's digest covers its message rows (`id:COALESCE(updated_at, timestamp)` lines), so
-  the conversation row's own clock is compared *alongside* it — otherwise a rename, a pin or a
-  version selection moves nothing the plan looks at and can never transfer. An entity's digest
-  covers its payload **and** the list position it occupies (`sort_order`), because a drag rewrites
-  every position while leaving every payload untouched. A preference has no position and hashes its
-  value alone.
+  conversation's digest is **composed from every synced family** — `id:clock` lines for its
+  messages, its parts and its provider artifacts, `server:ordinal` lines for its MCP bindings, and
+  `id:updated_at` lines for the compression history, the image context and the compression
+  configuration — with each family's **name** in the text, so two families contributing the same
+  lines cannot compose the same identity. A document is identified by its own clock rather than by
+  a digest of its payload, because the payload *is* the state: hashing it would make both sides
+  read it just to answer whether it changed, and the row's `updated_at` already answers that. The
+  conversation row's own clock is compared *alongside*
+  it, because a rename, a pin or a version selection moves nothing the digest looks at and could
+  never transfer. An entity's digest covers its payload **and** the list position it occupies
+  (`sort_order`), because a drag rewrites every position while leaving every payload untouched. A
+  preference has no position and hashes its value alone.
 - **Business rows carry their own clock**: an applied row keeps the peer's `updated_at`
   (never stamped with local time); that timestamp is what the next session compares. Deletions
   ride the per-peer checkpoint, as message deletions do.
@@ -854,9 +886,11 @@ contradicts one of them is a bug, not a preference.
 - **Migration path from 3.x (从 3.x 迁移)**: 3.x's 「数据迁移 → 导出 Kelivo 兼容备份」
   (`backupMigrateExportLabel`) produces the full backup this line can restore; the plain backup
   export is not that file.
-- **Removed 3.x features (未随行的 3.x 功能)**: group chat, the multi-AI side-by-side comparison,
-  the delete-recovery / recycle bin and subagent delegation were not re-implemented on the new
-  baseline; `CHANGELOG*.md` records them per release.
+- **Removed 3.x features (未随行的 3.x 功能)**: the multi-AI side-by-side comparison, the
+  delete-recovery / recycle bin and subagent delegation were not re-implemented on the new
+  baseline; `CHANGELOG*.md` records them per release. Group chat is not on that list any more:
+  it came back at 4.6.0 as Cuplivo's own implementation (`docs/design/group-chat/`), not as a
+  3.x carry-over.
 
 ## Community channels (社区入口)
 

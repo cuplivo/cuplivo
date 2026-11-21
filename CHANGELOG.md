@@ -40,7 +40,7 @@
 
 - **A Cuplivo backup could not be imported into Kelivo at all**: the export now has a Kelivo-compatible target, so the `group_chats_v1` entity Kelivo 1.3.4 rejects outright never reaches the archive — even for a user who never created a group (#1071 by @cup113)
 - **LAN sync lost what was switched on**: the per-assistant selections for instruction injection, world books and the like sync now, so context no longer changes by surprise (#1068 by @cup113)
-- **Switching between a group chat and an assistant**: New conversation no longer stays inside the group — it opens the chosen assistant's own chat — and a group's backdrop no longer keeps the previous assistant's artwork (#1069 by @cup113)
+- **Switching between a group chat and an assistant**: New conversation no longer stays inside the group — it opens the chosen assistant's own chat — and a group's backdrop no longer keeps the previous assistant's artwork (#1069 by @cup113). **This fix did not reach the 4.7.0 tree** — the re-base did not replay it, and the behaviour was restored structurally afterwards (#1092)
 - A group chat on a phone showed two "+" (#1072 by @cup113)
 - **Their letter could not arrive in time**: the background process and its notification are fixed (#1064 by @Pheobe-Southwood)
 

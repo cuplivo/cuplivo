@@ -82,6 +82,7 @@ class SideDrawer extends StatefulWidget {
     required this.assistantName,
     this.onSelectConversation,
     this.onNewConversation,
+    this.onOpenOwner,
     this.closePickerTicker,
     this.loadingConversationIds = const <String>{},
     this.embedded = false,
@@ -103,6 +104,12 @@ class SideDrawer extends StatefulWidget {
   final FutureOr<void> Function(String id, {bool closeDrawer})?
   onSelectConversation;
   final FutureOr<void> Function({bool closeDrawer})? onNewConversation;
+
+  /// Opens the chat an owner stands for. Every owner tap goes through this one
+  /// callback, so the drawer never decides which conversation a tap means — the
+  /// page does, once, for both kinds.
+  final FutureOr<void> Function(ChatOwner owner)? onOpenOwner;
+
   final ValueNotifier<int>? closePickerTicker;
   final Set<String> loadingConversationIds;
   final bool
@@ -151,6 +158,17 @@ class SideDrawer extends StatefulWidget {
   /// Desktop suppresses long-press, so widget tests use this instead.
   @visibleForTesting
   static void Function(String seedId)? debugEnterSelectionMode;
+
+  /// Testing hook: the id the drawer would open after the open chat leaves,
+  /// chosen from the scope the list is showing.
+  @visibleForTesting
+  static String? Function(Set<String> excludeIds)? debugNextConversationInScope;
+
+  /// Testing hook: run one owner tap as a row would, so the drawer's ordering
+  /// (dismiss first, then switch) can be asserted without depending on which
+  /// row happens to be on screen.
+  @visibleForTesting
+  static Future<void> Function(ChatOwner owner)? debugOpenOwner;
 
   /// Enter-animation delay for a sidebar tile at [indexInSection].
   ///
@@ -207,15 +225,14 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   int? _cachedSidebarRowsRevision;
   bool? _cachedSidebarRowsInitialized;
   String? _cachedSidebarRowsQuery;
-  String? _cachedSidebarRowsAssistantId;
-  String? _cachedSidebarRowsGroupChatId;
+  String? _cachedSidebarRowsScope;
   List<String>? _cachedSidebarRowsAssistantIds;
   List<String>? _cachedSidebarRowsGroupIds;
   List<_SidebarRow>? _cachedSidebarRows;
 
   bool _selectionMode = false;
   final Set<String> _selectedConversationIds = <String>{};
-  String? _selectionAssistantId;
+  String? _selectionOwnerKey;
   InteractiveDrawerController? _hostDrawer;
 
   @override
@@ -224,6 +241,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     SideDrawer.debugRequestConversationListHostRebuild =
         _debugRequestConversationListHostRebuild;
     SideDrawer.debugEnterSelectionMode = _enterSelectionMode;
+    SideDrawer.debugNextConversationInScope = _debugNextConversationInScope;
+    SideDrawer.debugOpenOwner = _openOwner;
     _attachCloseTicker(widget.closePickerTicker);
     _mobileSearchFocusNode.addListener(() {
       if (_isDesktop) return;
@@ -364,34 +383,21 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
               label: l10n.sideDrawerMenuMoveTo,
               onTap: () async {
                 if (widget.loadingConversationIds.contains(chat.id)) return;
-                final conv = chatService.getConversation(chat.id);
                 final movingCurrent =
                     chatService.currentConversationId == chat.id;
                 final keepSidebarOpenOnTopicTap = context
                     .read<SettingsProvider>()
                     .keepSidebarOpenOnTopicTap;
-                // Pre-compute next recent conversation for current assistant
-                String? nextId;
-                try {
-                  final ap = context.read<AssistantProvider>();
-                  final currentAid = ap.currentAssistantId;
-                  if (currentAid != null) {
-                    final all = chatService.getAllConversations();
-                    final candidates =
-                        all
-                            .where(
-                              (c) =>
-                                  c.assistantId == currentAid &&
-                                  c.id != chat.id,
-                            )
-                            .toList()
-                          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-                    if (candidates.isNotEmpty) nextId = candidates.first.id;
-                  }
-                } catch (_) {}
+                // The chat that leaves this scope, chosen the same way a delete
+                // chooses one: one rule, one implementation.
+                final nextId = _nextRecentConversationExcluding(chatService, {
+                  chat.id,
+                });
                 final targetId = await showAssistantMoveSelector(
                   context,
-                  excludeAssistantId: conv?.assistantId,
+                  excludeAssistantId: chatService
+                      .getConversation(chat.id)
+                      ?.assistantId,
                 );
                 if (!mounted) return;
                 if (targetId != null) {
@@ -756,14 +762,21 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   void _enterSelectionMode(String seedId) {
     Haptics.light();
     if (!mounted) return;
+    final scopeKey = () {
+      final open = _currentConversationOf(context.read<ChatService>());
+      return _listScope(
+        openGroupChatId: open?.groupChatId,
+        openAssistantId: open?.assistantId,
+        assistants: context.read<AssistantProvider>(),
+        groups: context.read<GroupChatProvider>(),
+      )?.key;
+    }();
     setState(() {
       _selectionMode = true;
       _selectedConversationIds
         ..clear()
         ..add(seedId);
-      _selectionAssistantId = context
-          .read<AssistantProvider>()
-          .currentAssistantId;
+      _selectionOwnerKey = scopeKey;
     });
   }
 
@@ -772,7 +785,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     setState(() {
       _selectionMode = false;
       _selectedConversationIds.clear();
-      _selectionAssistantId = null;
+      _selectionOwnerKey = null;
     });
   }
 
@@ -892,25 +905,37 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     if (mounted) setState(() {});
   }
 
+  /// The conversation to show once the open chat stops being the open chat.
+  ///
+  /// The scope is the open chat's owner — the same answer the list is scoped by.
+  /// The previous predicate (`assistantId == currentAssistantId`) was a fourth
+  /// derivation of ownership, and it could never match a group topic, so deleting
+  /// one topic of a group left the group for a 1:1 of the fallback assistant.
   String? _nextRecentConversationExcluding(
     ChatService chatService,
     Set<String> excludeIds,
   ) {
     try {
-      final ap = context.read<AssistantProvider>();
-      final currentAid = ap.currentAssistantId;
-      if (currentAid == null) return null;
-      final candidates =
-          chatService
-              .getAllConversations()
-              .where(
-                (c) =>
-                    c.assistantId == currentAid && !excludeIds.contains(c.id),
-              )
-              .toList()
-            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      if (candidates.isEmpty) return null;
-      return candidates.first.id;
+      final assistants = context.read<AssistantProvider>();
+      final groups = context.read<GroupChatProvider>();
+      final open = _currentConversationOf(chatService);
+      // Same reading of "no chat open" as the list itself: the fallback assistant
+      // is the scope then.
+      final openOwner = open == null
+          ? null
+          : _ownerOf(open, assistants: assistants, groups: groups);
+      final fallbackId = assistants.currentAssistantId;
+      final scope =
+          openOwner ??
+          (fallbackId == null ? null : ChatOwner.assistant(fallbackId));
+      return nextConversationAfterDelete(
+        chatService.getAllConversations(),
+        scope: scope,
+        excludeIds: excludeIds,
+        isLiveGroup: (id) => groups.byId(id) != null,
+        resolveAssistantId: (id) =>
+            assistants.resolveConversationAssistant(id)?.id,
+      )?.id;
     } catch (_) {
       return null;
     }
@@ -948,6 +973,9 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       );
     }
   }
+
+  String? _debugNextConversationInScope(Set<String> excludeIds) =>
+      _nextRecentConversationExcluding(context.read<ChatService>(), excludeIds);
 
   Future<void> _renameChat(BuildContext context, ChatItem chat) async {
     final controller = TextEditingController(text: chat.title);
@@ -1079,6 +1107,15 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     }
     if (identical(SideDrawer.debugEnterSelectionMode, _enterSelectionMode)) {
       SideDrawer.debugEnterSelectionMode = null;
+    }
+    if (identical(
+      SideDrawer.debugNextConversationInScope,
+      _debugNextConversationInScope,
+    )) {
+      SideDrawer.debugNextConversationInScope = null;
+    }
+    if (identical(SideDrawer.debugOpenOwner, _openOwner)) {
+      SideDrawer.debugOpenOwner = null;
     }
     _unbindHostDrawer();
     _assistantPickerEntry?.remove();
@@ -1493,8 +1530,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     required int revision,
     required bool initialized,
     required String query,
-    required String? assistantId,
-    required String? groupChatId,
+    required ChatOwner? scope,
     required ChatService chatService,
   }) {
     final assistants = context.read<AssistantProvider>();
@@ -1507,8 +1543,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         _cachedSidebarRowsRevision == revision &&
         _cachedSidebarRowsInitialized == initialized &&
         _cachedSidebarRowsQuery == query &&
-        _cachedSidebarRowsAssistantId == assistantId &&
-        _cachedSidebarRowsGroupChatId == groupChatId &&
+        _cachedSidebarRowsScope == scope?.key &&
         listEquals(_cachedSidebarRowsAssistantIds, assistantIds) &&
         listEquals(_cachedSidebarRowsGroupIds, groupIds)) {
       return _cachedSidebarRows!;
@@ -1516,8 +1551,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     SideDrawer.debugSidebarRowsComputeCount++;
     final rows = _computeSidebarRows(
       chatService: chatService,
-      assistantId: assistantId,
-      groupChatId: groupChatId,
+      scope: scope,
       assistants: assistants,
       groups: groups,
       query: query,
@@ -1526,8 +1560,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     _cachedSidebarRowsRevision = revision;
     _cachedSidebarRowsInitialized = initialized;
     _cachedSidebarRowsQuery = query;
-    _cachedSidebarRowsAssistantId = assistantId;
-    _cachedSidebarRowsGroupChatId = groupChatId;
+    _cachedSidebarRowsScope = scope?.key;
     _cachedSidebarRowsAssistantIds = assistantIds;
     _cachedSidebarRowsGroupIds = groupIds;
     return rows;
@@ -1535,8 +1568,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
 
   List<_SidebarRow> _computeSidebarRows({
     required ChatService chatService,
-    required String? assistantId,
-    required String? groupChatId,
+    required ChatOwner? scope,
     required AssistantProvider assistants,
     required GroupChatProvider groups,
     required String query,
@@ -1544,33 +1576,15 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     final q = query.trim().toLowerCase();
     final pinned = <ChatItem>[];
     final rest = <ChatItem>[];
-    final resolvedOwnerIds = <String, String?>{};
-    // Single pass: filter owner + query, split pinned/rest via ChatItem.isPinned.
+    // Single pass: filter by the owner of the open chat, split pinned/rest via
+    // ChatItem.isPinned.
     //
-    // Only one of the two owner filters is ever active. A group topic carries no
-    // assistant, so without the `groupChatId` half every group topic would show
-    // up under whichever assistant happened to be selected — the exact place a
-    // user would not look for it.
+    // One scope, one source. The list used to be filtered by the persisted
+    // assistant and by a separately computed group id, so the two halves could
+    // disagree with the row the owner list had highlighted.
     for (final c in chatService.getAllConversations()) {
-      if (groupChatId != null) {
-        if (c.groupChatId != groupChatId) continue;
-      } else {
-        // A topic whose group row is gone has no group list to live in, so it is
-        // shown — and answered — as an ordinary conversation instead of
-        // disappearing from every list.
-        if (c.groupChatId != null && groups.byId(c.groupChatId) != null) {
-          continue;
-        }
-        if (c.assistantId != null &&
-            resolvedOwnerIds.putIfAbsent(
-                  c.assistantId!,
-                  () => assistants
-                      .resolveConversationAssistant(c.assistantId)
-                      ?.id,
-                ) !=
-                assistantId) {
-          continue;
-        }
+      if (_ownerOf(c, assistants: assistants, groups: groups) != scope) {
+        continue;
       }
       final title = c.title;
       if (q.isNotEmpty && !title.toLowerCase().contains(q)) continue;
@@ -1752,40 +1766,68 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     final textBase = cs.onSurface; // 纯黑（白天），夜间自动适配
     final ap = context.watch<AssistantProvider>();
     final currentAssistantId = ap.currentAssistantId;
-    final loadingAssistantIds = context.select<ChatService, Set<String>>((
+    final groupsForScope = context.watch<GroupChatProvider>();
+    // Which *owner* is generating, not which assistant. A group topic carries no
+    // assistant, and asking the fallback assistant painted its spinner on
+    // whichever assistant happened to be selected — the selected row changed as
+    // soon as the user switched away from the generating chat, so the dot moved
+    // with them.
+    final loadingOwnerKeys = context.select<ChatService, Set<String>>((
       service,
     ) {
-      final ids = <String>{};
+      final keys = <String>{};
       // Only inspect active conversations; ownership changes must update the
       // indicators even when the set of generating conversations is unchanged.
       for (final id in widget.loadingConversationIds) {
         final conversation = service.getConversation(id);
         if (conversation == null) continue;
-        final assistantId = ap
-            .resolveConversationAssistant(conversation.assistantId)
-            ?.id;
-        if (assistantId != null) ids.add(assistantId);
+        final owner = ownerOfChat(
+          groupChatId: conversation.groupChatId,
+          assistantId: conversation.assistantId,
+          isLiveGroup: (groupId) => groupsForScope.byId(groupId) != null,
+          resolveAssistantId: (assistantId) =>
+              ap.resolveConversationAssistant(assistantId)?.id,
+        );
+        if (owner != null) keys.add(owner.key);
       }
-      return ids;
+      return keys;
     });
     final chatServiceForSelection = context.read<ChatService>();
-    // The topics pane follows the conversation that is open: a group topic
-    // lists its own group's topics, an assistant's chat lists that assistant's.
-    final currentGroupChatId = context
-        .watch<GroupChatProvider>()
-        .forConversation(_currentConversationOf(chatServiceForSelection))
-        ?.id;
+    // The topics pane follows the conversation that is open: both kinds of
+    // owner read the same answer, so a group's topics and an assistant's chats
+    // cannot disagree about whose list this is.
+    //
+    // The select watches the two fields that decide ownership, not the
+    // conversation object: switching between two chats of one owner must not
+    // re-scope (or rebuild) this list.
+    final openOwnerFields = context
+        .select<ChatService, ({String? groupChatId, String? assistantId})>((
+          chat,
+        ) {
+          final open = chat.getConversation(chat.currentConversationId ?? '');
+          return (
+            groupChatId: open?.groupChatId,
+            assistantId: open?.assistantId,
+          );
+        });
+    final listScope = _listScope(
+      openGroupChatId: openOwnerFields.groupChatId,
+      openAssistantId: openOwnerFields.assistantId,
+      assistants: ap,
+      groups: groupsForScope,
+    );
     if (_selectionMode) {
       // Header/action bar live outside the conversation-list Selector.
       // Subscribe to list revision so an external delete rebuilds them too.
       context.select<ChatService, int>(
         (service) => service.conversationListRevision,
       );
-      if (_selectionAssistantId != null &&
-          _selectionAssistantId != currentAssistantId) {
+      // Selection belongs to one owner's list: leaving it ends the selection
+      // rather than letting a delete run against rows the user can no longer see.
+      if (_selectionOwnerKey != null && _selectionOwnerKey != listScope?.key) {
         _selectionMode = false;
         _selectedConversationIds.clear();
-        _selectionAssistantId = null;
+        _selectionOwnerKey = null;
       } else {
         final liveIds = <String>{
           for (final c in chatServiceForSelection.getAllConversations()) c.id,
@@ -1801,8 +1843,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         revision: chatServiceForSelection.conversationListRevision,
         initialized: chatServiceForSelection.initialized,
         query: _query,
-        assistantId: currentAssistantId,
-        groupChatId: currentGroupChatId,
+        scope: listScope,
         chatService: chatServiceForSelection,
       );
       final visibleIds = <String>[
@@ -1995,8 +2036,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                                                 .conversationListRevision,
                                             initialized: service.initialized,
                                             query: _query,
-                                            assistantId: currentAssistantId,
-                                            groupChatId: currentGroupChatId,
+                                            scope: listScope,
                                             chatService: service,
                                           ),
                                         );
@@ -2787,8 +2827,9 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                                         ),
                                       ),
                                     ),
-                                    if (loadingAssistantIds.contains(
-                                      currentAssistantId,
+                                    if (_headerShowsLoading(
+                                      listScope,
+                                      loadingOwnerKeys,
                                     )) ...[
                                       const SizedBox(width: 8),
                                       _LoadingDot(),
@@ -2833,7 +2874,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                       children: [
                         _buildAssistantsList(
                           context,
-                          loadingAssistantIds: loadingAssistantIds,
+                          loadingOwnerKeys: loadingOwnerKeys,
+                          selectedOwner: listScope,
                           inlineMode: true,
                         ),
                       ],
@@ -2854,23 +2896,18 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                     builder: (context, selection, _) {
                       SideDrawer.debugConversationListBuildCount++;
                       final chatService = context.read<ChatService>();
-                      final assistantId = context
-                          .watch<AssistantProvider>()
-                          .currentAssistantId;
+                      // The scope is captured from the drawer's build, whose
+                      // select watches the owner fields: seeing a new value here
+                      // is what a scope change looks like.
+                      final scope = listScope;
                       // Use last-activity time (updatedAt) for ordering and grouping.
                       // Flattened + memoized by
-                      // (revision, initialized, query, assistantId).
+                      // (revision, initialized, query, scope).
                       final rows = _sidebarRowsFor(
                         revision: selection.revision,
                         initialized: selection.initialized,
                         query: _query,
-                        assistantId: assistantId,
-                        groupChatId: context
-                            .watch<GroupChatProvider>()
-                            .forConversation(
-                              _currentConversationOf(chatService),
-                            )
-                            ?.id,
+                        scope: scope,
                         chatService: chatService,
                       );
                       if (useTabs) {
@@ -2883,7 +2920,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                           controller: _tabController!,
                           buildAssistants: () => _buildAssistantsList(
                             context,
-                            loadingAssistantIds: loadingAssistantIds,
+                            loadingOwnerKeys: loadingOwnerKeys,
+                            selectedOwner: listScope,
                           ),
                           buildConversations: () => _buildConversationsList(
                             context,
@@ -2919,7 +2957,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                         assistantsExpanded: _assistantsExpanded,
                         buildAssistants: () => _buildAssistantsList(
                           context,
-                          loadingAssistantIds: loadingAssistantIds,
+                          loadingOwnerKeys: loadingOwnerKeys,
+                          selectedOwner: listScope,
                           inlineMode: true,
                         ),
                         buildConversations: (leading, padding) =>
@@ -3200,64 +3239,42 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     });
   }
 
-  Future<void> _handleSelectAssistant(Assistant assistant) async {
-    final sp = context.read<SettingsProvider>();
-    final closeDrawer = !sp.keepSidebarOpenOnAssistantTap;
-    if (closeDrawer) {
-      _closeAssistantPicker();
-    }
-    final ap = context.read<AssistantProvider>();
-    await ap.setCurrentAssistant(assistant.id);
-    // Desktop: optionally switch to Topics tab per user preference
-    try {
-      if (_isDesktop &&
-          widget.embedded &&
-          widget.useDesktopTabs &&
-          sp.desktopAutoSwitchTopics) {
-        _tabController?.animateTo(
-          1,
-          duration: const Duration(milliseconds: 140),
-          curve: Curves.easeOutCubic,
-        );
-      }
-    } catch (_) {}
-    if (!mounted) return;
-    final forceNewChat =
-        sp.newChatOnAssistantSwitch && widget.onNewConversation != null;
-    if (forceNewChat) {
-      widget.onNewConversation?.call(closeDrawer: closeDrawer);
-    } else {
-      // Jump to the most recent conversation for this assistant if any,
-      // otherwise create a new conversation.
-      try {
-        final chatService = context.read<ChatService>();
-        final all = chatService.getAllConversations();
-        // Filter conversations owned by this assistant and pick the newest
-        final recent = all
-            .where(
-              (c) =>
-                  c.assistantId != null &&
-                  ap.resolveConversationAssistant(c.assistantId)?.id ==
-                      assistant.id,
-            )
-            .toList();
-        if (recent.isNotEmpty) {
-          // getAllConversations is already sorted by updatedAt desc
-          widget.onSelectConversation?.call(
-            recent.first.id,
-            closeDrawer: closeDrawer,
-          );
-        } else {
-          widget.onNewConversation?.call(closeDrawer: closeDrawer);
-        }
-      } catch (_) {
-        // Fallback: new conversation on any error
-        widget.onNewConversation?.call(closeDrawer: closeDrawer);
-      }
-    }
-    if (closeDrawer) {
-      Navigator.of(context).maybePop();
-    }
+  Future<void> _handleSelectAssistant(Assistant assistant) {
+    return _openOwner(ChatOwner.assistant(assistant.id));
+  }
+
+  Future<void> _handleSelectGroup(GroupChat group) {
+    return _openOwner(ChatOwner.group(group.id));
+  }
+
+  /// One owner tap, whichever kind it was.
+  ///
+  /// The drawer closes per the user's preference and then gets out of the way:
+  /// which conversation a tap opens, whose it is, and which list ends up on
+  /// screen are decided once in the page, for both kinds — the assistant tap
+  /// used to make all three decisions here and the group tap made none.
+  Future<void> _openOwner(ChatOwner owner) async {
+    final closeDrawer = !context
+        .read<SettingsProvider>()
+        .keepSidebarOpenOnAssistantTap;
+    if (closeDrawer) _closeAssistantPicker();
+    // Dismiss first, then switch. The switch behind the drawer takes several
+    // frames (fade out, fetch, fade in), and a drawer that stays on screen for
+    // all of it — or forever, if the switch throws — is the list the user just
+    // left. On the desktop layouts `maybePop` finds no drawer route and returns
+    // without doing anything.
+    if (closeDrawer && mounted) Navigator.of(context).maybePop();
+    await widget.onOpenOwner?.call(owner);
+  }
+
+  /// The header names the fallback assistant, so it may only claim that
+  /// assistant's own activity: a group topic's generation belongs to its group
+  /// row, and a dot here as well would report one generation twice — on a row
+  /// that does not own it. (The assistant case keeps its long-standing reading:
+  /// the dot follows the list's owner.)
+  bool _headerShowsLoading(ChatOwner? listScope, Set<String> loadingOwnerKeys) {
+    if (listScope == null || listScope.isGroup) return false;
+    return loadingOwnerKeys.contains(listScope.key);
   }
 
   void _openAssistantSettings(String id) {
@@ -4038,7 +4055,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
   // apply search filter on assistant names.
   Widget _buildAssistantsList(
     BuildContext context, {
-    required Set<String> loadingAssistantIds,
+    required Set<String> loadingOwnerKeys,
+    required ChatOwner? selectedOwner,
     bool inlineMode = false,
   }) {
     final ap2 = context.watch<AssistantProvider>();
@@ -4065,10 +4083,6 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
         : groups.groups
               .where((g) => g.name.toLowerCase().contains(query))
               .toList();
-    final currentGroupId = groups
-        .forConversation(_currentConversationOf(context.read<ChatService>()))
-        ?.id;
-
     final tags = tp.tags;
     final taggedIds = <String>{
       for (final tag in tags)
@@ -4108,8 +4122,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
           name: a.name,
           textColor: textBase2,
           embedded: widget.embedded,
-          selected: ap2.currentAssistantId == a.id && currentGroupId == null,
-          loading: loadingAssistantIds.contains(a.id),
+          selected: selectedOwner == ChatOwner.assistant(a.id),
+          loading: loadingOwnerKeys.contains(ChatOwner.assistant(a.id).key),
           onTap: () => _handleSelectAssistant(a),
           onEditTap: () => _openAssistantSettings(a.id),
           onLongPress: () => _showAssistantItemMenu(a),
@@ -4126,7 +4140,8 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
           name: group.name.isEmpty ? l10n.groupChatTitle : group.name,
           textColor: textBase2,
           embedded: widget.embedded,
-          selected: currentGroupId == group.id,
+          selected: selectedOwner == ChatOwner.group(group.id),
+          loading: loadingOwnerKeys.contains(ChatOwner.group(group.id).key),
           onTap: () => _handleSelectGroup(group),
           onEditTap: () => showGroupSettings(context, group.id),
           onLongPress: () => _showGroupItemMenu(group),
@@ -4300,41 +4315,59 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _handleSelectGroup(GroupChat group) async {
-    final sp = context.read<SettingsProvider>();
-    await _openGroup(group, closeDrawer: !sp.keepSidebarOpenOnAssistantTap);
-  }
-
   Conversation? _currentConversationOf(ChatService chat) {
     final id = chat.currentConversationId;
     return id == null ? null : chat.getConversation(id);
   }
 
-  /// Opens the group's most recent topic, or starts one when it has none.
+  /// [ownerOfConversation] with this tree's liveness rules bound.
   ///
-  /// A group owns many conversations, so "select the group" has to mean a
-  /// conversation: the most recent one is the topic the user last used.
-  Future<void> _openGroup(GroupChat group, {bool closeDrawer = false}) async {
-    if (closeDrawer) _closeAssistantPicker();
-    final chat = context.read<ChatService>();
-    final recent = chat
-        .getAllConversations()
-        .where((conversation) => conversation.groupChatId == group.id)
-        .firstOrNull;
-    final conversation =
-        recent ??
-        await chat.createDraftConversation(
-          // Read live: a topic created after a language switch is titled in the
-          // language the user is looking at.
-          title: AppLocalizations.of(context)!.groupChatNewTopic,
-          groupChatId: group.id,
-          reuseNewEntry: true,
-        );
-    await widget.onSelectConversation?.call(
-      conversation.id,
-      closeDrawer: closeDrawer,
+  /// The providers are passed in rather than read here: every caller is either a
+  /// build that already watches both (so the answer cannot go stale) or a
+  /// callback, where reading is the right default.
+  ChatOwner? _ownerOf(
+    Conversation? conversation, {
+    required AssistantProvider assistants,
+    required GroupChatProvider groups,
+  }) => ownerOfConversation(
+    conversation,
+    isLiveGroup: (id) => groups.byId(id) != null,
+    resolveAssistantId: (id) => assistants.resolveConversationAssistant(id)?.id,
+  );
+
+  /// The one scope of the topic list: the owner of the chat that is open.
+  ///
+  /// With no chat open nothing would match, so the list falls back to the
+  /// assistant the next 1:1 would belong to — the same answer a fresh 1:1 gets,
+  /// and the only reading of an empty state that does not look like data loss.
+  ChatOwner? _listScope({
+    required String? openGroupChatId,
+    required String? openAssistantId,
+    required AssistantProvider assistants,
+    required GroupChatProvider groups,
+  }) {
+    final owner = _ownerOfFields(
+      groupChatId: openGroupChatId,
+      assistantId: openAssistantId,
+      assistants: assistants,
+      groups: groups,
     );
+    if (owner != null) return owner;
+    final fallbackId = assistants.currentAssistantId;
+    return fallbackId == null ? null : ChatOwner.assistant(fallbackId);
   }
+
+  ChatOwner? _ownerOfFields({
+    required String? groupChatId,
+    required String? assistantId,
+    required AssistantProvider assistants,
+    required GroupChatProvider groups,
+  }) => ownerOfChat(
+    groupChatId: groupChatId,
+    assistantId: assistantId,
+    isLiveGroup: (id) => groups.byId(id) != null,
+    resolveAssistantId: (id) => assistants.resolveConversationAssistant(id)?.id,
+  );
 
   Future<void> _showGroupItemMenu(GroupChat group, {Offset? anchor}) async {
     final l10n = AppLocalizations.of(context)!;

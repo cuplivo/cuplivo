@@ -9,10 +9,12 @@ import '../../database/app_database.dart';
 import '../../database/business_data.dart';
 import '../../database/chat_database_repository.dart';
 import '../../database/composer_draft_store.dart';
+import '../../database/conversation_owned_kinds.dart';
 import '../../database/schema_columns.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/workspace_paths.dart';
 import '../skills/skill_body_policy.dart';
+import '../sync/sync_family_registry.dart';
 import 'recycle_store.dart';
 
 export 'recycle_store.dart';
@@ -37,6 +39,14 @@ enum RecycleRestoreOutcome {
   /// row describes is one the app never lists and the next sync round removes
   /// as an orphan, so recreating it would only lose the file a second time.
   workspaceGone,
+
+  /// A conversation document whose conversation is gone. These rows are keyed by
+  /// the conversation's id and `extension_entity_rows` has no foreign key to
+  /// `conversation_rows`, so writing one back after the delete would leave a row
+  /// no screen can reach — the state [conversationDeletedKinds] exists to
+  /// prevent. The entry is kept rather than consumed: restoring the conversation
+  /// brings its documents with it, and this entry is restorable again after.
+  conversationGone,
 
   /// This build cannot restore that kind of entry.
   unsupported,
@@ -108,36 +118,35 @@ final class RecycleService {
 
   /// Tables a conversation snapshot recovers, each with the column that ties its
   /// rows to the conversation — and, for a table that hosts more than one kind
-  /// of row, the `kind` that picks this conversation's own.
+  /// of row, the kinds that pick out this conversation's own.
   ///
   /// This list is the whole of a conversation snapshot: a table that is not here
-  /// is not recovered. It is deliberately **not** an exhaustive map of what a
-  /// delete removes: `generation_run_rows` goes with the messages it targets and
-  /// is not staged, because a run is bookkeeping for a stream that is happening
-  /// now rather than history a user could want back (ADR-0016, "Not in scope").
-  static const List<({String table, String column, String? kind})>
+  /// is not recovered. Its extension kinds are the conversation's documents plus
+  /// its unsent draft ([conversationCapturedKinds]); the conversation's delete
+  /// removes the documents plus the one kind this list leaves out on purpose
+  /// ([conversationDeletedKinds], [conversationUnrecoverableKinds]). The three
+  /// sets derive from the sync registration, so the two exceptions are named
+  /// there rather than being a difference nobody wrote down: the draft has its
+  /// own delete path (its row is composer state, not part of the conversation),
+  /// and a compression task is a stream that is happening now, not history a user
+  /// could want back — the same line ADR-0016 draws for `generation_run_rows`.
+  static final List<({String table, String column, Set<String>? kinds})>
   _conversationTables = [
-    (table: 'conversation_rows', column: 'id', kind: null),
+    (table: 'conversation_rows', column: 'id', kinds: null),
     (
       table: 'conversation_mcp_server_rows',
       column: 'conversation_id',
-      kind: null,
+      kinds: null,
     ),
-    (table: 'message_rows', column: 'conversation_id', kind: null),
-    (table: 'message_part_rows', column: 'conversation_id', kind: null),
-    (table: 'provider_artifact_rows', column: 'conversation_id', kind: null),
-    (table: 'message_prompt_rows', column: 'conversation_id', kind: null),
-    (table: 'message_asset_rows', column: 'conversation_id', kind: null),
-    // The composer draft is one device-local row keyed by the conversation id,
-    // removed by the same delete: it is text the user typed and never sent, so
-    // losing it is losing part of the conversation they deleted by accident. It
-    // is the only extension row a conversation owns, and the kind is named
-    // rather than implied — the id column alone would sweep up any future
-    // device-local row keyed the same way.
+    (table: 'message_rows', column: 'conversation_id', kinds: null),
+    (table: 'message_part_rows', column: 'conversation_id', kinds: null),
+    (table: 'provider_artifact_rows', column: 'conversation_id', kinds: null),
+    (table: 'message_prompt_rows', column: 'conversation_id', kinds: null),
+    (table: 'message_asset_rows', column: 'conversation_id', kinds: null),
     (
       table: 'extension_entity_rows',
       column: 'id',
-      kind: ComposerDraftStore.kind,
+      kinds: conversationCapturedKinds,
     ),
   ];
 
@@ -239,6 +248,59 @@ final class RecycleService {
       );
     } catch (error) {
       debugPrint('recycle: staging ${kind.wireName} $id failed: $error');
+    }
+  }
+
+  /// Stages one row of `extension_entity_rows` by its kind.
+  ///
+  /// The conversation documents — the compression history, the image-context
+  /// switches, the compression settings — are rows of that table whose kinds are
+  /// not [BusinessEntityKind] members, so [stageEntityRow] cannot name them. The
+  /// entry is the same shape; the kind travels as the wire name, and
+  /// [_restoreEntity] resolves it through the registered conversation families
+  /// rather than trusting whatever a bin file carries.
+  ///
+  /// [title] is the conversation's own title when the caller has it: none of these
+  /// payloads carries a name, so without it three documents replaced in one
+  /// conversation would sit in the bin as three rows with the same UUID title.
+  Future<void> stageExtensionRow(
+    String kind,
+    String id, {
+    required RecycleOrigin origin,
+    required RecycleReason reason,
+    String? title,
+    RecycleGroup? group,
+  }) async {
+    if (id.isEmpty) return;
+    try {
+      final rows = await _database
+          .customSelect(
+            'SELECT * FROM extension_entity_rows WHERE kind = ? AND id = ?;',
+            variables: <Variable<Object>>[
+              Variable<String>(kind),
+              Variable<String>(id),
+            ],
+          )
+          .get();
+      if (rows.isEmpty) return;
+      final row = Map<String, Object?>.from(rows.first.data);
+      final payload = row['payload'];
+      _detach(
+        () => _store.stageRows(
+          type: RecycleEntryType.businessEntity,
+          origin: origin,
+          reason: reason,
+          key: id,
+          title: title ?? (payload is String ? _entityTitle(payload, id) : id),
+          kindWire: kind,
+          tables: {
+            'extension_entity_rows': [row],
+          },
+          group: group,
+        ),
+      );
+    } catch (error) {
+      debugPrint('recycle: staging $kind $id failed: $error');
     }
   }
 
@@ -494,22 +556,33 @@ final class RecycleService {
   /// the whole conversation — a few tens of a millisecond per megabyte, measured
   /// — on the delete's own path.
   Future<String?> _readConversationSubtree(String conversationId) async {
-    final projections = <String>[
-      for (final entry in _conversationTables)
+    // Projections and variables are bound by position, so one loop builds both.
+    // A second comprehension over the same list is exactly how a multi-kind
+    // entry binds its neighbour's parameters into its own WHERE — the failure
+    // that reads as "the capture came back empty" instead of raising.
+    final projections = <String>[];
+    final variables = <Variable<Object>>[];
+    for (final entry in _conversationTables) {
+      final kinds = entry.kinds ?? const <String>{};
+      final columns = [
+        for (final column in currentSchemaColumns[entry.table]!)
+          "'$column', $column",
+      ].join(', ');
+      projections.add(
         "'${entry.table}', json((SELECT COALESCE(json_group_array("
-            'json_object(${[for (final column in currentSchemaColumns[entry.table]!) "'$column', $column"].join(', ')})), json_array()) '
-            'FROM ${entry.table} WHERE ${entry.column} = ?'
-            '${entry.kind == null ? '' : ' AND kind = ?'}))',
-    ];
+        'json_object($columns)), json_array()) '
+        'FROM ${entry.table} WHERE ${entry.column} = ?'
+        '${kinds.isEmpty ? '' : ' AND kind IN (${List.filled(kinds.length, '?').join(', ')})'}))',
+      );
+      variables.add(Variable<String>(conversationId));
+      variables.addAll(<Variable<Object>>[
+        for (final kind in kinds) Variable<String>(kind),
+      ]);
+    }
     final row = await _database
         .customSelect(
           'SELECT json_object(${projections.join(', ')}) AS subtree;',
-          variables: <Variable<Object>>[
-            for (final entry in _conversationTables) ...[
-              Variable<String>(conversationId),
-              if (entry.kind case final kind?) Variable<String>(kind),
-            ],
-          ],
+          variables: variables,
         )
         .getSingleOrNull();
     return row?.read<String>('subtree');
@@ -597,7 +670,12 @@ final class RecycleService {
         RecycleEntryType.skillBody => await _restoreSkillBody(entry),
       };
       if (outcome == RecycleRestoreOutcome.restored) {
-        await _store.purgeKey(entry.type, entry.key, exceptId: keepEntryId);
+        await _store.purgeKey(
+          entry.type,
+          entry.key,
+          kindWire: entry.kindWire,
+          exceptId: keepEntryId,
+        );
       }
       return outcome;
     } catch (error, stack) {
@@ -684,7 +762,32 @@ final class RecycleService {
           conflictTarget: const ['conversation_id', 'server_id'],
         );
       }
-      final drafts = tables['extension_entity_rows'] ?? const [];
+      // A conversation's documents come back whole and with no gate in front of
+      // them: they are part of what the user deleted, not state the composer is
+      // in the middle of, so the draft rule below has nothing to say about them.
+      // They are not pruned either — a document's payload names no attachments
+      // the delete removed, and pruning is the draft's own problem.
+      //
+      // The test is the document list itself, not "anything that is not a
+      // draft". The capture stages exactly [conversationCapturedKinds], and the
+      // guard test pins that to these documents plus the draft, so the two cases
+      // are exhaustive by construction — and a third category added to the
+      // capture list is left out here rather than written back through the rule
+      // that was meant for a document.
+      final extensionRows =
+          tables['extension_entity_rows'] ?? const <Map<String, Object?>>[];
+      for (final row in extensionRows) {
+        if (!conversationDocumentKinds.contains(row['kind'])) continue;
+        await _insertRow(
+          'extension_entity_rows',
+          row,
+          conflictTarget: const ['kind', 'id'],
+        );
+      }
+      final drafts = [
+        for (final row in extensionRows)
+          if (row['kind'] == ComposerDraftStore.kind) row,
+      ];
       if (drafts.isNotEmpty && !await _hasDraft(conversationId)) {
         // A draft that came back on its own wins: the composer is state the user
         // is in the middle of, and replacing what they have typed would be a
@@ -715,15 +818,61 @@ final class RecycleService {
 
   Future<_RestoreResult> _restoreEntity(RecycleEntry entry) async {
     final kind = _kindForWire(entry.kindWire);
-    if (kind == null) return _not(RecycleRestoreOutcome.unsupported);
+    // A conversation document: an `extension_entity_rows` row whose kind is not
+    // a business kind. The registry is the only authority on which kinds those
+    // are, so a bin file cannot name a row the app never writes.
+    final documentKind = kind == null
+        ? _documentKindForWire(entry.kindWire)
+        : null;
+    if (kind == null && documentKind == null) {
+      return _not(RecycleRestoreOutcome.unsupported);
+    }
+    final table = kind?.tableName ?? 'extension_entity_rows';
+    final conflictTarget = kind == null
+        ? const <String>['kind', 'id']
+        : kind.extensionKind == null
+        ? <String>[kind.idColumn]
+        : const <String>['kind', 'id'];
+    final rowKind = kind?.extensionKind ?? documentKind;
     final tables = await _store.readTables(entry);
     if (tables == null) return _not(RecycleRestoreOutcome.unreadable);
-    final row = _singleRow(tables, kind.tableName);
+    final row = _singleRow(tables, table);
     if (row == null) return _not(RecycleRestoreOutcome.unreadable);
+    // A document is a row *of* a conversation — its id is the conversation's, and
+    // deleting the conversation deleted it. Nothing here recreates the parent, so
+    // a document whose conversation is gone would be written into a table no
+    // reader reaches it from. Refused, and the entry kept: restoring the
+    // conversation restores its documents, which makes this entry moot.
+    if (documentKind != null) {
+      final conversation = await _database
+          .customSelect(
+            'SELECT 1 FROM conversation_rows WHERE id = ?;',
+            variables: <Variable<Object>>[Variable<String>(entry.key)],
+          )
+          .getSingleOrNull();
+      if (conversation == null) {
+        return _not(RecycleRestoreOutcome.conversationGone);
+      }
+    }
     final now = DateTime.now().toUtc().microsecondsSinceEpoch;
     final live = <Map<String, Object?>>[];
     final skipped = await _database.transaction(() async {
-      live.addAll(await _entityRows(kind, entry.key));
+      if (kind != null) {
+        live.addAll(await _entityRows(kind, entry.key));
+      } else {
+        final rows = await _database
+            .customSelect(
+              'SELECT * FROM extension_entity_rows WHERE kind = ? AND id = ?;',
+              variables: <Variable<Object>>[
+                Variable<String>(documentKind!),
+                Variable<String>(entry.key),
+              ],
+            )
+            .get();
+        live.addAll([
+          for (final row in rows) Map<String, Object?>.from(row.data),
+        ]);
+      }
       // A row a *deletion* staged that exists again is not this entry's to
       // replace: nothing here is the version it lost to, so writing over it
       // would discard whatever is there now. The same refusal a conversation and
@@ -732,16 +881,14 @@ final class RecycleService {
       // has to replace.
       if (live.isNotEmpty && entry.reason == RecycleReason.deleted) return true;
       await _insertRow(
-        kind.tableName,
+        table,
         row,
-        conflictTarget: kind.extensionKind == null
-            ? <String>[kind.idColumn]
-            : const <String>['kind', 'id'],
+        conflictTarget: conflictTarget,
         overrides: <String, Object?>{
           'updated_at': now,
           // An extension kind travels under its own kind value, never another:
           // the table's primary key is (kind, id).
-          if (kind.extensionKind != null) 'kind': kind.extensionKind!,
+          if (rowKind != null) 'kind': rowKind,
         },
       );
       return false;
@@ -760,12 +907,25 @@ final class RecycleService {
       reason: RecycleReason.overwritten,
       key: entry.key,
       title: payload is String ? _entityTitle(payload, entry.key) : entry.key,
-      kindWire: kind.wireName,
+      kindWire: kind?.wireName ?? documentKind,
       tables: {
-        kind.tableName: [displaced],
+        table: [displaced],
       },
     );
     return (outcome: RecycleRestoreOutcome.restored, keepEntryId: staged?.id);
+  }
+
+  /// A conversation-document kind the registry declares, or null.
+  ///
+  /// These are the kinds [stageExtensionRow] stages; the restore accepts only
+  /// them, so a bin file naming any other extension kind stays unsupported
+  /// rather than writing an arbitrary row into `extension_entity_rows`.
+  static String? _documentKindForWire(String? wire) {
+    if (wire == null) return null;
+    for (final family in syncedConversationFamilies) {
+      if (family.kind == wire) return wire;
+    }
+    return null;
   }
 
   Future<_RestoreResult> _restorePreference(RecycleEntry entry) async {

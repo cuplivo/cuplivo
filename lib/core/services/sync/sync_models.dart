@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'sync_family_registry.dart';
 import 'sync_limits.dart';
 
 /// Wire vocabulary for LAN sync slice 1 (ADR-0003).
@@ -57,16 +58,31 @@ import 'sync_limits.dart';
 /// owed" and had no reverse connection to fetch over either, so an undiallable
 /// peer's images would keep failing while both reports claimed success.
 ///
+/// v9: the conversation's own families (the projection). The subtree now carries
+/// the compression history, the image-context switches, the compression
+/// configuration and the provider artifacts — the four families that hung off a
+/// conversation and travelled nowhere — and a conversation's identity is
+/// composed from every travelling family instead of from its messages alone.
+///
+/// A v8 peer cannot be half-spoken to. It would ignore the four sections, so its
+/// apply would leave a document it never received as this device's local version;
+/// and because it computes the identity from message rows alone, the two sides
+/// would disagree about the digest of *every* conversation for good — each would
+/// re-send, every session, and neither could converge. Refused at hello like
+/// every other shape change.
+///
 /// v8: the deletion announcement carries the conversation row's clock beside the
-/// digest ([SyncAnnouncedDeletion]). The digest is computed from the message
-/// rows, so it cannot see a row write that left every message untouched — which
-/// is exactly what a restore from the recycle bin is: the row goes back with
-/// `now()` while the messages come back byte-identical. Without the clock, the
-/// announcing peer deletes the restored conversation again at the next session.
-/// A v7 peer would read the pair as a digest string (`toString`), match nothing,
-/// and silently stop honouring announced deletions, so this is refused at hello
-/// like every other shape change.
-const int kSyncProtocolVersion = 8;
+/// digest ([SyncAnnouncedDeletion]). v8's digest was computed from the message
+/// rows alone, so it could not see a row write that left every message untouched
+/// — which is exactly what a restore from the recycle bin is: the row goes back
+/// with `now()` while the messages come back byte-identical. Without the clock,
+/// the announcing peer deletes the restored conversation again at the next
+/// session. (v9 composes the digest from every travelling family, so a document
+/// write is visible there; the clock stays, because a rename is still a row write
+/// that moves no family's content.) A v7 peer would read the pair as a digest
+/// string (`toString`), match nothing, and silently stop honouring announced
+/// deletions, so this is refused at hello like every other shape change.
+const int kSyncProtocolVersion = 9;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
 /// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons
@@ -178,15 +194,82 @@ class SyncManifest {
   };
 }
 
-/// Digest over a conversation's message rows: sha256 of the sorted
-/// `id:coalescedUpdatedAtUs` lines. Order-independent and sensitive to any
-/// row insert, edit or delete.
-String computeConversationDigest(
-  Iterable<({String id, int updatedAtUs})> rows,
+/// The digest input one family's rows contribute, in the rule the registration
+/// gives for that family.
+///
+/// This is the Dart half of the identity: the manifest composes the same inputs
+/// in one SQL aggregate per family (a manifest must not materialise a row per
+/// message), and `sync_family_registry_test.dart` holds the two readers equal on
+/// a fixture. One rule, two readers, one test — rather than two rules that drift.
+String syncFamilyDigestInput(
+  SyncFamily family,
+  Iterable<Map<String, dynamic>> rows,
 ) {
-  final lines = rows.map((row) => '${row.id}:${row.updatedAtUs}').toList()
-    ..sort();
-  return digestFromSortedLines(lines.join('\n'));
+  switch (family.identity) {
+    case SyncIdentityContribution.none:
+    case SyncIdentityContribution.conversationClock:
+      return '';
+    case SyncIdentityContribution.rowClocks:
+      final clock = family.clockColumn!;
+      final fallback = family.fallbackClockColumn;
+      final lines = <String>[
+        for (final row in rows)
+          '${family.identityColumns.map((column) => row[column]).join(':')}'
+              ':${row[clock] ?? (fallback == null ? null : row[fallback]) ?? 0}',
+      ]..sort();
+      return lines.join('\n');
+    case SyncIdentityContribution.rowValues:
+      final lines = <String>[
+        for (final row in rows)
+          family.identityColumns.map((column) => row[column]).join(':'),
+      ]..sort();
+      return lines.join('\n');
+  }
+}
+
+/// The identity contributions a payload's own rows make, per family.
+///
+/// The sender's checkpoint is built from *this*, never from a re-read: a row
+/// written while the session is in flight was never sent, and a checkpoint that
+/// claimed the peer had it would make the next merge read the peer's silence as
+/// a deletion.
+Map<String, String> identityContributionsOf(SyncSubtreePayload payload) => {
+  for (final family in syncedConversationFamilies)
+    if (!family.isSubtreeRoot &&
+        family.identity != SyncIdentityContribution.none)
+      family.name: syncFamilyDigestInput(family, payload.rowsOf(family)),
+};
+
+/// A conversation's identity: every synced family's contribution, one block per
+/// family, blocks ordered by family name.
+///
+/// The family name is in the text on purpose. Without it, a conversation whose
+/// last message was deleted and whose last part was added could compose the same
+/// lines — the digest would answer "unchanged" for a change it cannot see.
+///
+/// The identity is a *set* of lines, so the composer sorts them. The two
+/// readers produce a block differently — the manifest path from one SQL
+/// aggregate (`group_concat` over an ordered subquery), the checkpoint path by
+/// sorting in Dart — and only the second is a guarantee. Sorting where the set
+/// becomes a string means neither reader can be the reason the two disagree,
+/// which would leave a settled conversation looking changed forever.
+String composeConversationDigest(Map<String, String> contributions) {
+  final names =
+      contributions.keys
+          .where((name) => contributions[name]!.isNotEmpty)
+          .toList()
+        ..sort();
+  if (names.isEmpty) return emptyConversationDigest;
+  return crypto.sha256
+      .convert(
+        utf8.encode(
+          [
+            for (final name in names)
+              '$name\n${(contributions[name]!.split('\n')..sort()).join('\n')}',
+          ].join('\n'),
+        ),
+      )
+      .toString();
 }
 
 /// Digest of an already-sorted, newline-joined digest input. The repository
@@ -194,14 +277,6 @@ String computeConversationDigest(
 /// so manifest building never materialises a row per message.
 String digestFromSortedLines(String sortedLines) =>
     crypto.sha256.convert(utf8.encode(sortedLines)).toString();
-
-/// Digest of a newline-joined digest input in *any* line order: sorts the
-/// lines first, so callers never depend on SQL `group_concat` ordering.
-String digestFromDigestInput(String lines) {
-  if (lines.isEmpty) return emptyConversationDigest;
-  final sorted = lines.split('\n')..sort();
-  return digestFromSortedLines(sorted.join('\n'));
-}
 
 /// The digest input for an empty conversation (no message rows).
 final String emptyConversationDigest = digestFromSortedLines('');
@@ -687,6 +762,21 @@ class SyncPeerReport {
   final int entityRowsLost;
   final int preferencesLost;
 
+  /// Conversations whose own document (compression history, image context,
+  /// compression config) the peer's copy replaced because it was newer (D-7),
+  /// counted once per conversation however many of its documents changed.
+  ///
+  /// These families were device-local until the subtree carried them, so the
+  /// first sessions after the upgrade are exactly when both sides have their own
+  /// version. The newer one wins and the other is replaced — which is fine as a
+  /// rule and unacceptable as a secret, so it is counted here: nothing else on
+  /// the card could reveal that a compression this device performed is gone.
+  ///
+  /// Provider artifacts are not counted: they are the state a native
+  /// continuation needs, not something the user produced or could act on, and
+  /// the card names compression history and settings.
+  final int conversationsWithDocumentsReplaced;
+
   /// Signed clock divergence against this peer in milliseconds, present only
   /// when it exceeded [kClockSkewWarnMs] (positive: this device ran ahead).
   /// The session still succeeded — this is the yellow flag, not a failure.
@@ -723,6 +813,7 @@ class SyncPeerReport {
     this.workspacesOmitted = 0,
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
+    this.conversationsWithDocumentsReplaced = 0,
     this.clockSkewMs,
     this.refusal,
     this.failure,
@@ -753,6 +844,7 @@ class SyncPeerReport {
     'workspacesOmitted': workspacesOmitted,
     'entityRowsLost': entityRowsLost,
     'preferencesLost': preferencesLost,
+    'conversationsWithDocumentsReplaced': conversationsWithDocumentsReplaced,
     if (clockSkewMs != null) 'clockSkewMs': clockSkewMs,
     if (refusal != null) 'refusal': refusal!.wire,
     if (failure != null) 'failure': failure!.wire,
@@ -785,51 +877,60 @@ class SyncPeerReport {
     workspacesOmitted: (json['workspacesOmitted'] as num?)?.toInt() ?? 0,
     entityRowsLost: (json['entityRowsLost'] as num?)?.toInt() ?? 0,
     preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,
+    conversationsWithDocumentsReplaced:
+        (json['conversationsWithDocumentsReplaced'] as num?)?.toInt() ?? 0,
     clockSkewMs: (json['clockSkewMs'] as num?)?.toInt(),
     refusal: SyncRefusalReason.tryParse(json['refusal'] as String?),
     failure: SyncFailureReason.tryParse(json['failure'] as String?),
   );
 }
 
-/// One conversation subtree on the wire: the conversation row, its message
-/// rows in stable order, its MCP server bindings, and the message part rows.
-/// All values are JSON primitives; timestamps as µs ints; nullable columns may
-/// be absent.
+/// One conversation subtree on the wire: the conversation row, plus one row list
+/// per travelling family under that family's registered wire key.
+///
+/// The rows are keyed by family *name* here and by [SyncFamily.wireKey] in JSON,
+/// which is the whole of "a family is a registration, not a wire field": this
+/// class carries whatever the registry names, so a new family is a new entry
+/// rather than a new field. All values are JSON primitives; timestamps as µs
+/// ints; nullable columns may be absent.
 class SyncSubtreePayload {
+  /// The subtree root: the conversation row itself.
   final Map<String, dynamic> conversation;
-  final List<Map<String, dynamic>> messages;
-  final List<Map<String, dynamic>> parts;
-  final List<Map<String, dynamic>> mcpServers;
+
+  /// Rows per registered family name. The root family is not in here — it is
+  /// [conversation] — but [rowsOf] answers for it too.
+  final Map<String, List<Map<String, dynamic>>> families;
 
   const SyncSubtreePayload({
     required this.conversation,
-    required this.messages,
-    required this.parts,
-    this.mcpServers = const [],
+    this.families = const {},
   });
 
+  /// The rows of [family] as they travel here, or empty when the payload does
+  /// not carry it.
+  List<Map<String, dynamic>> rowsOf(SyncFamily family) => family.isSubtreeRoot
+      ? [conversation]
+      : (families[family.name] ?? const []);
+
   Map<String, dynamic> toJson() => {
-    'conversation': conversation,
-    'messages': messages,
-    'parts': parts,
-    'mcpServers': mcpServers,
+    for (final family in syncedConversationFamilies)
+      if (family.isSubtreeRoot)
+        'conversation': conversation
+      else
+        family.wireKey!: [for (final row in rowsOf(family)) row],
   };
 
   static SyncSubtreePayload fromJson(Map<String, dynamic> json) =>
       SyncSubtreePayload(
         conversation: (json['conversation'] as Map).cast<String, dynamic>(),
-        messages: [
-          for (final message in (json['messages'] as List? ?? const []))
-            (message as Map).cast<String, dynamic>(),
-        ],
-        parts: [
-          for (final part in (json['parts'] as List? ?? const []))
-            (part as Map).cast<String, dynamic>(),
-        ],
-        mcpServers: [
-          for (final server in (json['mcpServers'] as List? ?? const []))
-            (server as Map).cast<String, dynamic>(),
-        ],
+        families: {
+          for (final family in syncedConversationFamilies)
+            if (!family.isSubtreeRoot)
+              family.name: [
+                for (final row in (json[family.wireKey] as List? ?? const []))
+                  (row as Map).cast<String, dynamic>(),
+              ],
+        },
       );
 }
 
@@ -1483,6 +1584,19 @@ class SyncSubtreeApplyOutcome {
   /// row the local copy beat describe references this device does not hold.
   final Set<String> appliedRevisionIds;
 
+  /// Whether the peer's newer copy replaced a local document of this
+  /// conversation (D-7) — one conversation is one line on the card, so this is
+  /// a flag and the session report counts the conversations.
+  ///
+  /// Only the document families count. A provider artifact is the state a native
+  /// continuation needs: applied, never reported.
+  final bool documentReplaced;
+
+  /// The conversation's identity as the apply left it, composed inside the same
+  /// transaction — so the checkpoint records the state the two sides agreed on
+  /// and not whatever a writer added in the window after it.
+  final String? digest;
+
   const SyncSubtreeApplyOutcome({
     this.deferred = false,
     this.conversationRow,
@@ -1492,6 +1606,8 @@ class SyncSubtreeApplyOutcome {
     this.conversationRowChanged = false,
     this.reordered = false,
     this.appliedRevisionIds = const {},
+    this.documentReplaced = false,
+    this.digest,
   });
 
   static const deferredOutcome = SyncSubtreeApplyOutcome(deferred: true);

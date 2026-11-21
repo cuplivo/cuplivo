@@ -207,6 +207,8 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     blobsMissing: report.blobsMissing,
     entityRowsLost: report.entityRowsLost,
     preferencesLost: report.preferencesLost,
+    conversationsWithDocumentsReplaced:
+        report.conversationsWithDocumentsReplaced,
     workspaceFiles: report.workspaceFiles,
     workspaceBytes: report.workspaceBytes,
     workspaceFilesRemoved: report.workspaceFilesRemoved,
@@ -235,6 +237,7 @@ String _syncCountsMessage(
   int blobsMissing = 0,
   int entityRowsLost = 0,
   int preferencesLost = 0,
+  int conversationsWithDocumentsReplaced = 0,
   int workspaceFiles = 0,
   int workspaceBytes = 0,
   int workspaceFilesRemoved = 0,
@@ -270,6 +273,11 @@ String _syncCountsMessage(
     if (skillConflicts > 0) l10n.lanSyncReportSkillConflicts(skillConflicts),
     if (entityRowsLost + preferencesLost > 0)
       l10n.lanSyncReportRowsLost(entityRowsLost + preferencesLost),
+    // D-7's cost, named: a conversation's compression history is one document,
+    // so the peer's newer copy replaces it whole rather than merging. One
+    // conversation, one line — however many of its documents changed.
+    if (conversationsWithDocumentsReplaced > 0)
+      l10n.lanSyncReportDocumentsReplaced(conversationsWithDocumentsReplaced),
     if (blobsMissing > 0) l10n.lanSyncReportBlobsMissing(blobsMissing),
     if (workspaceFilesRemoved > 0)
       l10n.lanSyncReportWorkspaceRemoved(workspaceFilesRemoved),

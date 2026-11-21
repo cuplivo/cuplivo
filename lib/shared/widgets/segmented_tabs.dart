@@ -18,6 +18,7 @@ class SegmentedTabs extends StatelessWidget {
     required this.index,
     required this.onChanged,
     this.expand = true,
+    this.shrinkLabels = false,
     this.height = 40,
     this.enabled = true,
     this.radioGroup = false,
@@ -32,6 +33,14 @@ class SegmentedTabs extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;
   final bool expand;
+
+  /// Scales a label down to its segment instead of ending it in an ellipsis.
+  ///
+  /// For a control whose labels are a closed set the user is comparing (a
+  /// language's word for each option), a shortened word is a different word:
+  /// four Cyrillic labels at 360 dp do not fit at 13 pt, and "[Изображе…]" is
+  /// harder to tell from "[Изображе…]" next to it than a slightly smaller label.
+  final bool shrinkLabels;
   final double height;
   final bool enabled, radioGroup, enableHaptics;
   final Color? backgroundColor,
@@ -121,7 +130,14 @@ class SegmentedTabs extends StatelessWidget {
           Icon(tab.icon, size: 16, color: color),
           const SizedBox(width: 6),
         ],
-        expand ? Flexible(child: label) : label,
+        if (!expand)
+          label
+        else if (shrinkLabels)
+          Flexible(
+            child: FittedBox(fit: BoxFit.scaleDown, child: label),
+          )
+        else
+          Flexible(child: label),
       ],
     );
 

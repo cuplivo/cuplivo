@@ -1823,7 +1823,9 @@ class AppLocalizationsRu extends AppLocalizations {
       'Всё, что эта версия может восстановить, включая групповые чаты';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>
@@ -1858,7 +1860,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Быстрые фразы';
 
   @override
-  String get backupPageInstructionsLabel => 'Внедрения промптов';
+  String get backupPageInstructionsLabel => 'Библиотека промптов';
 
   @override
   String get backupPageWorkspacesLabel => 'Рабочие области';
@@ -4028,6 +4030,32 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Эмбеддинг';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Решение';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'API решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Адрес решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Пусто — дополняется к адресу провайдера';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Некоторые провайдеры дают доступ к моделям решений по отдельному адресу — укажите путь, чтобы переопределить адрес по умолчанию.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Заполнить';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Текущий';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Байлянь';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Режимы ввода';
@@ -17668,6 +17696,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get recycleBinKindSkill => 'Навык';
 
   @override
+  String get recycleBinKindCompressionHistory => 'История сжатия';
+
+  @override
+  String get recycleBinKindImageContext => 'Контекст изображений';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Настройки сжатия';
+
+  @override
   String get recycleBinKindConfig => 'Конфигурация';
 
   @override
@@ -17714,6 +17751,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get recycleBinRestoreNoWorkspace =>
       'Рабочая область этого файла удалена, возвращать его некуда.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      'Диалог, к которому относится эта запись, удалён — возвращать её некуда.';
 
   @override
   String get recycleBinRestoreFailed => 'Не удалось восстановить запись';
@@ -18225,6 +18266,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String lanSyncReportRowsLost(Object n) {
     return 'Заменено более новыми записями с другого устройства: $n (можно вернуть в корзине)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return 'Заменено более новой версией с другого устройства: история сжатия, настройки контекста изображений или настройки сжатия $n диалогов';
   }
 
   @override

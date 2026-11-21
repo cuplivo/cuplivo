@@ -45,6 +45,7 @@ import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/services/api/builtin_tools.dart';
 import '../../../core/services/api/message_authorship.dart';
+import '../../subagent/services/subagent_rules.dart' show SubagentExtrasKeys;
 import '../../../core/services/api/providers/claude/claude_container.dart';
 import '../../../core/services/api/providers/claude/claude_history.dart';
 import '../../../core/services/api/providers/claude/claude_thinking_recovery.dart';
@@ -142,6 +143,17 @@ final class MemorySnapshotPlan {
 class MessageBuilderService {
   static const String internalMediaPathsKey = multimodalInternalMediaPathsKey;
   static const String internalRevisionIdKey = multimodalInternalRevisionIdKey;
+
+  /// Whether [message] is the notice a finished subagent wrote into a parent.
+  ///
+  /// Identity is the part, never the id: a restore or a sync may rewrite ids,
+  /// and the part travels with the row.
+  static bool _isSubagentResult(ChatMessage message) {
+    for (final part in message.parts) {
+      if (part is SubagentResultPart) return true;
+    }
+    return false;
+  }
 
   MessageBuilderService({
     required this.chatService,
@@ -658,6 +670,12 @@ class MessageBuilderService {
           // words: no revision id (nothing to edit, re-freeze or regex), and
           // the marker keeps "the last user message" pointing at the human.
           message[groupPeerSenderKey] = m.senderId;
+        } else if (_isSubagentResult(m)) {
+          // Same reasoning: the person reading this conversation did not write
+          // it, so it carries no revision id — the memory snapshot keeps looking
+          // for a real user turn to travel in — and the marker keeps carried
+          // images on that turn as well.
+          message[subagentResultKey] = true;
         } else if (ContextOperation.isSummary(m)) {
           message['_contextSummary'] = true;
         } else {
@@ -2207,6 +2225,45 @@ class MessageBuilderService {
       return false;
     }
   }
+
+  /// Tell a delegated conversation what it is.
+  ///
+  /// The delegation's own words travel as the first `user` message, so nothing
+  /// about being a subagent belongs there — a subagent reads its own history and
+  /// would find a paragraph of instructions addressed to it in the middle of a
+  /// task. It rides on the system prompt instead, next to the workspace section,
+  /// and only in conversations the delegator stamped.
+  Future<bool> injectSubagentPrompt(
+    List<Map<String, dynamic>> apiMessages, {
+    String? conversationId,
+  }) async {
+    if (conversationId == null || conversationId.isEmpty) return false;
+    final conversation = chatService.getConversation(conversationId);
+    if (conversation == null) return false;
+    final extras = conversation.extras;
+    if (extras[SubagentExtrasKeys.depth] is! int) return false;
+    _appendToSystemMessage(
+      apiMessages,
+      _subagentPrompt,
+      // Folded into the system-prompt bucket on purpose: a source of its own
+      // would be a context segment nothing counts, so the usage panel would
+      // under-report by the whole block. The paragraph is part of the system
+      // prompt the model receives, and that is what the bucket means.
+      source: ContextSource.systemPrompt,
+    );
+    return true;
+  }
+
+  static const String _subagentPrompt =
+      '<subagent_context>\n'
+      'You are a subagent: this conversation was started by another '
+      'conversation to carry out one task. That conversation cannot see this '
+      'one, so do not ask it questions, do not wait for clarification, and do '
+      'not address a user who is not here. Decide with the tools, the workspace '
+      'and the task text you were given. When you are done, finish with a short '
+      'conclusion of what you did and what you found — the conversation that '
+      'delegated reads that conclusion, not your transcript.\n'
+      '</subagent_context>';
 
   /// Inject the `<available_skills>` list after the workspace prompt.
   Future<bool> injectSkillsPrompt(

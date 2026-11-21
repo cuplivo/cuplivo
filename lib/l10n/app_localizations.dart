@@ -5368,6 +5368,132 @@ abstract class AppLocalizations {
   /// **'Read page: {target}'**
   String chatMessageWidgetWebFetch(String target);
 
+  /// Tool-call title for a delegation; {label} is the model's short name for the job.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegate: {label}'**
+  String chatMessageWidgetDelegate(String label);
+
+  /// Divider label where a finished subagent's result appears in the parent conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent finished'**
+  String get subagentResultCompleted;
+
+  /// Divider label for a subagent whose run ended in an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent failed'**
+  String get subagentResultFailed;
+
+  /// Divider label for a subagent the user stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent cancelled'**
+  String get subagentResultCancelled;
+
+  /// Divider label for a subagent whose run the app stopped (for example a restart).
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent interrupted'**
+  String get subagentResultInterrupted;
+
+  /// Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent running ({elapsed}) {label}'**
+  String subagentStripRunning(String elapsed, String label);
+
+  /// Progress line above the composer while several subagents work and none of them needs the user.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagents running: {count}'**
+  String subagentStripRunningMany(int count);
+
+  /// Progress line while one subagent is parked on a question or approval in its own conversation; {label} is the job's short name.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent waiting for you · {label}'**
+  String subagentStripWaiting(String label);
+
+  /// Progress line while several subagents exist and at least one waits for the user; {count} is the total, {running} how many are still working.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} subagents ({running} running)'**
+  String subagentStripCounts(int count, int running);
+
+  /// Progress line while one subagent is blocked on a tool approval in its own conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent waiting for approval · {label}'**
+  String subagentStripWaitingApproval(String label);
+
+  /// Title of the panel listing the subagents of this conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagents'**
+  String get subagentPanelTitle;
+
+  /// Shown in the subagent panel when this process has never delegated anything here.
+  ///
+  /// In en, this message translates to:
+  /// **'No subagents in this conversation yet.'**
+  String get subagentPanelEmpty;
+
+  /// Short tag beside a conversation's title in the sidebar, saying this chat is a delegated task rather than one the user started.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent'**
+  String get subagentTag;
+
+  /// No description provided for @subagentPanelRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get subagentPanelRunning;
+
+  /// No description provided for @subagentPanelWaitingAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for you'**
+  String get subagentPanelWaitingAnswer;
+
+  /// No description provided for @subagentPanelWaitingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval'**
+  String get subagentPanelWaitingApproval;
+
+  /// No description provided for @subagentPanelCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get subagentPanelCompleted;
+
+  /// No description provided for @subagentPanelFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get subagentPanelFailed;
+
+  /// No description provided for @subagentPanelCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get subagentPanelCancelled;
+
+  /// No description provided for @subagentPanelInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Interrupted'**
+  String get subagentPanelInterrupted;
+
+  /// How long one subagent ran, shown at the end of its row in the panel.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m {seconds}s'**
+  String subagentPanelElapsed(int minutes, int seconds);
+
   /// Tool-call title for the model's built-in search tool.
   ///
   /// In en, this message translates to:
@@ -28247,6 +28373,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Drawing'**
   String get assistantEditLocalToolImageTitle;
+
+  /// Name of the delegation capability in the assistant's local-tool list.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent'**
+  String get assistantEditLocalToolDelegateTitle;
+
+  /// Name of the capability that blocks until a delegated task finishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for task'**
+  String get assistantEditLocalToolAwaitJobTitle;
 
   /// Settings row for choosing the model that draws pictures.
   ///

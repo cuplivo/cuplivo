@@ -2906,6 +2906,83 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Delegate: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Subagent finished';
+
+  @override
+  String get subagentResultFailed => 'Subagent failed';
+
+  @override
+  String get subagentResultCancelled => 'Subagent cancelled';
+
+  @override
+  String get subagentResultInterrupted => 'Subagent interrupted';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Subagent running ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Subagents running: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Subagent waiting for you · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count subagents ($running running)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Subagent waiting for approval · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Subagents';
+
+  @override
+  String get subagentPanelEmpty => 'No subagents in this conversation yet.';
+
+  @override
+  String get subagentTag => 'Subagent';
+
+  @override
+  String get subagentPanelRunning => 'Running';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Waiting for you';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Waiting for approval';
+
+  @override
+  String get subagentPanelCompleted => 'Finished';
+
+  @override
+  String get subagentPanelFailed => 'Failed';
+
+  @override
+  String get subagentPanelCancelled => 'Cancelled';
+
+  @override
+  String get subagentPanelInterrupted => 'Interrupted';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '${minutes}m ${seconds}s';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => 'Built-in Search';
 
   @override
@@ -16019,6 +16096,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolImageTitle => 'Drawing';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => 'Subagent';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Wait for task';
 
   @override
   String get defaultModelPageImageModelTitle => 'Image Model';

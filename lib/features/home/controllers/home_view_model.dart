@@ -1327,6 +1327,26 @@ class HomeViewModel extends ChangeNotifier {
     return true;
   }
 
+  /// Stops the generation running in [conversationId], whichever conversation
+  /// that is. Used by the subagent coordinator when the parent's turn — and with
+  /// it the work it delegated — is cancelled.
+  Future<void> cancelGenerationOf(String conversationId) =>
+      _chatActions.cancelStreamingById(conversationId);
+
+  /// Reloads the visible timeline after something outside the chat flow wrote a
+  /// row into the open conversation.
+  ///
+  /// The timeline rebuilds on `externalWriteRevision`, which only the chat flow
+  /// bumps; a background writer has to ask for the reload itself. Scheduling
+  /// publishing does the same thing for the same reason.
+  Future<void> refreshTimelineAfterExternalWrite() async {
+    try {
+      await _chatController.refreshTimelineAfterMutation();
+    } catch (_) {
+      // The next navigation re-reads the window anyway.
+    }
+  }
+
   /// Cancel the active streaming.
   Future<void> cancelStreaming() async {
     final conversation = currentConversation;

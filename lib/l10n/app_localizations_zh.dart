@@ -2783,6 +2783,83 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失败';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中断';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理运行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 个子代理正在运行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 个子代理（$running 个正在运行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '这个会话还没有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '正在运行';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失败';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中断';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '模型内置搜索';
 
   @override
@@ -15187,6 +15264,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任务';
 
   @override
   String get defaultModelPageImageModelTitle => '绘图模型';

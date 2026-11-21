@@ -461,9 +461,28 @@ WHERE e.kind=? AND e.id=? AND json_extract(j.value,'$.id')=? LIMIT 1''',
             );
             await _writeContextOperations(conversationId, operations);
           }
-          await (_db.update(_db.conversationRows)
-                ..where((row) => row.id.equals(conversationId)))
-              .write(const ConversationRowsCompanion(truncateIndex: Value(-1)));
+          final stored = await syncReadConversationRow(conversationId);
+          final clock = _nextConversationClock(
+            storedExtrasJson: stored?['extras_json'],
+            storedUpdatedAtUs: (stored?['updated_at'] as num?)?.toInt(),
+          );
+          await (_db.update(
+            _db.conversationRows,
+          )..where((row) => row.id.equals(conversationId))).write(
+            ConversationRowsCompanion(
+              truncateIndex: const Value(-1),
+              // A derived column, but it travels in the row: stamp it, or
+              // the peer never learns the conversion happened.
+              extrasJson: Value(
+                ChatDatabaseRepository._extrasWithSyncClock(
+                  ChatDatabaseRepository._decodeExtrasJson(
+                    (stored?['extras_json'] as String?) ?? '{}',
+                  ),
+                  clock.syncClock,
+                ),
+              ),
+            ),
+          );
         }
         final result = List<ContextOperation>.unmodifiable(operations);
         _contextOperationCache = (

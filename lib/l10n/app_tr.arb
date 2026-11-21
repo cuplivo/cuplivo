@@ -1112,6 +1112,7 @@
   "mcpConversationSheetConnected": "Bağlandı",
   "mcpConversationSheetToolsCount": "Araçlar: {enabled}/{total}",
   "mcpServerEditSheetEnabledLabel": "Etkin",
+  "mcpServerEditSheetLocalOnlyLabel": "Yalnızca bu cihaz",
   "mcpServerEditSheetNameLabel": "Ad",
   "mcpServerEditSheetTransportLabel": "Taşıma",
   "mcpServerEditSheetUrlLabel": "Sunucu URL'si",

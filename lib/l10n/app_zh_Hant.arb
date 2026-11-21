@@ -1112,6 +1112,7 @@
   "mcpConversationSheetConnected": "已連線",
   "mcpConversationSheetToolsCount": "工具: {enabled}/{total}",
   "mcpServerEditSheetEnabledLabel": "是否啟用",
+  "mcpServerEditSheetLocalOnlyLabel": "僅本機",
   "mcpServerEditSheetNameLabel": "名稱",
   "mcpServerEditSheetTransportLabel": "傳輸類型",
   "mcpServerEditSheetUrlLabel": "伺服器地址",

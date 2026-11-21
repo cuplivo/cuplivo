@@ -1112,6 +1112,7 @@
   "mcpConversationSheetConnected": "Подключено",
   "mcpConversationSheetToolsCount": "Инструменты: {enabled}/{total}",
   "mcpServerEditSheetEnabledLabel": "Включено",
+  "mcpServerEditSheetLocalOnlyLabel": "Только это устройство",
   "mcpServerEditSheetNameLabel": "Название",
   "mcpServerEditSheetTransportLabel": "Транспорт",
   "mcpServerEditSheetUrlLabel": "URL сервера",

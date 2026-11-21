@@ -3545,6 +3545,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => '是否启用';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => '仅本机';
+
+  @override
   String get mcpServerEditSheetNameLabel => '名称';
 
   @override
@@ -21547,6 +21550,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get mcpServerEditSheetEnabledLabel => '是否启用';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => '仅本机';
 
   @override
   String get mcpServerEditSheetNameLabel => '名称';
@@ -39556,6 +39562,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get mcpServerEditSheetEnabledLabel => '是否啟用';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => '僅本機';
 
   @override
   String get mcpServerEditSheetNameLabel => '名稱';

@@ -1112,6 +1112,7 @@
   "mcpConversationSheetConnected": "연결됨",
   "mcpConversationSheetToolsCount": "도구: {enabled}/{total}",
   "mcpServerEditSheetEnabledLabel": "사용",
+  "mcpServerEditSheetLocalOnlyLabel": "이 기기에서만",
   "mcpServerEditSheetNameLabel": "이름",
   "mcpServerEditSheetTransportLabel": "전송 방식",
   "mcpServerEditSheetUrlLabel": "서버 URL",

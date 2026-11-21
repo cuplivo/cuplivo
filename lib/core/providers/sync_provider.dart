@@ -255,6 +255,23 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   SyncEngine? _engine;
   SyncStore? _store;
 
+  /// The store, created once and shared by the engine and the panel.
+  ///
+  /// Deliberately not owned by [start]: a row's "keep it on this device" choice
+  /// is persisted whether or not the listener has ever run, and a *second*
+  /// [SyncStore] over the same directory would carry its own write queue — two
+  /// serialized writers that are not serialized with each other, which is
+  /// exactly how one of two toggles is lost.
+  Future<SyncStore> _ensureStore() => _storeFuture ??= _openStore();
+
+  Future<SyncStore> _openStore() async {
+    final store = SyncStore(await _syncDirectory());
+    _store = store;
+    return store;
+  }
+
+  Future<SyncStore>? _storeFuture;
+
   /// The workspace content plane, once the engine owns one: the panel's rows
   /// come from here (the index walk and the device-local switch), and the
   /// engine reads the same plane during a session.
@@ -475,7 +492,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         ),
       );
       if (_stopRequested) return;
-      final store = SyncStore(directory);
+      final store = await _ensureStore();
       final workspaceContent = WorkspaceContentSync(
         businessRepository: _businessRepository,
         store: store,
@@ -1283,6 +1300,46 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     await content.setEnabled(id, enabled);
     await refreshWorkspaceContent();
   }
+
+  // ---- rows held on this device ----
+
+  /// The business keys (`syncBusinessKey`) this device holds without offering
+  /// to a peer, as of the last read.
+  Set<String> localOnlyKeys = const {};
+
+  /// Re-reads the held set from disk and returns it.
+  ///
+  /// The MCP form asks for this when it opens: the file is the truth (a session
+  /// reads it directly at its hello), and this copy exists so the form can draw
+  /// a switch without an await in `build`.
+  Future<Set<String>> refreshLocalOnlyKeys() async {
+    final store = await _ensureStore();
+    localOnlyKeys = await store.readLocalOnlyKeys();
+    _notify();
+    return localOnlyKeys;
+  }
+
+  /// Marks one row as held on this device, or releases it. Returns whether the
+  /// stored choice changed.
+  ///
+  /// The row's content is untouched either way: what changes is whether the
+  /// pair may exchange it. A held row stops being offered, and the peer stops
+  /// reading its absence as a deletion — the announcement on the hello
+  /// (`SyncHello.localOnly`) is what carries that second half.
+  Future<bool> setLocalOnly(String key, bool localOnly) async {
+    if (key.isEmpty) return false;
+    final store = await _ensureStore();
+    final changed = await store.mutateLocalOnlyKeys(
+      (keys) => localOnly ? keys.add(key) : keys.remove(key),
+    );
+    if (!changed) return false;
+    localOnlyKeys = await store.readLocalOnlyKeys();
+    _notify();
+    return true;
+  }
+
+  /// Whether one row is held on this device, as far as the last read knew.
+  bool isLocalOnly(String key) => localOnlyKeys.contains(key);
 
   // ---- automatic rounds (foreground) ----
 

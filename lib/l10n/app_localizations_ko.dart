@@ -3611,6 +3611,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => '사용';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => '이 기기에서만';
+
+  @override
   String get mcpServerEditSheetNameLabel => '이름';
 
   @override

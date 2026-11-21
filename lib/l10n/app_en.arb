@@ -1822,6 +1822,7 @@
     "description": "Tag showing enabled versus total tools for a server in the MCP conversation sheet; {enabled} and {total} are integers."
   },
   "mcpServerEditSheetEnabledLabel": "Enabled",
+  "mcpServerEditSheetLocalOnlyLabel": "This device only",
   "mcpServerEditSheetNameLabel": "Name",
   "mcpServerEditSheetTransportLabel": "Transport",
   "mcpServerEditSheetUrlLabel": "Server URL",
@@ -11539,6 +11540,9 @@
   },
   "@mcpServerEditSheetEnabledLabel": {
     "description": "Label for the toggle switch that enables or disables an MCP server in the edit form."
+  },
+  "@mcpServerEditSheetLocalOnlyLabel": {
+    "description": "Label for the toggle switch that keeps an MCP server on this device: a held row is neither offered to a paired device nor overwritten by one."
   },
   "@mcpServerEditSheetNameLabel": {
     "description": "Label for the text field entering an MCP server's display name."

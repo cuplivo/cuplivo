@@ -3720,6 +3720,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => 'Etkin';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'Yalnızca bu cihaz';
+
+  @override
   String get mcpServerEditSheetNameLabel => 'Ad';
 
   @override

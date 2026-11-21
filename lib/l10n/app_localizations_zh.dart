@@ -1713,7 +1713,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
@@ -3806,6 +3808,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -15143,6 +15169,54 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get retry => '重试';
+
+  @override
+  String get imageJobTitle => '插图';
+
+  @override
+  String get imageJobFailed => '生成失败';
+
+  @override
+  String get imageJobInterrupted => '已中断';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get defaultModelPageImageModelTitle => '绘图模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回复里画图所用的模型；不设置就等于不启用绘图。';
+
+  @override
+  String get imageJobPanelCopy => '复制';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示词';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用时';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自动';
+
+  @override
+  String get imageJobPanelOneImage => '1 张';
+
+  @override
+  String get imageJobNotConfigured => '未配置 · 去选择';
+
+  @override
+  String get imageModelFollowGlobal => '使用默认绘图模型';
 
   @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
@@ -19638,7 +19712,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
@@ -21731,6 +21807,30 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -33068,6 +33168,54 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get retry => '重试';
+
+  @override
+  String get imageJobTitle => '插图';
+
+  @override
+  String get imageJobFailed => '生成失败';
+
+  @override
+  String get imageJobInterrupted => '已中断';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get defaultModelPageImageModelTitle => '绘图模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回复里画图所用的模型；不设置就等于不启用绘图。';
+
+  @override
+  String get imageJobPanelCopy => '复制';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示词';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用时';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自动';
+
+  @override
+  String get imageJobPanelOneImage => '1 张';
+
+  @override
+  String get imageJobNotConfigured => '未配置 · 去选择';
+
+  @override
+  String get imageModelFollowGlobal => '使用默认绘图模型';
 
   @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
@@ -37568,7 +37716,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageTargetCuplivoNote => '目前版本可還原的全部內容，含群組聊天';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote => '可在 Kelivo 中匯入，但會遺失群組聊天資料';
@@ -39661,6 +39811,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '決策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '決策介面';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '決策位址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空則接在 provider 位址後';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供應商的決策模型使用獨立介面，需要覆寫預設請求網址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '目前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百煉';
 
   @override
   String get modelDetailSheetInputModesLabel => '輸入模式';
@@ -51004,6 +51178,54 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get retry => '重試';
+
+  @override
+  String get imageJobTitle => '插圖';
+
+  @override
+  String get imageJobFailed => '生成失敗';
+
+  @override
+  String get imageJobInterrupted => '已中斷';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '繪圖';
+
+  @override
+  String get defaultModelPageImageModelTitle => '繪圖模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回覆裡畫圖所用的模型；不設定就等於不啟用繪圖。';
+
+  @override
+  String get imageJobPanelCopy => '複製';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示詞';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用時';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自動';
+
+  @override
+  String get imageJobPanelOneImage => '1 張';
+
+  @override
+  String get imageJobNotConfigured => '未設定 · 去選擇';
+
+  @override
+  String get imageModelFollowGlobal => '使用預設繪圖模型';
 
   @override
   String get recoveryGuideTitle => '幫你找回聊天記錄';

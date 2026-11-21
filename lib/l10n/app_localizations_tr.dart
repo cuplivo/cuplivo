@@ -1799,7 +1799,9 @@ class AppLocalizationsTr extends AppLocalizations {
       'Bu sürümün geri yükleyebildiği her şey, grup sohbetleri dahil';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>
@@ -3997,6 +3999,32 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Gömme';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Karar';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Karar API\'si';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Karar adresi';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Boşsa sağlayıcı adresinin sonuna eklenir';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Bazı sağlayıcılar karar modellerini ayrı bir adreste sunar; varsayılan adresi geçersiz kılmak için yolu girin.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Doldur';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Geçerli';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Giriş Modları';
@@ -16068,6 +16096,55 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get retry => 'Yeniden dene';
+
+  @override
+  String get imageJobTitle => 'İllüstrasyon';
+
+  @override
+  String get imageJobFailed => 'İllüstrasyon başarısız oldu';
+
+  @override
+  String get imageJobInterrupted => 'İllüstrasyon kesintiye uğradı';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Çizim';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Görsel Modeli';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'Yanıt içinde resim çizen model; ayarlanmazsa çizim devre dışı kalır.';
+
+  @override
+  String get imageJobPanelCopy => 'Kopyala';
+
+  @override
+  String get imageJobPanelPromptLabel => 'İstem';
+
+  @override
+  String get imageJobPanelModelLabel => 'Model';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Boyut';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Geçen süre';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Kullanım';
+
+  @override
+  String get imageJobPanelAuto => 'Otomatik';
+
+  @override
+  String get imageJobPanelOneImage => '1 görsel';
+
+  @override
+  String get imageJobNotConfigured => 'Yapılandırılmadı · Seç';
+
+  @override
+  String get imageModelFollowGlobal => 'Varsayılan görsel modelini kullan';
 
   @override
   String get recoveryGuideTitle => 'Sohbetlerinizi kurtaralım';

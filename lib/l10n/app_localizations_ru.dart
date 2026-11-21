@@ -1823,7 +1823,9 @@ class AppLocalizationsRu extends AppLocalizations {
       'Всё, что эта версия может восстановить, включая групповые чаты';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>
@@ -4028,6 +4030,32 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Эмбеддинг';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Решение';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'API решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Адрес решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Пусто — дополняется к адресу провайдера';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Некоторые провайдеры дают доступ к моделям решений по отдельному адресу — укажите путь, чтобы переопределить адрес по умолчанию.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Заполнить';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Текущий';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Байлянь';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Режимы ввода';
@@ -16250,6 +16278,56 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get retry => 'Повторить';
+
+  @override
+  String get imageJobTitle => 'Иллюстрация';
+
+  @override
+  String get imageJobFailed => 'Не удалось создать иллюстрацию';
+
+  @override
+  String get imageJobInterrupted => 'Иллюстрация прервана';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Рисование';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Модель изображений';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'Модель, которая рисует картинки в ответе; если не задана, рисование отключено.';
+
+  @override
+  String get imageJobPanelCopy => 'Копировать';
+
+  @override
+  String get imageJobPanelPromptLabel => 'Запрос';
+
+  @override
+  String get imageJobPanelModelLabel => 'Модель';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Размер';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Затраченное время';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Использование';
+
+  @override
+  String get imageJobPanelAuto => 'Авто';
+
+  @override
+  String get imageJobPanelOneImage => '1 изображение';
+
+  @override
+  String get imageJobNotConfigured => 'Не настроено · Выбрать';
+
+  @override
+  String get imageModelFollowGlobal =>
+      'Использовать модель изображений по умолчанию';
 
   @override
   String get recoveryGuideTitle => 'Восстановим ваши чаты';

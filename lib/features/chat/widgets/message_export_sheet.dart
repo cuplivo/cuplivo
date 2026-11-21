@@ -135,6 +135,10 @@ _Parsed _imageExportPartsFromMessage(
   final docs = <_DocRef>[];
   for (final part in message.parts) {
     if (part is ImagePart) {
+      // A promise has no bytes: exporting it would write the reserved path into
+      // the file and paint a broken-image slot in the PDF. Same rule as every
+      // outbound walk — `state != null` means there is nothing to export.
+      if (!part.hasBytes) continue;
       final uri = part.uri.trim();
       if (uri.isNotEmpty) images.add(uri);
     } else if (part is FilePart) {
@@ -216,6 +220,8 @@ Future<void> _writeExportBlocks(
         buf.writeln(body);
         buf.writeln('');
       case ImagePart(:final uri):
+        // A failed or interrupted illustration is still a part; it has no file.
+        if (!part.hasBytes) continue;
         final trimmed = uri.trim();
         if (trimmed.isEmpty) continue;
         await writeImage(trimmed);

@@ -62,6 +62,13 @@ class Assistant {
   final List<String> mcpServerIds; // bound MCP server IDs
   final bool allowConversationMcp;
   final List<String> localToolIds; // enabled local tool IDs
+
+  /// Which model draws this assistant's pictures. `null` falls through to
+  /// 设置 → 默认模型 → 绘图模型. The text model writes the prompt; it never
+  /// chooses the brush, and a conversation has no say in it either.
+  final String? imageModelProvider;
+  final String? imageModelId;
+
   /// Default workspace for new conversations started with this assistant.
   final String? defaultWorkspaceId;
 
@@ -142,6 +149,8 @@ class Assistant {
     this.mcpServerIds = const <String>[],
     this.allowConversationMcp = false,
     this.localToolIds = const <String>[],
+    this.imageModelProvider,
+    this.imageModelId,
     this.defaultWorkspaceId,
     this.defaultWorkspaceSetup = DefaultWorkspaceSetup.automatic,
     this.defaultWorkspaceChangeToken,
@@ -198,6 +207,10 @@ class Assistant {
     List<String>? mcpServerIds,
     bool? allowConversationMcp,
     List<String>? localToolIds,
+    String? imageModelProvider,
+    bool clearImageModelProvider = false,
+    String? imageModelId,
+    bool clearImageModelId = false,
     String? defaultWorkspaceId,
     DefaultWorkspaceSetup? defaultWorkspaceSetup,
     List<String>? skillIds,
@@ -267,6 +280,12 @@ class Assistant {
       mcpServerIds: mcpServerIds ?? this.mcpServerIds,
       allowConversationMcp: allowConversationMcp ?? this.allowConversationMcp,
       localToolIds: localToolIds ?? this.localToolIds,
+      imageModelProvider: clearImageModelProvider
+          ? null
+          : (imageModelProvider ?? this.imageModelProvider),
+      imageModelId: clearImageModelId
+          ? null
+          : (imageModelId ?? this.imageModelId),
       defaultWorkspaceId: clearDefaultWorkspaceId
           ? null
           : (defaultWorkspaceId ?? this.defaultWorkspaceId),
@@ -354,6 +373,8 @@ class Assistant {
     'mcpServerIds': mcpServerIds,
     'allowConversationMcp': allowConversationMcp,
     'localToolIds': localToolIds,
+    'imageModelProvider': imageModelProvider,
+    'imageModelId': imageModelId,
     'defaultWorkspaceId': defaultWorkspaceId,
     'defaultWorkspaceSetup': defaultWorkspaceSetup.name,
     'skillIds': skillIds,
@@ -427,6 +448,8 @@ class Assistant {
     allowConversationMcp: json['allowConversationMcp'] as bool? ?? false,
     localToolIds:
         (json['localToolIds'] as List?)?.cast<String>() ?? const <String>[],
+    imageModelProvider: json['imageModelProvider'] as String?,
+    imageModelId: json['imageModelId'] as String?,
     defaultWorkspaceId: json['defaultWorkspaceId'] as String?,
     defaultWorkspaceSetup:
         DefaultWorkspaceSetup.values

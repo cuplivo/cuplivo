@@ -207,6 +207,11 @@ class RequestImageContext {
     for (final message in messages) {
       for (var ordinal = 0; ordinal < message.parts.length; ordinal++) {
         final part = message.parts[ordinal];
+        // A picture an image job has only *promised* has no bytes yet: the uri
+        // is reserved and the file is not there. Handing it to the context would
+        // invent an image the provider cannot load, so it is skipped here exactly
+        // as the outbound body already skips it. `hasBytes` is that question.
+        if (part is ImagePart && !part.hasBytes) continue;
         if (part is ImagePart || part is FilePart) {
           final uri = part is ImagePart ? part.uri : (part as FilePart).uri;
           final mime = part is ImagePart ? part.mime : (part as FilePart).mime;

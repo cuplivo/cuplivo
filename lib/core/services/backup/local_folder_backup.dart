@@ -19,10 +19,26 @@ class LocalFolderBackup {
   final Directory directory;
   final String installId;
   final BackupPartials partials;
-  String get _prefix => 'kelivo_auto_${installId}_';
+
+  /// New auto-backups say which app wrote them.
+  static const _cuplivoAutoPrefix = 'cuplivo_auto_';
+
+  /// 4.7.0 wrote this prefix, and those files stay owned: [_owned] filters the
+  /// manifest, so dropping it would abandon every auto-backup already in the
+  /// user's folder to a retention policy that no longer counts them.
+  static const _kelivoAutoPrefix = 'kelivo_auto_';
+
+  String get _prefix => '$_cuplivoAutoPrefix${installId}_';
   late final _owned = RegExp(
-    '^${RegExp.escape(_prefix)}[0-9]{16,20}\\.(zip|kbackup)\$',
+    '^(?:$_cuplivoAutoPrefix|$_kelivoAutoPrefix)${RegExp.escape(installId)}_'
+    r'[0-9]{16,20}\.(?:zip|kbackup)$',
   );
+
+  /// The stamp a published name carries. Retention sorts by it rather than by
+  /// the whole name: after the rename a folder can hold both prefixes, and
+  /// lexicographic order would put every new file before every old one.
+  static String _stampOf(String name) =>
+      RegExp(r'_([0-9]{16,20})\.').firstMatch(name)?.group(1) ?? '';
   bool _ownsPartial(String name) =>
       name.endsWith('.partial') &&
       _owned.hasMatch(name.substring(0, name.length - 8));
@@ -174,7 +190,8 @@ class LocalFolderBackup {
     );
 
     if (retention <= 0 || names.length <= retention) return;
-    final older = names.where((n) => n != name).toList()..sort();
+    final older = names.where((n) => n != name).toList()
+      ..sort((a, b) => _stampOf(a).compareTo(_stampOf(b)));
     for (final old in older.take(names.length - retention)) {
       try {
         await _remove(old);

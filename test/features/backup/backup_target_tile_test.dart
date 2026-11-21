@@ -37,15 +37,12 @@ void main() {
   ) async {
     await tester.pumpWidget(
       await host(
-        BackupTargetTile(
-          target: BackupTarget.kelivoV1_3_4,
-          onChanged: (_) async {},
-        ),
+        BackupTargetTile(target: BackupTarget.kelivo, onChanged: (_) async {}),
       ),
     );
 
     expect(find.text('Backup target'), findsOneWidget);
-    expect(find.text('Kelivo 1.3.4'), findsOneWidget);
+    expect(find.text('Kelivo 1.3.2+'), findsOneWidget);
   });
 
   testWidgets('choosing Kelivo reports it, and the picker states the cost', (
@@ -71,10 +68,10 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('backup-target-kelivoV1_3_4')));
+    await tester.tap(find.byKey(const ValueKey('backup-target-kelivo')));
     await tester.pumpAndSettle();
 
-    expect(picked, BackupTarget.kelivoV1_3_4);
+    expect(picked, BackupTarget.kelivo);
   });
 
   testWidgets('desktop opens the same choice as a dialog', (tester) async {
@@ -96,10 +93,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Dialog), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('backup-target-kelivoV1_3_4')));
+    await tester.tap(find.byKey(const ValueKey('backup-target-kelivo')));
     await tester.pumpAndSettle();
 
-    expect(picked, BackupTarget.kelivoV1_3_4);
+    expect(picked, BackupTarget.kelivo);
   });
 
   testWidgets('a disabled tile has no picker', (tester) async {
@@ -112,9 +109,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('backup-target-picker')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('backup-target-kelivoV1_3_4')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('backup-target-kelivo')), findsNothing);
   });
 }

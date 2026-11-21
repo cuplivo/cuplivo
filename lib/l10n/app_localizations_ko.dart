@@ -1753,7 +1753,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backupPageTargetCuplivoNote => '이 버전에서 복원할 수 있는 모든 항목, 그룹 채팅 포함';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>
@@ -3876,6 +3878,31 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => '임베딩';
+
+  @override
+  String get modelDetailSheetDecisionType => '결정';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '결정 API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '결정 주소';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '비워 두면 provider 주소 뒤에 붙습니다';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      '일부 공급자의 결정 모델은 별도 인터페이스를 사용하므로 기본 주소를 덮어써야 합니다.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '채우기';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '현재';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '바이리안';
 
   @override
   String get modelDetailSheetInputModesLabel => '입력 모드';
@@ -15484,6 +15511,55 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get retry => '다시 시도';
+
+  @override
+  String get imageJobTitle => '일러스트';
+
+  @override
+  String get imageJobFailed => '일러스트 생성 실패';
+
+  @override
+  String get imageJobInterrupted => '일러스트 중단됨';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '그리기';
+
+  @override
+  String get defaultModelPageImageModelTitle => '이미지 모델';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      '답변 안에서 그림을 그리는 모델입니다. 설정하지 않으면 그리기가 꺼집니다.';
+
+  @override
+  String get imageJobPanelCopy => '복사';
+
+  @override
+  String get imageJobPanelPromptLabel => '프롬프트';
+
+  @override
+  String get imageJobPanelModelLabel => '모델';
+
+  @override
+  String get imageJobPanelSizeLabel => '크기';
+
+  @override
+  String get imageJobPanelElapsedLabel => '소요 시간';
+
+  @override
+  String get imageJobPanelUsageLabel => '사용량';
+
+  @override
+  String get imageJobPanelAuto => '자동';
+
+  @override
+  String get imageJobPanelOneImage => '이미지 1장';
+
+  @override
+  String get imageJobNotConfigured => '설정되지 않음 · 선택';
+
+  @override
+  String get imageModelFollowGlobal => '기본 이미지 모델 사용';
 
   @override
   String get recoveryGuideTitle => '채팅을 복구해 보겠습니다';

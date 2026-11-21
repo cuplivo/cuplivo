@@ -147,11 +147,25 @@ class GroupTranscript {
   }
 
   /// The compact transcript the director reads: role, author, text.
+  ///
+  /// [collapseRepeatedSpeakers] folds consecutive replies from one member into
+  /// a single line, which keeps a chat model's budget for distinct voices. The
+  /// decision path turns it off: a decision model may answer from a cached
+  /// prefix, and folding rewrites bytes an earlier request already sent, so the
+  /// cache would never hit again.
+  ///
+  /// A message is clipped to [maxCharsPerMessage] — its own constant, never the
+  /// budget left over after newer ones — so a line that already travelled keeps
+  /// its exact bytes on the next step. [maxChars] then drops whole messages from
+  /// the oldest end; the newest message is never dropped and never clipped,
+  /// because it is the turn the choice is about.
   static List<Map<String, String>> forDirector(
     List<ChatMessage> messages, {
     required Assistant? Function(String? senderId) resolve,
     int maxMessages = 12,
     int maxChars = 6000,
+    int? maxCharsPerMessage,
+    bool collapseRepeatedSpeakers = true,
   }) {
     final selected = <Map<String, String>>[];
     String? lastName;
@@ -167,7 +181,7 @@ class GroupTranscript {
           : null;
       // Consecutive replies from the same member are one voice; collapsing them
       // keeps the director's budget for distinct speakers.
-      if (name != null && name == lastName) {
+      if (collapseRepeatedSpeakers && name != null && name == lastName) {
         selected.last['text'] = '${selected.last['text']}\n$text';
       } else {
         selected.add({
@@ -181,15 +195,24 @@ class GroupTranscript {
     }
     final ordered = selected.reversed.toList();
     var budget = maxChars;
-    final out = <Map<String, String>>[];
-    for (final entry in ordered.reversed) {
-      final text = entry['text']!;
-      if (budget <= 0) break;
-      final clipped = text.length <= budget ? text : text.substring(0, budget);
-      budget -= clipped.length;
-      out.add({...entry, 'text': clipped});
+    final kept = <Map<String, String>>[];
+    for (var index = ordered.length - 1; index >= 0; index--) {
+      final entry = ordered[index];
+      final original = entry['text']!;
+      // The newest line is the turn being decided about: keep it whole.
+      final isNewest = index == ordered.length - 1;
+      final clipped =
+          maxCharsPerMessage == null || original.length <= maxCharsPerMessage
+          ? original
+          : original.substring(0, maxCharsPerMessage);
+      final text = isNewest ? original : clipped;
+      // Whole messages only: a line that does not fit is dropped, never cut to
+      // whatever budget happens to be left.
+      if (kept.isNotEmpty && text.length > budget) break;
+      budget -= text.length;
+      kept.add({...entry, 'text': text});
     }
-    return out.reversed.toList();
+    return kept.reversed.toList();
   }
 
   /// One line of the text a title model reads.

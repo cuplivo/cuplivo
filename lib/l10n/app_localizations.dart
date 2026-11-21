@@ -3382,11 +3382,11 @@ abstract class AppLocalizations {
   /// **'Everything this version can restore, group chats included'**
   String get backupPageTargetCuplivoNote;
 
-  /// Backup target option: an archive Kelivo 1.3.4 can import.
+  /// Backup target option: an archive every Kelivo release from {version} on can import.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo 1.3.4'**
-  String get backupPageTargetKelivo;
+  /// **'Kelivo {version}+'**
+  String backupPageTargetKelivo(String version);
 
   /// One-line explanation under the Kelivo backup target: it imports there, but group chats are not in it.
   ///
@@ -7272,6 +7272,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Embedding'**
   String get modelDetailSheetEmbeddingType;
+
+  /// Model type segment and model tag for a decision model: it answers typed yes/no or choice questions with probabilities and never generates chat text.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision'**
+  String get modelDetailSheetDecisionType;
+
+  /// Label of the segmented control that picks which decision protocol a decision model speaks (System One or OpenAI decisions).
+  ///
+  /// In en, this message translates to:
+  /// **'Decision API'**
+  String get modelDetailSheetDecisionDialectLabel;
+
+  /// Label of the optional field that overrides the endpoint address of a decision model.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision URL'**
+  String get modelDetailSheetDecisionUrlLabel;
+
+  /// Placeholder of the decision address field: leaving it empty appends the dialect's default path to the provider URL.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: appended to the provider URL'**
+  String get modelDetailSheetDecisionUrlHint;
+
+  /// First paragraph of the help sheet behind the info icon next to the decision address field: some providers serve decision models on a separate endpoint, so the default address has to be overridden.
+  ///
+  /// In en, this message translates to:
+  /// **'Some providers serve decision models on their own endpoint; enter the path to override the default address.'**
+  String get modelDetailSheetDecisionUrlHelp;
+
+  /// Button in the decision address help sheet that writes the shown example path into the address field.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill'**
+  String get modelDetailSheetDecisionUrlFill;
+
+  /// Small tag in the decision address help sheet marking the example row that matches the current provider's host.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get modelDetailSheetDecisionUrlCurrent;
+
+  /// Name of Alibaba's Bailian model platform, used as the provider name of a decision address example.
+  ///
+  /// In en, this message translates to:
+  /// **'Bailian'**
+  String get modelDetailSheetDecisionUrlBailian;
 
   /// Section header and field label for supported input modalities (text/image/audio) in the model spec form.
   ///
@@ -28163,6 +28211,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get retry;
+
+  /// Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration'**
+  String get imageJobTitle;
+
+  /// Header of the same card when the picture could not be generated; a sentence explaining why follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration failed'**
+  String get imageJobFailed;
+
+  /// Header of the same card when the app closed before the picture arrived; nothing is retried automatically.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration interrupted'**
+  String get imageJobInterrupted;
+
+  /// Name of the drawing capability in the assistant's local-tool list.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing'**
+  String get assistantEditLocalToolImageTitle;
+
+  /// Settings row for choosing the model that draws pictures.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Model'**
+  String get defaultModelPageImageModelTitle;
+
+  /// Explains that the drawing model is optional and that leaving it unset turns drawing off.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that draws pictures inside a reply; leave it unset to turn drawing off.'**
+  String get defaultModelPageImageModelSubtitle;
+
+  /// Button that copies the prompt to the clipboard; a confirmation toast follows.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get imageJobPanelCopy;
+
+  /// Label of the prompt that produced the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get imageJobPanelPromptLabel;
+
+  /// Label of the model that drew the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get imageJobPanelModelLabel;
+
+  /// Label of the picture's pixel size, or of the requested aspect ratio when the file cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get imageJobPanelSizeLabel;
+
+  /// Label of how long the picture took to generate.
+  ///
+  /// In en, this message translates to:
+  /// **'Time taken'**
+  String get imageJobPanelElapsedLabel;
+
+  /// Label of what the picture consumed: today a count of pictures, later possibly a token count.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get imageJobPanelUsageLabel;
+
+  /// Value of the size row when the request left the aspect ratio to the model.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get imageJobPanelAuto;
+
+  /// Value of the usage row: this reply produced a single picture.
+  ///
+  /// In en, this message translates to:
+  /// **'1 image'**
+  String get imageJobPanelOneImage;
+
+  /// Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured · Choose'**
+  String get imageJobNotConfigured;
+
+  /// Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the default image model'**
+  String get imageModelFollowGlobal;
 
   /// Header title on the restore failure screen when local copies are being searched for recovery.
   ///

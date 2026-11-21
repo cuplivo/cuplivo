@@ -1,0 +1,826 @@
+name: Android E2E
+
+# On-demand Android acceptance run for UI PRs: builds the app, boots a
+# disposable emulator, runs the PR's changed acceptance scenario, records the
+# screen, and publishes screenshots/video plus an installable debug APK.
+#
+# This is deliberately NOT part of every PR check. It runs only when:
+#   - a PR author or collaborator comments /e2e on the PR,
+#   - a maintainer adds the `run-e2e` label,
+#   - or someone runs the workflow manually (optionally with a PR number).
+#
+# The PR must add or modify exactly one integration_test/e2e/<name>_test.dart
+# scenario. Only that file is driven; a PR without a changed scenario skips the
+# emulator entirely. See docs/e2e-android.md for the incremental contract.
+#
+# Security model:
+#   - `run` executes PR code with `contents: read` only.
+#   - `publish` never executes PR code on the /e2e path (the workflow comes from
+#     the default branch); it downloads, validates and publishes artifacts.
+#   - `skip` only posts why no scenario ran; it does not checkout PR code.
+#   - `pull_request` runs from a fork only get a read-only token; publishing is
+#     skipped there, and /e2e is the path that comments on fork PRs.
+
+env:
+  FLUTTER_VERSION: '3.47.6'
+  E2E_DRIVER: test_driver/e2e_review.dart
+  E2E_API_LEVEL: '36'
+  E2E_PROFILE: pixel_7
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to test and comment on (leave empty to test a branch)'
+        required: false
+        type: string
+      ref:
+        description: 'Branch/tag/commit to test when pr_number is empty'
+        required: false
+        type: string
+      target:
+        description: 'Acceptance test path; optional for a PR, required for a ref-only run'
+        required: false
+        type: string
+  pull_request:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: android-e2e-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  request:
+    name: Android E2E / request
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'run-e2e') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && github.event.comment.body != null && startsWith(github.event.comment.body, '/e2e'))
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+      pr_number: ${{ steps.decide.outputs.pr_number }}
+      head_sha: ${{ steps.decide.outputs.head_sha }}
+      checkout_ref: ${{ steps.decide.outputs.checkout_ref }}
+      can_comment: ${{ steps.decide.outputs.can_comment }}
+      requested_by: ${{ steps.decide.outputs.requested_by }}
+      comment_id: ${{ steps.decide.outputs.comment_id }}
+      target: ${{ steps.decide.outputs.target }}
+      target_count: ${{ steps.decide.outputs.target_count }}
+      reason: ${{ steps.decide.outputs.reason }}
+      same_repo: ${{ steps.decide.outputs.same_repo }}
+    steps:
+      - name: Decide whether to run
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_ACTOR_NAME: ${{ github.actor }}
+          DISPATCH_PR: ${{ github.event.inputs.pr_number }}
+          DISPATCH_REF: ${{ github.event.inputs.ref }}
+          DISPATCH_TARGET: ${{ github.event.inputs.target }}
+          PR_NUMBER_EVENT: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_LOGIN: ${{ github.event.comment.user.login }}
+          COMMENT_TYPE: ${{ github.event.comment.user.type }}
+          COMMENT_ASSOC: ${{ github.event.comment.author_association }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        run: |
+          set -euo pipefail
+
+          run=false
+          pr_number=""
+          head_sha=""
+          checkout_ref=""
+          can_comment=false
+          requested_by=""
+          comment_id=""
+          target=""
+          target_count=0
+          reason=""
+          # Whether the checked-out revision belongs to this repository. The
+          # real-DSH endpoint and token are handed to the build only then: an
+          # issue_comment run carries the repository's secrets even when the PR
+          # head lives in a fork, so the origin must be resolved from the API.
+          same_repo=false
+
+          emit() {
+            {
+              echo "run=$run"
+              echo "pr_number=$pr_number"
+              echo "head_sha=$head_sha"
+              echo "checkout_ref=$checkout_ref"
+              echo "can_comment=$can_comment"
+              echo "requested_by=$requested_by"
+              echo "comment_id=$comment_id"
+              echo "target=$target"
+              echo "target_count=$target_count"
+              echo "reason=$reason"
+              echo "same_repo=$same_repo"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          fetch_pr() {
+            local n="$1"
+            if ! pr_json="$(gh api "repos/$REPO/pulls/$n" 2>/dev/null)"; then
+              echo "PR #$n could not be read"
+              return 1
+            fi
+            pr_state="$(printf '%s' "$pr_json" | jq -r '.state')"
+            pr_head_sha="$(printf '%s' "$pr_json" | jq -r '.head.sha')"
+            pr_head_ref="$(printf '%s' "$pr_json" | jq -r '.head.ref')"
+            pr_author="$(printf '%s' "$pr_json" | jq -r '.user.login')"
+            # A deleted fork repository yields null; that is not this repo.
+            pr_head_repo="$(printf '%s' "$pr_json" | jq -r '.head.repo.full_name // ""')"
+            return 0
+          }
+
+          case "$EVENT_NAME" in
+            workflow_dispatch)
+              pr_number="$DISPATCH_PR"
+              requested_by="$GITHUB_ACTOR_NAME"
+              if [ -z "$pr_number" ]; then
+                run=true
+                target="$DISPATCH_TARGET"
+                head_sha="$GITHUB_SHA"
+                checkout_ref="${DISPATCH_REF:-$GITHUB_REF_NAME}"
+                # A PR ref may name fork code; only ordinary refs of this
+                # repository are allowed to receive the DSH credential.
+                case "$checkout_ref" in
+                  refs/pull/*) same_repo=false ;;
+                  *) same_repo=true ;;
+                esac
+                echo "Manual run on $checkout_ref (no PR comment)."
+              else
+                if ! printf '%s' "$pr_number" | grep -Eq '^[0-9]+$'; then
+                  echo "pr_number is not numeric"
+                  emit
+                  exit 0
+                fi
+                if ! fetch_pr "$pr_number"; then emit; exit 0; fi
+                if [ "$pr_state" != "open" ]; then
+                  echo "PR #$pr_number is $pr_state; nothing to do."
+                  emit
+                  exit 0
+                fi
+                run=true
+                if [ "${pr_head_repo,,}" = "${REPO,,}" ] && [ -n "$pr_head_repo" ]; then
+                  same_repo=true
+                fi
+                target="$DISPATCH_TARGET"
+                head_sha="$pr_head_sha"
+                checkout_ref="refs/pull/$pr_number/head"
+                can_comment=true
+                echo "Manual run for PR #$pr_number at $head_sha."
+              fi
+              ;;
+            pull_request)
+              pr_number="$PR_NUMBER_EVENT"
+              head_sha="$PR_HEAD_SHA"
+              checkout_ref="refs/pull/$pr_number/head"
+              requested_by="$GITHUB_ACTOR_NAME"
+              can_comment=true
+              same_repo=true
+              if [ "$PR_IS_FORK" = "true" ]; then
+                can_comment=false
+                same_repo=false
+                echo "Fork PR: artifacts only (pull_request token is read-only)."
+              fi
+              run=true
+              echo "Label run for PR #$pr_number at $head_sha."
+              ;;
+            issue_comment)
+              body="$(printf '%s' "$COMMENT_BODY" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+              if [ "$body" != "/e2e" ]; then
+                echo "Comment is not the /e2e command; skipping."
+                emit
+                exit 0
+              fi
+              if [ "$COMMENT_TYPE" = "Bot" ]; then
+                echo "Bot comment; skipping."
+                emit
+                exit 0
+              fi
+              pr_number="$ISSUE_NUMBER"
+              if ! printf '%s' "$pr_number" | grep -Eq '^[0-9]+$'; then
+                echo "Issue number is not numeric; skipping."
+                emit
+                exit 0
+              fi
+              if ! fetch_pr "$pr_number"; then emit; exit 0; fi
+              if [ "$pr_state" != "open" ]; then
+                echo "PR #$pr_number is $pr_state; skipping."
+                emit
+                exit 0
+              fi
+              case ",$COMMENT_ASSOC," in
+                *,OWNER,*|*,MEMBER,*|*,COLLABORATOR,*) authorized=true ;;
+                *) authorized=false ;;
+              esac
+              if [ "$COMMENT_LOGIN" = "$pr_author" ]; then
+                authorized=true
+              fi
+              if [ "$authorized" != "true" ]; then
+                echo "Commenter is not the PR author or a collaborator; skipping."
+                emit
+                exit 0
+              fi
+              run=true
+              if [ "${pr_head_repo,,}" = "${REPO,,}" ] && [ -n "$pr_head_repo" ]; then
+                same_repo=true
+              fi
+              head_sha="$pr_head_sha"
+              checkout_ref="refs/pull/$pr_number/head"
+              can_comment=true
+              requested_by="$COMMENT_LOGIN"
+              comment_id="$COMMENT_ID"
+              echo "/e2e requested for PR #$pr_number at $head_sha."
+              ;;
+            *)
+              echo "Unsupported event: $EVENT_NAME"
+              emit
+              exit 0
+              ;;
+          esac
+
+          if [ "$run" = "true" ] && [ -n "$target" ]; then
+            if ! printf '%s' "$target" | grep -Eq '^integration_test/e2e/[A-Za-z0-9._-]+_test\.dart$'; then
+              echo "Explicit target is not an integration_test/e2e/*_test.dart path: $target"
+              run=false
+              reason=invalid-target
+              target=""
+              target_count=0
+            else
+              target_count=1
+            fi
+          fi
+
+          if [ "$run" = "true" ] && [ -z "$target" ]; then
+            if [ -z "$pr_number" ]; then
+              echo "A manual ref run needs an explicit target."
+              run=false
+              reason=no-target
+            else
+              changed=""
+              if ! changed="$(gh api --paginate "repos/$REPO/pulls/${pr_number}/files?per_page=100" --jq '.[] | select(.status != "removed") | .filename' 2>/dev/null)"; then
+                echo "Could not list changed files for PR #$pr_number."
+                run=false
+                reason=file-list-failed
+              fi
+              if [ "$run" = "true" ]; then
+                targets="$(printf '%s\n' "$changed" | grep -E '^integration_test/e2e/[A-Za-z0-9._-]+_test\.dart$' || true)"
+                target_count="$(printf '%s\n' "$targets" | awk 'NF { count++ } END { print count + 0 }')"
+                case "$target_count" in
+                  1) target="$targets" ;;
+                  0)
+                    run=false
+                    reason=no-target
+                    ;;
+                  *)
+                    run=false
+                    reason=multiple-targets
+                    ;;
+                esac
+              fi
+            fi
+          fi
+
+          case "$reason" in
+            no-target)
+              echo "No changed integration_test/e2e/*_test.dart scenario; skipping the emulator."
+              ;;
+            multiple-targets)
+              echo "$target_count acceptance scenarios changed; one target per PR is allowed."
+              ;;
+          esac
+
+          emit
+
+  skip:
+    name: Android E2E / skip
+    needs: request
+    if: >-
+      always() &&
+      needs.request.outputs.run != 'true' &&
+      needs.request.outputs.pr_number != '' &&
+      needs.request.outputs.can_comment == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Explain a missing acceptance scenario
+        if: needs.request.outputs.reason == 'no-target'
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: android-e2e
+          number_force: ${{ needs.request.outputs.pr_number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          message: |
+            <!-- android-e2e -->
+            ## Android E2E: skipped
+
+            This PR does not add or modify an
+            `integration_test/e2e/<name>_test.dart` acceptance scenario, so the
+            emulator was not started.
+
+            Add one small scenario for the new UI, then request `/e2e` again.
+            See `docs/e2e-android.md` for the contract.
+
+      - name: Explain multiple acceptance scenarios
+        if: needs.request.outputs.reason == 'multiple-targets'
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: android-e2e
+          number_force: ${{ needs.request.outputs.pr_number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          message: |
+            <!-- android-e2e -->
+            ## Android E2E: skipped
+
+            This PR changes **${{ needs.request.outputs.target_count }}**
+            acceptance scenarios. Keep one acceptance target per PR so one
+            build, one emulator session and one recording stay cheap and
+            reviewable.
+
+            Consolidate the scenarios into one file or split the PR, then
+            request `/e2e` again.
+
+      - name: Explain an invalid or unavailable target
+        if: >-
+          needs.request.outputs.reason == 'invalid-target' ||
+          needs.request.outputs.reason == 'file-list-failed'
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: android-e2e
+          number_force: ${{ needs.request.outputs.pr_number }}
+          GITHUB_TOKEN: ${{ github.token }}
+          message: |
+            <!-- android-e2e -->
+            ## Android E2E: skipped
+
+            The changed acceptance target could not be determined or is not a
+            valid `integration_test/e2e/<name>_test.dart` path. Fix the path
+            or retry the request; see `docs/e2e-android.md`.
+
+  run:
+    name: Android emulator (API 36)
+    needs: request
+    if: needs.request.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      duration: ${{ steps.report.outputs.duration }}
+      status: ${{ steps.report.outputs.report_status }}
+    env:
+      E2E_TARGET: ${{ needs.request.outputs.target }}
+      E2E_PR_NUMBER: ${{ needs.request.outputs.pr_number }}
+      E2E_HEAD_SHA: ${{ needs.request.outputs.head_sha }}
+      E2E_REQUESTED_BY: ${{ needs.request.outputs.requested_by }}
+      # Real-DSH acceptance endpoint. Both values come from repository secrets
+      # and are handed to a same-repository build only: a fork PR's code must
+      # never see the launch token, and on a fork `pull_request` run GitHub
+      # supplies no repository secrets at all. Empty means "hermetic scenario
+      # only" -- the acceptance test must still run and pass without them.
+      E2E_DSH_URL: ${{ needs.request.outputs.same_repo == 'true' && secrets.E2E_DSH_URL || '' }}
+      E2E_DSH_TOKEN: ${{ needs.request.outputs.same_repo == 'true' && secrets.E2E_DSH_TOKEN || '' }}
+    steps:
+      - name: Checkout the requested revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.request.outputs.checkout_ref || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Preflight the real-DSH endpoint
+        # Fail in seconds instead of after a 15-minute emulator run when the
+        # endpoint is down or the launch token rotated with a DSH restart.
+        if: env.E2E_DSH_URL != '' && env.E2E_DSH_TOKEN != ''
+        run: |
+          set -uo pipefail
+          status="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' \
+            "$E2E_DSH_URL/?token=$E2E_DSH_TOKEN" || true)"
+          case "$status" in
+            303|307) echo "DSH endpoint accepted the launch token." ;;
+            401|403)
+              echo "::error::The DSH endpoint rejected the launch token (HTTP $status)."
+              echo "::error::The token is minted per DSH process: refresh the E2E_DSH_TOKEN secret with 'ssh us-vps1 dsh-e2e-url' and re-run."
+              exit 1
+              ;;
+            000|'')
+              echo "::error::The DSH endpoint did not answer (no HTTP response). Check that the host is up and the TLS front is reachable."
+              exit 1
+              ;;
+            *)
+              echo "::error::The DSH endpoint answered HTTP $status; a valid launch token returns 303."
+              exit 1
+              ;;
+          esac
+
+      - name: Preflight the real-DSH API
+        # The app talks to the Remote API with the operator cookie, not the
+        # launch token, so prove that exchange too before building.
+        if: env.E2E_DSH_URL != '' && env.E2E_DSH_TOKEN != ''
+        run: |
+          set -uo pipefail
+          jar="$RUNNER_TEMP/e2e_dsh_cookies.txt"
+          code="$(curl -sS --max-time 15 -c "$jar" -o /dev/null -w '%{http_code}' \
+            "$E2E_DSH_URL/connect?token=$E2E_DSH_TOKEN&interactions=answer" || true)"
+          if [ "$code" != "302" ]; then
+            echo "::error::The DSH /connect token exchange failed (HTTP ${code:-none}); expected 302."
+            exit 1
+          fi
+          rid="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+          body="{\"type\":\"client-request\",\"rpcId\":\"$rid\",\"method\":\"session/list\",\"payload\":{\"args\":{\"_request\":{}}}}"
+          reply="$(curl -sS --max-time 20 -b "$jar" -H 'content-type: application/json' \
+            -X POST "$E2E_DSH_URL/api/session/list" --data "$body" -w '\n%{http_code}' || true)"
+          rpc_code="${reply##*$'\n'}"
+          rpc_body="${reply%$'\n'*}"
+          rm -f "$jar"
+          if [ "$rpc_code" != "200" ] || ! printf '%s' "$rpc_body" | grep -q '"ok":true'; then
+            echo "::error::The DSH Remote API preflight failed (HTTP ${rpc_code:-none})."
+            exit 1
+          fi
+          echo "DSH API preflight passed (token -> cookie -> session/list)."
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Record start time
+        run: echo "E2E_START=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Prepare the real-DSH dart-defines file
+        # The launch token is a live credential. It reaches the compiler from a
+        # 0600 JSON file rather than argv, so it never appears in a process
+        # list or a logged command line, and the file is deleted right after
+        # the build. The review APK is built without it.
+        if: env.E2E_DSH_URL != '' && env.E2E_DSH_TOKEN != ''
+        run: |
+          set -euo pipefail
+          define_file="$RUNNER_TEMP/e2e_dsh_defines.json"
+          umask 077
+          python3 - "$define_file" <<'PY'
+          import json, os, sys
+
+          path = sys.argv[1]
+          with open(path, "w", encoding="utf-8") as handle:
+              json.dump(
+                  {
+                      "E2E_DSH_URL": os.environ["E2E_DSH_URL"],
+                      "E2E_DSH_TOKEN": os.environ["E2E_DSH_TOKEN"],
+                  },
+                  handle,
+              )
+          os.chmod(path, 0o600)
+          PY
+          echo "E2E_DSH_DEFINES_FILE=$define_file" >> "$GITHUB_ENV"
+
+      - name: Build the E2E test APK (x86_64)
+        id: build_e2e_apk
+        run: |
+          set -euo pipefail
+          mkdir -p build/e2e
+          # One entry per accepted dart-defined value. Empty on fork PRs and on
+          # hosts without the endpoint, which keeps the build hermetic there.
+          defines=()
+          if [ -n "${E2E_DSH_DEFINES_FILE:-}" ]; then
+            defines+=("--dart-define-from-file=$E2E_DSH_DEFINES_FILE")
+          fi
+          flutter build apk --debug \
+            --target="$E2E_TARGET" \
+            --target-platform=android-x64 \
+            "${defines[@]}"
+          cp build/app/outputs/flutter-apk/app-debug.apk build/e2e/e2e-test-x64.apk
+
+      - name: Remove the real-DSH dart-defines file
+        if: always() && env.E2E_DSH_DEFINES_FILE != ''
+        run: rm -f -- "$E2E_DSH_DEFINES_FILE"
+
+      - name: Build the manual-review APK (arm64)
+        id: build_review_apk
+        continue-on-error: true
+        # Reviewers install this on a phone; arm64 only keeps the artifact
+        # small. A failure here does not prevent the emulator run, but the job
+        # is reported as failed because the promised artifact is missing.
+        run: |
+          set -euo pipefail
+          flutter build apk --debug --target-platform=android-arm64
+          cp build/app/outputs/flutter-apk/app-debug.apk build/e2e/Cuplivo-debug-arm64.apk
+
+      - name: Release the Gradle daemon before the emulator starts
+        if: always()
+        run: |
+          if [ -x android/gradlew ]; then
+            (cd android && ./gradlew --stop) || true
+          fi
+
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Install ffmpeg for the highlights clip
+        # ubuntu-24.04 does not ship ffmpeg, and apt installs of it took over
+        # five minutes on the hosted image. Use a pinned static build from a
+        # GitHub release instead, with its published SHA-256. The step is
+        # non-fatal: the full recording is still uploaded without it.
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if command -v ffmpeg >/dev/null 2>&1; then
+            exit 0
+          fi
+          url='https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-11-18-12-39/ffmpeg-N-129046-g3a78197c4c-linux64-gpl.tar.xz'
+          expected='cff00e567053ea67834d2a9b76fae43371fb1e872885649077f3764513f52818'
+          timeout 180 curl -fL --retry 2 -o /tmp/ffmpeg.tar.xz "$url"
+          echo "$expected  /tmp/ffmpeg.tar.xz" | sha256sum -c -
+          mkdir -p /tmp/ffmpeg
+          timeout 120 tar -xJf /tmp/ffmpeg.tar.xz --strip-components=1 -C /tmp/ffmpeg
+          sudo install -m 0755 /tmp/ffmpeg/bin/ffmpeg /usr/local/bin/ffmpeg
+          ffmpeg -version | head -1
+
+      - name: Run the acceptance scenario on the emulator
+        id: e2e
+        if: steps.build_e2e_apk.outcome == 'success'
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_DEVICE: emulator-5554
+          E2E_OUTPUT: build/e2e
+          E2E_TARGET: ${{ needs.request.outputs.target }}
+          E2E_DRIVER: ${{ env.E2E_DRIVER }}
+          E2E_TEST_APK: build/e2e/e2e-test-x64.apk
+          E2E_PR_NUMBER: ${{ needs.request.outputs.pr_number }}
+          E2E_HEAD_SHA: ${{ needs.request.outputs.head_sha }}
+          E2E_API_LEVEL: ${{ env.E2E_API_LEVEL }}
+        with:
+          api-level: ${{ env.E2E_API_LEVEL }}
+          target: google_apis
+          arch: x86_64
+          profile: ${{ env.E2E_PROFILE }}
+          disable-animations: true
+          disable-spellchecker: true
+          emulator-boot-timeout: 420
+          emulator-options: >-
+            -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+            -no-snapshot -camera-back none -camera-front none
+          script: bash tool/e2e/run_android_e2e.sh
+
+      - name: Build the artifact report
+        id: report
+        if: always()
+        continue-on-error: true
+        env:
+          BUILD_E2E_APK_OUTCOME: ${{ steps.build_e2e_apk.outcome }}
+          BUILD_REVIEW_APK_OUTCOME: ${{ steps.build_review_apk.outcome }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          status=passed
+          for outcome in "$BUILD_E2E_APK_OUTCOME" "$BUILD_REVIEW_APK_OUTCOME" "$E2E_OUTCOME"; do
+            if [ "$outcome" != "success" ]; then
+              status=failed
+            fi
+          done
+          duration=$(( $(date +%s) - ${E2E_START:-$(date +%s)} ))
+          python3 tool/e2e/make_highlights.py --root build/e2e || true
+          python3 tool/e2e/build_report.py \
+            --root build/e2e \
+            --status "$status" \
+            --duration-seconds "$duration" \
+            --run-url "$RUN_URL" \
+            --sha "$E2E_HEAD_SHA" \
+            --requested-by "$E2E_REQUESTED_BY" \
+            --scenario "$E2E_TARGET" \
+            --comment-out build/e2e/pr-comment.md
+          {
+            echo "duration=$duration"
+            echo "report_status=$status"
+          } >> "$GITHUB_OUTPUT"
+          if [ -f build/e2e/summary.md ]; then
+            cat build/e2e/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Keep the DSH launch token out of published artifacts
+        # E2E logs, screenshots, video and the review APK are published; a
+        # credential must never be in them. The x64 test APK is the one file
+        # that legitimately carries the compiled defines and it is not
+        # uploaded, so it is excluded; a hit anywhere else (a scenario that
+        # printed the URL, or a review APK that inherited the defines) fails
+        # the job and removes the offending files.
+        if: always() && env.E2E_DSH_TOKEN != ''
+        run: |
+          set -uo pipefail
+          found="$(grep -rlF --exclude=e2e-test-x64.apk -- "$E2E_DSH_TOKEN" build/e2e 2>/dev/null || true)"
+          if [ -n "$found" ]; then
+            echo "::error::The DSH launch token reached E2E artifacts; deleting the offending files."
+            printf '%s\n' "$found"
+            printf '%s\n' "$found" | xargs -r rm -f
+            exit 1
+          fi
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-screenshots
+          path: |
+            build/e2e/screenshots/
+            build/e2e/failure-screenshots/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload video
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-video
+          path: build/e2e/video/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload logs and report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-logs
+          path: |
+            build/e2e/logs/
+            build/e2e/flutter-drive.log
+            build/e2e/index.html
+            build/e2e/summary.md
+            build/e2e/pr-comment.md
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload the debug APK for manual review
+        if: always() && steps.build_review_apk.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: cuplivo-debug-apk
+          path: build/e2e/Cuplivo-debug-arm64.apk
+          retention-days: 14
+
+  publish:
+    name: Android E2E / publish
+    needs: [request, run]
+    if: >-
+      always() &&
+      needs.request.outputs.run == 'true' &&
+      needs.request.outputs.pr_number != '' &&
+      needs.request.outputs.can_comment == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ needs.request.outputs.pr_number }}
+      E2E_TARGET: ${{ needs.request.outputs.target }}
+      E2E_HEAD_SHA: ${{ needs.request.outputs.head_sha }}
+      E2E_REQUESTED_BY: ${{ needs.request.outputs.requested_by }}
+      COMMENT_ID: ${{ needs.request.outputs.comment_id }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      RUN_STATUS: ${{ needs.run.outputs.status || 'failed' }}
+      RUN_DURATION: ${{ needs.run.outputs.duration || '0' }}
+    steps:
+      # The checkout is only used for the repository's own tooling. On /e2e
+      # this is the default branch (trusted); on a label run it is the PR's
+      # workflow, which already requires write access to the repository.
+      - name: Checkout repository tooling
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Download screenshots
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-screenshots
+          path: build/e2e/artifacts
+
+      - name: Download video
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-video
+          # upload-artifact stores a single directory's contents at the
+          # artifact root; download into video/ so report/publish find the
+          # same layout as the run job.
+          path: build/e2e/artifacts/video
+
+      - name: Download logs
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-logs
+          path: build/e2e/artifacts
+
+      - name: Validate artifacts
+        continue-on-error: true
+        run: python3 tool/e2e/validate_artifacts.py --root build/e2e/artifacts
+
+      - name: Publish the artifact branch
+        id: publish
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          branch="e2e-artifacts-pr-${PR_NUMBER}"
+          echo "PUBLISH_BRANCH=$branch" >> "$GITHUB_ENV"
+          published=false
+          if compgen -G "build/e2e/artifacts/screenshots/*.png" >/dev/null; then
+            bash tool/e2e/publish_artifacts.sh \
+              --source build/e2e/artifacts \
+              --branch "$branch" \
+              --sha "$E2E_HEAD_SHA" \
+              --repo "$REPO" \
+              --token "$GH_TOKEN"
+            published=true
+          else
+            echo "No screenshots to publish; the comment will link artifacts only."
+          fi
+          echo "published=$published" >> "$GITHUB_OUTPUT"
+
+      - name: Render the comment
+        run: |
+          set -euo pipefail
+          image_base=""
+          if [ "${{ steps.publish.outputs.published }}" = "true" ]; then
+            image_base="https://raw.githubusercontent.com/${REPO}/e2e-artifacts-pr-${PR_NUMBER}/${E2E_HEAD_SHA}"
+          fi
+          python3 tool/e2e/build_report.py \
+            --root build/e2e/artifacts \
+            --status "$RUN_STATUS" \
+            --duration-seconds "$RUN_DURATION" \
+            --run-url "$RUN_URL" \
+            --sha "$E2E_HEAD_SHA" \
+            --requested-by "$E2E_REQUESTED_BY" \
+            --scenario "$E2E_TARGET" \
+            --image-base-url "$image_base" \
+            --comment-out build/e2e/pr-comment.md
+
+      - name: Post or update the sticky comment
+        id: sticky
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: android-e2e
+          number_force: ${{ needs.request.outputs.pr_number }}
+          path: build/e2e/pr-comment.md
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Fall back to a plain comment
+        if: steps.sticky.outcome == 'failure'
+        continue-on-error: true
+        run: gh pr comment "$PR_NUMBER" --body-file build/e2e/pr-comment.md
+
+      - name: Acknowledge the /e2e comment
+        if: needs.request.outputs.comment_id != ''
+        continue-on-error: true
+        run: |
+          gh api -X POST "repos/${REPO}/issues/comments/${COMMENT_ID}/reactions" \
+            -f content=eyes >/dev/null
+
+      - name: Append the comment to the job summary
+        if: always()
+        run: |
+          if [ -f build/e2e/pr-comment.md ]; then
+            cat build/e2e/pr-comment.md >> "$GITHUB_STEP_SUMMARY"
+          fi

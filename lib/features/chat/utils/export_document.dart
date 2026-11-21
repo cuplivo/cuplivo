@@ -263,6 +263,9 @@ Future<List<ExportBlock>> exportBlocksOf(
         if (body.isEmpty) continue;
         blocks.add(ExportText(body));
       case ImagePart(:final uri):
+        // No bytes, no picture: a promise would export as a dead absolute path
+        // and a missing-image slot in the PDF.
+        if (!part.hasBytes) continue;
         final trimmed = uri.trim();
         if (trimmed.isEmpty) continue;
         blocks.add(

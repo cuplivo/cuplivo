@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第三轮 — 面板与编辑交互</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92; --tint:#F4F6FF;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:820px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:52em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+       background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .title{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 6px}
+  .row{display:flex;justify-content:flex-end;padding:6px 16px}
+  .bubble{max-width:78%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 20px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .caret{display:inline-block;width:2px;height:1.02em;background:var(--primary);
+         vertical-align:-2px;margin-left:2px;animation:blink 1.3s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+
+  /* 图片块 */
+  .imgcard{margin:12px 0 10px;border-radius:12px;background:var(--tint);overflow:hidden}
+  .imgcard-head{display:flex;align-items:center;gap:8px;padding:6px 10px}
+  .imgcard-head .label{font-size:13px;font-weight:600;color:#33333B}
+  .imgcard-head .elapsed{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .imgcard-head .grow{flex:1}
+  .imgcard-head svg{width:18px;height:18px;flex:none;color:#3D3D46}
+  .more svg{width:18px;height:18px;color:#3D3D46}
+  .media{position:relative;aspect-ratio:3/2;overflow:hidden;
+         background:linear-gradient(135deg,#E7EBF7,#DEE4F3 46%,#E9EDF8)}
+  .media::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.72) 50%,transparent 68%);
+    transform:translateX(-100%);animation:shimmer 2.4s ease-in-out infinite}
+  .media .mark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+               color:rgba(77,92,146,.32);font-size:28px}
+  @keyframes shimmer{to{transform:translateX(100%)}}
+
+  .composer{padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line-soft);
+            display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:36px;border-radius:18px;border:1px solid var(--line);display:flex;
+         align-items:center;padding:0 12px;font-size:14px;color:rgba(32,32,32,.4);background:var(--card)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;
+        align-items:center;justify-content:center;flex:none}
+
+  /* 面板 */
+  .side{flex:1 1 300px;min-width:280px;max-width:340px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;
+         box-shadow:0 10px 28px rgba(20,20,25,.08);padding:14px 16px 16px}
+  .panel-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .panel-title{font-size:15px;font-weight:600}
+  .stat{font-size:11px;color:rgba(32,32,32,.5);font-variant-numeric:tabular-nums}
+  .panel-head .grow{flex:1}
+  .close{color:var(--muted);font-size:15px;line-height:1}
+  .kv{display:flex;justify-content:space-between;font-size:13px;padding:5px 0}
+  .kv .k{color:var(--muted)}
+  .kv .v{color:#2A2A32;font-variant-numeric:tabular-nums}
+  .divider{height:1px;background:var(--line);margin:8px 0 12px}
+  .prompt-head{display:flex;align-items:baseline;margin-bottom:5px}
+  .prompt-head .k{font-size:12px;color:var(--muted)}
+  .prompt-head .grow{flex:1}
+  .prompt-head .copy{font-size:12px;color:var(--primary);font-weight:500}
+  .prompt{font-size:13px;line-height:1.6;color:#2E2E36;margin:0 0 14px}
+  .btn{height:34px;border-radius:17px;padding:0 14px;display:inline-flex;align-items:center;
+       justify-content:center;font-size:13px;font-weight:550;width:100%}
+  .btn.primary{background:var(--primary);color:#fff}
+  .side .caption{font-size:12px;line-height:1.75;color:var(--muted);margin:10px 2px 0}
+  .side .caption b{color:var(--ink);font-weight:600}
+
+  /* 编辑抽屉 */
+  .sheet-phone{position:relative;height:640px}
+  .dimmer{position:absolute;top:48px;left:0;right:0;bottom:0;background:rgba(20,20,25,.26)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;top:168px;background:var(--card);
+         border-radius:20px 20px 0 0;padding:10px 16px 16px;
+         box-shadow:0 -8px 24px rgba(20,20,25,.12);display:flex;flex-direction:column}
+  .handle{width:40px;height:4px;border-radius:999px;background:rgba(32,32,32,.2);
+          margin:0 auto 12px}
+  .sheet-head{position:relative;height:32px;display:flex;align-items:center;margin-bottom:12px}
+  .sheet-title{position:absolute;left:0;right:0;text-align:center;font-size:17px;font-weight:650;
+               pointer-events:none}
+  .act{font-size:15px;font-weight:600;color:var(--primary);position:relative;z-index:1}
+  .sheet-head .grow{flex:1}
+  .field{flex:1;background:#F2F2F5;border-radius:12px;padding:12px;font-size:14px;line-height:1.7;
+         color:#2A2A32;min-height:120px}
+  .field .hint{color:rgba(32,32,32,.35)}
+
+  .steps{margin:0 0 24px}
+  .step{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px;
+        line-height:1.6;color:#33333A}
+  .step:last-child{border-bottom:none}
+  .step .n{flex:none;width:20px;height:20px;border-radius:50%;background:rgba(77,92,146,.1);
+           color:var(--primary);font-size:11.5px;font-weight:650;display:flex;align-items:center;
+           justify-content:center;margin-top:1px}
+  .step b{font-weight:650}
+  .step code{font-size:12px}
+
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:600px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .side{flex-basis:100%;max-width:none;min-width:0}
+    .msg{padding:12px 16px 4px}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">生图 Job · 第三轮 · 修订 A · 已被第四轮取代</p>
+  <h1>面板与「编辑」的交互</h1>
+  <p class="lede">用量换成消息里那套 token 统计的样式（<b>11px、50% 灰、等宽数字</b>，点开是同一个 token 明细气泡）；按张计费的模型这里是「1 张」。编辑只有一个入口 <b>编辑</b>，抽屉复用消息编辑的骨架：左边 <b>重新生成</b>，右边 <b>仅保存</b>。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">慢下来</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="row"><div class="bubble">写一条关于「慢下来」的短文，配一张插图。</div></div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">21:12</div>
+            </div>
+          </div>
+
+          <p class="body">慢下来不是停下来。是把日程里被塞满的缝隙重新撑开，让注意力有地方落脚。</p>
+
+          <div class="imgcard">
+            <div class="imgcard-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
+              <span class="label">生成插图</span>
+              <span class="elapsed">(12.6s)</span>
+              <span class="grow"></span>
+              <span class="more">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+              </span>
+            </div>
+            <div class="media"><span class="mark">✦</span></div>
+          </div>
+
+          <p class="body">一天里总要有几段不被安排的时间。它们不产出什么，但正是它们让产出这件事还值得做。<span class="caret"></span></p>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="input">发消息…</div>
+        <div class="send">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">生成插图</span>
+          <span class="stat">1,536 tokens</span>
+          <span class="grow"></span>
+          <span class="close">✕</span>
+        </div>
+        <div class="kv"><span class="k">模型</span><span class="v">GPT Image 1</span></div>
+        <div class="kv"><span class="k">尺寸</span><span class="v">1536 × 1024</span></div>
+        <div class="kv"><span class="k">用时</span><span class="v">12.6 秒</span></div>
+        <div class="divider"></div>
+        <div class="prompt-head"><span class="k">提示词</span><span class="grow"></span><span class="copy">复制</span></div>
+        <p class="prompt">霓虹雨夜的旧书店，湿漉漉的招牌映在水洼里，赛博朋克风格插画</p>
+        <div class="btn primary">编辑</div>
+      </div>
+      <p class="caption"><b>用量两种形态：</b>按 token（GPT Image、Gemini Image）显示 <b>1,536 tokens</b>，点开就是现有那个 token 明细气泡（↑ 输入 / ↓ 输出）；按张（Seedream 这类）显示 <b>1 张</b>，不出气泡。<br>它只属于这张卡片，不进消息的 token 统计。</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="phone sheet-phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">慢下来</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+      <div class="chat" style="height:150px;overflow:hidden">
+        <div class="row"><div class="bubble">写一条关于「慢下来」的短文，配一张插图。</div></div>
+        <div class="msg">
+          <p class="body">慢下来不是停下来。是把日程里被塞满的缝隙重新撑开，让注意力有地方落脚。</p>
+        </div>
+      </div>
+      <div class="dimmer"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-head">
+          <span class="act">重新生成</span>
+          <span class="grow"></span>
+          <span class="sheet-title">编辑提示词</span>
+          <span class="act">仅保存</span>
+        </div>
+        <div class="field">霓虹雨夜的旧书店，湿漉漉的招牌映在水洼里，赛博朋克风格插画<span class="caret"></span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="steps">
+        <div class="step"><span class="n">1</span><span>点卡头或 <b>⋯</b> 开面板。生成中是 <b>取消</b>；完成是 <b>编辑</b>；失败是 <b>重试</b>，编辑同样可用。</span></div>
+        <div class="step"><span class="n">2</span><span>点 <b>编辑</b>：升起「编辑提示词」抽屉，输入框里是原提示词，改完两个出口。</span></div>
+        <div class="step"><span class="n">3</span><span><b>仅保存</b>：只更新提示词，图不动；下次重新生成才用它。和消息编辑的「保存」同一种后果。</span></div>
+        <div class="step"><span class="n">4</span><span><b>重新生成</b>：同一张卡片回到生成中，新图到达后替换；旧图在新图到达前仍然显示。</span></div>
+      </div>
+      <p class="caption">抽屉沿用 <code>message_edit_sheet</code> 的骨架：标题居中、左右两个动作、<code>DraggableScrollableSheet</code> + 键盘安全。<b>桌面端换成对话框</b>（仓库规则：桌面不用 bottom sheet）。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>为什么编辑不做成两个按钮</h2>
+    <ul>
+      <li>面板上只有 <b>编辑</b>；<b>重新生成</b> 只在抽屉里，和改提示词是同一个动作的两条出口 —— 不会有人在没看见提示词的情况下重画。</li>
+      <li>复制留在提示词旁边（一次性动作），取消只在生成中出现，重试只在失败时出现。面板宽度不随状态变。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li>「仅保存」会让提示词和这张图暂时对不上，卡片上没有角标提示 —— 和消息编辑的「保存」一样，靠下一次重新生成收口。</li>
+      <li>抽屉是拖拽高度 + 键盘安全，比面板多一层状态；桌面端还要单独做对话框版本。</li>
+      <li>token 统计得等适配器报告 usage：按 token 的模型给 tokens，按张的只给张数，缺了就只能显示「—」。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>这一版定下的：</b>卡头一行 <code>生成插图 (12.6s) ⋯</code>；面板里用量复用消息 token 统计的样式与气泡；编辑只有一个入口，出口是「仅保存 / 重新生成」。<b>统计</b>仍只记卡片这一行，不进统计页 —— kelivo#1492 要新增 <code>usage_events</code> 账本表，那是 schema 6 的事。<b>还没定：</b>重新生成要不要像消息那样留版本（旧图可回看），等这版跑通再单独定。</p>
+
+</main>
+</body>
+</html>

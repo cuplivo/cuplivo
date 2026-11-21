@@ -147,56 +147,62 @@ ADR-0001（L79-80）本来就是这么写的。
   两者的组合已被 `assistant_provider_cascade_delete_test` 覆盖，直接复用。
 - 静默，不弹窗；用户侧的说明只出现在两个 changelog 的 `Removed` 里（UI 指南：可见文字是成本）。
 
-## 4. 任务 C：备份文件名跟随目标读者
+## 4. 任务 C：备份文件名跟随目标读者（已落地）
 
 名字**不是协议**：云端（WebDAV PROPFIND / S3）与 Kelivo 自己的列表都按扩展名（`.zip` / `.kbackup`）过滤，
 前缀只影响三处——用户眼里（云目录、保存对话框）、本 build 的恢复发现、临时目录回收。
 
-### C.1 `lib/core/models/backup_target.dart`（名字跟着 target，一处派生）
+### C.1 `lib/core/services/backup/backup_archive_naming.dart`（一处规则，写读同源）
 
 ```dart
-  /// The name a backup file written for this target carries.
-  ///
-  /// Readers list by extension, so this is not a wire format: it is what the
-  /// user sees in their cloud folder and what this build's recovery discovery
-  /// matches. Writers use their target's prefix; [readableArchivePrefixes] is
-  /// what readers accept, so a backup written before the naming changed is
-  /// still discovered and reclaimed.
-  String get archiveFilePrefix => switch (this) {
-    BackupTarget.cuplivo => 'cuplivo_backup_',
-    BackupTarget.kelivoV1_3_4 => 'kelivo_backup_',
-  };
+final class BackupArchiveNaming {
+  static const cuplivoPrefix = 'cuplivo_backup_';
+  static const kelivoPrefix = 'kelivo_backup_';
+  static const readablePrefixes = {cuplivoPrefix, kelivoPrefix};
 
-  /// Every prefix this build can read.
-  static const Set<String> readableArchivePrefixes = {
-    'kelivo_backup_',
-    'cuplivo_backup_',
-  };
+  static String prefixFor(BackupTarget target) =>
+      target == BackupTarget.kelivo ? kelivoPrefix : cuplivoPrefix;
+  static String fileNameFor(BackupTarget target, String timestamp) =>
+      '${prefixFor(target)}$timestamp.zip';
+  static bool isReadable(String name) => /* 命中任一前缀 */;
+  static bool isArchiveName(String name) => /* 前缀 + .zip/.kbackup */;
+  static DateTime? timestampFromFileName(String name) => /* 回退解析 */;
+}
 ```
 
-### C.2 写侧：`lib/core/services/backup/data_sync.dart`
+规则放在这里而不是 `BackupTarget` 上：读侧手里是文件名，不是 target——一个没有 target 的调用方
+（发现、清扫、用量统计）也必须能问到「哪些前缀算数」。
 
-- `_prepareBackupArchive`（795 / 799）用 `target.archiveFilePrefix` 拼临时目录与输出名。
-- 三个调用者核对过：`prepareBackupFile`（`cfg.target`）、`prepareRecoveryDatabaseArchive`（固定
-  `cuplivo`）、`prepareLocalSnapshotArchive`（默认 `cuplivo`）。**本地快照的临时目录名会变成
-  `cuplivo_backup_*`，但最终文件名由 `LocalSnapshotPaths.fileNameFor` 决定，仍是
-  `kelivo-snapshot-<stamp>.zip`，用户看不到这次变化。**
+### C.2 写侧
+
+- `data_sync.dart` `_prepareBackupArchive`：`fileNameFor(target, timestamp)` 同时决定临时目录名与输出名。
+  三个调用者已核对：`prepareBackupFile` 用 `cfg.target`，恢复归档与本地快照固定 `cuplivo`；快照最终由
+  `LocalSnapshotPaths.fileNameFor` 更名为 `kelivo-snapshot-*`，用户看不到临时名。
+- `local_snapshot_provider.dart` `exportFileNameFor`：`cuplivo-snapshot-*` / `cuplivo-recovered-*`。这个名字
+  是交付时现场生成的，没有任何读者依赖它。
+- `local_folder_backup.dart`：新自动备份写 `cuplivo_auto_*`；`_owned` 同时接受 4.7.0 的 `kelivo_auto_*`，
+  否则清单会把用户目录里已有的自动备份过滤掉，剪枝从此不再管它们。保留量按文件名里的时间戳排序，
+  而不是按整串名字——改名期间同一目录会同时有两种前缀。
 
 ### C.3 读侧：接受两套前缀
 
 | 位置 | 改法 |
 | --- | --- |
-| `data_sync.dart:1189` `_backupTempTimestampFromName` | 先按 `readableArchivePrefixes` 去掉命中的前缀，再解析时间戳 |
-| `data_sync.dart:1226-1236` 陈旧临时目录/文件回收 | 目录分支与 `.zip` 分支都用 `readableArchivePrefixes.any(name.startsWith)` |
-| `data_sync.dart:1965-1969` WebDAV 名称取时间戳的正则 | `(?:kelivo|cuplivo)_backup_` |
-| `recovery_file_discovery.dart:21-24` `isSnapshotArchive` | `^(?:kelivo-snapshot-|kelivo_backup_|cuplivo_backup_).+\.zip$`（或由常量拼） |
+| `recovery_file_discovery.dart` `isSnapshotArchive` / `hasPriorData` | `.zip` + 两种前缀（大小写不敏感）；后者用 `isReadable` |
+| `backup_partials.dart` `_remoteName` | 由 `readablePrefixes` 拼出正则；漏一处就是永不回收的 `.partial` |
+| `backup_staging.dart` `_legacy` | 目录用 `isReadable`，归档文件用 `isArchiveName` |
+| `data_sync.dart` 远端 mtime 回退 | `timestampFromFileName`（顺带修掉 `replaceAll` 不展开 `$1`、回退一直返回 null 的老 bug） |
+| `storage_usage_service.dart` | 通过 `isSnapshotArchive` 自动覆盖，无需单独改 |
+| `local_folder_backup.dart` `_owned` | 两种自动备份前缀，见 C.2 |
 
 ### C.4 明确不动
 
-- `kelivo-snapshot-` 前缀：本地快照，`docs/rebase-runbook.md:173` 的白名单名字，且是老构建的恢复契约。
+- `kelivo-snapshot-` **磁盘前缀**：本地快照，老构建（含 Kelivo 1.3.6）的恢复契约；导出的副本另起
+  `cuplivo-snapshot-*`。
 - `kelivo_backups`（默认云目录）、`.kelivo_backups_manifest.json`、`kelivo.db`、`.kelivo_restore/`、
-  `kelivo_restore_*.zip`、`kelivo_decrypted_`（系统临时目录，转瞬即逝）：全是持久化路径或零用户价值。
-  改了会让用户看不见自己已有的备份。
+  `kelivo_restore_*.zip`、`kelivo_decrypted_`、`kelivo_backup_staging`：持久化路径或系统临时目录。
+  尤其 `kelivo_backups` 被写进每份已有配置、又被 ~17 处 UI 当提示默认值硬编码，改默认会把重建配置的
+  用户和旧备份分到两个目录。
 
 ## 5. 测试
 
@@ -217,14 +223,13 @@ ADR-0001（L79-80）本来就是这么写的。
 
 | 文件 | 改法 |
 | --- | --- |
-| `test/core/providers/assistant_provider_cascade_delete_test.dart` | 用例名与 fixture 换成中性 provider；删掉 L154 对 `models contains 'auto'` 的断言（它现在钉的是坏行为），改为断言配置已被移除；机制（清引用）保留 |
-| `test/settings_provider_business_preferences_test.dart:141` | `migratedOrder` 去掉 `'KelivoIN'` |
-| `test/builtin_provider_test.dart` | 加一条：`KelivoIN` 不是内建、没有预填模型 |
-| `test/core/services/backup/data_sync_backup_file_test.dart:1559-1573, 1901, 1962` | 临时名断言与假 PROPFIND 过滤改为接受两套前缀 |
-| `test/core/services/backup/backup_temp_cleanup_test.dart` | 两种前缀的陈旧目录/文件都被回收 |
-| `test/core/services/backup/recovery_file_discovery_test.dart` | `cuplivo_backup_*.zip` 被发现 |
-| `test/core/services/backup/s3_bucket_list_fallback_test.dart` | 桶列表里两种前缀都可见（按扩展名） |
-| 新增（可并入 data_sync 测试） | 「Cuplivo target 产出 `cuplivo_backup_*`、Kelivo target 产出 `kelivo_backup_*`」 |
+| `test/core/services/backup/backup_archive_naming_test.dart`（新增） | 两种 target 的前缀、两套前缀（含大小写）、时间戳回退 |
+| `test/core/services/backup/data_sync_backup_file_test.dart` | 两条新用例：Cuplivo target 产出 `cuplivo_backup_*`、Kelivo target 产出 `kelivo_backup_*`；既有临时名断言不动（老前缀仍可读） |
+| `test/core/services/backup/external_backup_publication_test.dart` | 新旧前缀的暂存残留都被回收、新旧 `.partial` 都被清扫、4.7.0 的 `kelivo_auto_*` 仍属本安装且参与保留量 |
+| `test/core/services/backup/recovery_file_discovery_test.dart` | `cuplivo_backup_*.zip` 被发现，`backup.zip` 与自动备份名不被误认 |
+| `test/core/providers/local_snapshot_provider_test.dart` | 导出的副本叫 `cuplivo-snapshot-*` / `cuplivo-recovered-*` |
+| `test/core/services/backup/backup_temp_cleanup_test.dart` | 不改：它钉的是老前缀的回收，加新前缀用例在 publication 测试里 |
+| `test/core/services/backup/s3_bucket_list_fallback_test.dart` | 不改：桶列表按扩展名，前缀无关 |
 
 ### 5.3 证明守卫（AGENTS.md §7，先备份再注入，最后字节还原）
 
@@ -232,7 +237,7 @@ ADR-0001（L79-80）本来就是这么写的。
 | --- | --- |
 | 把 `ensureProviderConfig('KelivoIN', ...)` 加回 `_load` | 5.1 用例 1 |
 | 把 `_retiredProviderHosts` 里的 `api.cuplivoas.top` 删掉 | 5.1 用例 3 |
-| 让 `archiveFilePrefix` 两个 target 都返回 `kelivo_backup_` | C.2 的新用例 |
+| `readablePrefixes` 只留 Kelivo 前缀 | 命名断言、恢复发现、`.partial` 清扫、暂存回收四条用例同时变红 |
 
 ## 6. 文档
 
@@ -273,7 +278,7 @@ flutter gen-l10n                               # 本次不动 ARB，必须是幂
 2. 打一个含 `api.cuplivoas.top` 的 `provider_configs_v1` 快照 → 启动后该 provider 消失，
    原来选中它的助手/会话回到默认模型，无弹窗。
 3. 打一个含 `api.psycheas.top` 的快照 → provider 仍在，且**字段可以编辑**、有删除按钮。
-4. 备份页选「Cuplivo」导出 → 文件名 `cuplivo_backup_<ts>.zip`；选「Kelivo 1.3.4」→ `kelivo_backup_<ts>.zip`；
+4. 备份页选「Cuplivo」导出 → 文件名 `cuplivo_backup_<ts>.zip`；选「Kelivo 1.3.2+」→ `kelivo_backup_<ts>.zip`；
    两份都能在本 build 的恢复列表里看到。
 
 ## 9. 不做

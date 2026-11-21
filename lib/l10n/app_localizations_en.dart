@@ -1791,7 +1791,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Everything this version can restore, group chats included';
 
   @override
-  String get backupPageTargetKelivo => 'Kelivo 1.3.4';
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
 
   @override
   String get backupPageTargetKelivoNote =>
@@ -3972,6 +3974,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Embedding';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Decision';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Decision API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Decision URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Empty: appended to the provider URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Some providers serve decision models on their own endpoint; enter the path to override the default address.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Fill';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Current';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Input Modes';
@@ -15972,6 +16000,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retry => 'Retry';
+
+  @override
+  String get imageJobTitle => 'Illustration';
+
+  @override
+  String get imageJobFailed => 'Illustration failed';
+
+  @override
+  String get imageJobInterrupted => 'Illustration interrupted';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Drawing';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Image Model';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'The model that draws pictures inside a reply; leave it unset to turn drawing off.';
+
+  @override
+  String get imageJobPanelCopy => 'Copy';
+
+  @override
+  String get imageJobPanelPromptLabel => 'Prompt';
+
+  @override
+  String get imageJobPanelModelLabel => 'Model';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Size';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Time taken';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Usage';
+
+  @override
+  String get imageJobPanelAuto => 'Auto';
+
+  @override
+  String get imageJobPanelOneImage => '1 image';
+
+  @override
+  String get imageJobNotConfigured => 'Not configured · Choose';
+
+  @override
+  String get imageModelFollowGlobal => 'Use the default image model';
 
   @override
   String get recoveryGuideTitle => 'Let’s recover your chats';

@@ -80,6 +80,7 @@ class ModelTagWrap extends StatelessWidget {
     final toolsLabel = l10n?.modelDetailSheetToolsAbility ?? 'Tools';
     final reasoningLabel =
         l10n?.modelDetailSheetReasoningAbility ?? 'Reasoning';
+    final decisionLabel = l10n?.modelDetailSheetDecisionType ?? 'Decision';
     final contextLabel = l10n?.modelSpecFormContextWindow ?? 'Context window';
 
     final chips = <Widget>[];
@@ -97,17 +98,34 @@ class ModelTagWrap extends StatelessWidget {
           ),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        child: Text(
-          model.type == ModelType.embedding
-              ? embeddingLabel
-              : model.type == ModelType.image
-              ? imageTypeLabel
-              : chatLabel,
-          style: TextStyle(
-            fontSize: 11,
-            color: isDark ? cs.primary : cs.primary.withValues(alpha: 0.9),
-            fontWeight: AppFontWeights.medium,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (model.type == ModelType.decision) ...[
+              Icon(
+                // A decision model points a direction; the compass is the
+                // marker a picker shows in front of its name.
+                Lucide.Compass,
+                size: 11,
+                color: isDark ? cs.primary : cs.primary.withValues(alpha: 0.9),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              model.type == ModelType.embedding
+                  ? embeddingLabel
+                  : model.type == ModelType.image
+                  ? imageTypeLabel
+                  : model.type == ModelType.decision
+                  ? decisionLabel
+                  : chatLabel,
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? cs.primary : cs.primary.withValues(alpha: 0.9),
+                fontWeight: AppFontWeights.medium,
+              ),
+            ),
+          ],
         ),
       ),
     );

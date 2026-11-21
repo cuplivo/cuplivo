@@ -827,9 +827,15 @@
   "@backupPageTargetCuplivoNote": {
     "description": "One-line explanation under the Cuplivo backup target."
   },
-  "backupPageTargetKelivo": "Kelivo 1.3.4",
+  "backupPageTargetKelivo": "Kelivo {version}+",
   "@backupPageTargetKelivo": {
-    "description": "Backup target option: an archive Kelivo 1.3.4 can import."
+    "description": "Backup target option: an archive every Kelivo release from {version} on can import.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "1.3.2"
+      }
+    }
   },
   "backupPageTargetKelivoNote": "Imports into Kelivo, but group chats are lost",
   "@backupPageTargetKelivoNote": {
@@ -1970,6 +1976,14 @@
   "modelDetailSheetModelTypeLabel": "Model Type",
   "modelDetailSheetChatType": "Chat",
   "modelDetailSheetEmbeddingType": "Embedding",
+  "modelDetailSheetDecisionType": "Decision",
+  "modelDetailSheetDecisionDialectLabel": "Decision API",
+  "modelDetailSheetDecisionUrlLabel": "Decision URL",
+  "modelDetailSheetDecisionUrlHint": "Empty: appended to the provider URL",
+  "modelDetailSheetDecisionUrlHelp": "Some providers serve decision models on their own endpoint; enter the path to override the default address.",
+  "modelDetailSheetDecisionUrlFill": "Fill",
+  "modelDetailSheetDecisionUrlCurrent": "Current",
+  "modelDetailSheetDecisionUrlBailian": "Bailian",
   "modelDetailSheetInputModesLabel": "Input Modes",
   "modelDetailSheetOutputModesLabel": "Output Modes",
   "modelDetailSheetAbilitiesLabel": "Abilities",
@@ -7944,6 +7958,70 @@
   "selectionRegenerate": "Regenerate",
   "translating": "Translating…",
   "retry": "Retry",
+  "imageJobTitle": "Illustration",
+  "@imageJobTitle": {
+    "description": "Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time."
+  },
+  "imageJobFailed": "Illustration failed",
+  "@imageJobFailed": {
+    "description": "Header of the same card when the picture could not be generated; a sentence explaining why follows it."
+  },
+  "imageJobInterrupted": "Illustration interrupted",
+  "@imageJobInterrupted": {
+    "description": "Header of the same card when the app closed before the picture arrived; nothing is retried automatically."
+  },
+  "assistantEditLocalToolImageTitle": "Drawing",
+  "@assistantEditLocalToolImageTitle": {
+    "description": "Name of the drawing capability in the assistant's local-tool list."
+  },
+  "defaultModelPageImageModelTitle": "Image Model",
+  "@defaultModelPageImageModelTitle": {
+    "description": "Settings row for choosing the model that draws pictures."
+  },
+  "defaultModelPageImageModelSubtitle": "The model that draws pictures inside a reply; leave it unset to turn drawing off.",
+  "@defaultModelPageImageModelSubtitle": {
+    "description": "Explains that the drawing model is optional and that leaving it unset turns drawing off."
+  },
+  "imageJobPanelCopy": "Copy",
+  "@imageJobPanelCopy": {
+    "description": "Button that copies the prompt to the clipboard; a confirmation toast follows."
+  },
+  "imageJobPanelPromptLabel": "Prompt",
+  "@imageJobPanelPromptLabel": {
+    "description": "Label of the prompt that produced the picture."
+  },
+  "imageJobPanelModelLabel": "Model",
+  "@imageJobPanelModelLabel": {
+    "description": "Label of the model that drew the picture."
+  },
+  "imageJobPanelSizeLabel": "Size",
+  "@imageJobPanelSizeLabel": {
+    "description": "Label of the picture's pixel size, or of the requested aspect ratio when the file cannot be read."
+  },
+  "imageJobPanelElapsedLabel": "Time taken",
+  "@imageJobPanelElapsedLabel": {
+    "description": "Label of how long the picture took to generate."
+  },
+  "imageJobPanelUsageLabel": "Usage",
+  "@imageJobPanelUsageLabel": {
+    "description": "Label of what the picture consumed: today a count of pictures, later possibly a token count."
+  },
+  "imageJobPanelAuto": "Auto",
+  "@imageJobPanelAuto": {
+    "description": "Value of the size row when the request left the aspect ratio to the model."
+  },
+  "imageJobPanelOneImage": "1 image",
+  "@imageJobPanelOneImage": {
+    "description": "Value of the usage row: this reply produced a single picture."
+  },
+  "imageJobNotConfigured": "Not configured · Choose",
+  "@imageJobNotConfigured": {
+    "description": "Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker."
+  },
+  "imageModelFollowGlobal": "Use the default image model",
+  "@imageModelFollowGlobal": {
+    "description": "Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings."
+  },
   "recoveryGuideTitle": "Let’s recover your chats",
   "recoveryGuideBody": "Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.",
   "recoverySpaceTitle": "Some free space is needed",
@@ -11701,6 +11779,30 @@
   },
   "@modelDetailSheetReasoningAbility": {
     "description": "Checkbox label for the Reasoning ability; also used as a tag label."
+  },
+  "@modelDetailSheetDecisionType": {
+    "description": "Model type segment and model tag for a decision model: it answers typed yes/no or choice questions with probabilities and never generates chat text."
+  },
+  "@modelDetailSheetDecisionDialectLabel": {
+    "description": "Label of the segmented control that picks which decision protocol a decision model speaks (System One or OpenAI decisions)."
+  },
+  "@modelDetailSheetDecisionUrlLabel": {
+    "description": "Label of the optional field that overrides the endpoint address of a decision model."
+  },
+  "@modelDetailSheetDecisionUrlHint": {
+    "description": "Placeholder of the decision address field: leaving it empty appends the dialect's default path to the provider URL."
+  },
+  "@modelDetailSheetDecisionUrlHelp": {
+    "description": "First paragraph of the help sheet behind the info icon next to the decision address field: some providers serve decision models on a separate endpoint, so the default address has to be overridden."
+  },
+  "@modelDetailSheetDecisionUrlFill": {
+    "description": "Button in the decision address help sheet that writes the shown example path into the address field."
+  },
+  "@modelDetailSheetDecisionUrlCurrent": {
+    "description": "Small tag in the decision address help sheet marking the example row that matches the current provider's host."
+  },
+  "@modelDetailSheetDecisionUrlBailian": {
+    "description": "Name of Alibaba's Bailian model platform, used as the provider name of a decision address example."
   },
   "@modelDetailSheetCustomHeadersTitle": {
     "description": "Section title for custom HTTP headers in advanced settings and the provider custom request editor."

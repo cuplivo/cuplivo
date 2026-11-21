@@ -19,14 +19,18 @@ class SpecFieldHeader extends StatelessWidget {
   const SpecFieldHeader({
     super.key,
     required this.label,
-    required this.source,
+    this.source,
     required this.overridden,
     this.onReset,
     this.trailing,
   });
 
   final String label;
-  final SpecSource source;
+
+  /// Where the value came from, or `null` for a field the resolver does not
+  /// own — the decision protocol and address have no resolved source, and a
+  /// capsule claiming one would be a guess.
+  final SpecSource? source;
   final bool overridden;
   final VoidCallback? onReset;
   final Widget? trailing;
@@ -49,7 +53,8 @@ class SpecFieldHeader extends StatelessWidget {
               ),
             ),
           ),
-          _SourceCapsule(label: specSourceLabel(l10n, source)),
+          if (source != null)
+            _SourceCapsule(label: specSourceLabel(l10n, source!)),
           if (overridden && onReset != null)
             IosIconButton(
               icon: Lucide.RotateCcw,

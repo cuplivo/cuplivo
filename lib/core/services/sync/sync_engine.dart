@@ -2658,45 +2658,55 @@ class SyncEngine implements SyncServerHandler {
             );
           }
         case SyncConvAction.peerSends || SyncConvAction.bothSend:
-          // Two questions, one per arm, and both about what crossed the wire.
-          //
-          // `bothSend` has a half of its own in flight, and only a payload that
-          // crossed may be recorded as received: an entry built from the apply
-          // while this device's copy sat out the round claims the peer holds
-          // rows it never received, and the next apply then deletes them. A
-          // generating conversation and one this round's budget left behind are
-          // the same case — neither is in [sentSubtrees].
-          //
-          // The entry itself must describe the *payload*, never the local state
-          // a merge left behind. The apply reads its base inside its own
+          // An entry describes a payload that crossed, never the local state a
+          // merge left behind. The apply reads its base inside its own
           // transaction, so a row written here while the session ran — the push
           // beat plus the whole blob pull — is in that snapshot; an entry built
           // from it claims the peer has a row it has never seen, and the next
-          // session deletes it here. `peerSends` therefore records the payload
-          // that arrived, which is also exactly what the sender's `iSend` arm
-          // recorded for it: one transfer, one entry, on both sides.
-          // `bothSend` is the merge of two payloads, which no single payload
-          // describes; its snapshot is that merge plus mid-session writes, so
-          // an entry that would claim a row belonging to neither payload nor
-          // the last agreement waits a round instead.
+          // session deletes it here.
+          //
+          // Which payload a device may claim depends on which half of the
+          // session it can show crossed:
+          //
+          // - `peerSends`, and `bothSend` on the **responder**: this device's own
+          //   half is the fetch response, and nothing acknowledges a response.
+          //   What it can vouch for is the payload the peer handed it, so that
+          //   is what it records. The rows it served itself are not in it: they
+          //   may have been lost with the response, and claiming them would make
+          //   the peer's later silence a deletion of them. They are recorded one
+          //   session later, when both manifests agree and the heal runs.
+          // - `bothSend` on the **initiator** whose push crossed (the ack is the
+          //   difference): the peer's copy is read after it applied that push,
+          //   so the two payloads' merge *is* the peer's copy — except for rows
+          //   written here after the read, which `_snapshotOutrunsPeerCopy`
+          //   catches by clock.
+          // - A `bothSend` whose own push never crossed — a live generation, a
+          //   conversation this round's budget left behind — claims nothing new:
+          //   keeping the previous entry is what makes the next session retry it
+          //   with the peer's older copy still readable as an edit, not a delete.
           final received = receivedSubtrees[id];
-          final myHalfCrossed =
-              item.action != SyncConvAction.bothSend ||
-              (sendsConfirmed && sentSubtrees.containsKey(id));
           final outcome = outcomes[id];
-          if (!myHalfCrossed ||
-              outcome == null ||
+          if (outcome == null ||
               outcome.deferred ||
               peerDeferredConversations.contains(id)) {
             if (prior != null) next[id] = prior;
             break;
           }
-          if (item.action == SyncConvAction.peerSends) {
+          final claimsPeerCopy =
+              item.action == SyncConvAction.peerSends ||
+              (item.action == SyncConvAction.bothSend && !sendsConfirmed);
+          if (claimsPeerCopy) {
             if (received == null) {
               if (prior != null) next[id] = prior;
               break;
             }
             next[id] = _entryFor(received);
+            break;
+          }
+          // `bothSend` on the initiator: only a payload that actually left may
+          // be recorded, and a conversation the budget left behind has none.
+          if (sentSubtrees[id] == null) {
+            if (prior != null) next[id] = prior;
             break;
           }
           if (_snapshotOutrunsPeerCopy(outcome, received)) {

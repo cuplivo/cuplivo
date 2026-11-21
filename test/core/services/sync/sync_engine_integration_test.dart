@@ -5632,6 +5632,65 @@ void main() {
     );
   });
 
+  test('a message deleted after a bothSend session goes on both sides', () async {
+    // The responder's `bothSend` entry describes the payload the initiator
+    // pushed — its own half is the fetch response, and nothing acknowledges a
+    // response. It used to keep the *previous* agreement, so a row that arrived
+    // in that push had no ledger clock: deleting it afterwards left it on the
+    // responder, which then served it back.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-p', contents: ['p0']);
+    await a.engine.syncWithPeer(await a.peer(b)); // S1: the agreement
+
+    await a.repository.putMessage(
+      ChatMessage(
+        id: 'conv-p-a',
+        conversationId: 'conv-p',
+        role: 'user',
+        content: 'written on a',
+      ),
+    );
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-p-b',
+        conversationId: 'conv-p',
+        role: 'assistant',
+        content: 'written on b',
+      ),
+    );
+    final both = await a.engine.syncWithPeer(await a.peer(b)); // S2: bothSend
+    expect(both.success, isTrue, reason: both.summary);
+    expect(
+      await _messageIds(b, 'conv-p'),
+      containsAll(<String>['conv-p-a', 'conv-p-b']),
+    );
+
+    // The row that arrived in the push must be in the responder's ledger, or
+    // the deletion below has no agreed clock to compare its absence against.
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-p'];
+    expect(entry?.rows.keys, contains('conv-p-a'));
+
+    await a.repository.deleteMessage('conv-p-a');
+    final next = await a.engine.syncWithPeer(await a.peer(b)); // S3: deletion
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(b, 'conv-p'),
+      isNot(contains('conv-p-a')),
+      reason: 'the deletion reaches the responder',
+    );
+
+    final after = await a.engine.syncWithPeer(await a.peer(b)); // S4
+    expect(after.success, isTrue, reason: after.summary);
+    expect(
+      await _messageIds(a, 'conv-p'),
+      isNot(contains('conv-p-a')),
+      reason: 'and does not come back',
+    );
+    expect(await _messageIds(b, 'conv-p'), isNot(contains('conv-p-a')));
+  });
+
   test('a none heal does not record a row written during the session', () async {
     // The third writer of a checkpoint entry. A conversation this device holds
     // and the peer pulled leaves this side's entry at `prior` (a fetch response

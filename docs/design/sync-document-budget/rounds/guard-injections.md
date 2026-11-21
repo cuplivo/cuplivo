@@ -44,7 +44,7 @@
 
 | # | 注入 | 应红的测试 | 实测 | 不变量 |
 | --- | --- | --- | --- | --- |
-| 6 | 把发送点的预算改成 `assertPushFits(pushBatch, 1)` | `sync_engine_integration_test.dart` › one push's byte budget a conversation the budget leaves behind is deferred, not failed | 红：`error:Bad state: push body 108 B exceeds the 1 B budget` —— 断言量的是**真正要发出去的那份 body** | G0「不会因为体积打出 413」 |
+| 6 | 把发送点的预算改成 `assertPushFits(pushBatch, 1, envelopeBytes: 0)` | `sync_engine_integration_test.dart` › one push's byte budget a conversation the budget leaves behind is deferred, not failed | 红：`error:Bad state: push body 108 B exceeds the 1 B budget` —— 断言量的是**真正要发出去的那份 body** | G0「不会因为体积打出 413」 |
 
 注入前同一哈希 `5D1A0149…AA69`，还原后一致。断言本身另有一条纯函数测试
 （`sync_budget_test.dart` › the batch about to be sent is checked against the budget）：恰好等于预算通过，少一个字节抛错。
@@ -100,6 +100,10 @@ B 刷新出来的条目时钟比约定晚 359 µs（`Expected: (null or <1795176
 修法是把这个时钟也纳入边界：`entry.updatedAtUs > mine.updatedAtUs`（`mine` 是 hello 时的 manifest 条目，
 正是对端看到的那一刻）。
 
+> 第 13 条之后这一句已被取代：现在的边界是**按值相等**（`entry.updatedAtUs == mine.updatedAtUs`，
+> 外加 `entry.digest == mine.digest`），不再用"大于"这种以本机钟为参照的形式。第 11 条的注入与其结论仍然成立，
+> 读的时候以第 13 条为准。
+
 | # | 注入 | 应红的测试 | 实测 | 不变量 |
 | --- | --- | --- | --- | --- |
 | 11 | 边界退回只看消息时钟 | › a rename during a heal is not recorded as the agreement | 红：`Actual: <1795177207053633>` —— 条目把窗口里的改名记成了"已约定" | 条目只描述过线的那份 |
@@ -152,3 +156,19 @@ heal 从不写条目；而没有 `prior` 时什么都不写，账本为空 → `
 注入前 `sync_engine.dart` = `1022DDC0974DC950665670C35207FDFACF801CF9DF3549E8E98E40E73929703C`（200,810 字节），
 还原后同一哈希。这条注入同时能当隔离证据：窗口那两格（插入、改名）在注入下仍然是绿的——新格钉住的正是
 "用本机的钟当标尺"这一条，而不是旧的两条。
+
+## 第 14 条｜`bothSend` 的两半各自能担保什么
+
+第七轮评审指出：响应方的 `bothSend` 条目永不前进（`sendsConfirmed: false` 让它恒取 `prior`），
+于是随推送进来的行在响应方的账本里没有钟 → 发起方之后删它时，oracle 的 `seenAt == null` 让它保留 →
+下一轮又被服务回去。base 的 `bothSend` 臂没有任何确认条件（直接从快照推进），所以这是本 PR 第一轮引入的回归。
+
+修法按"哪一半被确认"分派：`peerSends` 与**响应方**的 `bothSend` 只记对端递过来的那份 payload
+（`_entryFor(received)`）；发起方、且自己的推送已确认才用快照 + 逐行时钟校验；推送没发出去（`sent == null`）留 `prior`。
+
+| # | 注入 | 应红的测试 | 实测 | 不变量 |
+| --- | --- | --- | --- | --- |
+| 14 | `claimsPeerCopy` 退回只认 `peerSends`（响应方的 `bothSend` 回到 `prior`） | `sync_engine_integration_test.dart` › a message deleted after a bothSend session goes on both sides | 红：`Expected: contains 'conv-p-a'` / `Actual: _CompactKeysIterable<String>:['conv-p-m0']` —— 响应方账本停在上一份约定，推送进来的行没有钟 | 条目只描述过线的那份 |
+
+注入前 `sync_engine.dart` = `FF872E1F93FCFA25F72E7E719772490B08F1D1BEADF2E7A3AF9DF368BD77ACD8`（201,391 字节），
+还原后同一哈希。

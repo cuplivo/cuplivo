@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第六轮 — 本地工具里的绘图与子代理</title>
+<style>
+  :root{--bg:#F7F7F7;--card:#FFF;--ink:#202020;--muted:#6B6B73;--line:rgba(20,20,25,.08);
+        --line-soft:rgba(20,20,25,.05);--primary:#4D5C92;--tint:rgba(77,92,146,.05)}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:760px;margin:0 auto;padding:26px 20px 44px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:54em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:rgba(20,20,25,.05);
+       border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .phone{width:360px;max-width:100%;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .bar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+       border-bottom:1px solid var(--line-soft)}
+  .bar .t{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .bar .save{font-size:15px;color:var(--primary);font-weight:600}
+  .bar svg{width:20px;height:20px;opacity:.7}
+  .section{padding:15px 16px 5px;font-size:12px;color:var(--muted);letter-spacing:.04em}
+  .row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line-soft)}
+  .row .grow{flex:1;min-width:0}
+  .row .name{font-size:15px;font-weight:500}
+  .row .sub{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.5}
+  .row.muted .name{color:var(--muted);font-weight:400}
+  .switch{width:40px;height:24px;border-radius:999px;background:rgba(20,20,25,.12);position:relative;flex:none}
+  .switch.on{background:var(--primary)}
+  .switch .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;
+                box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch.on .knob{left:18px}
+  .row.new{background:var(--tint)}
+  .row.new .name{color:var(--primary);font-weight:600}
+  .hint{padding:9px 16px 14px;font-size:11.5px;color:var(--muted);line-height:1.6;
+        border-bottom:1px solid var(--line-soft)}
+  .panel{width:320px;max-width:100%;background:var(--card);border:1px solid var(--line);
+         border-radius:16px;box-shadow:0 10px 26px rgba(20,20,25,.10);overflow:hidden}
+  .panel .head{padding:13px 16px 10px;font-size:14px;font-weight:600;border-bottom:1px solid var(--line-soft)}
+  .panel .row{padding:11px 16px}
+  .panel .pill{font-size:11.5px;color:var(--primary);background:rgba(77,92,146,.10);
+               border-radius:999px;padding:2px 8px;font-weight:600}
+  .notes{flex:1 1 240px;min-width:220px}
+  h2{font-size:13px;font-weight:650;margin:0 0 8px}
+  ul{margin:0 0 14px;padding-left:18px}
+  li{font-size:13.5px;line-height:1.65;color:#3A3A42;margin-bottom:5px}
+  .caption{font-size:12.5px;line-height:1.7;color:var(--muted);margin:10px 2px 0}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:20px}
+  .closing b{color:var(--ink)}
+  @media (max-width:640px){.page{padding:18px 10px 40px}.phone,.panel{width:100%}.notes{flex-basis:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">生图 Job · 第六轮 · 修订 A</p>
+  <h1>绘图与子代理都是本地工具，默认关闭</h1>
+  <p class="lede">按你的意思改回来了：两者都进<b>本地工具</b>清单，用户自己开；不开就不进上下文 —— 干净上下文是默认。绘图模型仍是两层解析（<b>助手 → 全局</b>），只是入口在工具里。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="t">编辑助手</div>
+        <div class="save">保存</div>
+      </div>
+
+      <div class="section">本地工具</div>
+      <div class="row">
+        <div class="grow"><div class="name">时间</div><div class="sub">当前时间与时区</div></div>
+        <div class="switch on"><div class="knob"></div></div>
+      </div>
+      <div class="row">
+        <div class="grow"><div class="name">剪贴板</div><div class="sub">读写剪贴板文本</div></div>
+        <div class="switch on"><div class="knob"></div></div>
+      </div>
+      <div class="row new">
+        <div class="grow"><div class="name">绘图</div><div class="sub">调用绘图模型给回复配图 · gpt-image-1</div></div>
+        <div class="switch on"><div class="knob"></div></div>
+      </div>
+      <div class="row new">
+        <div class="grow"><div class="name">子代理</div><div class="sub">把子任务委托给其他模型或助手</div></div>
+        <div class="switch"><div class="knob"></div></div>
+      </div>
+      <div class="row muted">
+        <div class="grow"><div class="name">浏览器</div><div class="sub">控制内置浏览器</div></div>
+        <div class="switch"><div class="knob"></div></div>
+      </div>
+      <div class="hint">关闭的工具不会出现在给模型看的工具清单里，也不会占上下文。绘图需要先在 设置 → 默认模型 → 绘图模型 选好模型。</div>
+    </div>
+
+    <div class="panel">
+      <div class="head">子代理 · 打开后的下一级</div>
+      <div class="row">
+        <div class="grow"><div class="name">委托目标</div><div class="sub">模型：Claude Haiku 4.5</div></div>
+        <span class="pill">改</span>
+      </div>
+      <div class="row">
+        <div class="grow"><div class="name">或委托给助手</div><div class="sub">未选</div></div>
+        <span class="pill">选</span>
+      </div>
+      <div class="row">
+        <div class="grow"><div class="name">绘图模型</div><div class="sub">跟随助手（gpt-image-1）</div></div>
+        <span class="pill">不改</span>
+      </div>
+      <div class="hint">委托换的是<b>写字的人</b>；画笔（绘图模型）仍按 助手 → 全局 解析，和被委托的模型无关。</div>
+    </div>
+
+    <div class="notes">
+      <h2>这样摆的理由</h2>
+      <ul>
+        <li>两个都是「会主动做事的工具」，放在本地工具里与时间、浏览器同级，用户能关。</li>
+        <li>默认关：不开就不进模型上下文 —— 朴素上下文优先。</li>
+        <li>绘图那一行的副标题直接写当前模型，省一次点进设置确认。</li>
+      </ul>
+      <h2>代价</h2>
+      <ul>
+        <li>没开「绘图」的助手画不了图 —— 这是设计，不是缺陷。</li>
+        <li>子代理打开后多一段配置，且要处理「模型 / 助手」二选一。</li>
+        <li>两个工具都开时，子代理内部再画图会用同一个画笔（见右侧规则）。</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="closing"><b>这一版定下的：</b>绘图与子代理都在本地工具里、默认关；绘图模型两层解析（助手 → 全局），入口是「绘图」这一行。 <b>统计</b>仍只记卡片这一行，不进统计页（等 kelivo#1492）。</p>
+</main>
+</body>
+</html>

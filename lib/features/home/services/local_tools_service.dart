@@ -31,6 +31,9 @@ class LocalToolNames {
   static const String remindersCreate = 'reminders_create';
   static const String remindersComplete = 'reminders_complete';
 
+  /// Draws a picture with a separate image model while the reply keeps going.
+  static const String generateImage = 'generate_image';
+
   static const List<String> all = [
     timeInfo,
     clipboard,
@@ -48,6 +51,7 @@ class LocalToolNames {
     remindersQuery,
     remindersCreate,
     remindersComplete,
+    generateImage,
   ];
 
   static const List<String> requiresUserApproval = [
@@ -460,6 +464,8 @@ class LocalToolsService {
         return _askUserDefinition;
       case LocalToolNames.calculate:
         return _calculateDefinition;
+      case LocalToolNames.generateImage:
+        return generateImageDefinition;
       case LocalToolNames.screenTime:
         return _screenTimeDefinition();
       case LocalToolNames.calendarQuery:
@@ -776,6 +782,53 @@ class LocalToolsService {
           },
         },
         'required': ['questions'],
+      },
+    },
+  };
+
+  /// The image tool's schema, exactly as agreed in the tool contract.
+  ///
+  /// Three fields, no picture, no base64: the model gets a promise it can write
+  /// into the reply. Two things are deliberately absent — quality and any
+  /// user-set ratio — because cost belongs to the user and `auto` is the right
+  /// answer most of the time.
+  static const Map<String, dynamic> generateImageDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.generateImage,
+      'description':
+          'Generate an image with another model to support your reply. The tool '
+          'is non-blocking: you immediately get asset_id and uri, and you may '
+          'place uri in your reply as a Markdown image placeholder. You will not '
+          'see the finished image; never claim that you have seen it, and there '
+          'is no need to say you cannot — just keep the reply flowing. One '
+          'picture per call.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'prompt': {
+            'type': 'string',
+            'description':
+                'Complete description of the picture: subject, setting, style, '
+                'lighting. This is everything the image model sees.',
+          },
+          'aspect_ratio': {
+            'type': 'string',
+            'enum': ['auto', '1:1', '3:2', '2:3', '16:9'],
+            'default': 'auto',
+            'description':
+                'Only set it when the layout of the picture matters. auto lets '
+                'the backend choose.',
+          },
+          'reference_image_ids': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description':
+                'Optional. Reference or keep editing an image already in this '
+                'conversation. Ids outside this conversation are rejected.',
+          },
+        },
+        'required': ['prompt'],
       },
     },
   };

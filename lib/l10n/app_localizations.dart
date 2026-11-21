@@ -28212,6 +28212,102 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration'**
+  String get imageJobTitle;
+
+  /// Header of the same card when the picture could not be generated; a sentence explaining why follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration failed'**
+  String get imageJobFailed;
+
+  /// Header of the same card when the app closed before the picture arrived; nothing is retried automatically.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration interrupted'**
+  String get imageJobInterrupted;
+
+  /// Name of the drawing capability in the assistant's local-tool list.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing'**
+  String get assistantEditLocalToolImageTitle;
+
+  /// Settings row for choosing the model that draws pictures.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Model'**
+  String get defaultModelPageImageModelTitle;
+
+  /// Explains that the drawing model is optional and that leaving it unset turns drawing off.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that draws pictures inside a reply; leave it unset to turn drawing off.'**
+  String get defaultModelPageImageModelSubtitle;
+
+  /// Button that copies the prompt to the clipboard; a confirmation toast follows.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get imageJobPanelCopy;
+
+  /// Label of the prompt that produced the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get imageJobPanelPromptLabel;
+
+  /// Label of the model that drew the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get imageJobPanelModelLabel;
+
+  /// Label of the picture's pixel size, or of the requested aspect ratio when the file cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get imageJobPanelSizeLabel;
+
+  /// Label of how long the picture took to generate.
+  ///
+  /// In en, this message translates to:
+  /// **'Time taken'**
+  String get imageJobPanelElapsedLabel;
+
+  /// Label of what the picture consumed: today a count of pictures, later possibly a token count.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get imageJobPanelUsageLabel;
+
+  /// Value of the size row when the request left the aspect ratio to the model.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get imageJobPanelAuto;
+
+  /// Value of the usage row: this reply produced a single picture.
+  ///
+  /// In en, this message translates to:
+  /// **'1 image'**
+  String get imageJobPanelOneImage;
+
+  /// Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured · Choose'**
+  String get imageJobNotConfigured;
+
+  /// Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the default image model'**
+  String get imageModelFollowGlobal;
+
   /// Header title on the restore failure screen when local copies are being searched for recovery.
   ///
   /// In en, this message translates to:

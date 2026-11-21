@@ -16098,6 +16098,55 @@ class AppLocalizationsTr extends AppLocalizations {
   String get retry => 'Yeniden dene';
 
   @override
+  String get imageJobTitle => 'İllüstrasyon';
+
+  @override
+  String get imageJobFailed => 'İllüstrasyon başarısız oldu';
+
+  @override
+  String get imageJobInterrupted => 'İllüstrasyon kesintiye uğradı';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Çizim';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Görsel Modeli';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'Yanıt içinde resim çizen model; ayarlanmazsa çizim devre dışı kalır.';
+
+  @override
+  String get imageJobPanelCopy => 'Kopyala';
+
+  @override
+  String get imageJobPanelPromptLabel => 'İstem';
+
+  @override
+  String get imageJobPanelModelLabel => 'Model';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Boyut';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Geçen süre';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Kullanım';
+
+  @override
+  String get imageJobPanelAuto => 'Otomatik';
+
+  @override
+  String get imageJobPanelOneImage => '1 görsel';
+
+  @override
+  String get imageJobNotConfigured => 'Yapılandırılmadı · Seç';
+
+  @override
+  String get imageModelFollowGlobal => 'Varsayılan görsel modelini kullan';
+
+  @override
   String get recoveryGuideTitle => 'Sohbetlerinizi kurtaralım';
 
   @override

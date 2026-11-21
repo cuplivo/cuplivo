@@ -7958,6 +7958,70 @@
   "selectionRegenerate": "Regenerate",
   "translating": "Translating…",
   "retry": "Retry",
+  "imageJobTitle": "Illustration",
+  "@imageJobTitle": {
+    "description": "Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time."
+  },
+  "imageJobFailed": "Illustration failed",
+  "@imageJobFailed": {
+    "description": "Header of the same card when the picture could not be generated; a sentence explaining why follows it."
+  },
+  "imageJobInterrupted": "Illustration interrupted",
+  "@imageJobInterrupted": {
+    "description": "Header of the same card when the app closed before the picture arrived; nothing is retried automatically."
+  },
+  "assistantEditLocalToolImageTitle": "Drawing",
+  "@assistantEditLocalToolImageTitle": {
+    "description": "Name of the drawing capability in the assistant's local-tool list."
+  },
+  "defaultModelPageImageModelTitle": "Image Model",
+  "@defaultModelPageImageModelTitle": {
+    "description": "Settings row for choosing the model that draws pictures."
+  },
+  "defaultModelPageImageModelSubtitle": "The model that draws pictures inside a reply; leave it unset to turn drawing off.",
+  "@defaultModelPageImageModelSubtitle": {
+    "description": "Explains that the drawing model is optional and that leaving it unset turns drawing off."
+  },
+  "imageJobPanelCopy": "Copy",
+  "@imageJobPanelCopy": {
+    "description": "Button that copies the prompt to the clipboard; a confirmation toast follows."
+  },
+  "imageJobPanelPromptLabel": "Prompt",
+  "@imageJobPanelPromptLabel": {
+    "description": "Label of the prompt that produced the picture."
+  },
+  "imageJobPanelModelLabel": "Model",
+  "@imageJobPanelModelLabel": {
+    "description": "Label of the model that drew the picture."
+  },
+  "imageJobPanelSizeLabel": "Size",
+  "@imageJobPanelSizeLabel": {
+    "description": "Label of the picture's pixel size, or of the requested aspect ratio when the file cannot be read."
+  },
+  "imageJobPanelElapsedLabel": "Time taken",
+  "@imageJobPanelElapsedLabel": {
+    "description": "Label of how long the picture took to generate."
+  },
+  "imageJobPanelUsageLabel": "Usage",
+  "@imageJobPanelUsageLabel": {
+    "description": "Label of what the picture consumed: today a count of pictures, later possibly a token count."
+  },
+  "imageJobPanelAuto": "Auto",
+  "@imageJobPanelAuto": {
+    "description": "Value of the size row when the request left the aspect ratio to the model."
+  },
+  "imageJobPanelOneImage": "1 image",
+  "@imageJobPanelOneImage": {
+    "description": "Value of the usage row: this reply produced a single picture."
+  },
+  "imageJobNotConfigured": "Not configured · Choose",
+  "@imageJobNotConfigured": {
+    "description": "Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker."
+  },
+  "imageModelFollowGlobal": "Use the default image model",
+  "@imageModelFollowGlobal": {
+    "description": "Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings."
+  },
   "recoveryGuideTitle": "Let’s recover your chats",
   "recoveryGuideBody": "Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.",
   "recoverySpaceTitle": "Some free space is needed",

@@ -15513,6 +15513,55 @@ class AppLocalizationsKo extends AppLocalizations {
   String get retry => '다시 시도';
 
   @override
+  String get imageJobTitle => '일러스트';
+
+  @override
+  String get imageJobFailed => '일러스트 생성 실패';
+
+  @override
+  String get imageJobInterrupted => '일러스트 중단됨';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '그리기';
+
+  @override
+  String get defaultModelPageImageModelTitle => '이미지 모델';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      '답변 안에서 그림을 그리는 모델입니다. 설정하지 않으면 그리기가 꺼집니다.';
+
+  @override
+  String get imageJobPanelCopy => '복사';
+
+  @override
+  String get imageJobPanelPromptLabel => '프롬프트';
+
+  @override
+  String get imageJobPanelModelLabel => '모델';
+
+  @override
+  String get imageJobPanelSizeLabel => '크기';
+
+  @override
+  String get imageJobPanelElapsedLabel => '소요 시간';
+
+  @override
+  String get imageJobPanelUsageLabel => '사용량';
+
+  @override
+  String get imageJobPanelAuto => '자동';
+
+  @override
+  String get imageJobPanelOneImage => '이미지 1장';
+
+  @override
+  String get imageJobNotConfigured => '설정되지 않음 · 선택';
+
+  @override
+  String get imageModelFollowGlobal => '기본 이미지 모델 사용';
+
+  @override
   String get recoveryGuideTitle => '채팅을 복구해 보겠습니다';
 
   @override

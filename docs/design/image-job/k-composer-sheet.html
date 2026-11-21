@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第七轮 — composer 入口与绘图下一级</title>
+<style>
+  :root{--bg:#F7F7F7;--card:#FFF;--ink:#202020;--muted:#6B6B73;--line:rgba(20,20,25,.08);
+        --line-soft:rgba(20,20,25,.05);--primary:#4D5C92;--tint:rgba(77,92,146,.06)}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:760px;margin:0 auto;padding:26px 20px 44px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:54em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .phone{width:360px;max-width:100%;position:relative;height:640px;background:var(--card);
+         border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .bar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;border-bottom:1px solid var(--line-soft)}
+  .bar .t{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .bar svg{width:20px;height:20px;opacity:.7}
+  .chat{background:var(--bg);padding:8px 0 4px;height:330px;overflow:hidden}
+  .msg{padding:8px 16px}
+  .bubble{max-width:82%;margin-left:auto;background:rgba(77,92,146,.09);border-radius:16px;
+          padding:9px 12px;font-size:15px;line-height:1.55}
+  .who{font-size:13px;color:rgba(32,32,32,.7);font-weight:500;margin-bottom:5px}
+  .reply{font-size:15px;line-height:1.6;padding:0 16px}
+  .composer{position:absolute;left:0;right:0;bottom:0;background:var(--card);
+            border-top:1px solid var(--line-soft);padding:10px 12px 14px}
+  .chips{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .chip{font-size:12.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);
+        color:var(--muted);background:var(--card)}
+  .chip.on{border-color:rgba(77,92,146,.35);background:rgba(77,92,146,.08);color:var(--primary);font-weight:600}
+  .inputrow{display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:38px;border-radius:19px;border:1px solid var(--line);display:flex;align-items:center;
+         padding:0 14px;font-size:14px;color:rgba(32,32,32,.4)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center}
+  .dimmer{position:absolute;inset:0;background:rgba(20,20,25,.24)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:20px 20px 0 0;
+         box-shadow:0 -8px 24px rgba(20,20,25,.14);padding:10px 16px 18px}
+  .handle{width:40px;height:4px;border-radius:999px;background:rgba(32,32,32,.2);margin:0 auto 10px}
+  .sheet .title{font-size:15px;font-weight:600;margin-bottom:2px}
+  .sheet .sub{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  .row{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line-soft)}
+  .row .grow{flex:1}
+  .row .name{font-size:14.5px;font-weight:500}
+  .row .val{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .chev{color:rgba(32,32,32,.3);font-size:15px}
+  .foot{display:flex;gap:8px;margin-top:12px}
+  .btn{flex:1;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:600}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.ghost{color:var(--primary);border:1px solid rgba(77,92,146,.28)}
+  .notes{flex:1 1 250px;min-width:230px}
+  h2{font-size:13px;font-weight:650;margin:0 0 8px}
+  ul{margin:0 0 14px;padding-left:18px}
+  li{font-size:13.5px;line-height:1.65;color:#3A3A42;margin-bottom:5px}
+  .caption{font-size:12.5px;line-height:1.7;color:var(--muted);margin:10px 2px 0}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-top:20px}
+  .closing b{color:var(--ink)}
+  @media (max-width:640px){.page{padding:18px 10px 40px}.phone{width:100%}.notes{flex-basis:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">生图 Job · 第七轮 · 修订 A</p>
+  <h1>从 composer 进来，下一级是选模型</h1>
+  <p class="lede">绘图入口在<b>输入框上方</b>：一个「绘图」chip，开着的时候显示当前模型。点它开一张抽屉 —— 抽屉里只有两件事：<b>模型</b>、<b>比例</b>。子代理用同一张抽屉，只是标题和选项换成「委托目标」。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="t">慢下来</div>
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="msg"><div class="bubble">写一条关于「慢下来」的短文，配一张插图。</div></div>
+        <div class="who" style="padding:12px 16px 0">Cuplivo · GPT-5</div>
+        <div class="reply">慢下来不是停下来。是把日程里被塞满的缝隙重新撑开，让注意力有地方落脚。</div>
+      </div>
+
+      <div class="composer">
+        <div class="chips">
+          <span class="chip on">绘图 · gpt-image-1</span>
+          <span class="chip">联网</span>
+          <span class="chip">＋</span>
+        </div>
+        <div class="inputrow">
+          <div class="input">发消息…</div>
+          <div class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+        </div>
+      </div>
+
+      <div class="dimmer"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="title">绘图</div>
+        <div class="sub">开着时，模型可以给回复配图。</div>
+        <div class="row">
+          <div class="grow"><div class="name">模型</div><div class="val">跟随助手 · gpt-image-1</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="row">
+          <div class="grow"><div class="name">比例</div><div class="val">3:2</div></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="foot">
+          <span class="btn ghost">这个对话不再用</span>
+          <span class="btn primary">完成</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>怎么进、怎么退</h2>
+      <ul>
+        <li>composer 的「绘图」chip 就是入口；开着的对话一眼能看到用哪个模型。</li>
+        <li>点 chip → 抽屉：模型（跟随助手 / 指定）与比例；点「模型」进同一个模型选择器。</li>
+        <li>抽屉里的「这个对话不再用」= 本对话关掉该工具；助手级的开在编辑助手。</li>
+        <li>子代理用同一张抽屉、同一个选择器，标题变「子代理」、模型变「委托目标」。</li>
+      </ul>
+      <h2>这一版定下的</h2>
+      <ul>
+        <li>job 基建按 <code>kind + model</code> 建模：kind = image / delegate，model 由配置解析 —— 子代理复用同一套状态机。</li>
+        <li>助手能选委托模型：无论委托给通用 subagent 还是给绘图，都是「这一行 + 下一级选模型」。</li>
+      </ul>
+      <p class="caption">绘图默认仍是关；chip 只在开着时出现，关着时不占 composer 空间。</p>
+    </div>
+  </div>
+
+  <p class="closing"><b>还没做：</b>模型选择器的具体长相（复用聊天的模型选择页）；比例选项表。<b>已定：</b>入口在 composer、下一级是抽屉、job 按 kind + model 复用。</p>
+</main>
+</body>
+</html>

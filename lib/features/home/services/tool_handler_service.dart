@@ -36,6 +36,7 @@ import '../../../core/services/workspace/tool_run_registry.dart';
 import '../../../core/services/workspace/workspace_runtime.dart';
 import '../../../core/services/workspace/workspace_tools_service.dart';
 import '../../../core/providers/workspace_provider.dart';
+import '../../image_job/services/image_job_coordinator.dart';
 import 'ask_user_interaction_service.dart';
 import 'built_in_tool_names.dart';
 import 'local_tools_service.dart';
@@ -687,6 +688,63 @@ class ToolHandlerService {
                 tool: name,
               );
             }
+          }
+
+          // Drawing: answer with a promise and let a job paint the picture.
+          // The tool itself never blocks, which is the whole point — the reply
+          // keeps streaming while the image model works.
+          if (name == LocalToolNames.generateImage) {
+            final current = assistant == null
+                ? null
+                : assistantProvider.getById(assistant.id);
+            if (current == null ||
+                !current.localToolIds.contains(LocalToolNames.generateImage)) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Image generation is disabled for this assistant.',
+                tool: name,
+              );
+            }
+            final chat = permissionChat;
+            if (conversationId == null || chat == null) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'A picture needs a conversation to live in.',
+                tool: name,
+              );
+            }
+            if (!contextProvider.mounted) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'The conversation went away while drawing.',
+                tool: name,
+              );
+            }
+            // Same lookup as the renderer and the sub-row: the coordinator is
+            // optional, and a missing one must answer with a tool error instead
+            // of throwing out of a tool call.
+            final coordinator = imageJobCoordinatorOf(contextProvider);
+            if (coordinator == null) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Image generation is not available right now.',
+                tool: name,
+              );
+            }
+            final start = await coordinator.begin(
+              conversationId: conversationId,
+              toolCallId: toolCallId ?? '',
+              prompt: (args['prompt'] ?? '').toString(),
+              assistant: current,
+              aspectRatio: (args['aspect_ratio'] ?? args['aspectRatio'])
+                  ?.toString(),
+              referenceImageIds:
+                  (args['reference_image_ids'] as List?)
+                      ?.map((id) => id.toString())
+                      .toList(growable: false) ??
+                  const <String>[],
+            );
+            return jsonEncode(start.toToolResult());
           }
 
           // Local tools

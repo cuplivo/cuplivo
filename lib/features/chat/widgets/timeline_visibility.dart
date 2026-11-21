@@ -237,6 +237,10 @@ String unescapeMarkdownDestination(String raw) {
 }
 
 /// Whether [toolName] is allowed to occupy a chain-of-thought step.
+///
+/// `generate_image` is an ordinary tool here: the call is a normal tool card
+/// (with its prompt), and the picture is a separate block. One act, one card of
+/// each kind — hiding the call only made the picture look unexplained.
 bool toolCreatesTimelineCard(String toolName) =>
     toolName != kBuiltinSearchToolName;
 

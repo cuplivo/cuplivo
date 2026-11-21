@@ -853,6 +853,37 @@ void main() {
     },
   );
 
+  test('a promised picture with no bytes is never part of the context', () {
+    // An image job reserves the uri and writes the part *before* the file
+    // exists. Letting that part into the catalog invents an image the provider
+    // cannot load — the same reason the outbound body skips it. `hasBytes` is
+    // the question; `unavailable` is a different one (bytes that went missing).
+    final owner = ChatMessage(
+      id: 'owner',
+      role: 'assistant',
+      conversationId: 'chat',
+      parts: [
+        const ImagePart(
+          uri: '/tmp/promised',
+          assetId: 'img_promised',
+          jobId: 'job-1',
+          state: ImagePartState.pending,
+        ),
+        const ImagePart(
+          uri: '/tmp/failed',
+          assetId: 'img_failed',
+          jobId: 'job-2',
+          state: ImagePartState.failed,
+        ),
+        const ImagePart(uri: '/tmp/done', assetId: 'img_done'),
+      ],
+    );
+
+    final collected = RequestImageContext.collect([owner]);
+
+    expect(collected.map((image) => image.uri), ['/tmp/done']);
+  });
+
   test(
     'composer paths reuse image references and leave other media untouched',
     () {

@@ -9,6 +9,8 @@ import '../../../shared/widgets/ios_switch.dart';
 import '../widgets/model_select_sheet.dart';
 import '../widgets/ocr_prompt_sheet.dart';
 import '../utils/ocr_model_capability.dart';
+import '../../../core/models/model_spec.dart';
+import '../../image_job/services/image_backends.dart' show modelCanDrawPicture;
 import '../../../l10n/app_localizations.dart';
 import '../../../core/services/haptics.dart';
 import '../../../theme/app_font_weights.dart';
@@ -24,12 +26,14 @@ class DefaultModelPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     Future<ModelSelection?> pickConfiguredModel(
       String? providerKey,
-      String? modelId,
-    ) {
+      String? modelId, {
+      bool Function(ModelSpec)? includeModel,
+    }) {
       return showModelSelector(
         context,
         initialProviderKey: providerKey,
         initialModelId: modelId,
+        includeModel: includeModel,
       );
     }
 
@@ -74,6 +78,31 @@ class DefaultModelPage extends StatelessWidget {
           _PerChatModelCard(
             value: settings.perChatModelEnabled,
             onChanged: settings.setPerChatModelEnabled,
+          ),
+          const SizedBox(height: 16),
+          _ModelCard(
+            icon: Lucide.Image,
+            title: l10n.defaultModelPageImageModelTitle,
+            subtitle: l10n.defaultModelPageImageModelSubtitle,
+            modelProvider: settings.imageModelProvider,
+            modelId: settings.imageModelId,
+            disabledWhenUnset: true,
+            showResetWhenUnset: true,
+            onReset: () async {
+              await settings.resetImageModel();
+            },
+            onPick: () async {
+              // Only models that can draw: a text model here fails every call
+              // after a full provider round-trip.
+              final sel = await pickConfiguredModel(
+                settings.imageModelProvider,
+                settings.imageModelId,
+                includeModel: modelCanDrawPicture,
+              );
+              if (sel != null) {
+                await settings.setImageModel(sel.providerKey, sel.modelId);
+              }
+            },
           ),
           const SizedBox(height: 16),
           _ModelCard(

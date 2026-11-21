@@ -39,6 +39,7 @@ void main() {
       LocalToolNames.remindersQuery,
       LocalToolNames.remindersCreate,
       LocalToolNames.remindersComplete,
+      LocalToolNames.generateImage,
     ]);
   });
 }

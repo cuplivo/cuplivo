@@ -9,6 +9,9 @@ import '../../shared/widgets/snackbar.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../features/model/widgets/model_select_sheet.dart';
 import '../../features/model/utils/ocr_model_capability.dart';
+import '../../core/models/model_spec.dart';
+import '../../features/image_job/services/image_backends.dart'
+    show modelCanDrawPicture;
 import '../../theme/app_font_weights.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
@@ -22,12 +25,14 @@ class DesktopDefaultModelPane extends StatelessWidget {
     final settings = context.watch<SettingsProvider>();
     Future<ModelSelection?> pickConfiguredModel(
       String? providerKey,
-      String? modelId,
-    ) {
+      String? modelId, {
+      bool Function(ModelSpec)? includeModel,
+    }) {
       return showModelSelector(
         context,
         initialProviderKey: providerKey,
         initialModelId: modelId,
+        includeModel: includeModel,
       );
     }
 
@@ -88,6 +93,34 @@ class DesktopDefaultModelPane extends StatelessWidget {
                   _PerChatModelCard(
                     value: settings.perChatModelEnabled,
                     onChanged: settings.setPerChatModelEnabled,
+                  ),
+
+                  const SizedBox(height: 16),
+                  _ModelCard(
+                    icon: lucide.Lucide.Image,
+                    title: l10n.defaultModelPageImageModelTitle,
+                    subtitle: l10n.defaultModelPageImageModelSubtitle,
+                    modelProvider: settings.imageModelProvider,
+                    modelId: settings.imageModelId,
+                    disabledWhenUnset: true,
+                    showResetWhenUnset: true,
+                    onReset: () async {
+                      await context.read<SettingsProvider>().resetImageModel();
+                    },
+                    onPick: () async {
+                      final settingsProvider = context.read<SettingsProvider>();
+                      final sel = await pickConfiguredModel(
+                        settings.imageModelProvider,
+                        settings.imageModelId,
+                        includeModel: modelCanDrawPicture,
+                      );
+                      if (sel != null) {
+                        await settingsProvider.setImageModel(
+                          sel.providerKey,
+                          sel.modelId,
+                        );
+                      }
+                    },
                   ),
 
                   const SizedBox(height: 16),

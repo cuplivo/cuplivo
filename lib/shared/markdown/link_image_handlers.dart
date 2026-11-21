@@ -112,9 +112,49 @@ class KelivoLinkHandler implements LinkHandler {
 }
 
 class KelivoImageBuilder implements ImageBuilder {
-  const KelivoImageBuilder();
+  const KelivoImageBuilder({
+    this.jobImageBuilder,
+    this.document,
+    this.documentStart = -1,
+  });
+
+  /// Draws the application's own block for a destination instead of a picture.
+  ///
+  /// A generated illustration is owned by an image job: while the bytes are
+  /// still missing the block is a skeleton, and once they land it is the same
+  /// block with the picture in it. Returning null means "an ordinary image".
+  /// The offset is the node's own position in [document], so a reply that writes
+  /// the same placeholder twice can give the block to the first mention only.
+  final Widget? Function(
+    BuildContext context,
+    String destination,
+    int offset,
+    String document,
+    int documentStart,
+  )?
+  jobImageBuilder;
+
+  /// The Markdown document these nodes came from. A reply renders as several of
+  /// them, and a node's offset is only meaningful inside its own. A getter, not a
+  /// value: the document changes on every streamed token, and rebuilding the
+  /// image builder for that would throw away the markdown subtree identity
+  /// streaming depends on.
+  final String Function()? document;
+
+  /// Where [document] starts in the reply, so its node offsets can be read in
+  /// reply coordinates. `-1` when the caller cannot establish it.
+  final int documentStart;
+
   @override
   Widget build(BuildContext context, ImageNode image, MarkstreamTheme theme) {
+    final owned = jobImageBuilder?.call(
+      context,
+      image.destination,
+      image.span.start,
+      document?.call() ?? '',
+      documentStart,
+    );
+    if (owned != null) return owned;
     final size = markdownImageSizeOf(toPlainText(image));
 
     return _MarkdownImage(

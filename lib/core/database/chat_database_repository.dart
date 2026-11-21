@@ -1626,12 +1626,9 @@ class ChatDatabaseRepository {
         return (payload: payload, parseError: null);
       }
       return (
-        payload: ImagePart(
-          uri: nextUri,
-          mime: part.mime,
-          assetId: part.assetId,
-          unavailable: nextUnavailable,
-        ).encodePayload(),
+        payload: part
+            .copyWith(uri: nextUri, unavailable: nextUnavailable)
+            .encodePayload(),
         parseError: null,
       );
     }
@@ -6948,14 +6945,7 @@ class ChatDatabaseRepository {
               filesRestored: filesRestored,
             );
             if (unavailable != part.unavailable) changed = true;
-            nextParts.add(
-              ImagePart(
-                uri: part.uri,
-                mime: part.mime,
-                assetId: part.assetId,
-                unavailable: unavailable,
-              ),
-            );
+            nextParts.add(part.copyWith(unavailable: unavailable));
           } else if (part is FilePart) {
             final unavailable = await _unavailableForRestoredPart(
               uri: part.uri,

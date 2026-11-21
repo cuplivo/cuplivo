@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../../../core/database/business_data.dart';
 import '../../../core/providers/sync_provider.dart';
 import '../../../core/services/sync/sync_models.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../shared/widgets/snackbar.dart';
 
 /// The form half of "this server stays on this device" (仅本机).
 ///
@@ -57,6 +59,11 @@ mixin McpLocalOnlyForm<T extends StatefulWidget> on State<T> {
       return;
     }
     if (!mounted) return;
+    // The user answered while this read was in flight. Their answer is the one
+    // that goes to disk: the file is a day-old copy, and overwriting the switch
+    // here would write the opposite of what they just chose — a server they just
+    // held would sync on the next round, command line and all.
+    if (_known) return;
     setState(() {
       _held = keys.contains(localOnlyKey(id));
       _known = true;
@@ -81,7 +88,24 @@ mixin McpLocalOnlyForm<T extends StatefulWidget> on State<T> {
   Future<void> saveLocalOnly(String id) async {
     final sync = _sync;
     if (sync == null || id.isEmpty || !_known) return;
-    await sync.setLocalOnly(localOnlyKey(id), _held);
+    try {
+      await sync.setLocalOnly(localOnlyKey(id), _held);
+    } catch (error) {
+      // The row is already written by the time this runs, so failing the rest
+      // of the save would lose the user's other edits and leave the sheet open
+      // with no message. The save finishes; the *failure* is what gets said,
+      // because a hold that did not persist is a row that will sync — the one
+      // outcome this switch exists to prevent.
+      debugPrint('mcp: writing the held set failed: $error');
+      if (!mounted) return;
+      showAppSnackBar(
+        context,
+        message: AppLocalizations.of(
+          context,
+        )!.mcpServerEditSheetLocalOnlySaveFailed,
+        type: NotificationType.warning,
+      );
+    }
   }
 
   /// The key the held set stores, named the way every other sync face names a

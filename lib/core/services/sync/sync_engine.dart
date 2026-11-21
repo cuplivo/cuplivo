@@ -3033,12 +3033,7 @@ class SyncEngine implements SyncServerHandler {
     return [
       for (final item in plan)
         item.action == SyncConvAction.iDelete
-            ? SyncBusinessPlanItem(
-                item.kindWire,
-                item.id,
-                SyncConvAction.none,
-                withheld: item.withheld,
-              )
+            ? SyncBusinessPlanItem(item.kindWire, item.id, SyncConvAction.none)
             : item,
     ];
   }
@@ -3093,12 +3088,7 @@ class SyncEngine implements SyncServerHandler {
     return [
       for (final item in plan)
         item.action == SyncConvAction.iDelete
-            ? SyncBusinessPlanItem(
-                item.kindWire,
-                item.id,
-                SyncConvAction.iSend,
-                withheld: item.withheld,
-              )
+            ? SyncBusinessPlanItem(item.kindWire, item.id, SyncConvAction.iSend)
             : item,
     ];
   }

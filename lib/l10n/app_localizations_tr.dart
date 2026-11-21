@@ -3723,6 +3723,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get mcpServerEditSheetLocalOnlyLabel => 'Yalnızca bu cihaz';
 
   @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Kaydedildi, ancak bu sunucu yalnızca bu cihazda tutulamadı.';
+
+  @override
   String get mcpServerEditSheetNameLabel => 'Ad';
 
   @override

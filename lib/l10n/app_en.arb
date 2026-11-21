@@ -1823,6 +1823,7 @@
   },
   "mcpServerEditSheetEnabledLabel": "Enabled",
   "mcpServerEditSheetLocalOnlyLabel": "This device only",
+  "mcpServerEditSheetLocalOnlySaveFailed": "Saved, but this server could not be held on this device.",
   "mcpServerEditSheetNameLabel": "Name",
   "mcpServerEditSheetTransportLabel": "Transport",
   "mcpServerEditSheetUrlLabel": "Server URL",
@@ -11543,6 +11544,9 @@
   },
   "@mcpServerEditSheetLocalOnlyLabel": {
     "description": "Label for the toggle switch that keeps an MCP server on this device: a held row is neither offered to a paired device nor overwritten by one."
+  },
+  "@mcpServerEditSheetLocalOnlySaveFailed": {
+    "description": "Warning shown after saving an MCP server whose \"this device only\" switch could not be written. The server itself was saved; the message says what did not happen, so the user knows the server is still shared."
   },
   "@mcpServerEditSheetNameLabel": {
     "description": "Label for the text field entering an MCP server's display name."

@@ -6796,6 +6796,12 @@ abstract class AppLocalizations {
   /// **'This device only'**
   String get mcpServerEditSheetLocalOnlyLabel;
 
+  /// Warning shown after saving an MCP server whose "this device only" switch could not be written. The server itself was saved; the message says what did not happen, so the user knows the server is still shared.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved, but this server could not be held on this device.'**
+  String get mcpServerEditSheetLocalOnlySaveFailed;
+
   /// Label for the text field entering an MCP server's display name.
   ///
   /// In en, this message translates to:

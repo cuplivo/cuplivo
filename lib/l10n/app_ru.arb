@@ -1113,6 +1113,7 @@
   "mcpConversationSheetToolsCount": "Инструменты: {enabled}/{total}",
   "mcpServerEditSheetEnabledLabel": "Включено",
   "mcpServerEditSheetLocalOnlyLabel": "Только это устройство",
+  "mcpServerEditSheetLocalOnlySaveFailed": "Сохранено, но этот сервер не удалось оставить только на этом устройстве.",
   "mcpServerEditSheetNameLabel": "Название",
   "mcpServerEditSheetTransportLabel": "Транспорт",
   "mcpServerEditSheetUrlLabel": "URL сервера",

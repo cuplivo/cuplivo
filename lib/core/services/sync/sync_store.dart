@@ -540,11 +540,13 @@ class SyncStore {
   ///
   /// An unreadable file reads as "nothing withheld", the same reading the
   /// workspace toggles take: refusing to sync *anything* because a preferences
-  /// file was truncated would be the worse failure.
+  /// file was truncated would be the worse failure. The `exists()` probe is
+  /// inside the try for the same reason — a permissions error can throw there,
+  /// and a hello must not fail because one file could not be looked at.
   Future<Set<String>> readLocalOnlyKeys() async {
     final file = _localOnlyFile;
-    if (!await file.exists()) return const {};
     try {
+      if (!await file.exists()) return const {};
       final json = jsonDecode(await file.readAsString());
       if (json is! Map) return const {};
       final raw = json['keys'];

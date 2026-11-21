@@ -212,6 +212,10 @@ class SyncBusinessPlanItem {
   /// neither side may move it: the action is [SyncConvAction.none] and this
   /// flag says what that `none` means.
   ///
+  /// Only ever set with `none` — a withheld key plans no exchange at all, so
+  /// nothing that rewrites a plan's *actions* can carry it into a deletion or a
+  /// send.
+  ///
   /// The distinction matters to the checkpoint. A plain `none` is an
   /// *agreement* — both manifests carry the same digest — and the business
   /// advance records the local row as the shared state. A withheld key has no

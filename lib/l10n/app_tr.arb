@@ -1113,6 +1113,7 @@
   "mcpConversationSheetToolsCount": "Araçlar: {enabled}/{total}",
   "mcpServerEditSheetEnabledLabel": "Etkin",
   "mcpServerEditSheetLocalOnlyLabel": "Yalnızca bu cihaz",
+  "mcpServerEditSheetLocalOnlySaveFailed": "Kaydedildi, ancak bu sunucu yalnızca bu cihazda tutulamadı.",
   "mcpServerEditSheetNameLabel": "Ad",
   "mcpServerEditSheetTransportLabel": "Taşıma",
   "mcpServerEditSheetUrlLabel": "Sunucu URL'si",

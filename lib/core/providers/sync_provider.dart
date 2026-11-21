@@ -268,6 +268,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// permanent failure of the whole retry path (`start` after a start error
   /// hands every caller the same rejected future), which is a regression
   /// against the version that built a fresh store per attempt.
+  ///
+  /// [directory] is honoured only while no store exists — the first caller's
+  /// root is the one this provider uses, deliberately: two roots would mean two
+  /// write queues over one file.
   Future<SyncStore> _ensureStore({Directory? directory}) async {
     final pending = _storeFuture;
     if (pending != null) return pending;

@@ -370,7 +370,8 @@ contradicts one of them is a bug, not a preference.
   the 3.x session-priority control existed only because its merge was not symmetric.
 - **A conversation row carries two clocks (两枚时钟)**: `updated_at` is the *display* clock — it
   says when the conversation's content last changed, and it is what the home list orders and
-  groups by, so a new message, an edit or a deletion moves it. `extras['sync.clock']` is the
+  groups by, so a new message, an edit or a deletion moves it — and a restore from the recycle bin
+  does not, because undoing a deletion is not activity and the row comes back where it was. `extras['sync.clock']` is the
   *mutation* clock — it says when a device last wrote the row, and it is what sync compares, so
   renaming, pinning, summarising, regenerating suggestions, changing the model override or
   changing the workspace binding travel without reordering anything. Every local write moves the

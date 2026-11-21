@@ -702,29 +702,35 @@ final class RecycleService {
       if (existing != null) return _not(RecycleRestoreOutcome.skippedExisting);
       final now = DateTime.now().toUtc().microsecondsSinceEpoch;
       // A restore is a local write like any other, so it moves the clock sync
-      // reads — not only the one the list shows. The row is gone locally (this
-      // is the restore), so its own archived key is the floor: the next session
-      // must be able to tell "written here since the agreement" from "untouched
-      // here", or `copyWrittenSinceAgreement` reads the restore as the old
-      // deletion and deletes the conversation again.
+      // reads. It does **not** move the display clock: an undo is not activity,
+      // and the row goes back into the list at the position and in the date
+      // group it had before it was deleted. The row is gone locally (this is the
+      // restore), so its own archived key is the floor: the next session must be
+      // able to tell "written here since the agreement" from "untouched here",
+      // or `copyWrittenSinceAgreement` reads the restore as the old deletion and
+      // deletes the conversation again.
       final archivedRow = tables['conversation_rows']!.first;
       final archivedExtras = archivedRow['extras_json'];
+      final archivedUpdatedAtUs =
+          (archivedRow['updated_at'] as num?)?.toInt() ?? now;
       final restoredExtras = withSyncClock(
         archivedExtras,
         nextSyncClock(
           nowUs: now,
           currentUs: syncClockOf(archivedExtras),
-          updatedAtUs: now,
+          updatedAtUs: archivedUpdatedAtUs,
         ),
       );
       await _insertRow(
         'conversation_rows',
         archivedRow,
         conflictTarget: const ['id'],
-        overrides: <String, Object?>{
-          'updated_at': now,
-          if (restoredExtras != null) 'extras_json': restoredExtras,
-        },
+        overrides: restoredExtras == null
+            // The bag is not a JSON object, so there is no key to stamp and the
+            // reader falls back to `updated_at`: this is the one restore that
+            // still has to move the display clock to be visible to sync at all.
+            ? <String, Object?>{'updated_at': now}
+            : <String, Object?>{'extras_json': restoredExtras},
       );
       for (final row in tables['message_rows'] ?? const []) {
         // A conversation deleted mid-stream leaves a streaming flag behind;

@@ -107,8 +107,9 @@ SyncConvAction _planConversation({
 /// A differing digest is always "changed". When the digests agree, only the row
 /// clock can tell: a conversation's digest is computed from its message rows, so
 /// a row-only write is invisible to it. The recycle bin's restore is exactly
-/// that write — the row goes back with `now()`, the messages come back
-/// verbatim — and so is a rename that left every message alone.
+/// that write — the messages come back verbatim and the row keeps the display
+/// clock it was deleted with, so only the sync clock it is re-stamped with says
+/// this device wrote here — and so is a rename that left every message alone.
 ///
 /// With no clock on either side (a business row, whose digest covers the whole
 /// row; or an agreement recorded before the clock travelled) the digest is the

@@ -13,6 +13,7 @@ import 'package:Cuplivo/core/models/context_operation.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/image_context.dart';
 import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
+import 'package:Cuplivo/core/services/sync/sync_merge.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -243,41 +244,52 @@ void main() {
       expect(tables['message_part_rows'], hasLength(partsBefore.length));
     });
 
-    test('restoring brings the subtree back and wins the next clock', () async {
-      await seedConversation('c1');
-      final partsBefore = await repository.syncReadMessagePartRows('c1');
-      await repository.deleteConversation('c1');
-      final entry = (await binEntries()).single;
-      final staged = await store.readTables(entry);
-      final stagedClock =
-          staged!['conversation_rows']!.single['updated_at']! as int;
+    test(
+      'restoring brings the subtree back and takes the next sync clock',
+      () async {
+        await seedConversation('c1');
+        final partsBefore = await repository.syncReadMessagePartRows('c1');
+        final clockBefore = effectiveConversationClock(
+          (await repository.syncReadConversationRow('c1'))!,
+        );
+        await repository.deleteConversation('c1');
+        final entry = (await binEntries()).single;
+        final staged = await store.readTables(entry);
+        final stagedClock =
+            staged!['conversation_rows']!.single['updated_at']! as int;
 
-      expect(await recycle.restore(entry), RecycleRestoreOutcome.restored);
+        expect(await recycle.restore(entry), RecycleRestoreOutcome.restored);
 
-      final restored = await repository.syncReadConversationRow('c1');
-      expect(restored, isNotNull);
-      expect(restored!['title'], 'Topic c1');
-      expect(
-        restored['updated_at'] as int,
-        greaterThan(stagedClock),
-        reason: 'a restore is a fresh local write, not a clock resurrection',
-      );
-      expect(await repository.syncReadMessageRows('c1'), hasLength(2));
-      expect(
-        (await repository.syncReadMessagePartRows('c1')).length,
-        partsBefore.length,
-      );
-      expect(
-        await repository.readTombstones(),
-        isEmpty,
-        reason: 'the deletion record goes with the deletion it recorded',
-      );
-      expect(
-        await binEntries(),
-        isEmpty,
-        reason: 'the entry is retired by its own restore',
-      );
-    });
+        final restored = await repository.syncReadConversationRow('c1');
+        expect(restored, isNotNull);
+        expect(restored!['title'], 'Topic c1');
+        // The display clock comes back at the value the row was deleted with: an
+        // undo is not activity, and the list keeps its position and date group.
+        expect(restored['updated_at'] as int, stagedClock);
+        // The clock sync compares does move. That is what keeps the next session
+        // from reading the restore as the deletion it undid.
+        expect(
+          effectiveConversationClock(restored),
+          greaterThan(clockBefore),
+          reason: 'a restore is a fresh local write on the sync clock',
+        );
+        expect(await repository.syncReadMessageRows('c1'), hasLength(2));
+        expect(
+          (await repository.syncReadMessagePartRows('c1')).length,
+          partsBefore.length,
+        );
+        expect(
+          await repository.readTombstones(),
+          isEmpty,
+          reason: 'the deletion record goes with the deletion it recorded',
+        );
+        expect(
+          await binEntries(),
+          isEmpty,
+          reason: 'the entry is retired by its own restore',
+        );
+      },
+    );
 
     test('a conversation that is present again is not overwritten', () async {
       await seedConversation('c1');

@@ -7,18 +7,17 @@ import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:Cuplivo/core/services/sync/sync_merge.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// A restore is a local write, so it must move the clock **sync** reads, not
-/// only the one the list shows.
+/// A restore is a local write, so it must move the clock **sync** reads — and
+/// must not move the one the list reads.
 ///
 /// The plan asks [copyWrittenSinceAgreement] whether this device wrote the row
 /// since the two sides last agreed. The recycle bin's restore is the case that
 /// question exists for: the row goes back while every message comes back
 /// byte-identical, so the digest still matches the agreement and only the row
-/// clock can tell "restored here" from "untouched here". The restore used to
-/// answer that by moving `updated_at`; once `updated_at` is the display clock
-/// and sync compares `extras['sync.clock']`, a restore that moved only the
-/// former would read as the old deletion and be deleted again on the next
-/// session — by the delete branch, and again by the announcement re-check.
+/// clock can tell "restored here" from "untouched here". Since the display clock
+/// no longer doubles as the sync clock, the restore re-stamps the key and leaves
+/// `updated_at` at the value the row was deleted with — the conversation returns
+/// to its old place and date group, which is what an undo should do.
 void main() {
   late Directory directory;
   late AppDatabase database;
@@ -66,9 +65,10 @@ void main() {
     expect(await recycle.restore(entry), RecycleRestoreOutcome.restored);
 
     final after = (await repository.syncReadConversationRow('conv'))!;
-    // The display clock moves, so the list shows the restore …
-    expect((after['updated_at'] as num).toInt(), greaterThan(updatedAtBefore));
-    // … and so does the clock sync compares.
+    // The display clock does not move: an undo is not activity, so the row goes
+    // back into the list where it was.
+    expect((after['updated_at'] as num).toInt(), updatedAtBefore);
+    // The clock sync compares does move.
     expect(effectiveConversationClock(after), greaterThan(clockBefore));
 
     // The archived bag survives being stamped.

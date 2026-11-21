@@ -40,6 +40,9 @@ bool isUserInputMessage(
   // A group peer's turn travels as `user` but is not the user's own words; its
   // images and attachments belong to the member that sent it.
   if (message[groupPeerSenderKey] != null) return false;
+  // A subagent's conclusion is the app's notice, so the human's own turn keeps
+  // the attachments even when the notice is the most recent user-role turn.
+  if (message[subagentResultKey] != null) return false;
   if (!hasOwners) return true;
   final owner = message[imageContextOwnerKey];
   return owner is String &&

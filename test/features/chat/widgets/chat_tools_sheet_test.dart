@@ -332,6 +332,10 @@ void main() {
           );
         }
         expect(row, findsOneWidget);
+        // The local group grew: `scrollUntilVisible` stops as soon as the row is
+        // built, which can leave its centre under the fold.
+        await tester.ensureVisible(row);
+        await tester.pumpAndSettle();
         await tester.tap(row);
         await tester.pumpAndSettle();
         expect(
@@ -344,6 +348,8 @@ void main() {
           'images',
           const ImageContextSettings(),
         );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(row);
         await tester.pumpAndSettle();
         await tester.tap(row);
         await tester.pumpAndSettle();

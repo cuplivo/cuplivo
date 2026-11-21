@@ -1399,6 +1399,113 @@
     },
     "description": "Tool-call title for fetching a web page; {target} is the URL host or full URL."
   },
+  "chatMessageWidgetDelegate": "Delegate: {label}",
+  "@chatMessageWidgetDelegate": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Tool-call title for a delegation; {label} is the model's short name for the job."
+  },
+  "subagentResultCompleted": "Subagent finished",
+  "@subagentResultCompleted": {
+    "description": "Divider label where a finished subagent's result appears in the parent conversation."
+  },
+  "subagentResultFailed": "Subagent failed",
+  "@subagentResultFailed": {
+    "description": "Divider label for a subagent whose run ended in an error."
+  },
+  "subagentResultCancelled": "Subagent cancelled",
+  "@subagentResultCancelled": {
+    "description": "Divider label for a subagent the user stopped."
+  },
+  "subagentResultInterrupted": "Subagent interrupted",
+  "@subagentResultInterrupted": {
+    "description": "Divider label for a subagent whose run the app stopped (for example a restart)."
+  },
+  "subagentStripRunning": "Subagent running ({elapsed}) {label}",
+  "@subagentStripRunning": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name."
+  },
+  "subagentStripRunningMany": "Subagents running: {count}",
+  "@subagentStripRunningMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    },
+    "description": "Progress line above the composer while several subagents work and none of them needs the user."
+  },
+  "subagentStripWaiting": "Subagent waiting for you · {label}",
+  "@subagentStripWaiting": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line while one subagent is parked on a question or approval in its own conversation; {label} is the job's short name."
+  },
+  "subagentStripCounts": "{count} subagents ({running} running)",
+  "@subagentStripCounts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "running": {
+        "type": "int"
+      }
+    },
+    "description": "Progress line while several subagents exist and at least one waits for the user; {count} is the total, {running} how many are still working."
+  },
+  "subagentStripWaitingApproval": "Subagent waiting for approval · {label}",
+  "@subagentStripWaitingApproval": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line while one subagent is blocked on a tool approval in its own conversation."
+  },
+  "subagentPanelTitle": "Subagents",
+  "@subagentPanelTitle": {
+    "description": "Title of the panel listing the subagents of this conversation."
+  },
+  "subagentPanelEmpty": "No subagents in this conversation yet.",
+  "@subagentPanelEmpty": {
+    "description": "Shown in the subagent panel when this process has never delegated anything here."
+  },
+  "subagentTag": "Subagent",
+  "@subagentTag": {
+    "description": "Short tag beside a conversation's title in the sidebar, saying this chat is a delegated task rather than one the user started."
+  },
+  "subagentPanelRunning": "Running",
+  "subagentPanelWaitingAnswer": "Waiting for you",
+  "subagentPanelWaitingApproval": "Waiting for approval",
+  "subagentPanelCompleted": "Finished",
+  "subagentPanelFailed": "Failed",
+  "subagentPanelCancelled": "Cancelled",
+  "subagentPanelInterrupted": "Interrupted",
+  "subagentPanelElapsed": "{minutes}m {seconds}s",
+  "@subagentPanelElapsed": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    },
+    "description": "How long one subagent ran, shown at the end of its row in the panel."
+  },
   "chatMessageWidgetBuiltinSearch": "Built-in Search",
   "chatMessageWidgetReadClipboard": "Read Clipboard",
   "chatMessageWidgetWriteClipboard": "Write Clipboard",
@@ -7973,6 +8080,14 @@
   "assistantEditLocalToolImageTitle": "Drawing",
   "@assistantEditLocalToolImageTitle": {
     "description": "Name of the drawing capability in the assistant's local-tool list."
+  },
+  "assistantEditLocalToolDelegateTitle": "Subagent",
+  "@assistantEditLocalToolDelegateTitle": {
+    "description": "Name of the delegation capability in the assistant's local-tool list."
+  },
+  "assistantEditLocalToolAwaitJobTitle": "Wait for task",
+  "@assistantEditLocalToolAwaitJobTitle": {
+    "description": "Name of the capability that blocks until a delegated task finishes."
   },
   "defaultModelPageImageModelTitle": "Image Model",
   "@defaultModelPageImageModelTitle": {

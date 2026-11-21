@@ -17,6 +17,8 @@ import '../../../core/services/app_exit_flush.dart';
 import '../../scheduled_tasks/scheduled_task_preparation_binding.dart';
 import '../../../core/services/scheduled_tasks_service.dart';
 import '../../scheduled_tasks/scheduled_task_runner.dart';
+import '../services/tool_approval_service.dart';
+import '../../subagent/services/subagent_coordinator.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show listEquals, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -24,6 +26,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/models/chat_input_data.dart';
+import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/chat_owner.dart';
@@ -743,6 +746,126 @@ class HomePageController extends ChangeNotifier {
 
   bool get isCurrentConversationLoading =>
       _viewModel.isCurrentConversationLoading;
+
+  /// What the subagent coordinator needs from this page.
+  ///
+  /// The coordinator is provided above the page (the tool handler reads it from
+  /// its own context) while a turn can only be started here, so the page hands
+  /// over the three capabilities once and takes them back when it goes away.
+  SubagentHost buildSubagentHost() => SubagentHost(
+    turnStarter:
+        ({required conversationId, required assistant, required task}) =>
+            startSubagentTurn(
+              conversationId: conversationId,
+              assistant: assistant,
+              task: task,
+            ),
+    parentWaker:
+        ({
+          required parentConversationId,
+          required result,
+          required assistant,
+        }) => wakeAfterSubagent(
+          parentConversationId: parentConversationId,
+          result: result,
+          assistant: assistant,
+        ),
+    canWake: (conversationId) async {
+      // A result that lands while the app is in the background must not start a
+      // generation: the OS may freeze the isolate, the startup sweep then
+      // terminalises it, and the user comes back to an extra interrupted reply.
+      // The row is already in the database, so the next visit reads it anyway.
+      final background = MobileBackgroundCoordinator.instance;
+      await background.initialize();
+      if (!background.isForeground) return false;
+      return !_chatController.isConversationLoading(conversationId) &&
+          _viewModel.currentQueuedInput?.conversationId != conversationId &&
+          !(_chatService.composerDrafts?.hasDraft(conversationId) ?? false);
+    },
+    waitReasonFor: _waitReasonForChild,
+    openConversation: (conversationId) {
+      unawaited(switchConversationAnimated(conversationId));
+    },
+    cancelTurn: (conversationId) =>
+        _viewModel.cancelGenerationOf(conversationId),
+    refreshTimeline: (conversationId) async {
+      if (currentConversation?.id != conversationId) return;
+      await _viewModel.refreshTimelineAfterExternalWrite();
+    },
+  );
+
+  /// Why a child conversation is parked, if it is: `ask_user` first because it
+  /// is the answer the user has to type, then an approval.
+  SubagentWaitReason? _waitReasonForChild(String childConversationId) {
+    if (!_context.mounted) return null;
+    try {
+      final askUser = _context.read<AskUserInteractionService>();
+      if (askUser.pendingRequests.values.any(
+        (request) => request.conversationId == childConversationId,
+      )) {
+        return SubagentWaitReason.answer;
+      }
+    } catch (_) {}
+    try {
+      final approval = _context.read<ToolApprovalService>();
+      if (approval.pendingRequests.any(
+        (request) => request.conversationId == childConversationId,
+      )) {
+        return SubagentWaitReason.approval;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Runs one whole turn in [conversationId] on behalf of a subagent.
+  Future<SubagentTurnStart> startSubagentTurn({
+    required String conversationId,
+    required Assistant assistant,
+    required String task,
+  }) async {
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) {
+      return const SubagentTurnStart.refused('conversation_missing');
+    }
+    final result = await _viewModel.sendScheduledMessage(
+      input: ChatInputData(text: task),
+      conversation: conversation,
+      assistant: assistant,
+      scheduledNotify: false,
+      scheduledPreview: false,
+    );
+    if (!result.success) {
+      return SubagentTurnStart.refused(result.errorMessage ?? 'turn_failed');
+    }
+    final runId = result.generationRunId;
+    if (runId == null) {
+      return const SubagentTurnStart.refused('run_missing');
+    }
+    return SubagentTurnStart.started(runId: runId);
+  }
+
+  /// Continues [parentConversationId] once its child has finished.
+  ///
+  /// The result notice is a `user` message with no reply of its own yet, so
+  /// regenerating it produces exactly one thing: the parent's answer to it.
+  /// Returns whether a turn started — the coordinator retries when the parent
+  /// turned out to be busy.
+  Future<bool> wakeAfterSubagent({
+    required String parentConversationId,
+    required ChatMessage result,
+    required Assistant assistant,
+  }) async {
+    final conversation = _chatService.getConversation(parentConversationId);
+    if (conversation == null) return false;
+    final outcome = await _viewModel.regenerateScheduledMessage(
+      message: result,
+      conversation: conversation,
+      assistant: assistant,
+      scheduledNotify: false,
+      scheduledPreview: false,
+    );
+    return outcome.success;
+  }
 
   QueuedChatInput? get currentQueuedInput => _viewModel.currentQueuedInput;
   bool get currentQueuedInputPaused => _viewModel.currentQueuedInputPaused;

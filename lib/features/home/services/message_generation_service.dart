@@ -358,6 +358,10 @@ class MessageGenerationService {
           workspaceContext: workspaceContext,
         );
       }
+      await messageBuilderService.injectSubagentPrompt(
+        apiMessages,
+        conversationId: currentConversation?.id,
+      );
     } catch (e) {
       if (workspaceContext != null && !workspaceContext.skillsOnly) {
         rethrow;

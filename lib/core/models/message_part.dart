@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
 /// Structured message part — single source of truth for attachments and text.
 ///
 /// Payload contract:
@@ -8,6 +10,11 @@ import 'dart:convert';
 /// - `assistant_round_end`: JSON reasoning-details array or `null`
 /// - `image`: `{"uri","mime"?,"assetId"?,"unavailable"?}`
 /// - `file`: `{"uri","name","mime"?,"assetId"?,"unavailable"?}`
+/// - `subagent_result`: `{"childConversationId","elapsedMs"?,"label"?,
+///   "outcome"?}` — the marker on the one message a finished subagent writes
+///   into its parent conversation; `label` and `outcome` are what the divider and
+///   the panel read, so an import or a sync must carry them too; the brief itself
+///   is the message's `text` part
 /// - unknown kinds: stored in [UnknownPart] and written back unchanged
 /// - malformed known kinds: created only while hydrating database rows and
 ///   stored in [MalformedPart] for lossless write-back
@@ -32,6 +39,8 @@ sealed class MessagePart {
         return ProviderAuthErrorPart.fromPayload(payload);
       case 'response_truncation':
         return ResponseTruncationPart.fromPayload(payload);
+      case 'subagent_result':
+        return SubagentResultPart.fromPayload(payload);
       default:
         return UnknownPart(rawKind: kind, payload: payload);
     }
@@ -118,6 +127,96 @@ final class ProviderAuthErrorPart extends MessagePart {
       other is ProviderAuthErrorPart && other.providerId == providerId;
   @override
   int get hashCode => providerId.hashCode;
+}
+
+/// The marker on the one message a finished subagent writes into its parent.
+///
+/// The brief travels as that message's [TextPart], so the parent model reads an
+/// ordinary user turn. Identity lives here rather than in the message id: an
+/// import, a restore or a sync may rewrite ids, and the part travels with the
+/// row — a rewritten id must not turn a subagent's conclusion into a user
+/// utterance nobody wrote.
+final class SubagentResultPart extends MessagePart {
+  const SubagentResultPart({
+    required this.childConversationId,
+    this.elapsedMs,
+    this.label,
+    this.outcome,
+  });
+
+  factory SubagentResultPart.fromPayload(String payload) {
+    final data = _decodeObjectPayload(payload);
+    final child = data['childConversationId'];
+    if (child is! String || child.isEmpty) {
+      throw const _MessagePartFormatException('missing_child_conversation_id');
+    }
+    final elapsed = data['elapsedMs'];
+    if (elapsed != null && (elapsed is! int || elapsed < 0)) {
+      throw const _MessagePartFormatException('invalid_elapsed');
+    }
+    final label = data['label'];
+    if (label != null && label is! String) {
+      throw const _MessagePartFormatException('invalid_label');
+    }
+    final outcome = data['outcome'];
+    if (outcome != null && outcome is! String) {
+      throw const _MessagePartFormatException('invalid_outcome');
+    }
+    return SubagentResultPart(
+      childConversationId: child,
+      elapsedMs: elapsed as int?,
+      label: label as String?,
+      outcome: outcome as String?,
+    );
+  }
+
+  final String childConversationId;
+
+  /// How long the child ran. Null when the caller had no start time.
+  final int? elapsedMs;
+
+  /// What the child was called, as the model named it. The divider, the panel
+  /// and the sidebar all show this same word.
+  final String? label;
+
+  /// One of `completed`, `failed`, `cancelled`, `interrupted`.
+  ///
+  /// Kept apart from the brief on purpose: the brief is prose for the model, so
+  /// a renderer that parsed it would break the day the wording changes. A value
+  /// this class does not know renders as a neutral finished state.
+  final String? outcome;
+
+  /// The one result message [childConversationId] will ever write.
+  ///
+  /// A plain UUID, so nothing has to parse it; deterministic, so a second
+  /// delivery collides with the first instead of adding a row.
+  static String messageIdFor(String childConversationId) => const Uuid().v5(
+    Namespace.url.value,
+    'cuplivo/subagent-result/$childConversationId',
+  );
+
+  @override
+  String get kind => 'subagent_result';
+
+  @override
+  String encodePayload() => jsonEncode({
+    'childConversationId': childConversationId,
+    if (elapsedMs != null) 'elapsedMs': elapsedMs,
+    if (label != null) 'label': label,
+    if (outcome != null) 'outcome': outcome,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is SubagentResultPart &&
+      other.childConversationId == childConversationId &&
+      other.elapsedMs == elapsedMs &&
+      other.label == label &&
+      other.outcome == outcome;
+
+  @override
+  int get hashCode =>
+      Object.hash(childConversationId, elapsedMs, label, outcome);
 }
 
 final class TextPart extends MessagePart {

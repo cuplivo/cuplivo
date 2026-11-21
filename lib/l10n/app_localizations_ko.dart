@@ -2842,6 +2842,83 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '서브에이전트 파견: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => '서브에이전트 완료';
+
+  @override
+  String get subagentResultFailed => '서브에이전트 실패';
+
+  @override
+  String get subagentResultCancelled => '서브에이전트 취소됨';
+
+  @override
+  String get subagentResultInterrupted => '서브에이전트 중단됨';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '서브에이전트 실행 중 ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '서브에이전트 $count개 실행 중';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '서브에이전트가 답변을 기다립니다 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '서브에이전트 $count개 ($running개 실행 중)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '서브에이전트가 승인을 기다립니다 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '서브에이전트';
+
+  @override
+  String get subagentPanelEmpty => '이 대화에는 아직 서브에이전트가 없습니다.';
+
+  @override
+  String get subagentTag => '서브에이전트';
+
+  @override
+  String get subagentPanelRunning => '실행 중';
+
+  @override
+  String get subagentPanelWaitingAnswer => '답변 대기';
+
+  @override
+  String get subagentPanelWaitingApproval => '승인 대기';
+
+  @override
+  String get subagentPanelCompleted => '완료';
+
+  @override
+  String get subagentPanelFailed => '실패';
+
+  @override
+  String get subagentPanelCancelled => '취소됨';
+
+  @override
+  String get subagentPanelInterrupted => '중단됨';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes분 $seconds초';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '내장 검색';
 
   @override
@@ -15523,6 +15600,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolImageTitle => '그리기';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '서브에이전트';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '작업 대기';
 
   @override
   String get defaultModelPageImageModelTitle => '이미지 모델';

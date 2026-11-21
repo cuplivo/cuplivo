@@ -611,15 +611,24 @@ class SyncClientSession {
     request.headers.contentType = ContentType.binary;
     request.headers.contentLength = advertised.size;
     await _transfer(request, blobDeadline, (left) async {
-      await request.addStream(source.openRead()).timeout(left());
-      final response = await request.close().timeout(left());
+      // `left()` is taken *before* the future it bounds, every time. `f.timeout(g())`
+      // evaluates `f` first, so asking for the budget in the argument position
+      // creates the request body — or the close future — with nobody to listen
+      // to it: the budget then throws, `_transfer` aborts, and the abort
+      // completes an unlistened future, which reports to the zone instead of to
+      // the caller.
+      final sendWait = left();
+      await request.addStream(source.openRead()).timeout(sendWait);
+      final closeWait = left();
+      final response = await request.close().timeout(closeWait);
       if (response.statusCode != HttpStatus.noContent) {
         // The refusal *is* the answer, so a body that then stalls — or a
         // connection the peer tears down under it — must not turn it into a
         // generic transport error: the socket is aborted and the peer's status
         // is what the caller hears.
         try {
-          await response.drain<void>().timeout(left());
+          final refuseWait = left();
+          await response.drain<void>().timeout(refuseWait);
         } catch (_) {
           request.abort(const SyncClientException('transfer_timeout'));
         }
@@ -628,7 +637,8 @@ class SyncClientSession {
           statusCode: response.statusCode,
         );
       }
-      await response.drain<void>().timeout(left());
+      final drainWait = left();
+      await response.drain<void>().timeout(drainWait);
     });
   }
 
@@ -656,15 +666,16 @@ class SyncClientSession {
     request.headers.contentType = ContentType.binary;
     request.headers.contentLength = size;
     await _transfer(request, blobDeadline, (left) async {
-      await request.addStream(source.openRead()).timeout(left());
-      final response = await request.close().timeout(left());
+      // Same rule as the workspace push: the budget is read before the future it
+      // bounds, so a spent one starts no body and leaves no unlistened future.
+      final sendWait = left();
+      await request.addStream(source.openRead()).timeout(sendWait);
+      final closeWait = left();
+      final response = await request.close().timeout(closeWait);
       if (response.statusCode != HttpStatus.noContent) {
-        // The refusal *is* the answer, so a body that then stalls — or a
-        // connection the peer tears down under it — must not turn it into a
-        // generic transport error: the socket is aborted and the peer's status
-        // is what the caller hears.
         try {
-          await response.drain<void>().timeout(left());
+          final refuseWait = left();
+          await response.drain<void>().timeout(refuseWait);
         } catch (_) {
           request.abort(const SyncClientException('transfer_timeout'));
         }
@@ -673,7 +684,8 @@ class SyncClientSession {
           statusCode: response.statusCode,
         );
       }
-      await response.drain<void>().timeout(left());
+      final drainWait = left();
+      await response.drain<void>().timeout(drainWait);
     });
   }
 

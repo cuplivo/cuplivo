@@ -596,6 +596,80 @@ void main() {
     );
   });
 
+  test('a budget already spent starts no request and leaks no error', () async {
+    // Characterisation, not a proof: with the budget read *before* the future it
+    // bounds (the order `_transfer`'s callbacks now use) a spent one throws
+    // before anything is created, so there is nothing to leak. With the earlier
+    // order this cell still passed — an aborted request whose `close()` was never
+    // called does not error its pending `addStream` — and the leak the review
+    // demonstrated needs `close()` to have run first, which a test cannot put
+    // deterministically between two `left()` calls. So this cell pins the
+    // observable end (`transfer_timeout`, nothing in the zone), and the ordering
+    // itself rests on Dart's evaluation order rather than on a red test.
+    final handler = _RecordingHandler();
+    final server = await startServer(handler);
+    server.rememberPeer(
+      SyncPeerRecord(
+        deviceId: identity.deviceId,
+        certPem: identity.certPem,
+        secret: secret,
+        name: 'self',
+        platform: 'test',
+      ),
+    );
+
+    final directory = await Directory.systemTemp.createTemp(
+      'sync-zero-budget-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final payload = File('${directory.path}${Platform.pathSeparator}x.bin');
+    await payload.writeAsBytes(const [1, 2, 3, 4]);
+
+    final session = SyncClient(identity: identity).openSession(
+      SyncPeerRecord(
+        deviceId: identity.deviceId,
+        certPem: identity.certPem,
+        secret: secret,
+        name: 'self',
+        platform: 'test',
+      ),
+      host: '127.0.0.1',
+      port: server.port!,
+      blobDeadline: Duration.zero,
+    );
+    addTearDown(session.close);
+
+    final zoneErrors = <Object>[];
+    Object? failure;
+    await runZonedGuarded(() async {
+      try {
+        await session.pushBlob(
+          entry: SyncBlobEntry(
+            kind: SyncBlobEntry.kindFile,
+            key: 'file:///managed/x.bin',
+            contentHash: blobHash,
+            byteSize: 4,
+          ),
+          source: payload,
+          size: 4,
+        );
+      } catch (error) {
+        failure = error;
+      }
+      // A leaked future reports on its own schedule; give it the turn it needs
+      // before the zone is read.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }, (error, stack) => zoneErrors.add(error));
+
+    expect(failure, isA<SyncClientException>());
+    expect((failure! as SyncClientException).message, 'transfer_timeout');
+    expect(
+      zoneErrors,
+      isEmpty,
+      reason: 'the abort must not become an unhandled error in the zone',
+    );
+  });
+
   test('a refusal whose body dies mid-read is still the refusal', () async {
     // The status is the answer; the body is only drained so the connection can
     // be reused. A peer that writes a refusal and then drops the connection

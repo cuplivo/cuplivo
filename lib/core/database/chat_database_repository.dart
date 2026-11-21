@@ -9048,7 +9048,7 @@ FROM conversation_rows;
   static String _extrasWithSyncClock(
     Map<String, dynamic> extras,
     int syncClock,
-  ) => jsonEncode({...extras, syncClockExtrasKey: syncClock});
+  ) => withSyncClock(extras, syncClock)!;
 
   /// The row one local write stores.
   ///

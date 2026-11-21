@@ -350,29 +350,66 @@ void main() {
     });
   });
 
-  test('only the repository writes conversation_rows', () {
-    // The gate is `_nextConversationClock` + `_conversationCompanion` in the
-    // repository; `chat_context_repository.dart` is the same class (a `part`),
-    // which is why it may write the truncate reset itself. A third file writing
-    // the table would be a writer nobody stamps, so the guard names the two.
-    // (A second path *inside* these files is what the state table above is for.)
-    final writers = <String>{};
-    final pattern = RegExp(
-      r'\.into\(\s*_db\.conversationRows'
-      r'|_db\.update\(\s*_db\.conversationRows',
-    );
+  test('every writer of conversation_rows is named here, with its reason', () {
+    // The table has five shapes of writer and the gate covers four of them;
+    // this guard names the file each shape is allowed in, so a new writer, or a
+    // new *kind* of write in an old file, fails here instead of silently
+    // arriving without a stamp. Each allowance carries its reason.
+    const shapes = <String, String>{
+      'drift insert': r'\.into\(\s*_db\.conversationRows',
+      'drift update': r'_db\.update\(\s*_db\.conversationRows',
+      'applier upsert': r"_upsertSyncRow\(\s*'conversation_rows'",
+      'recycle insert': r"_insertRow\(\s*'conversation_rows'",
+      'raw insert': r'INSERT INTO\s+(?:main\.)?conversation_rows',
+      'raw update': r'UPDATE conversation_rows SET',
+    };
+    const allowed = <String, Set<String>>{
+      // The gate itself, the archive importer (`clock: null`) and the applier
+      // (`_upsertSyncRow`, which must never stamp).
+      'drift insert': {'lib/core/database/chat_database_repository.dart'},
+      'drift update': {
+        'lib/core/database/chat_database_repository.dart',
+        // Same class, a `part`: the truncate reset stamps through the helper.
+        'lib/core/database/chat_context_repository.dart',
+      },
+      'applier upsert': {'lib/core/database/chat_database_repository.dart'},
+      // The recycle bin is the one place a deleted row comes back; it stamps
+      // itself (`withSyncClock` + `nextSyncClock`) because it writes the row
+      // directly rather than through the repository.
+      'recycle insert': {'lib/core/services/recycle/recycle_service.dart'},
+      // The merge importer copies a subtree out of `merge_source` with the
+      // archive's own clock, like the backup writer.
+      'raw insert': {'lib/core/database/chat_database_repository.dart'},
+      'raw update': {
+        // The memory watermark, recomputed from the messages on both sides.
+        'lib/core/database/business_repository.dart',
+        // The backup sanitizer, rewriting an archive's own bag before it lands.
+        'lib/core/database/backup_portability.dart',
+      },
+    };
+
+    final found = <String, Set<String>>{
+      for (final shape in shapes.keys) shape: <String>{},
+    };
     for (final entity in Directory('lib').listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       if (entity.path.endsWith('.g.dart')) continue;
       final source = entity.readAsStringSync().replaceAll(RegExp(r'\s+'), ' ');
-      if (pattern.hasMatch(source)) {
-        writers.add(entity.path.replaceAll('\\', '/'));
+      final path = entity.path.replaceAll('\\', '/');
+      for (final entry in shapes.entries) {
+        if (RegExp(entry.value).hasMatch(source)) found[entry.key]!.add(path);
       }
     }
-    expect(writers, {
-      'lib/core/database/chat_database_repository.dart',
-      'lib/core/database/chat_context_repository.dart',
-    }, reason: 'a new writer of conversation_rows would stamp nothing');
+    for (final shape in shapes.keys) {
+      expect(
+        found[shape],
+        allowed[shape],
+        reason:
+            'the writers of conversation_rows for "$shape" changed: a new one '
+            'must stamp (see _nextConversationClock) or be listed here with the '
+            'reason it does not',
+      );
+    }
   });
 
   test('a wire row never carries the clock under a device-local key', () {

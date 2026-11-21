@@ -15,6 +15,7 @@ import '../../../utils/app_directories.dart';
 import '../../../utils/workspace_paths.dart';
 import '../skills/skill_body_policy.dart';
 import '../sync/sync_family_registry.dart';
+import '../sync/sync_merge.dart';
 import 'recycle_store.dart';
 
 export 'recycle_store.dart';
@@ -700,11 +701,30 @@ final class RecycleService {
           .getSingleOrNull();
       if (existing != null) return _not(RecycleRestoreOutcome.skippedExisting);
       final now = DateTime.now().toUtc().microsecondsSinceEpoch;
+      // A restore is a local write like any other, so it moves the clock sync
+      // reads — not only the one the list shows. The row is gone locally (this
+      // is the restore), so its own archived key is the floor: the next session
+      // must be able to tell "written here since the agreement" from "untouched
+      // here", or `copyWrittenSinceAgreement` reads the restore as the old
+      // deletion and deletes the conversation again.
+      final archivedRow = tables['conversation_rows']!.first;
+      final archivedExtras = archivedRow['extras_json'];
+      final restoredExtras = withSyncClock(
+        archivedExtras,
+        nextSyncClock(
+          nowUs: now,
+          currentUs: syncClockOf(archivedExtras),
+          updatedAtUs: now,
+        ),
+      );
       await _insertRow(
         'conversation_rows',
-        tables['conversation_rows']!.first,
+        archivedRow,
         conflictTarget: const ['id'],
-        overrides: <String, Object?>{'updated_at': now},
+        overrides: <String, Object?>{
+          'updated_at': now,
+          if (restoredExtras != null) 'extras_json': restoredExtras,
+        },
       );
       for (final row in tables['message_rows'] ?? const []) {
         // A conversation deleted mid-stream leaves a streaming flag behind;
@@ -804,7 +824,8 @@ final class RecycleService {
       // with it. It is bookkeeping, not a signal: nothing on the sync path reads
       // tombstones — an announced deletion is derived from the checkpoint
       // (ADR-0003, protocol v8) — so removing the row is not what keeps the
-      // conversation from being announced again. The restored row's clock is.
+      // conversation from being announced again. The restored row's clock is —
+      // the one this restore stamps above, not the display clock the list reads.
       await _database.customStatement(
         'DELETE FROM tombstone_rows WHERE scope = ? AND entity_id = ?;',
         <Object?>[

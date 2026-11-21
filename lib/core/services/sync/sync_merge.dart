@@ -725,6 +725,17 @@ int? syncClockOf(Object? extrasJson) {
   return value is int ? value : null;
 }
 
+/// [extrasJson] as stored, with [syncClock] written into it.
+///
+/// Null when the bag is not a JSON object. The caller then leaves the column
+/// alone: a row whose key cannot be read falls back to `updated_at`, and every
+/// caller here is already moving that.
+String? withSyncClock(Object? extrasJson, int syncClock) {
+  final extras = _extrasObject(extrasJson);
+  if (extras == null) return null;
+  return jsonEncode({...extras, syncClockExtrasKey: syncClock});
+}
+
 /// The clock both peers compare for a conversation row: the key when it is
 /// there, `updated_at` when it is not.
 ///

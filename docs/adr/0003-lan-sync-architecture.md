@@ -2376,18 +2376,23 @@ The rule is now symmetric, in bytes:
 - **`peerSends` records the payload that arrived** — the same construction the sender's `iSend` arm
   makes of the same payload, so one transfer produces one entry, identical on both sides. A row this
   device wrote while the session ran is in neither payload and cannot be claimed.
-- **`bothSend` is the merge of two payloads**, which no single payload describes, so its entry stays
-  the apply's snapshot — but only when every row in that snapshot sits at the clock the peer's own copy
-  carries for it. The peer's copy is the right witness: it is read after the responder applied this
-  session's push, so anything that crossed is in it at the clock it crossed with, and anything newer
-  there was written here while the session ran. A row that fails that comparison waits a round: the
-  entry keeps the previous one and the next session sends it.
-  The comparison is by **clock**, not by id, and that distinction is the whole rule: an edit keeps the
-  id and moves the clock, so an id check admits it, the ledger records the edit as the agreement, and
-  the peer's later deletion of that row reads "untouched here" — the one reading the deletion oracle
-  acts on — and deletes the edit. What the rule still cannot see is a mid-session write in a family the
-  ledger does not index (an artifact row, which carries no message clock); that costs one round of
-  convergence, never a deletion.
+- **`bothSend` is the merge of two payloads**, which no single payload describes, so which payload a
+  device may claim depends on which half of the session it can show crossed.
+  On the **initiator**, whose push the responder acknowledged, the peer's copy is read after it applied
+  that push — so the entry is the apply's snapshot, admitted only when every row in it sits at the clock
+  the peer's own copy carries for it. The comparison is by **clock**, not by id, and that distinction is
+  the whole rule: an edit keeps the id and moves the clock, so an id check admits it, the ledger records
+  the edit as the agreement, and the peer's later deletion of that row reads "untouched here" — the one
+  reading the deletion oracle acts on — and deletes the edit.
+  On the **responder**, whose half is the fetch response and nothing acknowledges a response, the entry
+  is the payload the initiator pushed — the same construction `peerSends` uses. The rows the responder
+  served itself are deliberately not in it: they may have been lost with the response, and claiming them
+  would let the peer's later silence delete them. They are recorded one session later, when both
+  manifests agree and the heal runs. Without that distinction the responder's entry never moved at all,
+  so a row that arrived in the push had no ledger clock and the initiator's later deletion of it could
+  not be inferred: the responder kept it and served it back.
+  What the rule still cannot see is a mid-session write in a family the ledger does not index (an
+  artifact row, which carries no message clock); that costs one round of convergence, never a deletion.
 
 `sync_engine_integration_test.dart` holds the halves: the receiver's mid-session insert survives and
 travels one round later for `peerSends` and `bothSend`, and a mid-session *edit* survives the peer

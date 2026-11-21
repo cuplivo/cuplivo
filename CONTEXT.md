@@ -667,14 +667,15 @@ contradicts one of them is a bug, not a preference.
   devices. An `iSend` entry also describes the payload that was actually sent, never a fresh read:
   a row written while the session was in flight was never sent, and recording it as peer-seen made
   the next merge delete it here. The receive side asks the same question of the payload it was handed
-  (`peerSends`); `bothSend` has no single payload, so its entry is the apply's snapshot — admitted only
-  when every row in it sits at the clock the peer's own copy carries, because the clock is what tells a
-  later deletion that this device edited the row. The `none` heal — the one entry built from a live
-  re-read — is admitted only when that read **is** the state the manifest attested: same digest (the
-  message identity) and same conversation-row clock (the only carrier of a rename, a pin or a version
-  selection). Both comparisons are by value, never against a clock of this device's own, so a peer's
-  fast clock or a backdated import cannot block the heal — which would leave the ledger empty and every
-  later deletion undone.
+  (`peerSends`, and `bothSend` on the responder, whose own half — the fetch response — is never
+  acknowledged); `bothSend` on the initiator, whose push the responder acknowledged, is the apply's
+  snapshot admitted only when every row in it sits at the clock the peer's own copy carries, because the
+  clock is what tells a later deletion that this device edited the row. The `none` heal — the one entry
+  built from a live re-read — is admitted only when that read **is** the state the manifest attested:
+  same digest (the message identity) and same conversation-row clock (the only carrier of a rename, a
+  pin or a version selection). Both comparisons are by value, never against a clock of this device's
+  own, so a peer's fast clock or a backdated import cannot block the heal — which would leave the ledger
+  empty and every later deletion undone.
 - **A premise is re-read where it is used (前提在用的时刻重读)**: a plan is computed from a walk and
   executed beats later, so the half of its premise that can move — the local row, the local file,
   the workspace switch, the history — is read again at the moment of the write, while the half that

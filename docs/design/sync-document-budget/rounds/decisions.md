@@ -158,3 +158,18 @@ ru/ko/tr 无残留汉字、换行数与 URL 未变；ICU 语法由 `flutter gen-
 
 **教训**（给下一轮的我）：凡是"拿 A 设备的某个值当 B 设备值的界"的判断，都要先问一句"这两个值出自同一个钟吗"。
 这个 PR 里第 4、6 轮都是这个形状。
+
+## 评审轮之七｜`bothSend` 的两半，各记各的
+
+| # | 意见 | 处理 |
+| --- | --- | --- |
+| 1 | 响应方的 `bothSend` 条目永不前进（`sendsConfirmed: false` 让它恒取 `prior`），随推送进来的行在账本里没有钟 → 发起方之后删它时删不掉，下一轮被服务回去 | **成立，是本 PR 第一轮引入的回归**（base 的 `bothSend` 臂没有确认条件）。修法按"哪一半被确认"分派：`peerSends` 与响应方的 `bothSend` 记对端递过来的 payload（`_entryFor(received)`）；发起方且推送已确认才用快照 + 逐行时钟校验；`sent == null`（被预算省略/在生成）留 `prior`。新增 `a message deleted after a bothSend session goes on both sides`；注入见 `guard-injections.md` 第 14 条 |
+| 2 | 守卫记录第 11、6 条的措辞与代码不符（`>` vs `==`；`assertPushFits` 少 `envelopeBytes`） | 已改：第 6 条的注入写成 `assertPushFits(pushBatch, 1, envelopeBytes: 0)`；第 11 条保留原记录并加注"已被第 13 条的按值比较取代" |
+
+**为什么不采纳"`prior ∪ received ∪ 自己响应里发出去的"三合一**：把**自己**在响应里发出去的行记进条目，
+正是 `sendsConfirmed: false` 要防的事——响应可能丢，条目却声称对端有，下一轮对端的沉默就会被读成删除。
+响应方自己的新行等下一轮 `none` → heal 补上，只多一次不传数据的会话。
+
+**这一轮的教训**：把两个臂合并是为了让"同一个问题只问一次"，但两个臂的**答案来源**不同——发起方有回执，
+响应方没有。合并时我让一个 `sendsConfirmed` 条件替两个臂回答，等于让响应方永远回答"没发"。合并状态机时，
+先问"这些臂的前提是否真的相同"。

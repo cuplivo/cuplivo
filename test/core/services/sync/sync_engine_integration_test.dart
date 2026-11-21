@@ -5265,8 +5265,9 @@ void main() {
       await hold(a, 'm1');
 
       // The peer edits its copy and drives the next session: the announcement
-      // it received last time is what keeps its `iSend` off the wire, and this
-      // is the half a send-side filter alone would get wrong.
+      // it received with *this* hello is what keeps its `iSend` off the wire.
+      // The apply gate would also drop the row, so this cell proves the two
+      // together — the deletion cell is the one only the announcement can pass.
       await putServer(b, 'm1', '/opt/homebrew/bin/b');
       final report = await b.engine.syncWithPeer(await b.peer(a));
       expect(report.success, isTrue, reason: report.summary);

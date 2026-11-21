@@ -1,12 +1,10 @@
 import 'mcp_presentation_fields.dart';
 import '../../../core/models/mcp_presentation.dart';
 import 'package:flutter/material.dart';
-import '../../../core/database/business_data.dart';
-import '../../../core/providers/sync_provider.dart';
 import '../../../core/services/mcp/stdio_arguments.dart';
-import '../../../core/services/sync/sync_models.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
 import 'mcp_environment_picker.dart';
+import 'mcp_local_only_form.dart';
 import 'mcp_oauth_settings.dart';
 import 'mcp_workspace_binding_field.dart';
 import 'package:provider/provider.dart';
@@ -58,21 +56,12 @@ class _McpServerEditSheet extends StatefulWidget {
 }
 
 class _McpServerEditSheetState extends State<_McpServerEditSheet>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, McpLocalOnlyForm {
   late final bool isEdit = widget.serverId != null;
   TabController? _tab;
 
   late final McpOAuthFormController _oauth;
   bool _enabled = true;
-
-  /// Whether this server is held on this device rather than shared with a
-  /// paired one. Device-local: the file behind it is read here and written
-  /// through [SyncProvider], never through the server row.
-  bool _localOnly = false;
-
-  /// The sync provider, when the app has one: a test that pumps this sheet on
-  /// its own simply gets no switch.
-  SyncProvider? _sync;
   McpServerIcon? _icon;
   String? _groupId;
   final _nameCtrl = TextEditingController();
@@ -89,7 +78,7 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
   @override
   void initState() {
     super.initState();
-    _sync = context.read<SyncProvider?>();
+    attachLocalOnly(widget.serverId);
     _oauth = McpOAuthFormController(
       widget.serverId == null
           ? null
@@ -128,29 +117,7 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
           ),
         );
       });
-      _loadLocalOnly(server.id);
     }
-  }
-
-  /// The held-on-this-device state lives in the sync store, not in the row, so
-  /// it is read here rather than arriving with the server.
-  Future<void> _loadLocalOnly(String id) async {
-    final sync = _sync;
-    if (sync == null) return;
-    final keys = await sync.refreshLocalOnlyKeys();
-    if (!mounted) return;
-    setState(() => _localOnly = keys.contains(_localOnlyKey(id)));
-  }
-
-  static String _localOnlyKey(String id) =>
-      syncBusinessKey(BusinessEntityKind.mcpServer.wireName, id);
-
-  /// Persists the switch. Silent when sync was never attached: the switch is
-  /// only drawn when there is somewhere to put the answer.
-  Future<void> _saveLocalOnly(String id) async {
-    final sync = _sync;
-    if (sync == null || id.isEmpty) return;
-    await sync.setLocalOnly(_localOnlyKey(id), _localOnly);
   }
 
   void _onTabChanged() {
@@ -257,11 +224,11 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
             // Not on the built-in server: it is not a synced row. Not without a
             // sync provider either: the sheet would be drawing an answer nobody
             // can keep.
-            if (!isBuiltin && _sync != null)
+            if (!isBuiltin && canHoldLocalOnly)
               _switchRow(
                 label: l10n.mcpServerEditSheetLocalOnlyLabel,
-                value: _localOnly,
-                onChanged: (v) => setState(() => _localOnly = v),
+                value: localOnlyHeld,
+                onChanged: setLocalOnlyHeld,
               ),
           ],
         ),
@@ -585,8 +552,11 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
           workspaceId: _workspaceId,
         );
       }
-      await _savePresentation(mcp, savedId!);
-      await _saveLocalOnly(savedId);
+      // Before the presentation writes, not after: once the row exists the
+      // hold is what keeps it off the wire, and two more database writes are a
+      // window a session can plan in.
+      await saveLocalOnly(savedId!);
+      await _savePresentation(mcp, savedId);
       if (mounted) Navigator.of(context).pop();
       return;
     }
@@ -646,8 +616,8 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
         oauthRedirectUri: _oauth.redirectUri,
       );
     }
-    await _savePresentation(mcp, savedId!);
-    await _saveLocalOnly(savedId);
+    await saveLocalOnly(savedId!);
+    await _savePresentation(mcp, savedId);
     if (mounted) Navigator.of(context).pop();
   }
 

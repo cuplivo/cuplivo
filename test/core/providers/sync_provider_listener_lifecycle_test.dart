@@ -320,4 +320,34 @@ void main() {
     await _waitUntil(() async => provider.started);
     provider.panelClosed();
   }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('a store that could not be opened is opened again, not cached', () async {
+    // The store is created once and shared, which is what keeps the MCP form and
+    // a session on one write queue — but caching the *failure* would make one
+    // unresolvable directory permanent: `start()` after a start error, the
+    // panel's repair path, and every later hold write would keep getting the
+    // same rejected future. The retry is the whole point of the repair path.
+    var directoryReads = 0;
+    final provider = await harness.startProvider(
+      syncDirectory: () async {
+        directoryReads++;
+        throw const FileSystemException('no directory');
+      },
+      start: false,
+    );
+
+    await expectLater(
+      provider.readLocalOnlyKeys(),
+      throwsA(isA<FileSystemException>()),
+    );
+    await expectLater(
+      provider.setLocalOnly('mcp_server_rows\u0000m1', true),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(
+      directoryReads,
+      2,
+      reason: 'each attempt has to resolve the root again',
+    );
+  });
 }

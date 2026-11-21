@@ -2660,10 +2660,28 @@ it keeps re-plans the same deletion. Filtering the send side alone is the defect
   and makes the manifest claim a row this device does not hold. That is the one invariant every other
   reader of a manifest depends on (it is the receipt), and it turns a held-then-deleted row into a
   permanent re-offer in one direction and a silent resurrection in the other.
-- **Known cost, accepted.** Eight cells of the state table live in
+- **What a hold is not.** It is not a retraction: a copy the peer already holds before the mark stays
+  there, with whatever command it had, and the peer is never told — the announcement only covers the
+  keys this device offers nothing for. It is also not a freeze on the *table's* rules: a row this
+  device deleted while holding, then released, plans `iDelete` on the first session after the release
+  when the peer still has an untouched copy, exactly as any other deleted row would. Both follow from
+  "held means not exchanged", and both are worth saying in release notes rather than discovering.
+- **The hold is enforced on the row face.** The two body faces — a skill's directory and a
+  workspace's files — read the row face (a held row is not in the manifest, so it is not planned) but
+  do not consult the set themselves. Nothing but the MCP form writes a key today, and an MCP server
+  has no body; a future kind that does would need the same predicate at those two faces, and copying
+  the filter into four places is the maintenance trap this note exists to name.
+- **An unreadable `local-only.json` reads as "nothing held".** The same direction the workspace
+  toggles take, and the asymmetry is deliberate: the alternative — refusing to sync *anything* because
+  a preferences file was truncated — costs every row instead of one. The cost lands on the user whose
+  file is damaged: those rows start crossing again, and only a `debugPrint` says so. Worth remembering
+  that here the failure leaks a command line rather than merely a file.
+- **Known cost, accepted.** Seven cells of the state table live in
   `sync_engine_integration_test.dart` under `a row held on this device`: the peer keeps its copy, the
   peer's edit does not cross, a deletion does not cross, the checkpoint keeps its entry, a released
   hold converges, a row held before pairing never arrives, and a 4.7.0 peer is refused at hello.
   Proved red by injection (the mechanism switched off at the store: five cells; the checkpoint guard
-  removed: the entry cell), then reverted byte-exact.
+  removed: the entry cell), then reverted byte-exact. The cells do not each prove their own mechanism
+  — the apply gate alone would keep the peer's row safe — which is the point of three gates over one
+  rule; the deletion cell is the one that only the announcement can pass.
 

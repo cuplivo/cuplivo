@@ -166,11 +166,18 @@ class SyncDataPlane {
       entities: entities,
       preferences: {
         for (final ref in preferenceRefs)
-          ref.key: SyncManifestEntry(
-            updatedAtUs: ref.updatedAtUs,
-            messageCount: 0,
-            digest: ref.digest,
-          ),
+          // The hold is one rule for every business key, entities and synced
+          // preferences alike: a key this device withholds is not in the
+          // manifest, and the hello says why. Filtering only the entity face
+          // would leave the manifest claiming a preference this device keeps.
+          if (!withheldKeys.contains(
+            syncBusinessKey(kSyncPreferenceWire, ref.key),
+          ))
+            ref.key: SyncManifestEntry(
+              updatedAtUs: ref.updatedAtUs,
+              messageCount: 0,
+              digest: ref.digest,
+            ),
       },
     );
   }

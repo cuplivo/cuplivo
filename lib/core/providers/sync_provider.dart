@@ -262,10 +262,29 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// [SyncStore] over the same directory would carry its own write queue — two
   /// serialized writers that are not serialized with each other, which is
   /// exactly how one of two toggles is lost.
-  Future<SyncStore> _ensureStore() => _storeFuture ??= _openStore();
+  ///
+  /// A **failed** open is not cached: the future is dropped so the next caller
+  /// tries again. Keeping it would turn one unresolvable directory into a
+  /// permanent failure of the whole retry path (`start` after a start error
+  /// hands every caller the same rejected future), which is a regression
+  /// against the version that built a fresh store per attempt.
+  Future<SyncStore> _ensureStore({Directory? directory}) async {
+    final pending = _storeFuture;
+    if (pending != null) return pending;
+    final created = _openStore(directory);
+    _storeFuture = created;
+    try {
+      return await created;
+    } catch (_) {
+      if (identical(_storeFuture, created)) _storeFuture = null;
+      rethrow;
+    }
+  }
 
-  Future<SyncStore> _openStore() async {
-    final store = SyncStore(await _syncDirectory());
+  /// [directory] is the root `start` already resolved for the identity: the
+  /// store and the identity must name one directory, not two resolutions of it.
+  Future<SyncStore> _openStore(Directory? directory) async {
+    final store = SyncStore(directory ?? await _syncDirectory());
     _store = store;
     return store;
   }
@@ -492,7 +511,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         ),
       );
       if (_stopRequested) return;
-      final store = await _ensureStore();
+      final store = await _ensureStore(directory: directory);
       final workspaceContent = WorkspaceContentSync(
         businessRepository: _businessRepository,
         store: store,
@@ -1303,20 +1322,15 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   // ---- rows held on this device ----
 
-  /// The business keys (`syncBusinessKey`) this device holds without offering
-  /// to a peer, as of the last read.
-  Set<String> localOnlyKeys = const {};
-
-  /// Re-reads the held set from disk and returns it.
+  /// Reads the device-local set of rows this machine holds without offering
+  /// them, as `syncBusinessKey` strings.
   ///
-  /// The MCP form asks for this when it opens: the file is the truth (a session
-  /// reads it directly at its hello), and this copy exists so the form can draw
-  /// a switch without an await in `build`.
-  Future<Set<String>> refreshLocalOnlyKeys() async {
+  /// The file is the truth — a session reads it directly at its hello — and the
+  /// forms read it through here because they and the session must share one
+  /// [SyncStore].
+  Future<Set<String>> readLocalOnlyKeys() async {
     final store = await _ensureStore();
-    localOnlyKeys = await store.readLocalOnlyKeys();
-    _notify();
-    return localOnlyKeys;
+    return store.readLocalOnlyKeys();
   }
 
   /// Marks one row as held on this device, or releases it. Returns whether the
@@ -1329,17 +1343,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<bool> setLocalOnly(String key, bool localOnly) async {
     if (key.isEmpty) return false;
     final store = await _ensureStore();
-    final changed = await store.mutateLocalOnlyKeys(
+    return store.mutateLocalOnlyKeys(
       (keys) => localOnly ? keys.add(key) : keys.remove(key),
     );
-    if (!changed) return false;
-    localOnlyKeys = await store.readLocalOnlyKeys();
-    _notify();
-    return true;
   }
-
-  /// Whether one row is held on this device, as far as the last read knew.
-  bool isLocalOnly(String key) => localOnlyKeys.contains(key);
 
   // ---- automatic rounds (foreground) ----
 

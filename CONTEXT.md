@@ -381,6 +381,13 @@ contradicts one of them is a bug, not a preference.
   winner (decided by the mutation clock) may carry the older content clock. The manifest's SQL
   and the Dart merge read the same key and are held equal by a test: a plan that reads one clock
   and a merge that reads the other re-sends the row every round.
+- **Two readers never mix across builds (混合版本由版本门拦下)**: the key rides inside `extras_json`
+  and the schema does not move, but the *meaning* of the row clock does. A peer still reading
+  `updated_at` would either miss this build's metadata writes or carry a stale key forward into
+  its own writes, so the two readers must not meet. The protocol version is what keeps them apart:
+  hello refuses a mismatch ("Update it first"), and every released build speaks an earlier version
+  than this line's, so the only pair that could mix them is two development builds of this line on
+  either side of the change. The release that ships this change moves the protocol version with it.
 - **A local edit never lowers a row's clock**: every update path floors `updated_at` at the row's
   own `timestamp` (message updates, the UI's partial-field writes, parts and provider artifacts
   alike), because the effective LWW clock is `COALESCE(updated_at, timestamp)`: a message authored

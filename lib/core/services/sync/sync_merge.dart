@@ -137,9 +137,9 @@ bool copyWrittenSinceAgreement({
 /// (title, pin, selected version, extras) is otherwise invisible and would
 /// never transfer. [checkpointClock] is the row
 /// clock the two sides last agreed on, and is what keeps the delete branch from
-/// undoing a restore: the bin writes the row back with `now()` and the messages
-/// back byte-identical, so the digest still matches the agreement while the row
-/// says this device wrote here since.
+/// undoing a restore: the bin writes the messages back byte-identical and
+/// re-stamps only the sync clock, so the digest still matches the agreement
+/// while the row says this device wrote here since.
 ///
 /// **The business face passes [mineClock] and [checkpointClock] but not
 /// [peerClock], and that asymmetry is the point.** A business row's digest *is*

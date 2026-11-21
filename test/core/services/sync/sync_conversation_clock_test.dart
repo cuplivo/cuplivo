@@ -351,45 +351,53 @@ void main() {
   });
 
   test('every writer of conversation_rows is named here, with its reason', () {
-    // The table has five shapes of writer and the gate covers four of them;
-    // this guard names the file each shape is allowed in, so a new writer, or a
-    // new *kind* of write in an old file, fails here instead of silently
-    // arriving without a stamp. Each allowance carries its reason.
+    // The table is written through seven shapes and only some of them go through
+    // the gate. This guard counts every *site* of every shape, per file, and
+    // holds the counts: a new writer — a new file, or one more write in an old
+    // one — fails here instead of shipping without a clock decision. Adding a
+    // write therefore means editing this list and saying why, which is the point.
     const shapes = <String, String>{
       'drift insert': r'\.into\(\s*_db\.conversationRows',
       'drift update': r'_db\.update\(\s*_db\.conversationRows',
+      'batch insert': r'batch\.insert\(\s*_db\.conversationRows',
       'applier upsert': r"_upsertSyncRow\(\s*'conversation_rows'",
       'recycle insert': r"_insertRow\(\s*'conversation_rows'",
       'raw insert': r'INSERT INTO\s+(?:main\.)?conversation_rows',
       'raw update': r'UPDATE conversation_rows SET',
     };
-    const allowed = <String, Set<String>>{
-      // The gate itself, the archive importer (`clock: null`) and the applier
-      // (`_upsertSyncRow`, which must never stamp).
-      'drift insert': {'lib/core/database/chat_database_repository.dart'},
+    const expected = <String, Map<String, int>>{
+      // The gate itself: putConversation's insert, the two copy
+      // (duplicate/fork) paths, the linear append and the deprecated
+      // message-order rewrite.
+      'drift insert': {'lib/core/database/chat_database_repository.dart': 5},
+      // The gate's whole-row updates; the context `part` stamps its own
+      // truncate reset through the same helper.
       'drift update': {
-        'lib/core/database/chat_database_repository.dart',
-        // Same class, a `part`: the truncate reset stamps through the helper.
-        'lib/core/database/chat_context_repository.dart',
+        'lib/core/database/chat_database_repository.dart': 9,
+        'lib/core/database/chat_context_repository.dart': 1,
       },
-      'applier upsert': {'lib/core/database/chat_database_repository.dart'},
+      // The archive importer (`_writeBackupData`, `clock: null`): the one local
+      // writer that keeps the clocks its archive carries.
+      'batch insert': {'lib/core/database/chat_database_repository.dart': 1},
+      // The applier, which writes the winner's clocks and must never stamp.
+      'applier upsert': {'lib/core/database/chat_database_repository.dart': 2},
       // The recycle bin is the one place a deleted row comes back; it stamps
       // itself (`withSyncClock` + `nextSyncClock`) because it writes the row
       // directly rather than through the repository.
-      'recycle insert': {'lib/core/services/recycle/recycle_service.dart'},
+      'recycle insert': {'lib/core/services/recycle/recycle_service.dart': 1},
       // The merge importer copies a subtree out of `merge_source` with the
       // archive's own clock, like the backup writer.
-      'raw insert': {'lib/core/database/chat_database_repository.dart'},
+      'raw insert': {'lib/core/database/chat_database_repository.dart': 1},
+      // The memory watermark, recomputed from the messages on both sides; and
+      // the backup sanitizer, rewriting an archive's own bag before it lands.
       'raw update': {
-        // The memory watermark, recomputed from the messages on both sides.
-        'lib/core/database/business_repository.dart',
-        // The backup sanitizer, rewriting an archive's own bag before it lands.
-        'lib/core/database/backup_portability.dart',
+        'lib/core/database/business_repository.dart': 1,
+        'lib/core/database/backup_portability.dart': 1,
       },
     };
 
-    final found = <String, Set<String>>{
-      for (final shape in shapes.keys) shape: <String>{},
+    final found = <String, Map<String, int>>{
+      for (final shape in shapes.keys) shape: <String, int>{},
     };
     for (final entity in Directory('lib').listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
@@ -397,17 +405,18 @@ void main() {
       final source = entity.readAsStringSync().replaceAll(RegExp(r'\s+'), ' ');
       final path = entity.path.replaceAll('\\', '/');
       for (final entry in shapes.entries) {
-        if (RegExp(entry.value).hasMatch(source)) found[entry.key]!.add(path);
+        final hits = RegExp(entry.value).allMatches(source).length;
+        if (hits > 0) found[entry.key]![path] = hits;
       }
     }
     for (final shape in shapes.keys) {
       expect(
         found[shape],
-        allowed[shape],
+        expected[shape],
         reason:
-            'the writers of conversation_rows for "$shape" changed: a new one '
-            'must stamp (see _nextConversationClock) or be listed here with the '
-            'reason it does not',
+            'the sites that write conversation_rows for "$shape" changed: each '
+            'one must stamp (see _nextConversationClock) or be listed here with '
+            'the reason it does not',
       );
     }
   });

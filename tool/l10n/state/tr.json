@@ -1112,6 +1112,8 @@
   "mcpConversationSheetConnected": "1ed50c2ad5f92f72b1fb7ac9f07438edb57111092e4a38aaeaae1c4eaaa3f1ad",
   "mcpConversationSheetToolsCount": "95d206390750efd313ef8e5200e816d81582a25643855085d5e35e739447dff9",
   "mcpServerEditSheetEnabledLabel": "7fc3a7afafaad3fe91c2d6c827959808066c5ffb20dfccf7ab29ffe476eda6cd",
+  "mcpServerEditSheetLocalOnlyLabel": "21c3a2a9aefe9fa17af22f6258954021eef26d85d7325df6fe9ad401e1bcc2e2",
+  "mcpServerEditSheetLocalOnlySaveFailed": "bb665923f39ee03208fca51ca2499f9638a34371578ac07607081f83082c170b",
   "mcpServerEditSheetNameLabel": "f3f8f17f8737d37fd3cf4801a640ee744d8917d473ec013a3a2af1bc1310f3ef",
   "mcpServerEditSheetTransportLabel": "4c09f265e0aa2e6c05af20a5710a2140f2778d4a5b01db8d2a7b86276db4bb87",
   "mcpServerEditSheetUrlLabel": "1cb288776b63473be9eea0bffaef1a737bea20572cb7c0022f6c4bf384fd3267",

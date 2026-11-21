@@ -3545,6 +3545,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => '是否启用';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => '仅本机';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已保存，但这台服务器没能设成仅本机。';
+
+  @override
   String get mcpServerEditSheetNameLabel => '名称';
 
   @override
@@ -21547,6 +21553,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get mcpServerEditSheetEnabledLabel => '是否启用';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => '仅本机';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已保存，但这台服务器没能设成仅本机。';
 
   @override
   String get mcpServerEditSheetNameLabel => '名称';
@@ -39556,6 +39568,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get mcpServerEditSheetEnabledLabel => '是否啟用';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => '僅本機';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已儲存，但這台伺服器沒能設成僅本機。';
 
   @override
   String get mcpServerEditSheetNameLabel => '名稱';

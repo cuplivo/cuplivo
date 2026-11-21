@@ -3698,6 +3698,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => 'Enabled';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'This device only';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Saved, but this server could not be held on this device.';
+
+  @override
   String get mcpServerEditSheetNameLabel => 'Name';
 
   @override

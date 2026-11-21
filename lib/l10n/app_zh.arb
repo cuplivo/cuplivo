@@ -1271,6 +1271,8 @@
   "mcpConversationSheetConnected": "已连接",
   "mcpConversationSheetToolsCount": "工具: {enabled}/{total}",
   "mcpServerEditSheetEnabledLabel": "是否启用",
+  "mcpServerEditSheetLocalOnlyLabel": "仅本机",
+  "mcpServerEditSheetLocalOnlySaveFailed": "已保存，但这台服务器没能设成仅本机。",
   "mcpServerEditSheetNameLabel": "名称",
   "mcpServerEditSheetTransportLabel": "传输类型",
   "mcpServerEditSheetUrlLabel": "服务器地址",

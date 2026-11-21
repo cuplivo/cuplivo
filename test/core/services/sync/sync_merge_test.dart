@@ -761,6 +761,125 @@ void main() {
     });
   });
 
+  group('planBusinessSync: a row held on this device', () {
+    SyncManifestEntry entry(String digest) =>
+        SyncManifestEntry(updatedAtUs: 1, messageCount: 0, digest: digest);
+
+    // The key is what the store writes and what the hello announces, so the
+    // tests name the row the same way every other face does.
+    final held = syncBusinessKey('mcp_server_rows', 'm1');
+
+    test('a held row plans nothing, and says why', () {
+      // The shape that used to lose the peer's copy: this device has the row,
+      // the peer does not, and "the peer lacks it" reads as "the peer deleted
+      // it". Held, the plan is not a verdict at all.
+      final plan = planBusinessSync(
+        mine: SyncManifest(
+          const {},
+          entities: {
+            'mcp_server_rows': {'m1': entry('a')},
+          },
+        ),
+        peers: const SyncManifest({}),
+        checkpoint: SyncCheckpoint.empty,
+        localOnly: {held},
+      );
+      final item = plan.singleWhere((item) => item.id == 'm1');
+      expect(item.action, SyncConvAction.none);
+      expect(
+        item.withheld,
+        isTrue,
+        reason:
+            '`none` here is not an agreement, and the checkpoint must not '
+            'record one',
+      );
+    });
+
+    test('the peer announcing the key holds this side back too', () {
+      // The mirror case: the *peer* holds the row, this device has its own
+      // copy of the same id, and sending would overwrite the peer's. The plan
+      // takes the union, so the peer's announcement is enough.
+      final plan = planBusinessSync(
+        mine: SyncManifest(
+          const {},
+          entities: {
+            'mcp_server_rows': {'m1': entry('mine')},
+          },
+        ),
+        peers: SyncManifest(
+          const {},
+          entities: {
+            'mcp_server_rows': {'m1': entry('theirs')},
+          },
+        ),
+        checkpoint: SyncCheckpoint(
+          const {},
+          entities: {
+            'mcp_server_rows': {
+              'm1': const SyncCheckpointEntry(updatedAtUs: 1, digest: 'agreed'),
+            },
+          },
+        ),
+        localOnly: {held},
+      );
+      expect(plan.single.action, SyncConvAction.none);
+      expect(plan.single.withheld, isTrue);
+    });
+
+    test('a held row that exists on neither side is not a deletion', () {
+      // Deleted here after being marked: the checkpoint still knows the row,
+      // the manifest does not. Without the held flag this is `iDelete` — the
+      // exact announcement the feature exists to withhold.
+      final plan = planBusinessSync(
+        mine: const SyncManifest({}),
+        peers: const SyncManifest({}),
+        checkpoint: SyncCheckpoint(
+          const {},
+          entities: {
+            'mcp_server_rows': {
+              'm1': const SyncCheckpointEntry(updatedAtUs: 1, digest: 'agreed'),
+            },
+          },
+        ),
+        localOnly: {held},
+      );
+      expect(plan.single.action, SyncConvAction.none);
+      expect(plan.single.withheld, isTrue);
+    });
+
+    test('every other row keeps its verdict', () {
+      final plan = planBusinessSync(
+        mine: SyncManifest(
+          const {},
+          entities: {
+            'mcp_server_rows': {'m1': entry('a'), 'm2': entry('b')},
+          },
+          preferences: {'user_name': entry('c')},
+        ),
+        peers: const SyncManifest({}),
+        checkpoint: SyncCheckpoint.empty,
+        localOnly: {held},
+      );
+      final byId = {
+        for (final item in plan) syncBusinessKey(item.kindWire, item.id): item,
+      };
+      expect(byId[held]!.withheld, isTrue);
+      expect(
+        byId[syncBusinessKey('mcp_server_rows', 'm2')]!.action,
+        SyncConvAction.iSend,
+      );
+      expect(
+        byId[syncBusinessKey(kSyncPreferenceWire, 'user_name')]!.action,
+        SyncConvAction.iSend,
+      );
+      expect(
+        byId.values.where((item) => item.withheld),
+        hasLength(1),
+        reason: 'the hold names one key, not a kind',
+      );
+    });
+  });
+
   group('incomingBusinessRowWins', () {
     test('the newer clock wins', () {
       expect(
@@ -1286,6 +1405,32 @@ void main() {
         ).toJson(),
       );
       expect(quiet.deletedConversations, isEmpty);
+    });
+
+    test('hello announces the rows this device holds without offering', () {
+      final hello = SyncHello(
+        protocolVersion: kSyncProtocolVersion,
+        schemaVersion: 3,
+        deviceId: 'd1',
+        deviceName: 'one',
+        platform: 'test',
+        manifest: const SyncManifest({}),
+        localOnly: const ['mcp_server_rows\u0000m1', 'mcp_server_rows\u0000m2'],
+      );
+      expect(SyncHello.fromJson(hello.toJson()).localOnly, hello.localOnly);
+      // Omitted when nothing is held, like the epoch: a pair that shares
+      // everything pays no bytes for the mechanism.
+      final quiet = SyncHello.fromJson(
+        SyncHello(
+          protocolVersion: kSyncProtocolVersion,
+          schemaVersion: 3,
+          deviceId: 'd1',
+          deviceName: 'one',
+          platform: 'test',
+          manifest: const SyncManifest({}),
+        ).toJson(),
+      );
+      expect(quiet.localOnly, isEmpty);
     });
   });
 }

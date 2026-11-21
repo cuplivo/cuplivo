@@ -3748,6 +3748,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => 'Включено';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'Только это устройство';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Сохранено, но этот сервер не удалось оставить только на этом устройстве.';
+
+  @override
   String get mcpServerEditSheetNameLabel => 'Название';
 
   @override

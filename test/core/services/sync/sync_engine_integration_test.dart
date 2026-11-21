@@ -315,8 +315,10 @@ class _LegacyPeerPlane extends SyncDataPlane {
   final Set<String> hides;
 
   @override
-  Future<SyncManifest> buildManifest() async {
-    final manifest = await super.buildManifest();
+  Future<SyncManifest> buildManifest({
+    Set<String> withheldKeys = const {},
+  }) async {
+    final manifest = await super.buildManifest(withheldKeys: withheldKeys);
     return SyncManifest(
       manifest.conversations,
       entities: manifest.entities,
@@ -332,6 +334,7 @@ class _LegacyPeerPlane extends SyncDataPlane {
     SyncBusinessPayload payload, {
     required String myDeviceId,
     required String peerDeviceId,
+    Set<String> skipKeys = const {},
   }) {
     // `continue`, not a deferral: the older build's apply silently skips a key
     // it does not sync, and reports success.
@@ -346,6 +349,7 @@ class _LegacyPeerPlane extends SyncDataPlane {
       filtered,
       myDeviceId: myDeviceId,
       peerDeviceId: peerDeviceId,
+      skipKeys: skipKeys,
     );
   }
 }
@@ -5199,6 +5203,188 @@ void main() {
       await fence;
     },
   );
+
+  group('a row held on this device', () {
+    // One MCP server as the settings face writes it. Both sides can hold the
+    // same id with a different command, which is exactly what a stdio server
+    // is — and what #1029 reported arriving on the wrong machine.
+    Future<void> putServer(_Side side, String id, String command) =>
+        side.businessRepository.upsertEntity(
+          BusinessEntityKind.mcpServer,
+          BusinessEntityValue(
+            id: id,
+            sortOrder: 0,
+            payload: jsonEncode({
+              'id': id,
+              'name': id,
+              'transport': 'stdio',
+              'command': command,
+            }),
+          ),
+        );
+
+    Future<String?> commandOf(_Side side, String id) async {
+      final rows = await side.businessRepository.syncReadEntityRows(
+        BusinessEntityKind.mcpServer.wireName,
+        {id},
+      );
+      if (rows.isEmpty) return null;
+      final payload = jsonDecode(rows.single['payload'] as String) as Map;
+      return payload['command'] as String?;
+    }
+
+    String keyOf(String id) =>
+        syncBusinessKey(BusinessEntityKind.mcpServer.wireName, id);
+
+    Future<void> hold(_Side side, String id) =>
+        side.store.mutateLocalOnlyKeys((keys) => keys.add(keyOf(id)));
+
+    Future<void> release(_Side side, String id) =>
+        side.store.mutateLocalOnlyKeys((keys) => keys.remove(keyOf(id)));
+
+    test('the peer keeps its own copy and neither side moves', () async {
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      await hold(a, 'm1');
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await commandOf(a, 'm1'), 'C:/tools/a.exe');
+      expect(
+        await commandOf(b, 'm1'),
+        '/usr/local/bin/b',
+        reason: "the held row is not the peer's to overwrite",
+      );
+    });
+
+    test("the peer's own edit does not reach the holding device", () async {
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      await hold(a, 'm1');
+
+      // The peer edits its copy and drives the next session: the announcement
+      // it received with *this* hello is what keeps its `iSend` off the wire.
+      // The apply gate would also drop the row, so this cell proves the two
+      // together — the deletion cell is the one only the announcement can pass.
+      await putServer(b, 'm1', '/opt/homebrew/bin/b');
+      final report = await b.engine.syncWithPeer(await b.peer(a));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await commandOf(a, 'm1'), 'C:/tools/a.exe');
+      expect(await commandOf(b, 'm1'), '/opt/homebrew/bin/b');
+    });
+
+    test('deleting the held row leaves the peer copy alone', () async {
+      // The cell the whole announcement exists for: this device deleted a row
+      // it never offered, and the peer must not read the absence as its own
+      // deletion. Without the hello list this is `peerDeletes` on the peer.
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      await hold(a, 'm1');
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      await a.businessRepository.deleteEntity(
+        BusinessEntityKind.mcpServer,
+        'm1',
+      );
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await commandOf(a, 'm1'), isNull);
+      expect(
+        await commandOf(b, 'm1'),
+        '/usr/local/bin/b',
+        reason:
+            'it never agreed to share the row, so its deletion says nothing',
+      );
+    });
+
+    test('a held row keeps the entry it had, not a made-up agreement', () async {
+      // The checkpoint entry of a withheld key has to stay where it was. The
+      // plain `none` arm records the local row as the shared state, which would
+      // claim the peer holds this version — and the first session after the
+      // hold is released would then resolve by "this device wins" instead of by
+      // the table's own last-write-wins.
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      // One unheld session first, so there is an agreement to keep.
+      final first = await a.engine.syncWithPeer(await a.peer(b));
+      expect(first.success, isTrue, reason: first.summary);
+      final agreed = (await a.store.loadCheckpoint(
+        b.identity.deviceId,
+      )).entities['mcp_server_rows']!['m1']!;
+
+      await hold(a, 'm1');
+      await putServer(a, 'm1', 'C:/tools/a-v2.exe');
+      final second = await a.engine.syncWithPeer(await a.peer(b));
+      expect(second.success, isTrue, reason: second.summary);
+      final kept = (await a.store.loadCheckpoint(
+        b.identity.deviceId,
+      )).entities['mcp_server_rows']!['m1']!;
+      expect(kept.digest, agreed.digest);
+      expect(kept.updatedAtUs, agreed.updatedAtUs);
+    });
+
+    test('releasing the hold lets the pair converge', () async {
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      await hold(a, 'm1');
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      await release(a, 'm1');
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      final left = await commandOf(a, 'm1');
+      expect(left, isNotNull);
+      expect(
+        await commandOf(b, 'm1'),
+        left,
+        reason: 'one last-write-wins verdict, not two copies in the dark',
+      );
+      expect(
+        report.entityRowsLost + report.preferencesLost,
+        anyOf(0, 1),
+        reason: 'losing the older copy is the merge, not an error',
+      );
+    });
+
+    test('a row held before the pairing never arrives', () async {
+      // The common journey: the PC is set up first, marked, and only then is
+      // the phone paired. Nothing about the row may reach the new device.
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await hold(a, 'm1');
+      await pairSides(a, b);
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await commandOf(b, 'm1'), isNull);
+      expect(await commandOf(a, 'm1'), 'C:/tools/a.exe');
+    });
+
+    test('a 4.7.0 peer (protocol 8) is refused, not half-spoken to', () async {
+      // Withholding is a hello shape change: an older build would read the
+      // absence as a deletion and delete the held row on its own device.
+      final (a, b) = await pair();
+      final refusal = await a.engine.handleHello(
+        b.identity.deviceId,
+        b.hello(protocolVersion: 8),
+        admission: a.gate(),
+      );
+      expect(refusal, isA<SyncHelloRefusal>());
+      expect(
+        (refusal as SyncHelloRefusal).reason,
+        SyncRefusalReason.protocolUnknown,
+      );
+    });
+  });
 
   test(
     'a deferred receive never makes the sender delete its own message',

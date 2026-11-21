@@ -132,10 +132,12 @@ class _PremisePlane extends SyncDataPlane {
   Future<({SyncBusinessPayload payload, Set<String> keys})> readBusinessRows({
     required Map<String, Set<String>> entityIds,
     required Set<String> preferenceKeys,
+    Set<String> skipKeys = const {},
   }) async {
     final read = await super.readBusinessRows(
       entityIds: entityIds,
       preferenceKeys: preferenceKeys,
+      skipKeys: skipKeys,
     );
     final edit = side.editAfterPlan;
     if (edit != null) {

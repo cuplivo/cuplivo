@@ -11,10 +11,10 @@ import 'composer_draft_store.dart';
 /// it treats images at all, and its own compression configuration — is deleted
 /// with the conversation **and** staged by the bin, because delete-and-restore
 /// is supposed to hand the conversation back and these are part of it. Since
-/// protocol 9 they also ride the conversation's sync subtree
-/// (`syncedConversationFamilies`), so the bin is no longer the *only* way back —
-/// but a peer that deleted the conversation, or a restore after the peer's copy
-/// was replaced, still needs it.
+/// the conversation-projection protocol they also ride the conversation's sync
+/// subtree (`syncedConversationFamilies`), so the bin is no longer the *only*
+/// way back — but a peer that deleted the conversation, or a restore after the
+/// peer's copy was replaced, still needs it.
 ///
 /// The set is derived from the registration, not listed. The registry is where
 /// "a conversation owns this kind" is decided, so a second literal here would be

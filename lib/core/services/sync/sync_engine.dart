@@ -938,7 +938,14 @@ class SyncEngine implements SyncServerHandler {
     // checkpoint write alive behind the session that superseded it.
     round.session = session;
     try {
-      final myManifest = await dataPlane.buildManifest();
+      // Read before the manifest, because the manifest is what the set
+      // subtracts: a row this device withholds is not offered at all, and the
+      // hello's `localOnly` list is what stops the peer reading that absence as
+      // a deletion.
+      final myLocalOnly = await store.readLocalOnlyKeys();
+      final myManifest = await dataPlane.buildManifest(
+        withheldKeys: myLocalOnly,
+      );
       if (round.cancelled) return null;
       final myClockUs = clockUs();
       // Read before the hello, as one pair: the checkpoint carries what this
@@ -979,6 +986,10 @@ class SyncEngine implements SyncServerHandler {
             // This device's data epoch: a bulk replacement since the last session
             // tells the peer not to read this device's missing rows as deletions.
             epoch: myEpoch,
+            // ...and the rows it holds without offering, which the peer must
+            // not read as deletions either. Sorted, because the store writes it
+            // that way and a stable list is one less thing to diff.
+            localOnly: myLocalOnly.toList(growable: false),
           ),
         );
       } on SocketException catch (error) {
@@ -1055,6 +1066,12 @@ class SyncEngine implements SyncServerHandler {
       // lacks were dropped by that replacement, not deleted, so no absence of
       // its may justify a deletion here.
       final peerReplaced = peerHello.epoch != previous.peerEpoch;
+      // The rows either side holds without offering: this device's own set and
+      // the peer's announcement. One set, because every reader needs both
+      // halves — the plan (do not send, do not delete), the apply (do not
+      // write over the peer's copy) and the checkpoint (do not record an
+      // agreement nobody reached).
+      final businessSkipKeys = {...myLocalOnly, ...peerHello.localOnly};
       var plan = composeConversationPlan(
         mine: myManifest,
         peers: peerHello.manifest,
@@ -1068,6 +1085,7 @@ class SyncEngine implements SyncServerHandler {
           mine: myManifest,
           peers: peerHello.manifest,
           checkpoint: previous,
+          localOnly: businessSkipKeys,
         ),
         peerHello.unappliedBusiness,
       );
@@ -1389,6 +1407,10 @@ class SyncEngine implements SyncServerHandler {
         applicableBusiness,
         myDeviceId: identity.deviceId,
         peerDeviceId: peer.deviceId,
+        // A row either side holds without offering is never written here: the
+        // peer's plan does not send it, and this is the last gate in case some
+        // later path ever does.
+        skipKeys: businessSkipKeys,
       );
       // A swapped-in or deleted skill body changes what the skills service
       // exposes even when the record row itself did not move.
@@ -1702,7 +1724,11 @@ class SyncEngine implements SyncServerHandler {
       round.cancel();
     }
 
-    final myManifest = await dataPlane.buildManifest();
+    // Read before the manifest: the rows this device withholds are what the
+    // manifest leaves out, and what the response hello has to announce so the
+    // caller does not read their absence as a deletion.
+    final myLocalOnly = await store.readLocalOnlyKeys();
+    final myManifest = await dataPlane.buildManifest(withheldKeys: myLocalOnly);
     // One pair, epoch first: see [SyncStore.loadSession].
     final opened = await store.loadSession(initiatorHello.deviceId);
     final checkpoint = opened.previous;
@@ -1716,6 +1742,10 @@ class SyncEngine implements SyncServerHandler {
     // missing rows were dropped, not deleted, so none of its absences may
     // justify a deletion here.
     final peerReplaced = initiatorHello.epoch != checkpoint.peerEpoch;
+    // Both halves: this device's own set and the caller's announcement. The
+    // session keeps it, because the fetch beat and the skill pairing apply rows
+    // long after this plan was made.
+    final businessSkipKeys = {...myLocalOnly, ...initiatorHello.localOnly};
     var plan = composeConversationPlan(
       mine: myManifest,
       peers: initiatorHello.manifest,
@@ -1729,6 +1759,7 @@ class SyncEngine implements SyncServerHandler {
         mine: myManifest,
         peers: initiatorHello.manifest,
         checkpoint: checkpoint,
+        localOnly: businessSkipKeys,
       ),
       initiatorHello.unappliedBusiness,
     );
@@ -1746,6 +1777,7 @@ class SyncEngine implements SyncServerHandler {
       myManifest: myManifest,
       checkpoint: checkpoint,
       epochAtHello: myEpoch,
+      businessSkipKeys: businessSkipKeys,
       startedAt: now(),
       myHosts: _myHosts,
       initiatorHost: remoteAddress,
@@ -1775,6 +1807,10 @@ class SyncEngine implements SyncServerHandler {
       unappliedBusiness: checkpoint.unappliedBusiness,
       deletedConversations: _deletionsToAnnounce(checkpoint, myManifest),
       epoch: myEpoch,
+      // The caller has to know which of this device's rows are held rather
+      // than deleted: it plans from this hello, and one of its absences here is
+      // a row this device chose to keep.
+      localOnly: myLocalOnly.toList(growable: false),
     );
   }
 
@@ -1923,6 +1959,10 @@ class SyncEngine implements SyncServerHandler {
         applicable,
         myDeviceId: identity.deviceId,
         peerDeviceId: peerDeviceId,
+        // The caller's plan already leaves out what either side withholds; this
+        // is the gate that keeps a row this device holds from being written
+        // over if some later path ever pushes one anyway.
+        skipKeys: session.businessSkipKeys,
       );
       if (session.blobPull.landedSkillIds.isNotEmpty) {
         await dataPlane.reloadBusiness();
@@ -2184,6 +2224,10 @@ class SyncEngine implements SyncServerHandler {
           entry.key: entry.value.toSet(),
       },
       preferenceKeys: request.preferenceKeys.toSet(),
+      // A row this device withholds is not served, however it was asked for:
+      // the request names what the peer wants, and the peer is not the one
+      // deciding what leaves this machine.
+      skipKeys: session.businessSkipKeys,
     );
 
     final deleted = <String>{};
@@ -3190,6 +3234,17 @@ class SyncEngine implements SyncServerHandler {
         store(entry);
       }
 
+      // A withheld key is not an agreement. Nothing crossed, so there is
+      // nothing to record — and refreshing the entry from the local row
+      // (`none`'s own arm) would be worse than useless: it would claim the peer
+      // holds this version, which turns the first session after the user
+      // un-withholds the row from "the table's last-write-wins settles it" into
+      // "this device's copy wins", silently.
+      if (item.withheld) {
+        keepPrior();
+        continue;
+      }
+
       switch (item.action) {
         case SyncConvAction.none:
           await setFromLocal();
@@ -4049,6 +4104,7 @@ class SyncEngine implements SyncServerHandler {
       SyncBusinessPayload(entities: {SyncDataPlane.skillWire: rows}),
       myDeviceId: identity.deviceId,
       peerDeviceId: peerDeviceId,
+      skipKeys: session.businessSkipKeys,
     );
     if (outcome.deferred) {
       // A restore holds the write fence: the record is not ours to write yet,
@@ -4479,6 +4535,7 @@ class _ResponderSession {
     required this.myManifest,
     required this.checkpoint,
     required this.epochAtHello,
+    this.businessSkipKeys = const {},
     required this.startedAt,
     required this.myHosts,
     this.initiatorHost,
@@ -4496,6 +4553,12 @@ class _ResponderSession {
   /// and the response batch are both read from it.
   final SyncManifest myManifest;
   final SyncCheckpoint checkpoint;
+
+  /// The rows either side holds without offering, as `syncBusinessKey`
+  /// strings, fixed at the hello: this device's own set joined with the
+  /// caller's announcement. The fetch beat and the skill pairing apply rows
+  /// beats later, when only the session can answer this.
+  final Set<String> businessSkipKeys;
 
   /// This device's data epoch as the session read it, before any beat ran. The
   /// closing save compares it against the epoch on disk: a replacement that

@@ -2611,3 +2611,77 @@ digest moves (it covers those families) but no ledger row does, so the entry cla
 has not seen; the deletion oracle only knows ledger rows, so nothing is deleted and the cost is one
 redundant round. The same was once said here about a rename and it was wrong: the row clock above is
 exactly what a rename is made of.
+
+## Amendment (2026-11, protocol 10): the third announcement — a row this device holds and does not offer
+
+The MCP list is the first business kind whose rows are not portable. A stdio server's command is a
+path, and a path that means `C:/tools/chrome-devtools.exe` on one machine means nothing on the other;
+#1029 reported the pair's PCs exchanging exactly that. The request was a blacklist — keep syncing
+everything else, exclude a few — so the mechanism had to answer a question the plan cannot: **is a row
+missing from a manifest because the peer deleted it, or because the peer kept it?**
+
+The plan's only answer is deletion. `planRowSync` reads an absent peer row as `peerDeletes` once the
+checkpoint says the two sides agreed, and that inference is what makes ordinary deletion propagate at
+all. A row the user marks "this device only" is therefore indistinguishable from a row the user
+deleted: the peer deletes its own copy, then does it again every session, because the checkpoint entry
+it keeps re-plans the same deletion. Filtering the send side alone is the defect, not the fix.
+
+- **The state is announced, not filtered (第三条公告).** The hello carries the keys this device holds
+  without offering (`SyncHello.localOnly`, `syncBusinessKey` strings) beside the deletion list and the
+  data epoch, and for the same reason those exist: an absence is not evidence. It arrives with the
+  hello because both sides plan before a byte of rows moves. Protocol 9 never shipped (4.7.0 is
+  protocol 8), so this shape lands inside the upgrade window the v9 projection already opened rather
+  than adding a second one.
+- **Both sides skip the key, and the skip is not `none`.** A held key plans no exchange at all — it is
+  neither sent nor requested nor deleted, on either device — and the plan item says so
+  (`SyncBusinessPlanItem.withheld`). It cannot borrow `none`: that arm is the *agreement* arm, and the
+  business checkpoint advance records the local row as the shared state when it runs. For a held row
+  that would be a fabricated agreement — this device's copy recorded as what the peer holds — and the
+  first session after the hold is released would resolve by "this device wins" instead of by the
+  table's last-write-wins. The entry keeps whatever it had, which is also what makes the release a
+  normal merge rather than a surprise. `sync_engine_integration_test.dart` pins it with the held row's
+  entry compared before and after a marked session.
+- **The hold lives on the device, not in the row (`仅本机` is device-local).** A column would travel
+  under row-level LWW, so the peer's "not held" would flip this device's "held" on every session the
+  peer won — a switch that turns itself off. The set is `sync/local-only.json`, read-modify-write
+  serialized like the workspace toggles, written by the MCP form and read by the session at its hello:
+  a key naming a row that no longer exists is **kept, not swept**, because the row may come back from
+  the recycle bin and has to come back still held. The manifest leaves held rows out
+  (`syncEntityRefs(skipKeys:)`), the plan skips the union of both devices' sets, and the apply refuses
+  the union as a last gate — the same shape the linked-workspace rule uses at the row level, except
+  that rule is static and this one is the user's.
+- **Rejected: a per-kind exemption ("MCP rows never delete").** It needs no protocol change, which is
+  its whole appeal, and it costs the feature: deleting an unmarked MCP server on one device would
+  never remove it on the other, for every server, forever. The user asked to exclude a few rows, not
+  to stop deletions from crossing. It also has no answer for the mixed pair — an older build never
+  hears the announcement, so it deletes the held row and says nothing.
+- **Rejected: carrying the row as "the state we last agreed on".** Advertising the checkpoint digest
+  for a held row keeps the two manifests equal, so both sides plan `none` without a protocol change —
+  and makes the manifest claim a row this device does not hold. That is the one invariant every other
+  reader of a manifest depends on (it is the receipt), and it turns a held-then-deleted row into a
+  permanent re-offer in one direction and a silent resurrection in the other.
+- **What a hold is not.** It is not a retraction: a copy the peer already holds before the mark stays
+  there, with whatever command it had, and the peer is never told — the announcement only covers the
+  keys this device offers nothing for. It is also not a freeze on the *table's* rules: a row this
+  device deleted while holding, then released, plans `iDelete` on the first session after the release
+  when the peer still has an untouched copy, exactly as any other deleted row would. Both follow from
+  "held means not exchanged", and both are worth saying in release notes rather than discovering.
+- **The hold is enforced on the row face.** The two body faces — a skill's directory and a
+  workspace's files — read the row face (a held row is not in the manifest, so it is not planned) but
+  do not consult the set themselves. Nothing but the MCP form writes a key today, and an MCP server
+  has no body; a future kind that does would need the same predicate at those two faces, and copying
+  the filter into four places is the maintenance trap this note exists to name.
+- **An unreadable `local-only.json` reads as "nothing held".** The same direction the workspace
+  toggles take, and the asymmetry is deliberate: the alternative — refusing to sync *anything* because
+  a preferences file was truncated — costs every row instead of one. The cost lands on the user whose
+  file is damaged: those rows start crossing again, and only a `debugPrint` says so. Worth remembering
+  that here the failure leaks a command line rather than merely a file.
+- **Known cost, accepted.** Seven cells of the state table live in
+  `sync_engine_integration_test.dart` under `a row held on this device`: the peer keeps its copy, the
+  peer's edit does not cross, a deletion does not cross, the checkpoint keeps its entry, a released
+  hold converges, a row held before pairing never arrives, and a 4.7.0 peer is refused at hello.
+  Proved red by injection (the mechanism switched off at the store: five cells; the checkpoint guard
+  removed: the entry cell), then reverted byte-exact. The cells do not each prove their own mechanism
+  — the apply gate alone would keep the peer's row safe — which is the point of three gates over one
+  rule; the deletion cell is the one that only the announcement can pass.
+

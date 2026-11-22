@@ -22921,9 +22921,9 @@
   "@recycleBinDetailAssistantGone": {
     "description": "Warning on the detail page when the conversation's assistant was deleted too; name is that assistant, and an assistant must be chosen after restoring."
   },
-  "settingsPageLanSync": "LAN Sync",
-  "@settingsPageLanSync": {
-    "description": "Settings entry and page title for syncing with other devices over the local network."
+  "settingsPageSync": "Convenient Sync",
+  "@settingsPageSync": {
+    "description": "Settings entry and page title for syncing with other devices, over the local network or remotely."
   },
   "lanSyncThisDevice": "This device",
   "@lanSyncThisDevice": {
@@ -24742,5 +24742,173 @@
   "subagentEscalationAllow": "Always allow",
   "@subagentEscalationAllow": {
     "description": "Escalation policy: do not ask, but only up to what the delegating conversation already allows."
+  },
+  "remoteSyncTabLan": "LAN Sync",
+  "@remoteSyncTabLan": {
+    "description": "Tab label that switches the sync settings panel to local network sync."
+  },
+  "remoteSyncTabRemote": "Remote Sync (Experimental)",
+  "@remoteSyncTabRemote": {
+    "description": "Tab label that switches the sync settings panel to remote sync over tailcat; the feature is experimental."
+  },
+  "remoteSyncThisDevice": "This device",
+  "@remoteSyncThisDevice": {
+    "description": "Section header in remote sync settings showing this device and the status of its remote listener."
+  },
+  "remoteSyncStatusRunning": "Running",
+  "@remoteSyncStatusRunning": {
+    "description": "Remote listener status when it is running and peers can reach this device."
+  },
+  "remoteSyncStatusStarting": "Starting…",
+  "@remoteSyncStatusStarting": {
+    "description": "Remote listener status while it is starting up."
+  },
+  "remoteSyncStatusStopped": "Not running",
+  "@remoteSyncStatusStopped": {
+    "description": "Remote listener status when it is not running."
+  },
+  "remoteSyncStatusFailed": "Failed: {error}",
+  "@remoteSyncStatusFailed": {
+    "description": "Remote listener status when starting failed; error is the reason reported by the service."
+  },
+  "remoteSyncPairSectionTitle": "Pair a device",
+  "@remoteSyncPairSectionTitle": {
+    "description": "Section header for pairing another device over remote sync."
+  },
+  "remoteSyncPairIntro": "Devices on any network can pair: one shows the remote pairing QR code, the other scans it or pastes the address.",
+  "@remoteSyncPairIntro": {
+    "description": "Explanation under that header: two devices on any networks pair by showing a remote pairing QR code on one and scanning or pasting the address on the other."
+  },
+  "remoteSyncShowCode": "Show remote pairing QR",
+  "@remoteSyncShowCode": {
+    "description": "Button that opens the remote pairing dialog and shows this device's QR code."
+  },
+  "remoteSyncEnterCode": "Scan or paste pairing code",
+  "@remoteSyncEnterCode": {
+    "description": "Button and dialog title for pairing remotely by scanning a QR code or pasting the other device's address and code."
+  },
+  "remoteSyncPairingCode": "Remote pairing code",
+  "@remoteSyncPairingCode": {
+    "description": "Title of the dialog that displays this device's remote pairing code; also the label of the code field on the joining side."
+  },
+  "remoteSyncAddressLabel": "Remote address",
+  "@remoteSyncAddressLabel": {
+    "description": "Label of the field where the other device's remote address is pasted, and of the address shown in this device's pairing dialog."
+  },
+  "remoteSyncAddressHint": "Paste the remote address shown on the other device",
+  "@remoteSyncAddressHint": {
+    "description": "Hint text in the address field, telling the user to paste the remote address shown on the other device."
+  },
+  "remoteSyncAddressNote": "A remote address is a long string, so scanning is easier. If you cannot scan, copy it on the other device and paste it here.",
+  "@remoteSyncAddressNote": {
+    "description": "Note under the address field explaining that a remote address is a long string, so scanning is easier, and that it can be copied and pasted when scanning is unavailable."
+  },
+  "remoteSyncShowAddress": "Show address",
+  "@remoteSyncShowAddress": {
+    "description": "Button that reveals this device's remote address in the pairing dialog; the address is hidden by default because it is a secret."
+  },
+  "remoteSyncCopyAddress": "Copy address",
+  "@remoteSyncCopyAddress": {
+    "description": "Tooltip and button label for copying this device's remote address in the pairing dialog."
+  },
+  "remoteSyncAddressCopied": "Remote address copied",
+  "@remoteSyncAddressCopied": {
+    "description": "Toast confirming that the remote address was copied to the clipboard."
+  },
+  "remoteSyncAddressEmpty": "The remote address is not available yet. Wait a moment and try again.",
+  "@remoteSyncAddressEmpty": {
+    "description": "Shown in the remote pairing dialog when this device's remote address is not available yet."
+  },
+  "remoteSyncPhaseConnecting": "Connecting over the remote tunnel…",
+  "@remoteSyncPhaseConnecting": {
+    "description": "Progress text on a device card while a sync session is connecting over the remote tunnel instead of a local network address."
+  },
+  "remoteSyncPairedDevices": "Paired devices",
+  "@remoteSyncPairedDevices": {
+    "description": "Section header listing devices that have a remote sync pairing."
+  },
+  "remoteSyncNoDevices": "No devices are paired over remote sync yet.",
+  "@remoteSyncNoDevices": {
+    "description": "Empty state under that header when no device has been paired over remote sync."
+  },
+  "remoteSyncEndpointRemote": "Remote (tailcat)",
+  "@remoteSyncEndpointRemote": {
+    "description": "Label shown in a paired device's card for its remote endpoint, instead of the long remote address."
+  },
+  "remoteSyncKeySection": "Remote key",
+  "@remoteSyncKeySection": {
+    "description": "Section header for the remote key that determines this device's remote address."
+  },
+  "remoteSyncKeyIntro": "Remote sync uses a fixed remote identity, so this device's remote address stays the same across restarts. Resetting the key changes that address. Devices paired over remote sync must pair again; local network sync is not affected.",
+  "@remoteSyncKeyIntro": {
+    "description": "Explanation that remote sync uses a fixed remote identity, so this device's remote address survives restarts, and that resetting the key changes that address and requires remote-paired devices to pair again while local network sync is unaffected."
+  },
+  "remoteSyncResetKey": "Reset key",
+  "@remoteSyncResetKey": {
+    "description": "Button that resets this device's remote key."
+  },
+  "remoteSyncResetTitle": "Reset the remote key?",
+  "@remoteSyncResetTitle": {
+    "description": "Confirmation dialog title shown before the remote key is reset."
+  },
+  "remoteSyncResetBody": "This device gets a new remote address. Devices paired over remote sync must pair again; local network sync is not affected.",
+  "@remoteSyncResetBody": {
+    "description": "Confirmation body explaining what resetting the remote key changes for remote pairings, and that local network sync is unaffected."
+  },
+  "remoteSyncResetDone": "Remote key reset",
+  "@remoteSyncResetDone": {
+    "description": "Toast confirming that the remote key was reset."
+  },
+  "remoteSyncResetFailed": "Could not reset the remote key: {error}",
+  "@remoteSyncResetFailed": {
+    "description": "Toast shown when resetting the remote key failed; error is the reason reported by the service."
+  },
+  "remoteSyncAboutSection": "About remote sync",
+  "@remoteSyncAboutSection": {
+    "description": "Section header explaining how remote sync works."
+  },
+  "remoteSyncAboutTailcat": "Remote sync is built on tailcat. Everything sent between devices is encrypted with WireGuard.",
+  "@remoteSyncAboutTailcat": {
+    "description": "About-section paragraph saying remote sync is built on tailcat and data is encrypted with WireGuard in transit."
+  },
+  "remoteSyncLearnMore": "Learn more",
+  "@remoteSyncLearnMore": {
+    "description": "Link label that opens the tailcat website for more information."
+  },
+  "remoteSyncAboutTransport": "Most of the time devices connect directly through NAT traversal, just like local network sync. When that fails, data is relayed through Tailscale's public DERP servers, still encrypted with WireGuard. Cuplivo does not run its own DERP servers yet; if you can provide a compliant one, please reach out.",
+  "@remoteSyncAboutTransport": {
+    "description": "About-section paragraph explaining that devices usually connect directly through NAT traversal, fall back to Tailscale's public DERP relays when that fails, that content stays WireGuard-encrypted either way, and that Cuplivo runs no DERP servers of its own but welcomes offers."
+  },
+  "remoteSyncContactUs": "Contact us",
+  "@remoteSyncContactUs": {
+    "description": "Link label that opens the Cuplivo GitHub repository so the user can contact the project."
+  },
+  "remoteSyncMetadataNote": "DERP relays only see connection metadata; they cannot decrypt synced content.",
+  "@remoteSyncMetadataNote": {
+    "description": "Small print under the remote sync explanation noting that DERP relays can only see connection metadata and cannot decrypt synced content."
+  },
+  "remoteSyncPairErrorInvalidAddress": "Enter a valid remote address.",
+  "@remoteSyncPairErrorInvalidAddress": {
+    "description": "Remote pairing error shown when the pasted remote address is empty or not in the expected format."
+  },
+  "remoteSyncPairErrorUnavailable": "Remote sync is not available right now. Try again in a moment.",
+  "@remoteSyncPairErrorUnavailable": {
+    "description": "Remote pairing error shown when this device's remote listener is not available, so pairing cannot start."
+  },
+  "remoteSyncPairErrorUnknown": "Remote pairing failed: {error}",
+  "@remoteSyncPairErrorUnknown": {
+    "description": "Fallback remote pairing error carrying the underlying failure; error is that reason."
+  },
+  "remoteSyncQrErrorNotTailcat": "This is not a remote pairing QR code.",
+  "@remoteSyncQrErrorNotTailcat": {
+    "description": "Error shown when a scanned QR code is not a Cuplivo remote pairing code."
+  },
+  "remoteSyncQrErrorBadVersion": "This remote pairing QR code is from a newer version. Update the app and try again.",
+  "@remoteSyncQrErrorBadVersion": {
+    "description": "Error shown when a scanned remote pairing code comes from a newer app version."
+  },
+  "remoteSyncQrErrorMalformed": "The remote pairing QR code could not be read.",
+  "@remoteSyncQrErrorMalformed": {
+    "description": "Error shown when a scanned remote pairing code cannot be decoded."
   }
 }

@@ -17758,7 +17758,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => 'LAN eşitleme';
+  String get settingsPageSync => 'Kolay eşitleme';
 
   @override
   String get lanSyncThisDevice => 'Bu cihaz';
@@ -19259,4 +19259,150 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => 'Her zaman izin ver';
+
+  @override
+  String get remoteSyncTabLan => 'LAN eşitleme';
+
+  @override
+  String get remoteSyncTabRemote => 'Uzak eşitleme (deneysel)';
+
+  @override
+  String get remoteSyncThisDevice => 'Bu cihaz';
+
+  @override
+  String get remoteSyncStatusRunning => 'Çalışıyor';
+
+  @override
+  String get remoteSyncStatusStarting => 'Başlatılıyor…';
+
+  @override
+  String get remoteSyncStatusStopped => 'Çalışmıyor';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return 'Başlatılamadı: $error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => 'Cihaz eşleştir';
+
+  @override
+  String get remoteSyncPairIntro =>
+      'Herhangi bir ağdaki iki cihaz eşleşebilir: biri uzak eşleştirme QR kodunu gösterir, diğeri okutur veya adresi yapıştırır.';
+
+  @override
+  String get remoteSyncShowCode => 'Uzak eşleştirme QR\'ını göster';
+
+  @override
+  String get remoteSyncEnterCode => 'Kodu okut veya yapıştır';
+
+  @override
+  String get remoteSyncPairingCode => 'Uzak eşleştirme kodu';
+
+  @override
+  String get remoteSyncAddressLabel => 'Uzak adres';
+
+  @override
+  String get remoteSyncAddressHint =>
+      'Diğer cihazda gösterilen uzak adresi yapıştırın';
+
+  @override
+  String get remoteSyncAddressNote =>
+      'Uzak adres uzun bir karakter dizisidir; bu yüzden okutmak daha kolaydır. Okutamıyorsanız diğer cihazda kopyalayıp buraya yapıştırın.';
+
+  @override
+  String get remoteSyncShowAddress => 'Adresi göster';
+
+  @override
+  String get remoteSyncCopyAddress => 'Adresi kopyala';
+
+  @override
+  String get remoteSyncAddressCopied => 'Uzak adres kopyalandı';
+
+  @override
+  String get remoteSyncAddressEmpty =>
+      'Bu cihazın uzak adresi henüz alınamadı. Biraz bekleyip yeniden deneyin.';
+
+  @override
+  String get remoteSyncPhaseConnecting => 'Uzak tünel üzerinden bağlanılıyor…';
+
+  @override
+  String get remoteSyncPairedDevices => 'Eşleştirilen cihazlar';
+
+  @override
+  String get remoteSyncNoDevices =>
+      'Henüz uzak eşitleme ile eşleştirilmiş cihaz yok.';
+
+  @override
+  String get remoteSyncEndpointRemote => 'Uzak (tailcat)';
+
+  @override
+  String get remoteSyncKeySection => 'Uzak anahtar';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      'Uzak eşitleme sabit bir uzak kimlik kullanır; bu cihazın uzak adresi yeniden başlatmalar arasında değişmez. Anahtarı sıfırlamak bu adresi değiştirir. Uzaktan eşleştirilen cihazların yeniden eşleştirilmesi gerekir; LAN eşitlemesi etkilenmez.';
+
+  @override
+  String get remoteSyncResetKey => 'Anahtarı sıfırla';
+
+  @override
+  String get remoteSyncResetTitle => 'Uzak anahtar sıfırlansın mı?';
+
+  @override
+  String get remoteSyncResetBody =>
+      'Bu cihaz yeni bir uzak adres alır. Uzaktan eşleştirilen cihazların yeniden eşleştirilmesi gerekir; LAN eşitlemesi etkilenmez.';
+
+  @override
+  String get remoteSyncResetDone => 'Uzak anahtar sıfırlandı';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return 'Uzak anahtar sıfırlanamadı: $error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => 'Uzak eşitleme hakkında';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      'Uzak eşitleme tailcat üzerine kuruludur. Cihazlar arasında gönderilen veriler WireGuard ile şifrelenir.';
+
+  @override
+  String get remoteSyncLearnMore => 'Daha fazla bilgi';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      'Çoğu durumda cihazlar P2P NAT geçişiyle doğrudan bağlanır ve deneyim LAN eşitlemesinden neredeyse farksızdır. Bağlantı kurulamadığında veriler Tailscale\'in resmî DERP sunucuları üzerinden aktarılır; içerik yine WireGuard ile şifrelidir. Cuplivo\'nun henüz kendi DERP sunucusu yok; uygun bir DERP sunucusu sağlayabilirseniz lütfen bizimle iletişime geçin.';
+
+  @override
+  String get remoteSyncContactUs => 'Bize ulaşın';
+
+  @override
+  String get remoteSyncMetadataNote =>
+      'DERP aktarıcıları yalnızca bağlantı üst verilerini görebilir; eşitlenen içeriği çözemez.';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress =>
+      'Geçerli bir uzak adres girin.';
+
+  @override
+  String get remoteSyncPairErrorUnavailable =>
+      'Uzak eşitleme şu anda kullanılamıyor. Biraz sonra yeniden deneyin.';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return 'Uzak eşleştirme başarısız: $error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat =>
+      'Bu bir uzak eşleştirme QR kodu değil.';
+
+  @override
+  String get remoteSyncQrErrorBadVersion =>
+      'Bu uzak eşleştirme QR kodu daha yeni bir sürümden. Uygulamayı güncelleyip yeniden deneyin.';
+
+  @override
+  String get remoteSyncQrErrorMalformed => 'Uzak eşleştirme QR kodu okunamadı.';
 }

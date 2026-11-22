@@ -31044,11 +31044,11 @@ abstract class AppLocalizations {
   /// **'This conversation belonged to “{name}”, which is no longer on this device. After restoring it you will need to choose an assistant for it.'**
   String recycleBinDetailAssistantGone(Object name);
 
-  /// Settings entry and page title for syncing with other devices over the local network.
+  /// Settings entry and page title for syncing with other devices, over the local network or remotely.
   ///
   /// In en, this message translates to:
-  /// **'LAN Sync'**
-  String get settingsPageLanSync;
+  /// **'Convenient Sync'**
+  String get settingsPageSync;
 
   /// Section header in LAN sync settings for this device's own listener and addresses.
   ///
@@ -33503,6 +33503,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Always allow'**
   String get subagentEscalationAllow;
+
+  /// Tab label that switches the sync settings panel to local network sync.
+  ///
+  /// In en, this message translates to:
+  /// **'LAN Sync'**
+  String get remoteSyncTabLan;
+
+  /// Tab label that switches the sync settings panel to remote sync over tailcat; the feature is experimental.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote Sync (Experimental)'**
+  String get remoteSyncTabRemote;
+
+  /// Section header in remote sync settings showing this device and the status of its remote listener.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get remoteSyncThisDevice;
+
+  /// Remote listener status when it is running and peers can reach this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get remoteSyncStatusRunning;
+
+  /// Remote listener status while it is starting up.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting…'**
+  String get remoteSyncStatusStarting;
+
+  /// Remote listener status when it is not running.
+  ///
+  /// In en, this message translates to:
+  /// **'Not running'**
+  String get remoteSyncStatusStopped;
+
+  /// Remote listener status when starting failed; error is the reason reported by the service.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String remoteSyncStatusFailed(Object error);
+
+  /// Section header for pairing another device over remote sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair a device'**
+  String get remoteSyncPairSectionTitle;
+
+  /// Explanation under that header: two devices on any networks pair by showing a remote pairing QR code on one and scanning or pasting the address on the other.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices on any network can pair: one shows the remote pairing QR code, the other scans it or pastes the address.'**
+  String get remoteSyncPairIntro;
+
+  /// Button that opens the remote pairing dialog and shows this device's QR code.
+  ///
+  /// In en, this message translates to:
+  /// **'Show remote pairing QR'**
+  String get remoteSyncShowCode;
+
+  /// Button and dialog title for pairing remotely by scanning a QR code or pasting the other device's address and code.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan or paste pairing code'**
+  String get remoteSyncEnterCode;
+
+  /// Title of the dialog that displays this device's remote pairing code; also the label of the code field on the joining side.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote pairing code'**
+  String get remoteSyncPairingCode;
+
+  /// Label of the field where the other device's remote address is pasted, and of the address shown in this device's pairing dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote address'**
+  String get remoteSyncAddressLabel;
+
+  /// Hint text in the address field, telling the user to paste the remote address shown on the other device.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the remote address shown on the other device'**
+  String get remoteSyncAddressHint;
+
+  /// Note under the address field explaining that a remote address is a long string, so scanning is easier, and that it can be copied and pasted when scanning is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'A remote address is a long string, so scanning is easier. If you cannot scan, copy it on the other device and paste it here.'**
+  String get remoteSyncAddressNote;
+
+  /// Button that reveals this device's remote address in the pairing dialog; the address is hidden by default because it is a secret.
+  ///
+  /// In en, this message translates to:
+  /// **'Show address'**
+  String get remoteSyncShowAddress;
+
+  /// Tooltip and button label for copying this device's remote address in the pairing dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy address'**
+  String get remoteSyncCopyAddress;
+
+  /// Toast confirming that the remote address was copied to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote address copied'**
+  String get remoteSyncAddressCopied;
+
+  /// Shown in the remote pairing dialog when this device's remote address is not available yet.
+  ///
+  /// In en, this message translates to:
+  /// **'The remote address is not available yet. Wait a moment and try again.'**
+  String get remoteSyncAddressEmpty;
+
+  /// Progress text on a device card while a sync session is connecting over the remote tunnel instead of a local network address.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting over the remote tunnel…'**
+  String get remoteSyncPhaseConnecting;
+
+  /// Section header listing devices that have a remote sync pairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired devices'**
+  String get remoteSyncPairedDevices;
+
+  /// Empty state under that header when no device has been paired over remote sync.
+  ///
+  /// In en, this message translates to:
+  /// **'No devices are paired over remote sync yet.'**
+  String get remoteSyncNoDevices;
+
+  /// Label shown in a paired device's card for its remote endpoint, instead of the long remote address.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote (tailcat)'**
+  String get remoteSyncEndpointRemote;
+
+  /// Section header for the remote key that determines this device's remote address.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote key'**
+  String get remoteSyncKeySection;
+
+  /// Explanation that remote sync uses a fixed remote identity, so this device's remote address survives restarts, and that resetting the key changes that address and requires remote-paired devices to pair again while local network sync is unaffected.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sync uses a fixed remote identity, so this device\'s remote address stays the same across restarts. Resetting the key changes that address. Devices paired over remote sync must pair again; local network sync is not affected.'**
+  String get remoteSyncKeyIntro;
+
+  /// Button that resets this device's remote key.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset key'**
+  String get remoteSyncResetKey;
+
+  /// Confirmation dialog title shown before the remote key is reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset the remote key?'**
+  String get remoteSyncResetTitle;
+
+  /// Confirmation body explaining what resetting the remote key changes for remote pairings, and that local network sync is unaffected.
+  ///
+  /// In en, this message translates to:
+  /// **'This device gets a new remote address. Devices paired over remote sync must pair again; local network sync is not affected.'**
+  String get remoteSyncResetBody;
+
+  /// Toast confirming that the remote key was reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote key reset'**
+  String get remoteSyncResetDone;
+
+  /// Toast shown when resetting the remote key failed; error is the reason reported by the service.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reset the remote key: {error}'**
+  String remoteSyncResetFailed(Object error);
+
+  /// Section header explaining how remote sync works.
+  ///
+  /// In en, this message translates to:
+  /// **'About remote sync'**
+  String get remoteSyncAboutSection;
+
+  /// About-section paragraph saying remote sync is built on tailcat and data is encrypted with WireGuard in transit.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sync is built on tailcat. Everything sent between devices is encrypted with WireGuard.'**
+  String get remoteSyncAboutTailcat;
+
+  /// Link label that opens the tailcat website for more information.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more'**
+  String get remoteSyncLearnMore;
+
+  /// About-section paragraph explaining that devices usually connect directly through NAT traversal, fall back to Tailscale's public DERP relays when that fails, that content stays WireGuard-encrypted either way, and that Cuplivo runs no DERP servers of its own but welcomes offers.
+  ///
+  /// In en, this message translates to:
+  /// **'Most of the time devices connect directly through NAT traversal, just like local network sync. When that fails, data is relayed through Tailscale\'s public DERP servers, still encrypted with WireGuard. Cuplivo does not run its own DERP servers yet; if you can provide a compliant one, please reach out.'**
+  String get remoteSyncAboutTransport;
+
+  /// Link label that opens the Cuplivo GitHub repository so the user can contact the project.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact us'**
+  String get remoteSyncContactUs;
+
+  /// Small print under the remote sync explanation noting that DERP relays can only see connection metadata and cannot decrypt synced content.
+  ///
+  /// In en, this message translates to:
+  /// **'DERP relays only see connection metadata; they cannot decrypt synced content.'**
+  String get remoteSyncMetadataNote;
+
+  /// Remote pairing error shown when the pasted remote address is empty or not in the expected format.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid remote address.'**
+  String get remoteSyncPairErrorInvalidAddress;
+
+  /// Remote pairing error shown when this device's remote listener is not available, so pairing cannot start.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sync is not available right now. Try again in a moment.'**
+  String get remoteSyncPairErrorUnavailable;
+
+  /// Fallback remote pairing error carrying the underlying failure; error is that reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote pairing failed: {error}'**
+  String remoteSyncPairErrorUnknown(Object error);
+
+  /// Error shown when a scanned QR code is not a Cuplivo remote pairing code.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a remote pairing QR code.'**
+  String get remoteSyncQrErrorNotTailcat;
+
+  /// Error shown when a scanned remote pairing code comes from a newer app version.
+  ///
+  /// In en, this message translates to:
+  /// **'This remote pairing QR code is from a newer version. Update the app and try again.'**
+  String get remoteSyncQrErrorBadVersion;
+
+  /// Error shown when a scanned remote pairing code cannot be decoded.
+  ///
+  /// In en, this message translates to:
+  /// **'The remote pairing QR code could not be read.'**
+  String get remoteSyncQrErrorMalformed;
 }
 
 class _AppLocalizationsDelegate

@@ -8,6 +8,7 @@ import '../../../core/services/sync/sync_endpoint_prober.dart';
 import '../../../core/services/sync/sync_engine.dart';
 import '../../../core/services/sync/sync_limits.dart';
 import '../../../core/services/sync/sync_store.dart';
+import '../../../core/services/sync/sync_transport.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -17,6 +18,7 @@ import '../sync_messages.dart';
 import 'sync_endpoint_detail.dart';
 import 'sync_pairing_dialogs.dart' show IosDialogField, showSyncEnterCodeDialog;
 import 'sync_report_breakdown.dart';
+import 'tailcat_pairing_dialogs.dart' show showTailcatEnterCodeDialog;
 
 /// One paired device: who it is, whether it is reachable, and what each
 /// remembered address has been worth.
@@ -163,12 +165,11 @@ class SyncPeerCard extends StatelessWidget {
             SyncReportBreakdown(
               report: report,
               // The refusal that says "pair again" gets the gesture, prefilled
-              // with the address this card already shows.
-              onPairAgain: () => showSyncEnterCodeDialog(
-                context: context,
-                host: peer.primaryEndpoint?.host,
-                port: peer.primaryEndpoint?.port,
-              ),
+              // with the address this card already shows. A remote endpoint has
+              // no address to prefill — its stored host is the tailcat address
+              // marker, and the address itself is a secret — so the repair for
+              // that peer is the remote pairing dialog.
+              onPairAgain: () => _repairPairing(context),
             ),
           ],
         ],
@@ -194,6 +195,24 @@ class SyncPeerCard extends StatelessWidget {
       // No overlay above this point (dialog-hosted card); the card itself
       // already shows the same line.
     }
+  }
+
+  /// Re-pairs with this peer after a refusal asked for it.
+  ///
+  /// A remote endpoint cannot prefill the LAN form — its stored host is the
+  /// `tcat:` marker, and the address itself is a secret the card must not draw
+  /// — so the remote flow (scan or paste) is the repair there.
+  Future<void> _repairPairing(BuildContext context) async {
+    final primary = peer.primaryEndpoint;
+    if (primary != null && isTailcatEndpointHost(primary.host)) {
+      await showTailcatEnterCodeDialog(context);
+      return;
+    }
+    await showSyncEnterCodeDialog(
+      context: context,
+      host: primary?.host,
+      port: primary?.port,
+    );
   }
 }
 
@@ -321,8 +340,14 @@ class _EndpointTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final colors = context.appColors;
+    // A remote endpoint's stored host is the tailcat address marker, and the
+    // address behind it is the capability to reach that device — never drawn on
+    // a card and never an address-management target. The tile keeps its place
+    // (and its latency) but shows a short label and opens no editor.
+    final remote = isTailcatEndpointHost(endpoint.host);
     // An answer is a number: the probe result's own `answered` is carried by its
     // latency, and a silent address has neither. Nothing falls back to the
     // persisted figure — that one lives in the detail, where "when it was
@@ -340,11 +365,13 @@ class _EndpointTile extends StatelessWidget {
       borderRadius: radius,
       child: InkWell(
         borderRadius: radius,
-        onTap: () => showSyncEndpointDetail(
-          context: context,
-          peer: peer,
-          endpoint: endpoint,
-        ),
+        onTap: remote
+            ? null
+            : () => showSyncEndpointDetail(
+                context: context,
+                peer: peer,
+                endpoint: endpoint,
+              ),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: radius,
@@ -370,24 +397,37 @@ class _EndpointTile extends StatelessWidget {
                     const SizedBox(width: 4),
                   ],
                   Flexible(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      // The name is the rename target and the tile is the detail
-                      // target, exactly as the section's tip says.
-                      onTap: () => _renameEndpoint(context),
-                      child: Text(
-                        endpoint.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: AppFontWeights.medium,
-                          color: active
-                              ? cs.primary
-                              : cs.onSurface.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ),
+                    child: remote
+                        ? Text(
+                            l10n.remoteSyncEndpointRemote,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: AppFontWeights.medium,
+                              color: active
+                                  ? cs.primary
+                                  : cs.onSurface.withValues(alpha: 0.8),
+                            ),
+                          )
+                        : GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            // The name is the rename target and the tile is the
+                            // detail target, exactly as the section's tip says.
+                            onTap: () => _renameEndpoint(context),
+                            child: Text(
+                              endpoint.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: AppFontWeights.medium,
+                                color: active
+                                    ? cs.primary
+                                    : cs.onSurface.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ),
                   ),
                 ],
               ),

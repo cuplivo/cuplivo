@@ -497,7 +497,7 @@ class _SettingsMenu extends StatelessWidget {
       (
         _SettingsMenuItem.lanSync,
         lucide.Lucide.RefreshCw,
-        l10n.settingsPageLanSync,
+        l10n.settingsPageSync,
       ),
       (
         _SettingsMenuItem.scheduledTasks,

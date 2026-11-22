@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../features/sync/widgets/sync_panel_body.dart';
+import '../../features/sync/widgets/sync_mode_panel.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_font_weights.dart';
 
-/// Desktop LAN sync pane. Same panel as the mobile page — only the chrome
+/// Desktop sync pane. Same panel as the mobile page — only the chrome
 /// differs (pane container instead of Scaffold, dialogs instead of sheets).
 class DesktopSyncPane extends StatelessWidget {
   const DesktopSyncPane({super.key});
@@ -26,7 +26,7 @@ class DesktopSyncPane extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    l10n.settingsPageLanSync,
+                    l10n.settingsPageSync,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: AppFontWeights.regular,
@@ -36,7 +36,7 @@ class DesktopSyncPane extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              const SyncPanelBody(),
+              const SyncModePanel(),
             ],
           ),
         ),

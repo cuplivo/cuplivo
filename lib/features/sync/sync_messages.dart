@@ -5,6 +5,8 @@ import '../../core/providers/sync_provider.dart';
 import '../../core/services/sync/sync_engine.dart';
 import '../../core/services/sync/sync_models.dart';
 import '../../core/services/sync/sync_pair_qr.dart';
+import '../../core/services/sync/sync_transport.dart';
+import '../../core/services/sync/tailcat_pair_qr.dart';
 import '../../icons/lucide_adapter.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/utils/format_bytes.dart';
@@ -100,6 +102,47 @@ String syncQrErrorMessage(AppLocalizations l10n, SyncPairQrException error) {
   }
 }
 
+/// Message for a failed remote pairing attempt.
+///
+/// The two codes only a remote attempt produces (`invalid_remote_address`,
+/// `remote_unavailable`) get their own lines; everything a remote attempt can
+/// fail with in common with a LAN one — a wrong PIN, an unreachable device —
+/// reuses the LAN table, which already says what to do about it.
+String tailcatSyncPairErrorMessage(
+  AppLocalizations l10n,
+  SyncPairOutcome outcome,
+) {
+  switch (outcome.errorCode) {
+    case 'invalid_remote_address':
+      return l10n.remoteSyncPairErrorInvalidAddress;
+    case 'remote_unavailable':
+      return l10n.remoteSyncPairErrorUnavailable;
+    case 'unknown':
+    case null:
+      return l10n.remoteSyncPairErrorUnknown(
+        outcome.errorDetail ?? outcome.errorCode ?? 'unknown',
+      );
+    default:
+      return syncPairErrorMessage(l10n, outcome);
+  }
+}
+
+/// Message for a scanned string that is not a remote pairing QR.
+String tailcatQrErrorMessage(
+  AppLocalizations l10n,
+  TailcatPairQrException error,
+) {
+  switch (error.code) {
+    case 'bad_version':
+      return l10n.remoteSyncQrErrorBadVersion;
+    case 'malformed':
+      return l10n.remoteSyncQrErrorMalformed;
+    case 'not_tailcat_qr':
+    default:
+      return l10n.remoteSyncQrErrorNotTailcat;
+  }
+}
+
 String syncRefusalMessage(AppLocalizations l10n, SyncRefusalReason reason) {
   switch (reason) {
     case SyncRefusalReason.peerSchemaNewer:
@@ -148,14 +191,21 @@ String syncFailureMessage(AppLocalizations l10n, SyncFailureReason? reason) {
 /// "connecting…" turns a diagnosable wait into a mystery. It never names a rank
 /// among candidates: the probe ranked them all at once and the dial only walks
 /// the addresses the probe reached, so "the second of three" would describe an
-/// implementation detail the user cannot act on.
+/// implementation detail the user cannot act on. A remote (`tcat:`) endpoint is
+/// the exception: its host is the capability to reach the peer, so the beat says
+/// the tunnel is being dialed and nothing more.
 String syncPhaseLabel(AppLocalizations l10n, SyncSessionProgress progress) {
   switch (progress.phase) {
     case SyncSessionPhase.connecting:
       final address = progress.address;
-      return address == null
-          ? l10n.lanSyncPhaseConnecting
-          : l10n.lanSyncPhaseConnectingTo(address);
+      if (address == null) return l10n.lanSyncPhaseConnecting;
+      // A remote session dials the peer's tailcat address, which is the
+      // capability to reach that device — a secret, and far too long for a
+      // card's line. The card only needs to say that this wait is the tunnel's.
+      if (address.startsWith(kTailcatHostPrefix)) {
+        return l10n.remoteSyncPhaseConnecting;
+      }
+      return l10n.lanSyncPhaseConnectingTo(address);
     case SyncSessionPhase.exchanging:
       return l10n.lanSyncPhaseExchanging;
     case SyncSessionPhase.sending:

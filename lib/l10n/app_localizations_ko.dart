@@ -17121,7 +17121,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => 'LAN 동기화';
+  String get settingsPageSync => '편리한 동기화';
 
   @override
   String get lanSyncThisDevice => '이 기기';
@@ -18572,4 +18572,146 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => '항상 허용';
+
+  @override
+  String get remoteSyncTabLan => 'LAN 동기화';
+
+  @override
+  String get remoteSyncTabRemote => '원격 동기화(실험적)';
+
+  @override
+  String get remoteSyncThisDevice => '이 기기';
+
+  @override
+  String get remoteSyncStatusRunning => '실행 중';
+
+  @override
+  String get remoteSyncStatusStarting => '시작 중…';
+
+  @override
+  String get remoteSyncStatusStopped => '실행 안 됨';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return '시작 실패: $error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => '기기 페어링';
+
+  @override
+  String get remoteSyncPairIntro =>
+      '어느 네트워크에서나 두 기기를 페어링할 수 있어요. 한 기기가 원격 페어링 QR 코드를 보여주면 다른 기기가 스캔하거나 주소를 붙여넣습니다.';
+
+  @override
+  String get remoteSyncShowCode => '원격 페어링 QR 표시';
+
+  @override
+  String get remoteSyncEnterCode => '코드 스캔 또는 붙여넣기';
+
+  @override
+  String get remoteSyncPairingCode => '원격 페어링 코드';
+
+  @override
+  String get remoteSyncAddressLabel => '원격 주소';
+
+  @override
+  String get remoteSyncAddressHint => '다른 기기에 표시된 원격 주소를 붙여넣으세요';
+
+  @override
+  String get remoteSyncAddressNote =>
+      '원격 주소는 긴 문자열이라 스캔하는 것이 더 간편해요. 스캔할 수 없으면 다른 기기에서 복사해 여기에 붙여넣으세요.';
+
+  @override
+  String get remoteSyncShowAddress => '주소 표시';
+
+  @override
+  String get remoteSyncCopyAddress => '주소 복사';
+
+  @override
+  String get remoteSyncAddressCopied => '원격 주소를 복사했어요';
+
+  @override
+  String get remoteSyncAddressEmpty =>
+      '아직 이 기기의 원격 주소를 가져올 수 없어요. 잠시 후 다시 시도하세요.';
+
+  @override
+  String get remoteSyncPhaseConnecting => '원격 터널로 연결하는 중…';
+
+  @override
+  String get remoteSyncPairedDevices => '페어링된 기기';
+
+  @override
+  String get remoteSyncNoDevices => '아직 원격 동기화로 페어링한 기기가 없어요.';
+
+  @override
+  String get remoteSyncEndpointRemote => '원격(tailcat)';
+
+  @override
+  String get remoteSyncKeySection => '원격 키';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      '원격 동기화는 고정된 원격 신원을 사용하므로 이 기기의 원격 주소는 앱을 다시 시작해도 바뀌지 않습니다. 키를 재설정하면 이 주소가 바뀌며, 원격으로 페어링한 기기를 다시 페어링해야 합니다. LAN 동기화에는 영향이 없습니다.';
+
+  @override
+  String get remoteSyncResetKey => '키 재설정';
+
+  @override
+  String get remoteSyncResetTitle => '원격 키를 재설정할까요?';
+
+  @override
+  String get remoteSyncResetBody =>
+      '이 기기에 새 원격 주소가 발급됩니다. 원격으로 페어링한 기기는 다시 페어링해야 하며, LAN 동기화에는 영향이 없습니다.';
+
+  @override
+  String get remoteSyncResetDone => '원격 키를 재설정했어요';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return '원격 키를 재설정하지 못했어요: $error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => '원격 동기화 정보';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      '원격 동기화는 tailcat을 사용하며, 기기 간에 전송되는 데이터는 WireGuard로 암호화됩니다.';
+
+  @override
+  String get remoteSyncLearnMore => '자세히 알아보기';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      '대부분의 경우 기기가 P2P 홀 펀칭으로 직접 연결되어 LAN 동기화와 거의 차이가 없습니다. 연결에 실패하면 데이터가 Tailscale 공식 DERP 서버를 거쳐 중계되지만 여전히 WireGuard로 암호화됩니다. Cuplivo는 아직 자체 DERP 서버를 운영하지 않습니다. 규정을 준수하는 DERP 서버를 제공해 주실 수 있다면 문의해 주세요.';
+
+  @override
+  String get remoteSyncContactUs => '문의하기';
+
+  @override
+  String get remoteSyncMetadataNote =>
+      'DERP 중계 서버는 연결 메타데이터만 볼 수 있으며 동기화 내용은 복호화할 수 없습니다.';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress => '올바른 원격 주소를 입력하세요.';
+
+  @override
+  String get remoteSyncPairErrorUnavailable =>
+      '지금은 원격 동기화를 사용할 수 없어요. 잠시 후 다시 시도하세요.';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return '원격 페어링에 실패했어요: $error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat => '원격 페어링 QR 코드가 아니에요.';
+
+  @override
+  String get remoteSyncQrErrorBadVersion =>
+      '이 원격 페어링 QR 코드는 더 새로운 버전에서 만들어졌어요. 앱을 업데이트한 후 다시 시도하세요.';
+
+  @override
+  String get remoteSyncQrErrorMalformed => '원격 페어링 QR 코드를 읽을 수 없어요.';
 }

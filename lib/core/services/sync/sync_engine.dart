@@ -2894,10 +2894,10 @@ class SyncEngine implements SyncServerHandler {
   /// — in its messages or in the conversation row's clock — was written here
   /// since, and an edit beats a delete exactly as it does in the plan table.
   ///
-  /// The clock is what makes a restore from the recycle bin an edit: the bin
-  /// writes the row back with `now()` while the messages come back identical, so
-  /// the digest cannot tell the restored copy from the deleted one and only the
-  /// row clock can (protocol v8). The comparison is `<=` rather than `!=` on
+  /// The clock is what makes a restore from the recycle bin an edit: the
+  /// messages come back identical and the row keeps the display clock it was
+  /// deleted with, so the digest cannot tell the restored copy from the deleted
+  /// one and only the re-stamped sync clock can (protocol v8). The comparison is `<=` rather than `!=` on
   /// purpose: deleting too much is recoverable (the copy is staged into the bin
   /// again), while keeping too much resurrects content the peer's user deleted.
   static List<SyncConvPlan> _applyDeletionAnnouncements(

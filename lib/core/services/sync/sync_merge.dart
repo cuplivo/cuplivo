@@ -107,8 +107,9 @@ SyncConvAction _planConversation({
 /// A differing digest is always "changed". When the digests agree, only the row
 /// clock can tell: a conversation's digest is computed from its message rows, so
 /// a row-only write is invisible to it. The recycle bin's restore is exactly
-/// that write — the row goes back with `now()`, the messages come back
-/// verbatim — and so is a rename that left every message alone.
+/// that write — the messages come back verbatim and the row keeps the display
+/// clock it was deleted with, so only the sync clock it is re-stamped with says
+/// this device wrote here — and so is a rename that left every message alone.
 ///
 /// With no clock on either side (a business row, whose digest covers the whole
 /// row; or an agreement recorded before the clock travelled) the digest is the
@@ -136,9 +137,9 @@ bool copyWrittenSinceAgreement({
 /// (title, pin, selected version, extras) is otherwise invisible and would
 /// never transfer. [checkpointClock] is the row
 /// clock the two sides last agreed on, and is what keeps the delete branch from
-/// undoing a restore: the bin writes the row back with `now()` and the messages
-/// back byte-identical, so the digest still matches the agreement while the row
-/// says this device wrote here since.
+/// undoing a restore: the bin writes the messages back byte-identical and
+/// re-stamps only the sync clock, so the digest still matches the agreement
+/// while the row says this device wrote here since.
 ///
 /// **The business face passes [mineClock] and [checkpointClock] but not
 /// [peerClock], and that asymmetry is the point.** A business row's digest *is*
@@ -681,9 +682,94 @@ class ConversationRowMerge {
   const ConversationRowMerge(this.winner, this.incomingWon);
 }
 
-/// LWW for the conversation row: newer `updated_at` wins; ties fall to the
-/// higher deviceId so both peers decide identically. `updated_at` is
-/// required on both rows (the column is non-nullable in the schema).
+/// The `conversation_rows.extras_json` key holding a conversation's mutation
+/// clock.
+///
+/// A conversation carries two times. `updated_at` says when its **content**
+/// last changed — a new message, an edit, a deletion — and it is what the home
+/// list orders and groups by. This key says when a device last wrote the
+/// **row**, which is a superset: pinning, summarising, renaming and changing
+/// the workspace binding all travel without moving the list. Sync reads this
+/// key and never the column; both peers store it inside the extras bag they
+/// already exchange, so the wire shape does not change.
+///
+/// A row written before the key existed falls back to `updated_at` — the clock
+/// that used to be the only one — so no backfill is needed (the plan's G5).
+const String syncClockExtrasKey = 'sync.clock';
+
+Map<String, dynamic>? _extrasObject(Object? raw) {
+  final Object? decoded;
+  if (raw is Map) {
+    decoded = raw;
+  } else if (raw is String && raw.isNotEmpty) {
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return null;
+    }
+  } else {
+    return null;
+  }
+  if (decoded is! Map) return null;
+  return {for (final entry in decoded.entries) '${entry.key}': entry.value};
+}
+
+/// The mutation clock stored beside [extrasJson], or null when the row has
+/// none (it predates the key, or its bag is unreadable).
+///
+/// Only a JSON integer counts. A float, a numeric string or junk is treated as
+/// absent rather than converted, because the manifest's SQL half tests
+/// `json_type(...) = 'integer'` and the two readers must agree on every row —
+/// including the rows nobody meant to write.
+int? syncClockOf(Object? extrasJson) {
+  final value = _extrasObject(extrasJson)?[syncClockExtrasKey];
+  return value is int ? value : null;
+}
+
+/// [extrasJson] as stored, with [syncClock] written into it.
+///
+/// Null when the bag is not a JSON object. The caller then leaves the column
+/// alone: a row whose key cannot be read falls back to `updated_at`, and every
+/// caller here is already moving that.
+String? withSyncClock(Object? extrasJson, int syncClock) {
+  final extras = _extrasObject(extrasJson);
+  if (extras == null) return null;
+  return jsonEncode({...extras, syncClockExtrasKey: syncClock});
+}
+
+/// The clock both peers compare for a conversation row: the key when it is
+/// there, `updated_at` when it is not.
+///
+/// Deliberately not "the later of the two": `updated_at` is the display clock
+/// once this ships, so letting it raise the sync clock would let a write that
+/// only reorders the list claim it changed the row.
+int effectiveConversationClock(Map<String, dynamic> row) =>
+    syncClockOf(row['extras_json']) ?? (row['updated_at'] as num).toInt();
+
+/// The clock one local write must store.
+///
+/// Strictly greater than the clock being replaced and than the display clock
+/// the row will carry: [copyWrittenSinceAgreement] asks "was this written
+/// since", so two writes inside one microsecond would compare equal and the
+/// second one would be invisible to every peer. Stepping from `current + 1`
+/// rather than from `now` also crosses a clock that is ahead of this device's
+/// wall time (a peer with a fast clock, a restored archive), which is the one
+/// case where "now is always newer" does not hold.
+int nextSyncClock({
+  required int nowUs,
+  required int? currentUs,
+  required int updatedAtUs,
+}) {
+  var next = nowUs;
+  if (updatedAtUs >= next) next = updatedAtUs + 1;
+  if (currentUs != null && currentUs >= next) next = currentUs + 1;
+  return next;
+}
+
+/// LWW for the conversation row: the newer [effectiveConversationClock] wins;
+/// ties fall to the higher deviceId so both peers decide identically.
+/// `updated_at` is required on both rows (the column is non-nullable), and is
+/// only the fallback clock for a row that predates [syncClockExtrasKey].
 ///
 /// Row maps use the raw column names and raw SQLite values (microsecond
 /// integers, 0/1 booleans) — the wire format is the storage format, so no
@@ -694,8 +780,8 @@ ConversationRowMerge mergeConversationRow({
   required String myDeviceId,
   required String peerDeviceId,
 }) {
-  final localAt = (local['updated_at'] as num).toInt();
-  final incomingAt = (incoming['updated_at'] as num).toInt();
+  final localAt = effectiveConversationClock(local);
+  final incomingAt = effectiveConversationClock(incoming);
   int cmp = incomingAt.compareTo(localAt);
   if (cmp == 0) {
     cmp = peerDeviceId.compareTo(myDeviceId);
@@ -852,7 +938,7 @@ SyncCheckpointConversation buildCheckpointConversation({
       row['id'] as String: messageRowMutationUs(row),
   };
   return SyncCheckpointConversation(
-    updatedAtUs: (conversationRow['updated_at'] as num).toInt(),
+    updatedAtUs: effectiveConversationClock(conversationRow),
     digest: digest,
     rows: rows,
   );

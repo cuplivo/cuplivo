@@ -3382,15 +3382,16 @@ class ChatService extends ChangeNotifier {
     if (_draftConversations.containsKey(id)) {
       final draft = _draftConversations[id]!;
       draft.title = newTitle;
-      draft.updatedAt = DateTime.now();
       notifyListeners();
       return;
     }
     final conversation = _conversationsCache[id];
     if (conversation == null) return;
 
+    // A rename is tidying, not activity: it travels on the conversation's sync
+    // clock and leaves `updated_at` where it was, so renaming a three-day-old
+    // conversation does not put it at the top of the list.
     conversation.title = newTitle;
-    conversation.updatedAt = DateTime.now();
     await _saveConversation(conversation);
     _bumpConversationListRevision();
     notifyListeners();

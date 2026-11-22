@@ -90,8 +90,9 @@ import 'sync_limits.dart';
 /// v8: the deletion announcement carries the conversation row's clock beside the
 /// digest ([SyncAnnouncedDeletion]). v8's digest was computed from the message
 /// rows alone, so it could not see a row write that left every message untouched
-/// — which is exactly what a restore from the recycle bin is: the row goes back
-/// with `now()` while the messages come back byte-identical. Without the clock,
+/// — which is exactly what a restore from the recycle bin is: the messages come
+/// back byte-identical and the row is written back, so only a row clock can tell
+/// the restored copy from the deleted one. Without the clock,
 /// the announcing peer deletes the restored conversation again at the next
 /// session. (v9 composes the digest from every travelling family, so a document
 /// write is visible there; the clock stays, because a rename is still a row write

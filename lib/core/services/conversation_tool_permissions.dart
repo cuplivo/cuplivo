@@ -54,9 +54,13 @@ class ConversationToolPermissions {
     );
   }
 
-  /// The policy written on this conversation when it was delegated, plus whether
-  /// the conversation that delegated it already holds full access. Null for a
-  /// conversation a user started.
+  /// The escalation policy of a delegated conversation, and the ceiling it was
+  /// given. Null for a conversation a user started.
+  ///
+  /// Both answers come from the child's own extras: they were copied when the
+  /// delegation was created, so nothing the delegating conversation does later —
+  /// gaining full access, losing it — can widen or withdraw this delegation's
+  /// consent behind the user's back.
   static ({SubagentEscalation policy, bool delegatorHasFullAccess})?
   subagentPolicy(ChatService chat, String? conversationId) {
     if (conversationId == null) return null;
@@ -68,15 +72,9 @@ class ConversationToolPermissions {
     for (final value in SubagentEscalation.values) {
       if (value.name == raw) policy = value;
     }
-    final parent = extras[SubagentExtrasKeys.parent];
-    final parentMode = parent is String && parent.isNotEmpty
-        ? ToolPermissionMode.fromExtras(
-            chat.getConversation(parent)?.extras ?? const {},
-          )
-        : null;
     return (
       policy: policy,
-      delegatorHasFullAccess: parentMode == ToolPermissionMode.fullAccess,
+      delegatorHasFullAccess: extras[SubagentExtrasKeys.escalationCap] == true,
     );
   }
 

@@ -1306,6 +1306,13 @@ class HomeViewModel extends ChangeNotifier {
           await drafts.wasSubmitted(submission.id)) {
         queue.removeAt(0);
         await drafts.finishSubmission(submission);
+      } else if (turn is QueuedSubagentResult) {
+        // A thrown delivery cannot be resumed by a person: its row is already
+        // written and the composer can neither show nor cancel it. Leaving it at
+        // the head would strand every message queued behind it, so it leaves and
+        // the next turn reads the divider from the context.
+        queue.removeAt(0);
+        if (queue.isEmpty) _queue.remove(conversationId);
       } else if (_chatService.getConversation(conversationId) != null) {
         _pausedQueuedInputs.add(conversationId);
       }
@@ -1338,6 +1345,11 @@ class HomeViewModel extends ChangeNotifier {
       scheduledNotify: false,
       scheduledPreview: false,
     );
+    if (!outcome.success) {
+      // The row stays and the turn leaves the queue, so nothing retries — which
+      // leaves the user reading "子代理完成 · X" followed by silence. Say why.
+      onWarning?.call('subagent_follow_up_failed');
+    }
     return outcome.success;
   }
 

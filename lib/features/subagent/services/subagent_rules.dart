@@ -36,6 +36,12 @@ abstract final class SubagentExtrasKeys {
   /// place that asks for approval without a provider lookup.
   static const String escalation = 'subagent.escalation';
 
+  /// The ceiling `allow` may reach, copied at the same moment: whether the
+  /// delegating conversation held full access. Read live instead, a parent that
+  /// gained or lost the grant while the child ran would silently raise or
+  /// withdraw a consent that was given for one delegation.
+  static const String escalationCap = 'subagent.escalation.cap';
+
   static const String generalTarget = 'general';
 }
 
@@ -67,6 +73,7 @@ SubagentChildSpec buildChildSpec({
   required String parentConversationId,
   required Map<String, dynamic> parentExtras,
   SubagentEscalation escalation = SubagentEscalation.ask,
+  bool delegatorHasFullAccess = false,
 }) {
   final parentBinding = WorkspaceBinding.fromExtras(parentExtras);
   final depth = parentDepth(parentExtras) + 1;
@@ -83,6 +90,7 @@ SubagentChildSpec buildChildSpec({
       SubagentExtrasKeys.depth: depth,
       SubagentExtrasKeys.target: SubagentExtrasKeys.generalTarget,
       SubagentExtrasKeys.escalation: escalation.name,
+      SubagentExtrasKeys.escalationCap: delegatorHasFullAccess,
     },
   );
 }

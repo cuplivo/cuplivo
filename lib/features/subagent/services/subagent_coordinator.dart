@@ -29,6 +29,7 @@ import '../../../core/database/generation_run.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
+import '../../../core/models/tool_permission_mode.dart';
 import '../../../core/models/workspace_binding.dart';
 import '../../../core/services/chat/chat_service.dart';
 import 'subagent_rules.dart';
@@ -368,6 +369,11 @@ class SubagentCoordinator extends ChangeNotifier {
       parentConversationId: parentConversationId,
       parentExtras: parent.extras,
       escalation: assistant.subagentEscalation,
+      // Snapshot the ceiling with the policy: a grant the parent gains or loses
+      // while the child runs must not silently widen or withdraw this delegation.
+      delegatorHasFullAccess:
+          ToolPermissionMode.fromExtras(parent.extras) ==
+          ToolPermissionMode.fullAccess,
     );
     // No workspace is not a refusal: a child inherits whatever the parent has,
     // including nothing. An unbound parent that still wants a second opinion gets
@@ -597,12 +603,24 @@ class SubagentCoordinator extends ChangeNotifier {
     // answer with an empty conclusion to a model that is blocked on it.
     ChatMessage? notice;
     try {
-      entry.brief = await _briefFor(
-        entry,
-        phase,
-        reason,
-        targetMessageId: targetMessageId,
-      );
+      // A throw here is a database read failing (a shutdown, a closed handle).
+      // It must not swallow the outcome: the fallback brief still names the
+      // delegation and its state, so the parent gets a row and a waiting turn gets
+      // something to read instead of "done, nothing to say".
+      entry.brief =
+          await _briefFor(
+            entry,
+            phase,
+            reason,
+            targetMessageId: targetMessageId,
+          ).catchError(
+            (Object _) => resultBrief(
+              label: entry.title,
+              outcome: _outcomeWord(phase, reason),
+              text: '',
+              childConversationId: entry.childConversationId,
+            ),
+          );
       // Read again, not the snapshot: a wait that ended while the brief was being
       // read (a Stop, an explicit timeout) is gone, and its tool result will never
       // be seen. Trusting the stale read would leave the delegation with no row

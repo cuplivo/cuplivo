@@ -86,7 +86,13 @@ class ToolHandlerService {
             workspaces.byId(id)?.isToolEnabled(name) ?? false,
       );
     } catch (_) {
-      return WorkspaceToolsService();
+      // Fail closed on the escalation policy: without the provider tree the
+      // workspace tool cannot ask who delegated it, and asking on a `deny`
+      // delegation's behalf is worse than refusing to run at all.
+      return WorkspaceToolsService(
+        subagentPolicyOf: (_) =>
+            (policy: SubagentEscalation.deny, delegatorHasFullAccess: false),
+      );
     }
   }
 

@@ -97,6 +97,9 @@ import '../../../shared/widgets/emoji_text.dart';
 import '../../../utils/platform_utils.dart';
 import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
+import '../../subagent/services/subagent_rules.dart' show childTitle;
+import '../../subagent/widgets/subagent_panel.dart' show showSubagentPanel;
+import '../../subagent/widgets/subagent_result_divider.dart';
 import '../../home/services/tool_approval_service.dart';
 import '../utils/assistant_paragraph_splitter.dart';
 import '../utils/thinking_tag_parser.dart';
@@ -578,6 +581,8 @@ IconData? _localToolIconFor(String name, Map<String, dynamic> args) {
     LocalToolNames.remindersQuery => Lucide.ListTodo,
     LocalToolNames.remindersCreate => Lucide.ListPlus,
     LocalToolNames.remindersComplete => Lucide.CheckCircle,
+    LocalToolNames.delegate => Lucide.Bot,
+    LocalToolNames.awaitJob => Lucide.Hourglass,
     _ => null,
   };
 }
@@ -618,6 +623,15 @@ String? _localToolTitleFor(
       l10n.assistantEditLocalToolRemindersCreateTitle,
     LocalToolNames.remindersComplete =>
       l10n.assistantEditLocalToolRemindersCompleteTitle,
+    // The card and the child conversation title must agree, so both come from
+    // the same bound and the same fallback.
+    LocalToolNames.delegate => l10n.chatMessageWidgetDelegate(
+      childTitle(
+        label: args['label']?.toString(),
+        task: (args['task'] ?? '').toString(),
+      ),
+    ),
+    LocalToolNames.awaitJob => l10n.assistantEditLocalToolAwaitJobTitle,
     _ => null,
   };
 }
@@ -4658,7 +4672,24 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       context,
       isUser: isUser,
     );
-    final child = isUser
+    SubagentResultPart? subagentResult;
+    if (isUser) {
+      for (final part in widget.message.parts) {
+        if (part is SubagentResultPart) {
+          subagentResult = part;
+          break;
+        }
+      }
+    }
+    final child = subagentResult != null
+        ? SubagentResultDivider(
+            part: subagentResult,
+            onTap: () => showSubagentPanel(
+              context,
+              conversationId: widget.message.conversationId,
+            ),
+          )
+        : isUser
         ? _buildUserMessage()
         : widget.message.role == 'tool'
         ? _buildToolMessage()

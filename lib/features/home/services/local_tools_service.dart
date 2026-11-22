@@ -34,6 +34,13 @@ class LocalToolNames {
   /// Draws a picture with a separate image model while the reply keeps going.
   static const String generateImage = 'generate_image';
 
+  /// Hands a self-contained task to a child conversation that inherits this
+  /// one's assistant and workspace, and answers before the child is done.
+  static const String delegate = 'delegate';
+
+  /// Waits for a delegation the model chose to block on.
+  static const String awaitJob = 'await_job';
+
   static const List<String> all = [
     timeInfo,
     clipboard,
@@ -52,6 +59,8 @@ class LocalToolNames {
     remindersCreate,
     remindersComplete,
     generateImage,
+    delegate,
+    awaitJob,
   ];
 
   static const List<String> requiresUserApproval = [
@@ -466,6 +475,10 @@ class LocalToolsService {
         return _calculateDefinition;
       case LocalToolNames.generateImage:
         return generateImageDefinition;
+      case LocalToolNames.delegate:
+        return delegateDefinition;
+      case LocalToolNames.awaitJob:
+        return awaitJobDefinition;
       case LocalToolNames.screenTime:
         return _screenTimeDefinition();
       case LocalToolNames.calendarQuery:
@@ -492,6 +505,7 @@ class LocalToolsService {
   static List<Map<String, dynamic>> buildToolDefinitions({
     required Assistant? assistant,
     required bool supportsTools,
+    bool allowDelegation = true,
   }) {
     if (!supportsTools || assistant == null) {
       return const <Map<String, dynamic>>[];
@@ -502,9 +516,26 @@ class LocalToolsService {
     }
 
     final tools = <Map<String, dynamic>>[];
+    final enabled = assistant.localToolIds;
+    // The pair is one capability: an assistant switched on before `await_job`
+    // existed has only `delegate`, and reading membership literally would hand it
+    // half the toolbox while the dialog reports "on".
+    final delegation = enabled.contains(LocalToolNames.delegate);
     for (final id in LocalToolNames.all) {
-      if (!assistant.localToolIds.contains(id)) continue;
+      final on = id == LocalToolNames.awaitJob
+          ? delegation
+          : enabled.contains(id);
+      if (!on) continue;
       if (!isAvailableOnThisPlatform(id)) continue;
+      // A conversation already at the delegation limit does not get the pair at
+      // all: a model that cannot see it does not spend a call discovering the
+      // limit, and the handler still refuses if one is remembered from history.
+      // `await_job` goes with `delegate` — a wait tool with no delegation it
+      // could have started only ever answers `not_found`.
+      if (!allowDelegation &&
+          (id == LocalToolNames.delegate || id == LocalToolNames.awaitJob)) {
+        continue;
+      }
       if (id == LocalToolNames.healthSummary) {
         tools.add(
           _healthSummaryDefinition(
@@ -527,9 +558,14 @@ class LocalToolsService {
     Assistant? assistant, {
     TextToSpeechStarter? onSpeakText,
   }) async {
-    if (assistant == null || !assistant.localToolIds.contains(name)) {
-      return null;
-    }
+    if (assistant == null) return null;
+    // `await_job` is the blocking half of 子代理: it is offered and handled
+    // wherever `delegate` is, so an assistant configured before the pair existed
+    // still gets both.
+    final on = name == LocalToolNames.awaitJob
+        ? assistant.localToolIds.contains(LocalToolNames.delegate)
+        : assistant.localToolIds.contains(name);
+    if (!on) return null;
     if (name == LocalToolNames.timeInfo) {
       return jsonEncode(_buildTimeInfoPayload(DateTime.now()));
     }
@@ -829,6 +865,81 @@ class LocalToolsService {
           },
         },
         'required': ['prompt'],
+      },
+    },
+  };
+
+  /// The delegation tool's schema.
+  ///
+  /// The description carries the two things a model gets wrong here: it must
+  /// not claim the work as its own (the child may fail), and it must not repeat
+  /// the call (one task, one child). Everything else is deliberately short —
+  /// the child sees no history, so the task text has to stand alone.
+  static const Map<String, dynamic> delegateDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.delegate,
+      'description':
+          'Hand one self-contained task to a subagent. It works in its own '
+          'conversation with the same assistant, tools and workspace as this '
+          'one, so it can take a while. This call returns immediately with a '
+          'conversation id and NOT with the result: the subagent is still '
+          'working. When it finishes, its conclusion arrives here as a notice '
+          'and you will be asked to continue. Until that notice arrives, do '
+          'not claim the task is done, do not delegate the same task again, '
+          'and if you have nothing else to do just end your reply.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'task': {
+            'type': 'string',
+            'description':
+                'Everything the subagent needs, in full sentences. It cannot '
+                'see this conversation, so name the files, the goal and the '
+                'constraints.',
+          },
+          'label': {
+            'type': 'string',
+            'description':
+                'A short name for this job, used on the card, the progress '
+                'line and the new conversation title. A noun phrase, not a '
+                'sentence, in the language the user is writing in.',
+          },
+        },
+        'required': ['task', 'label'],
+      },
+    },
+  };
+
+  /// The blocking counterpart of [delegateDefinition].
+  ///
+  /// Waiting is a decision the model makes, not the default: the notice arrives
+  /// on its own, so this is only for the case where the next step genuinely
+  /// cannot start without the answer. It waits as long as the task takes — and
+  /// returns early, not with a timeout, when the subagent stops to ask the user
+  /// something, because only a person can unblock that.
+  static const Map<String, dynamic> awaitJobDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.awaitJob,
+      'description':
+          'Wait for a task you started with `delegate` to finish, and get its '
+          'conclusion here. It blocks until the task ends, however long that '
+          'takes, or until the subagent stops to ask the user something — then '
+          'it returns `waiting_for_input` and you should end your reply. Prefer '
+          'not to use it: the conclusion arrives on its own as a notice, and a '
+          'reply that ends while the task runs is normal. Use it only when your '
+          'next step truly cannot start without the answer.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'job_id': {
+            'type': 'string',
+            'description':
+                'The `job_id` that `delegate` returned for this task.',
+          },
+        },
+        'required': ['job_id'],
       },
     },
   };

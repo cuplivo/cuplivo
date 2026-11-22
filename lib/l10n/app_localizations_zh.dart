@@ -2783,6 +2783,83 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失败';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中断';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理运行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 个子代理正在运行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 个子代理（$running 个正在运行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '这个会话还没有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '正在运行';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失败';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中断';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '模型内置搜索';
 
   @override
@@ -15189,6 +15266,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditLocalToolImageTitle => '绘图';
 
   @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
   String get defaultModelPageImageModelTitle => '绘图模型';
 
   @override
@@ -18012,6 +18095,49 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '决定群聊里下一位发言者，建议选择快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
+
+  @override
+  String get subagentConfigEnabled => '开启';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪个模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '继承本助手';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主对话 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提权访问';
+
+  @override
+  String get subagentEscalationAsk => '询问';
+
+  @override
+  String get subagentEscalationDeny => '始终拒绝';
+
+  @override
+  String get subagentEscalationAllow => '始终允许';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -20793,6 +20919,83 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失败';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中断';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理运行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 个子代理正在运行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 个子代理（$running 个正在运行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '这个会话还没有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '正在运行';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失败';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中断';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '模型内置搜索';
 
   @override
@@ -33199,6 +33402,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditLocalToolImageTitle => '绘图';
 
   @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
   String get defaultModelPageImageModelTitle => '绘图模型';
 
   @override
@@ -36022,6 +36231,49 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '决定群聊里下一位发言者，建议选择快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
+
+  @override
+  String get subagentConfigEnabled => '开启';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪个模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '继承本助手';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主对话 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提权访问';
+
+  @override
+  String get subagentEscalationAsk => '询问';
+
+  @override
+  String get subagentEscalationDeny => '始终拒绝';
+
+  @override
+  String get subagentEscalationAllow => '始终允许';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -38805,6 +39057,83 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String chatMessageWidgetWebFetch(String target) {
     return '讀取網頁: $target';
+  }
+
+  @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失敗';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中斷';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理執行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 個子代理正在執行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 個子代理（$running 個正在執行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '這個會話還沒有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '執行中';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失敗';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中斷';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
   }
 
   @override
@@ -51220,6 +51549,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get assistantEditLocalToolImageTitle => '繪圖';
 
   @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任務';
+
+  @override
   String get defaultModelPageImageModelTitle => '繪圖模型';
 
   @override
@@ -54054,4 +54389,47 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '決定群組聊天中下一位發言者，建議選擇快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本會話自己的工作區裡派一個分身去做完一件任務。';
+
+  @override
+  String get subagentConfigEnabled => '開啟';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允許子代理再派子代理的層數';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪個模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '繼承本助手';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主對話 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提權存取';
+
+  @override
+  String get subagentEscalationAsk => '詢問';
+
+  @override
+  String get subagentEscalationDeny => '始終拒絕';
+
+  @override
+  String get subagentEscalationAllow => '始終允許';
 }

@@ -2906,6 +2906,83 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Delegate: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Subagent finished';
+
+  @override
+  String get subagentResultFailed => 'Subagent failed';
+
+  @override
+  String get subagentResultCancelled => 'Subagent cancelled';
+
+  @override
+  String get subagentResultInterrupted => 'Subagent interrupted';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Subagent running ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Subagents running: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Subagent waiting for you · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count subagents ($running running)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Subagent waiting for approval · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Subagents';
+
+  @override
+  String get subagentPanelEmpty => 'No subagents in this conversation yet.';
+
+  @override
+  String get subagentTag => 'Subagent';
+
+  @override
+  String get subagentPanelRunning => 'Running';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Waiting for you';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Waiting for approval';
+
+  @override
+  String get subagentPanelCompleted => 'Finished';
+
+  @override
+  String get subagentPanelFailed => 'Failed';
+
+  @override
+  String get subagentPanelCancelled => 'Cancelled';
+
+  @override
+  String get subagentPanelInterrupted => 'Interrupted';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '${minutes}m ${seconds}s';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => 'Built-in Search';
 
   @override
@@ -16021,6 +16098,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditLocalToolImageTitle => 'Drawing';
 
   @override
+  String get assistantEditLocalToolDelegateTitle => 'Subagent';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Wait for task';
+
+  @override
   String get defaultModelPageImageModelTitle => 'Image Model';
 
   @override
@@ -19036,4 +19119,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Run one task in a copy of this chat, in the same workspace.';
+
+  @override
+  String get subagentConfigEnabled => 'On';
+
+  @override
+  String get subagentConfigDepth => 'Depth';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'How many levels of subagents may delegate again.';
+
+  @override
+  String get subagentConfigModel => 'Model';
+
+  @override
+  String get subagentConfigModelDescription => 'Which model runs the subagent.';
+
+  @override
+  String get subagentConfigModelInherit => 'Follow this assistant';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · depth $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'View parent chat · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Subagent escalation';
+
+  @override
+  String get subagentEscalationAsk => 'Ask';
+
+  @override
+  String get subagentEscalationDeny => 'Always deny';
+
+  @override
+  String get subagentEscalationAllow => 'Always allow';
 }

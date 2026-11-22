@@ -2952,6 +2952,83 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Поручить субагенту: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Субагент завершил';
+
+  @override
+  String get subagentResultFailed => 'Субагент не справился';
+
+  @override
+  String get subagentResultCancelled => 'Субагент отменён';
+
+  @override
+  String get subagentResultInterrupted => 'Субагент прерван';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Субагент работает ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Субагентов работает: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Субагент ждёт вашего ответа · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return 'Субагентов: $count ($running работают)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Субагенту нужно разрешение · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Субагенты';
+
+  @override
+  String get subagentPanelEmpty => 'В этом разговоре пока нет субагентов.';
+
+  @override
+  String get subagentTag => 'Субагент';
+
+  @override
+  String get subagentPanelRunning => 'Работает';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Ждёт ответа';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Ждёт разрешения';
+
+  @override
+  String get subagentPanelCompleted => 'Завершено';
+
+  @override
+  String get subagentPanelFailed => 'Ошибка';
+
+  @override
+  String get subagentPanelCancelled => 'Отменено';
+
+  @override
+  String get subagentPanelInterrupted => 'Прервано';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes мин $seconds с';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => 'Встроенный поиск';
 
   @override
@@ -16299,6 +16376,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get assistantEditLocalToolImageTitle => 'Рисование';
 
   @override
+  String get assistantEditLocalToolDelegateTitle => 'Субагент';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Ожидание задачи';
+
+  @override
   String get defaultModelPageImageModelTitle => 'Модель изображений';
 
   @override
@@ -19344,4 +19427,50 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Определяет, кто говорит следующим в групповом чате. Лучше всего подойдёт быстрая и недорогая модель.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Выполнить одну задачу в копии этого чата, в том же рабочем пространстве.';
+
+  @override
+  String get subagentConfigEnabled => 'Вкл.';
+
+  @override
+  String get subagentConfigDepth => 'Глубина';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'Сколько уровней подагентов может делегировать дальше';
+
+  @override
+  String get subagentConfigModel => 'Модель';
+
+  @override
+  String get subagentConfigModelDescription =>
+      'Какая модель выполняет подагента';
+
+  @override
+  String get subagentConfigModelInherit => 'Как у этого ассистента';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · глубина $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'К родительскому чату · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Полномочия подагента';
+
+  @override
+  String get subagentEscalationAsk => 'Спрашивать';
+
+  @override
+  String get subagentEscalationDeny => 'Всегда запрещать';
+
+  @override
+  String get subagentEscalationAllow => 'Всегда разрешать';
 }

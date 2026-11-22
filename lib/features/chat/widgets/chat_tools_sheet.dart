@@ -33,6 +33,7 @@ import 'tools_sheet_row.dart';
 import 'image_recall_control.dart';
 import '../../image_job/widgets/image_model_subrow.dart';
 import '../../group_chat/widgets/group_member_strip.dart';
+import '../../subagent/widgets/subagent_config_sheet.dart';
 import '../../mcp/widgets/mcp_server_avatar.dart';
 import '../../mcp/widgets/mcp_tool_connection_status.dart';
 import '../../mcp/utils/mcp_tool_groups.dart';
@@ -546,6 +547,40 @@ class _LocalToolsGroup extends StatelessWidget {
                     value: value,
                   ),
                 ),
+              )
+            else if (id == LocalToolNames.delegate)
+              // 子代理 is two lines of the same grammar as 绘图: the row itself,
+              // and the indented summary of what it would run on. Both open the
+              // three-row dialog; neither is a switch.
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ToolsSheetRow(
+                    key: ChatToolsSheet.localToolKey(LocalToolNames.delegate),
+                    icon: localToolIcon(LocalToolNames.delegate),
+                    label: localToolTitle(l10n, LocalToolNames.delegate),
+                    selected: enabled.contains(id),
+                    trailing: ToolsSheetRow.chevron(context),
+                    onTap: () => unawaited(
+                      showSubagentConfig(context, assistantId: assistant.id),
+                    ),
+                  ),
+                  if (enabled.contains(id))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: ImageModelSubRow(
+                        label: subagentSummary(l10n, assistant),
+                        configured: true,
+                        onTap: () => unawaited(
+                          showSubagentConfig(
+                            context,
+                            assistantId: assistant.id,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               )
             else
               ToolsSheetRow(

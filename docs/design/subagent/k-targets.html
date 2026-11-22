@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 第 6 轮 · 目标范围</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:60em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .row2{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:52px;display:flex;align-items:center;padding:0 8px 0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .av{width:28px;height:28px;border-radius:50%;background:rgba(77,92,146,.12);
+              color:var(--primary);display:flex;align-items:center;justify-content:center;
+              font-size:12px;font-weight:700;flex:none}
+  .appbar .tt{flex:1;min-width:0}
+  .appbar .tt .t{font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .tt .s{font-size:11px;color:rgba(32,32,32,.6);font-weight:500;margin-top:2px;
+                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .act{display:flex;align-items:center;gap:2px;flex:none}
+  .appbar .act svg{width:20px;height:20px;color:rgba(32,32,32,.72);margin:0 8px}
+  .chat{background:var(--bg);padding:12px 0 6px;min-height:110px}
+  .msg{padding:0 16px}
+  .body{font-size:15px;line-height:1.6;margin:0}
+  .body.small{font-size:14.5px;color:rgba(32,32,32,.68)}
+  .stripwrap{background:var(--bg);padding:2px 10px 0}
+  .strip{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 6px;border-radius:8px;
+         color:rgba(32,32,32,.6)}
+  .strip .ic{width:14px;height:14px;flex:none}
+  .strip .txt{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;
+              overflow:hidden;text-overflow:ellipsis}
+  .strip .txt b{font-weight:600;color:rgba(32,32,32,.78);font-variant-numeric:tabular-nums}
+  .strip .chev{width:14px;height:14px;flex:none;opacity:.7}
+  .composerwrap{background:var(--bg);padding:0 10px 10px}
+  .capsule{background:rgba(252,252,253,.92);border-radius:20px;
+           border:1px solid rgba(20,20,25,.14);padding:10px 10px 6px;
+           box-shadow:0 6px 18px rgba(20,20,25,.06)}
+  .field{font-size:15px;color:rgba(32,32,32,.45);padding:1px 2px 12px;min-height:34px}
+  .bar{display:flex;align-items:center;gap:8px}
+  .bar .left{display:flex;align-items:center;gap:8px;flex:1}
+  .bar .right{display:flex;align-items:center;gap:8px;flex:none}
+  .btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+       border-radius:8px;color:rgba(32,32,32,.62)}
+  .btn svg{width:20px;height:20px}
+  .sendbtn{width:32px;height:32px;border-radius:50%;background:var(--primary);
+           display:flex;align-items:center;justify-content:center;flex:none}
+  .sendbtn svg{width:18px;height:18px}
+  /* panel */
+  .panel{background:var(--card);padding:0 0 8px}
+  .phead{font-size:12px;color:var(--muted);padding:10px 14px 6px}
+  .prow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line-soft)}
+  .prow .ic{width:18px;height:18px;flex:none;color:var(--primary);opacity:.85}
+  .prow .txt{flex:1;min-width:0}
+  .prow .txt .n{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .txt .s{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .prow .st{display:flex;align-items:center;gap:5px;font-size:11.5px;flex:none}
+  .prow .st svg{width:13px;height:13px}
+  .st.need{color:var(--primary)}
+  .st.run{color:rgba(32,32,32,.62)}
+  .st.done{color:var(--muted)}
+  .notes{flex:1 1 300px;min-width:260px;max-width:520px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  .quiet{border:1px dashed rgba(20,20,25,.22);border-radius:14px;padding:14px 16px;margin:0 0 22px;
+         background:rgba(20,20,25,.015)}
+  .quiet .h{font-size:12px;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;font-weight:600}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .kv{display:grid;grid-template-columns:84px 1fr;gap:6px 12px;font-size:13.5px;line-height:1.65;
+      color:#33333a;margin:0 0 10px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+    .kv{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第 6 轮 · 目标范围</p>
+  <h1>先修那三处，再问范围</h1>
+  <p class="lede">条去掉了扫光，改成 <code>子代理运行中 (13.3s) 修复 test/auth</code>；面板改成按时间倒序、每行显示时长；标题栏不动（第二行本来就是模型）。然后是你问的两件事：要不要现在就把「可被委派的助手」和「绘图」做成目标。</p>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="chat">
+        <div class="msg"><p class="body small">…发布清单我先看，你那边修好了说一声。</p></div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <span class="txt">子代理运行中 <b>(13.3s)</b> 修复 test/auth</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composerwrap" style="padding-top:2px">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>条：静止文字 + 括号里的时长</h2>
+      <p class="note">和生图卡头 <code>生成插图 (12.6s)</code> 完全同一种写法（<code>image_job_card.dart</code> 的 <code>_ElapsedLabel</code>）：时长在括号里、<code>tabular-nums</code>、每秒变一次数字而不是扫光。扫光那套只留给「不知道还要多久」的状态（生图的骨架）。</p>
+      <p class="note"><b>两个以上时：</b><code>2 个子代理运行中 (1:12)</code>——括号里放最早那个的时长，点开看逐个。</p>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;opacity:.7"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="tt"><div class="t">子代理</div></div>
+        <span style="width:20px"></span>
+      </div>
+      <div class="panel">
+        <div class="phead">按开始时间，新的在上面</div>
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">改哪个标题</div><div class="s">登录页重构 · 2 分 10 秒</div></div>
+          <span class="st need">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 9a2.6 2.6 0 015 1c0 1.7-2.5 2-2.5 3.6M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+            等你回答
+          </span>
+        </div>
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">改登录页文案</div><div class="s">登录页重构 · 40 秒</div></div>
+          <span class="st need">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+            等待批准
+          </span>
+        </div>
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">修掉 test/auth 的三个用例</div><div class="s">登录页重构 · 1 分 52 秒</div></div>
+          <span class="st run">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-6.2-8.6"/></svg>
+            正在运行
+          </span>
+        </div>
+        <div class="prow" style="border-bottom:none">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">整理发布清单</div><div class="s">登录页重构 · 3 分 05 秒</div></div>
+          <span class="st done">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            已完成
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>面板：四种状态，靠图标不靠颜色</h2>
+      <p class="note"><b>排序：</b><code>createdAt</code> 从新到旧，和侧边栏同一套心智；不按状态分组。<b>时间：</b>只显示 duration，不显示「21:07 调用」——正如你说的，用户不关心它几时被叫起来。</p>
+      <p class="note"><b>你问的主题色：</b>不写死琥珀。语义交给<b>图标</b>（问号 = 等你回答，盾 = 等待批准，转圈 = 在跑，勾 = 完成），颜色只表达一件事——<b>要不要你现在动手</b>：要 → <code>cs.primary</code>，不要 → <code>onSurface@0.62</code>。这样换任何主题都不会出现「橙点配紫底」。</p>
+      <p class="note"><b>「等你回答」与「等待批准」</b>都归到「要你动手」，因为它们都是子代理停在那里等人；区别只在图标和那一行副文案。</p>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;opacity:.7"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="av">慢</span>
+        <div class="tt"><div class="t">修掉 test/auth 的三个用例</div><div class="s">GPT-5 (OpenAI)</div></div>
+        <div class="act">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-6-2V4l6 2 6-2 6 2v14l-6-2-6 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        </div>
+      </div>
+      <div class="chat">
+        <div class="msg"><p class="body">三个用例都过了。根因是 token 过期后本地缓存没清，连带失败的那个也一起好了。</p></div>
+      </div>
+      <div class="composerwrap">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>子会话标题栏：不动</h2>
+      <p class="note">你说得对，这里有东西：手机端是 <b>头像 + 标题（16px）+ 第二行「模型 (provider)」</b>（<code>home_mobile_layout.dart:200-243</code>），右侧还有小地图与新建两个动作（<code>:278-314</code>）。第二行已经是模型，塞不进「来自父对话」。</p>
+      <p class="note"><b>所以</b>：标题栏一个字都不改，子会话就是普通会话。它是子代理这件事，由<b>侧边栏那一行的小标签</b>和<b>面板</b>承担；「查看父对话」放在面板的长按菜单里。</p>
+      <p class="note"><b>如果你要更强的信号</b>，最小改动是在标题前加一个 12px 的 <code>子代理</code> 徽标（<code>Row</code> 包住 <code>AnimatedTextSwap</code>），第二行不动。我倾向先不加——从侧边栏点进来的那一行本身就带着标签。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>要不要现在就把「指定助手」和「绘图」做成目标</h2>
+    <p class="note">你说得都对，但它们是两件事，而且方向相反：<b>指定助手</b>是给「派给谁」加一类答案；<b>吸收绘图</b>是把「派出去做什么」的第二种产物并进来。我先把它们拆开说。</p>
+
+    <dl class="kv">
+      <dt>指定助手</dt>
+      <dd>动机成立：默认派给「本助手的分身」，零配置；有需要时指名某个专长的助手。这与 v3 的差别是实质的——v3 必须选目标，现在是特例才选。<b>但有一条线不能动：工作区永远继承调用方。</b>一旦按目标助手解析，本轮要修的根因原样回来。目标只能贡献 模型 / 系统提示 / 工具集。</dd>
+      <dt>风险</dt>
+      <dd>助手编辑页多一栏（开关 + 「被委派时我是谁」的描述）。描述写不好就会重演 v3 的「该开的都开了，却什么都不发生」——那时候的失败多半不是模型不行，是没人知道该填什么。</dd>
+      <dt>吸收绘图</dt>
+      <dd>该吸的是<b>基建</b>，不是<b>工具</b>。两者共有的只有：id 即幂等键、终态写回、取消、状态到卡的映射——这四样本来就该抽成一套 job 引擎。<b>但结果落点完全不同</b>：图的落点是「正文里的一个位置」（<code>![]()</code> 原地替换成图），子代理的落点是「一条消息 + 一个会话」。</dd>
+      <dt>为什么工具别合</dt>
+      <dd>合成 <code>delegate(kind:'image')</code> 的代价：给一张图假造一个会话（它没有会话）、每次画图先让模型选 kind、然后把「占位符替换 / 比例 / asset」这些特例照样一个不少地特判回去。省下的是一个 <code>generate_image</code> 注册，换来一个判别字段和一具空会话。</dd>
+      <dt>能合的</dt>
+      <dd><b>配置面</b>可以合：一个「能力」入口里并列 子代理 / 绘图，各有自己的开关与模型。用户看到的是一个地方，模型看到的是两个契约。</dd>
+      <dt>我的结论</dt>
+      <dd>v1 只做<b>通用子代理</b>；把 job 基建抽出来（顺带把生图迁到它上面，反正还没发版）；「可被委派的助手」作为紧接的<b>第二片</b>，规则写死「工作区继承调用方」；绘图保持独立工具，只在配置面并排。</dd>
+    </dl>
+  </section>
+
+  <div class="quiet">
+    <p class="h">如果选「现在就一起纳入」，形态是这样的</p>
+    <ul>
+      <li><code>delegate(task, label, assistant?)</code>：不给 <code>assistant</code> → 通用子代理（继承本助手）；给了 → 那个助手，<b>但工作区仍继承调用方</b>。</li>
+      <li>助手编辑页新增一栏：<b>可被委派</b>（开关）+ <b>被委派时的描述</b>（一句话，写它能干什么，不是它是谁）。默认关。</li>
+      <li>工具描述里枚举「当前可指名的助手」——这串名单进每个请求的 system prompt，会话变得听话也变得更长。</li>
+      <li>面板与侧边栏要显示每条子代理的<b>目标助手</b>；「通用」与「指定」的徽标要能分辨。</li>
+      <li>绘图若也做目标：<code>delegate(kind:'image')</code>，仍要特判占位符替换、比例、asset。</li>
+    </ul>
+  </div>
+
+  <section>
+    <h2>你提的 await：下一轮专门谈，先把问题摆清楚</h2>
+    <p class="note">「模型等子代理、自己没事干」有三种读法，选错了会同时得罪两头（干等的浪费 vs 停下的偷懒感）：</p>
+    <ul>
+      <li><b>直接停下</b>：模型不调任何工具就结束这一轮。用户看到「已经派了，等它回来」——它必须这么说，工具描述里要写死。零新机制，但模型经常意识不到该停。</li>
+      <li><b><code>await</code> 工具</b>：多一个 <code>await_subagent(id)</code>，阻塞到结果或超时。语义清楚，但它把 wait-only 那套又请回来一半，还要回答「超时了算什么」。</li>
+      <li><b>结果回灌</b>：派出去后不再给模型选择，子代理结束 → 结果作为 tool result 回到本回合。那等于 wait-only，只是发生在服务端。</li>
+    </ul>
+    <p class="note">这一条和 UI 相关（条上要不要显示「在等它」、模型停下时那条分隔线什么时候出现），所以我把它放到下一轮，和「模型停下时用户看到什么」一起画。</p>
+  </section>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li>条：静止文字 + 括号里时长，照生图卡头的写法；不再用扫光。</li>
+      <li>面板：按 <code>createdAt</code> 倒序、每行 duration、四种状态、语义靠图标、颜色只区分「要不要你动手」。</li>
+      <li>子会话标题栏一个字不改；「来自父对话」在面板里。</li>
+      <li>「子代理完成」与「用户同时说话」不做抢占规则——很少见。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li><b>只有通用子代理时，派不了「那个专门写 SQL 的助手」。</b>v1 的所有子代理都是当前助手的分身：同模型、同提示、同工具。</li>
+      <li><b>「可被委派」这个概念要等到第二片才存在。</b>届时助手编辑页会多一栏，那是一次真正的范围扩张，不是补丁。</li>
+      <li><b>绘图与子代理在工具层永远是两个。</b>模型要学两个调用，配置面只是把它们摆在一起。</li>
+      <li><b>job 基建抽出来会动到已合入的生图。</b>虽然还没发版，但它有 18 条测试与一套卡；迁移本身是一笔要还的债。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>这一轮只定一件事：</b>v1 只做通用子代理（推荐），还是现在就同时纳入「可被委派的助手」与「绘图作为目标」。<b>定了之后：</b>先出核心逻辑伪代码（数据流 / 不变量 / 失败模式），再谈 <code>await</code> 与「模型停下的那一刻用户看到什么」。</p>
+
+</main>
+</body>
+</html>

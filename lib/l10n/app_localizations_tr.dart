@@ -2925,6 +2925,83 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Alt ajana devret: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Alt ajan tamamladı';
+
+  @override
+  String get subagentResultFailed => 'Alt ajan başarısız';
+
+  @override
+  String get subagentResultCancelled => 'Alt ajan iptal edildi';
+
+  @override
+  String get subagentResultInterrupted => 'Alt ajan kesildi';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Alt ajan çalışıyor ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Çalışan alt ajan: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Alt ajan yanıtınızı bekliyor · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return 'Alt ajan: $count ($running çalışıyor)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Alt ajan onay bekliyor · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Alt ajanlar';
+
+  @override
+  String get subagentPanelEmpty => 'Bu sohbette henüz alt ajan yok.';
+
+  @override
+  String get subagentTag => 'Alt ajan';
+
+  @override
+  String get subagentPanelRunning => 'Çalışıyor';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Yanıt bekliyor';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Onay bekliyor';
+
+  @override
+  String get subagentPanelCompleted => 'Tamamlandı';
+
+  @override
+  String get subagentPanelFailed => 'Başarısız';
+
+  @override
+  String get subagentPanelCancelled => 'İptal edildi';
+
+  @override
+  String get subagentPanelInterrupted => 'Kesildi';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes dk $seconds sn';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => 'Yerleşik Arama';
 
   @override
@@ -16117,6 +16194,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get assistantEditLocalToolImageTitle => 'Çizim';
 
   @override
+  String get assistantEditLocalToolDelegateTitle => 'Alt ajan';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Görev bekle';
+
+  @override
   String get defaultModelPageImageModelTitle => 'Görsel Modeli';
 
   @override
@@ -19130,4 +19213,50 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Grup sohbetinde sıradaki konuşmacıyı belirler. Hızlı ve düşük maliyetli bir model en uygun seçimdir.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Bu sohbetin bir kopyasında, aynı çalışma alanında tek bir görevi yürütür.';
+
+  @override
+  String get subagentConfigEnabled => 'Açık';
+
+  @override
+  String get subagentConfigDepth => 'Derinlik';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'Alt ajanların kaç düzey daha devredebileceği';
+
+  @override
+  String get subagentConfigModel => 'Model';
+
+  @override
+  String get subagentConfigModelDescription =>
+      'Alt ajanı hangi model çalıştıracak';
+
+  @override
+  String get subagentConfigModelInherit => 'Bu asistanı izle';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · derinlik $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'Üst sohbeti gör · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Alt ajan yetkisi';
+
+  @override
+  String get subagentEscalationAsk => 'Sor';
+
+  @override
+  String get subagentEscalationDeny => 'Her zaman reddet';
+
+  @override
+  String get subagentEscalationAllow => 'Her zaman izin ver';
 }

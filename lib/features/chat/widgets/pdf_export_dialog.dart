@@ -25,6 +25,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../../intelligent_ui/host/ui_export_capture.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../subagent/widgets/subagent_result_divider.dart';
 import '../utils/export_document.dart';
 
 /// Runs one export and answers with what it produced, or null when the user
@@ -184,6 +185,10 @@ Future<PdfExportResult?> exportChatMessagesPdf(
     uiTextByMessage: captures.projections,
     operations: operations,
     readImageBytes: readExportImageBytes,
+    // A delegation's result is a divider in the timeline, so it is one here too:
+    // printing it as the user's own message is the one thing an export must not
+    // do with a row the user never wrote.
+    subagentResultLabelOf: (part) => SubagentResultDivider.labelOf(l10n, part),
   );
   if (!context.mounted) return null;
   final fonts = await (resolver ?? PdfFontResolver(googleFonts: googleFonts))

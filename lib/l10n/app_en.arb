@@ -1399,6 +1399,113 @@
     },
     "description": "Tool-call title for fetching a web page; {target} is the URL host or full URL."
   },
+  "chatMessageWidgetDelegate": "Delegate: {label}",
+  "@chatMessageWidgetDelegate": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Tool-call title for a delegation; {label} is the model's short name for the job."
+  },
+  "subagentResultCompleted": "Subagent finished",
+  "@subagentResultCompleted": {
+    "description": "Divider label where a finished subagent's result appears in the parent conversation."
+  },
+  "subagentResultFailed": "Subagent failed",
+  "@subagentResultFailed": {
+    "description": "Divider label for a subagent whose run ended in an error."
+  },
+  "subagentResultCancelled": "Subagent cancelled",
+  "@subagentResultCancelled": {
+    "description": "Divider label for a subagent the user stopped."
+  },
+  "subagentResultInterrupted": "Subagent interrupted",
+  "@subagentResultInterrupted": {
+    "description": "Divider label for a subagent whose run the app stopped (for example a restart)."
+  },
+  "subagentStripRunning": "Subagent running ({elapsed}) {label}",
+  "@subagentStripRunning": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name."
+  },
+  "subagentStripRunningMany": "Subagents running: {count}",
+  "@subagentStripRunningMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    },
+    "description": "Progress line above the composer while several subagents work and none of them needs the user."
+  },
+  "subagentStripWaiting": "Subagent waiting for you · {label}",
+  "@subagentStripWaiting": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line while one subagent is parked on a question or approval in its own conversation; {label} is the job's short name."
+  },
+  "subagentStripCounts": "{count} subagents ({running} running)",
+  "@subagentStripCounts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "running": {
+        "type": "int"
+      }
+    },
+    "description": "Progress line while several subagents exist and at least one waits for the user; {count} is the total, {running} how many are still working."
+  },
+  "subagentStripWaitingApproval": "Subagent waiting for approval · {label}",
+  "@subagentStripWaitingApproval": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line while one subagent is blocked on a tool approval in its own conversation."
+  },
+  "subagentPanelTitle": "Subagents",
+  "@subagentPanelTitle": {
+    "description": "Title of the panel listing the subagents of this conversation."
+  },
+  "subagentPanelEmpty": "No subagents in this conversation yet.",
+  "@subagentPanelEmpty": {
+    "description": "Shown in the subagent panel when this process has never delegated anything here."
+  },
+  "subagentTag": "Subagent",
+  "@subagentTag": {
+    "description": "Short tag beside a conversation's title in the sidebar, saying this chat is a delegated task rather than one the user started."
+  },
+  "subagentPanelRunning": "Running",
+  "subagentPanelWaitingAnswer": "Waiting for you",
+  "subagentPanelWaitingApproval": "Waiting for approval",
+  "subagentPanelCompleted": "Finished",
+  "subagentPanelFailed": "Failed",
+  "subagentPanelCancelled": "Cancelled",
+  "subagentPanelInterrupted": "Interrupted",
+  "subagentPanelElapsed": "{minutes}m {seconds}s",
+  "@subagentPanelElapsed": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    },
+    "description": "How long one subagent ran, shown at the end of its row in the panel."
+  },
   "chatMessageWidgetBuiltinSearch": "Built-in Search",
   "chatMessageWidgetReadClipboard": "Read Clipboard",
   "chatMessageWidgetWriteClipboard": "Write Clipboard",
@@ -7976,6 +8083,14 @@
   "@assistantEditLocalToolImageTitle": {
     "description": "Name of the drawing capability in the assistant's local-tool list."
   },
+  "assistantEditLocalToolDelegateTitle": "Subagent",
+  "@assistantEditLocalToolDelegateTitle": {
+    "description": "Name of the delegation capability in the assistant's local-tool list."
+  },
+  "assistantEditLocalToolAwaitJobTitle": "Wait for task",
+  "@assistantEditLocalToolAwaitJobTitle": {
+    "description": "Name of the capability that blocks until a delegated task finishes."
+  },
   "defaultModelPageImageModelTitle": "Image Model",
   "@defaultModelPageImageModelTitle": {
     "description": "Settings row for choosing the model that draws pictures."
@@ -10022,7 +10137,7 @@
     "description": "Backup category label for quick phrases."
   },
   "@backupPageInstructionsLabel": {
-    "description": "Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library\u2019s summary templates and recipes. It must name the material, not one of the two features that write it."
+    "description": "Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library’s summary templates and recipes. It must name the material, not one of the two features that write it."
   },
   "@backupPageWorkspacesLabel": {
     "description": "Backup category label for workspaces."
@@ -24541,5 +24656,91 @@
   "defaultModelPageDirectorModelSubtitle": "Picks who speaks next in a group chat. A fast, low-cost model is the best fit.",
   "@defaultModelPageDirectorModelSubtitle": {
     "description": "Subtitle of the director model card: what the model does and which model suits it."
+  },
+  "@subagentPanelRunning": {
+    "description": "State word for a subagent that is still working, shown at the right of its row in the panel."
+  },
+  "@subagentPanelWaitingAnswer": {
+    "description": "State word for a subagent whose question is waiting for the user to answer it."
+  },
+  "@subagentPanelWaitingApproval": {
+    "description": "State word for a subagent whose tool call is waiting for the user's approval."
+  },
+  "@subagentPanelCompleted": {
+    "description": "State word for a subagent that finished successfully."
+  },
+  "@subagentPanelFailed": {
+    "description": "State word for a subagent whose run ended in an error."
+  },
+  "@subagentPanelCancelled": {
+    "description": "State word for a subagent the user stopped."
+  },
+  "@subagentPanelInterrupted": {
+    "description": "State word for a subagent whose run the app stopped, for example when the app restarts."
+  },
+  "subagentConfigSubtitle": "Run one task in a copy of this chat, in the same workspace.",
+  "@subagentConfigSubtitle": {
+    "description": "One sentence above the three settings, saying what delegating does in this conversation."
+  },
+  "subagentConfigEnabled": "On",
+  "@subagentConfigEnabled": {
+    "description": "Label of the switch that turns delegation on for this assistant."
+  },
+  "subagentConfigDepth": "Depth",
+  "@subagentConfigDepth": {
+    "description": "Label of the row that states how deep delegation may go."
+  },
+  "subagentConfigDepthDescription": "How many levels of subagents may delegate again.",
+  "@subagentConfigDepthDescription": {
+    "description": "Explains the depth option itself, not its current value."
+  },
+  "subagentConfigModel": "Model",
+  "@subagentConfigModel": {
+    "description": "Label of the row that chooses the model delegations run on."
+  },
+  "subagentConfigModelDescription": "Which model runs the subagent.",
+  "@subagentConfigModelDescription": {
+    "description": "Explains the model option itself, not its current value."
+  },
+  "subagentConfigModelInherit": "Follow this assistant",
+  "@subagentConfigModelInherit": {
+    "description": "The model value shown when delegations follow the assistant, and the matching choice in the model picker."
+  },
+  "subagentConfigSummary": "{model} · depth {depth}",
+  "@subagentConfigSummary": {
+    "description": "Second line of the toolbox row: what a delegation runs on and how deep it may go.",
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "depth": {
+        "type": "int"
+      }
+    }
+  },
+  "subagentViewParent": "View parent chat · {label}",
+  "@subagentViewParent": {
+    "description": "The row at the top and bottom of a delegated conversation that returns to the conversation that started it; {label} is that conversation's title.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "subagentEscalation": "Subagent escalation",
+  "@subagentEscalation": {
+    "description": "Label of the row that decides how a delegated task may spend the user's permission."
+  },
+  "subagentEscalationAsk": "Ask",
+  "@subagentEscalationAsk": {
+    "description": "Escalation policy: ask the user, in the child conversation, whenever a tool call needs approval."
+  },
+  "subagentEscalationDeny": "Always deny",
+  "@subagentEscalationDeny": {
+    "description": "Escalation policy: never ask; refuse the tool call inside a subagent."
+  },
+  "subagentEscalationAllow": "Always allow",
+  "@subagentEscalationAllow": {
+    "description": "Escalation policy: do not ask, but only up to what the delegating conversation already allows."
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:Cuplivo/core/models/assistant.dart' show SubagentEscalation;
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import 'package:Cuplivo/core/models/workspace_binding.dart';
@@ -205,6 +206,60 @@ void main() {
       enabled = false;
       approvals.approve('pending', conversationId: 'a');
       await expectation;
+    },
+  );
+  test('a subagent told to never escalate is refused without a card', () async {
+    final approvals = ToolApprovalService();
+    addTearDown(approvals.dispose);
+    final call = ToolCallPermission(
+      toolName: 'shell',
+      toolCallId: 'pending',
+      conversationId: 'child',
+      approvals: approvals,
+      subagentEscalation: SubagentEscalation.deny,
+      readState: () => const ToolPermissionState(),
+    );
+    await expectLater(
+      call.authorize(needed: true, arguments: {}),
+      throwsA(
+        isA<ToolPermissionException>().having(
+          (e) => e.code,
+          'code',
+          'subagent_escalation_denied',
+        ),
+      ),
+    );
+    expect(approvals.hasPending, isFalse);
+  });
+  test(
+    'a subagent told to always allow still asks unless its delegator had it',
+    () async {
+      final approvals = ToolApprovalService();
+      addTearDown(approvals.dispose);
+      final capped = ToolCallPermission(
+        toolName: 'shell',
+        toolCallId: 'capped',
+        conversationId: 'child',
+        approvals: approvals,
+        subagentEscalation: SubagentEscalation.allow,
+        readState: () => const ToolPermissionState(),
+      );
+      final pending = capped.authorize(needed: true, arguments: {});
+      expect(approvals.hasPending, isTrue);
+      approvals.approve('capped', conversationId: 'child');
+      await pending;
+
+      final open = ToolCallPermission(
+        toolName: 'shell',
+        toolCallId: 'open',
+        conversationId: 'child',
+        approvals: approvals,
+        subagentEscalation: SubagentEscalation.allow,
+        delegatorHasFullAccess: true,
+        readState: () => const ToolPermissionState(),
+      );
+      await open.authorize(needed: true, arguments: {});
+      expect(approvals.hasPending, isFalse);
     },
   );
 }

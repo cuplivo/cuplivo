@@ -17,6 +17,9 @@ import '../../../core/services/app_exit_flush.dart';
 import '../../scheduled_tasks/scheduled_task_preparation_binding.dart';
 import '../../../core/services/scheduled_tasks_service.dart';
 import '../../scheduled_tasks/scheduled_task_runner.dart';
+import '../services/tool_approval_service.dart';
+import '../../subagent/services/subagent_coordinator.dart';
+import '../../subagent/services/subagent_model.dart' show resolveSubagentModel;
 import 'dart:async';
 import 'package:flutter/foundation.dart' show listEquals, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -24,10 +27,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/models/chat_input_data.dart';
+import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/chat_owner.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/models/queued_turn.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/models/workspace_binding.dart';
 import '../../../core/providers/workspace_provider.dart';
@@ -41,6 +46,7 @@ import '../../../core/providers/quick_phrase_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/memory_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../subagent/services/subagent_rules.dart';
 import '../../../core/utils/scheduler_idle.dart';
 import '../../../core/services/tts/tts_text_selection.dart';
 import '../../../core/services/haptics.dart';
@@ -744,7 +750,96 @@ class HomePageController extends ChangeNotifier {
   bool get isCurrentConversationLoading =>
       _viewModel.isCurrentConversationLoading;
 
-  QueuedChatInput? get currentQueuedInput => _viewModel.currentQueuedInput;
+  /// What the subagent coordinator needs from this page.
+  ///
+  /// The coordinator is provided above the page (the tool handler reads it from
+  /// its own context) while a turn can only be started here, so the page hands
+  /// over the three capabilities once and takes them back when it goes away.
+  SubagentHost buildSubagentHost() => SubagentHost(
+    turnStarter:
+        ({required conversationId, required assistant, required task}) =>
+            startSubagentTurn(
+              conversationId: conversationId,
+              assistant: assistant,
+              task: task,
+            ),
+    enqueueResult:
+        ({
+          required parentConversationId,
+          required notice,
+          required assistant,
+          required followUp,
+        }) => _viewModel.enqueueQueuedTurn(
+          QueuedSubagentResult(
+            parentConversationId,
+            notice: notice,
+            assistant: assistant,
+            followUp: followUp,
+          ),
+        ),
+    waitReasonFor: _waitReasonForChild,
+    openConversation: (conversationId) {
+      unawaited(switchConversationAnimated(conversationId));
+    },
+    cancelTurn: (conversationId) =>
+        _viewModel.cancelGenerationOf(conversationId),
+  );
+
+  /// Why a child conversation is parked, if it is: `ask_user` first because it
+  /// is the answer the user has to type, then an approval.
+  SubagentWaitReason? _waitReasonForChild(String childConversationId) {
+    if (!_context.mounted) return null;
+    try {
+      final askUser = _context.read<AskUserInteractionService>();
+      if (askUser.pendingRequests.values.any(
+        (request) => request.conversationId == childConversationId,
+      )) {
+        return SubagentWaitReason.answer;
+      }
+    } catch (_) {}
+    try {
+      final approval = _context.read<ToolApprovalService>();
+      if (approval.pendingRequests.any(
+        (request) => request.conversationId == childConversationId,
+      )) {
+        return SubagentWaitReason.approval;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Runs one whole turn in [conversationId] on behalf of a subagent.
+  Future<SubagentTurnStart> startSubagentTurn({
+    required String conversationId,
+    required Assistant assistant,
+    required String task,
+  }) async {
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) {
+      return const SubagentTurnStart.refused('conversation_missing');
+    }
+    final model = resolveSubagentModel(assistant);
+    final result = await _viewModel.sendScheduledMessage(
+      input: ChatInputData(text: task),
+      conversation: conversation,
+      assistant: assistant,
+      modelOverride: model == null
+          ? null
+          : (providerKey: model.providerId, modelId: model.modelId),
+      scheduledNotify: false,
+      scheduledPreview: false,
+    );
+    if (!result.success) {
+      return SubagentTurnStart.refused(result.errorMessage ?? 'turn_failed');
+    }
+    final runId = result.generationRunId;
+    if (runId == null) {
+      return const SubagentTurnStart.refused('run_missing');
+    }
+    return SubagentTurnStart.started(runId: runId);
+  }
+
+  QueuedUserInput? get currentQueuedInput => _viewModel.currentQueuedInput;
   bool get currentQueuedInputPaused => _viewModel.currentQueuedInputPaused;
   bool get isCurrentConversationCompressing =>
       _viewModel.currentCompressionTask?.active ?? false;
@@ -3061,6 +3156,18 @@ class HomePageController extends ChangeNotifier {
 
   Future<void> _handleAssistantMessageFinished(ChatMessage message) async {
     if (!_context.mounted || message.role != 'assistant') return;
+    // A subagent finishes in its own conversation. Reading its conclusion aloud
+    // while the user is looking at something else is the page-level callback
+    // answering for a turn nobody is watching; the notice is enough. The test is
+    // "is this a delegated child", not "is this the open conversation" — a reply
+    // in some other chat the user left open is still theirs to hear.
+    final extras =
+        _context
+            .read<ChatService>()
+            .getConversation(message.conversationId)
+            ?.extras ??
+        const <String, dynamic>{};
+    if (extras[SubagentExtrasKeys.parent] != null) return;
     final settings = _context.read<SettingsProvider>();
     if (settings.ttsAutoPlayAssistantReplies) {
       await _speakAssistantMessage(message, autoPlay: true);
@@ -4487,6 +4594,10 @@ class HomePageController extends ChangeNotifier {
       // conversation cache, the catch-up found no candidates, and nothing
       // retried afterwards because the chat was never resumed again.
       unawaited(_recoverProactiveCareOnResume());
+      // A queue that could not drain while the app was in the background gets its
+      // turn now: the drain refuses to start a generation while the OS may hold
+      // the isolate frozen, and nothing else re-asks on return.
+      _viewModel.drainAllQueuedTurns();
     }
   }
 

@@ -2842,6 +2842,83 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '서브에이전트 파견: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => '서브에이전트 완료';
+
+  @override
+  String get subagentResultFailed => '서브에이전트 실패';
+
+  @override
+  String get subagentResultCancelled => '서브에이전트 취소됨';
+
+  @override
+  String get subagentResultInterrupted => '서브에이전트 중단됨';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '서브에이전트 실행 중 ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '서브에이전트 $count개 실행 중';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '서브에이전트가 답변을 기다립니다 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '서브에이전트 $count개 ($running개 실행 중)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '서브에이전트가 승인을 기다립니다 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '서브에이전트';
+
+  @override
+  String get subagentPanelEmpty => '이 대화에는 아직 서브에이전트가 없습니다.';
+
+  @override
+  String get subagentTag => '서브에이전트';
+
+  @override
+  String get subagentPanelRunning => '실행 중';
+
+  @override
+  String get subagentPanelWaitingAnswer => '답변 대기';
+
+  @override
+  String get subagentPanelWaitingApproval => '승인 대기';
+
+  @override
+  String get subagentPanelCompleted => '완료';
+
+  @override
+  String get subagentPanelFailed => '실패';
+
+  @override
+  String get subagentPanelCancelled => '취소됨';
+
+  @override
+  String get subagentPanelInterrupted => '중단됨';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes분 $seconds초';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '내장 검색';
 
   @override
@@ -15532,6 +15609,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get assistantEditLocalToolImageTitle => '그리기';
 
   @override
+  String get assistantEditLocalToolDelegateTitle => '서브에이전트';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '작업 대기';
+
+  @override
   String get defaultModelPageImageModelTitle => '이미지 모델';
 
   @override
@@ -18446,4 +18529,47 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '그룹 채팅에서 다음 발언자를 선택합니다. 빠르고 저렴한 모델이 가장 적합합니다.';
+
+  @override
+  String get subagentConfigSubtitle => '이 대화의 복제본에서 같은 작업 공간으로 한 가지 작업을 실행합니다.';
+
+  @override
+  String get subagentConfigEnabled => '켜기';
+
+  @override
+  String get subagentConfigDepth => '깊이';
+
+  @override
+  String get subagentConfigDepthDescription => '하위 에이전트가 다시 위임할 수 있는 단계 수';
+
+  @override
+  String get subagentConfigModel => '모델';
+
+  @override
+  String get subagentConfigModelDescription => '하위 에이전트를 실행할 모델';
+
+  @override
+  String get subagentConfigModelInherit => '이 어시스턴트 따르기';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 깊이 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '상위 대화 보기 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '하위 에이전트 권한 위임';
+
+  @override
+  String get subagentEscalationAsk => '묻기';
+
+  @override
+  String get subagentEscalationDeny => '항상 거부';
+
+  @override
+  String get subagentEscalationAllow => '항상 허용';
 }

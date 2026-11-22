@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>导出里的结果行 · 段落标题</title>
+<style>
+  :root{--bg:#0b0c0f;--card:#15171c;--card2:#1b1e25;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:26px 20px 46px}
+  .wrap{max-width:620px;margin:0 auto}
+  h1{font-size:17px;font-weight:600;margin:0 0 12px}
+  h2{font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--dim);
+    text-transform:uppercase;margin:22px 0 8px}
+  .cap{color:var(--muted);font-size:12px;margin:8px 0 0}
+  .cap b{color:var(--fg);font-weight:600}
+  .png{background:#000;border-radius:10px;padding:16px}
+  .pngcard{background:#101216;border-radius:12px;padding:14px}
+  .t{font-size:13px;font-weight:600}
+  .ts{font-size:9px;color:var(--muted);margin-top:1px}
+  .bub{background:rgba(122,162,255,.16);border-radius:11px;padding:8px 10px;font-size:12px;margin-top:10px;max-width:88%}
+  .h{display:flex;align-items:center;gap:8px;margin:12px 0 6px}
+  .h .ln{flex:1;height:.5px;background:rgba(255,255,255,.16)}
+  .h .tx{font-size:10.5px;font-weight:600;letter-spacing:.02em;color:rgba(255,255,255,.62);white-space:nowrap}
+  .ai{font-size:12px;margin-top:4px}
+  .pdf{background:#fff;color:#1b1d22;border-radius:10px;padding:18px 20px;font-size:12px;line-height:1.65}
+  .pdf .pt{font-size:15px;font-weight:600;margin-bottom:2px}
+  .pdf .ptime{font-size:9.5px;color:#7b818c}
+  .pdf .ph{display:flex;align-items:center;gap:10px;margin:14px 0 8px}
+  .pdf .ph .ln{flex:1;height:.6px;background:#d6dae1}
+  .pdf .ph .tx{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;white-space:nowrap}
+  .pdf .surname{font-size:9.5px;color:#6b7280;margin:10px 0 3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>导出里的结果行 · 段落标题</h1>
+
+<h2>PNG（整段分享）</h2>
+<div class="png">
+  <div class="pngcard">
+    <div class="t">登录页重构</div>
+    <div class="ts">2026-11-22 13:04</div>
+    <div class="bub">派个子代理去把 test/auth 里挂掉的三个用例修掉。</div>
+    <div class="h"><span class="ln"></span><span class="tx">子代理完成 · 认证</span><span class="ln"></span></div>
+    <div class="ai">三个用例都过了。根因是 token 过期后本地缓存没清。</div>
+  </div>
+</div>
+<p class="cap">一条<b>带文字的细分隔线</b>：线是 0.5px，字是 10.5px 加粗、字距略开。缩到手机上看不清线，但字还在。</p>
+
+<h2>PDF</h2>
+<div class="pdf">
+  <div class="pt">登录页重构</div>
+  <div class="ptime">2026-11-22 13:04</div>
+  <div class="surname">你</div>
+  <div>派个子代理去把 test/auth 里挂掉的三个用例修掉。</div>
+  <div class="ph"><span class="ln"></span><span class="tx">子代理完成 · 认证</span><span class="ln"></span></div>
+  <div>三个用例都过了。根因是 token 过期后本地缓存没清。</div>
+</div>
+<p class="cap">和聊天里同一句话、同一个位置，只是<b>字号按纸面缩小</b>（9.5px、大写字母间距）。分页处的横线不会跨页。</p>
+
+</div>
+</body>
+</html>

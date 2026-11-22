@@ -25,6 +25,7 @@ import 'image_preview_sheet.dart';
 import 'export_image_capture.dart';
 import 'export_progress_overlay.dart';
 import '../utils/export_image_processor.dart';
+import '../../subagent/widgets/subagent_result_divider.dart';
 
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/models/chat_message.dart';
@@ -945,6 +946,17 @@ Future<void> exportChatMessagesMarkdown(
 
     for (final msg in captures.messages) {
       final time = timeFormatter.format(msg.timestamp);
+      // A delegation's result is a divider, exactly as it is in the timeline and
+      // in the PDF: an export that prints it as "Alice: Subagent finished …"
+      // tells a reader the user wrote something they never wrote.
+      final notice = subagentResultPartOf(msg.parts);
+      if (notice != null) {
+        buf.writeln('### ${SubagentResultDivider.labelOf(l10n, notice)}');
+        // The string below carries its own leading and trailing newline: a
+        // separate blank line here would put two empty lines before the rule.
+        buf.writeln('\n---\n');
+        continue;
+      }
       final roleName = _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
@@ -1077,6 +1089,13 @@ Future<void> exportChatMessagesTxt(
 
     for (final msg in captures.messages) {
       final time = timeFormatter.format(msg.timestamp);
+      // The same divider in the plain-text export, in its own dialect.
+      final notice = subagentResultPartOf(msg.parts);
+      if (notice != null) {
+        buf.writeln('[${SubagentResultDivider.labelOf(l10n, notice)}]');
+        buf.writeln('\n---\n');
+        continue;
+      }
       final roleName = _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
@@ -2691,6 +2710,32 @@ class _ExportedMessageCard extends StatelessWidget {
     final double containerMargin = isDesktop ? 12.0 : 16.0;
     final double containerPadding = isDesktop ? 12.0 : 16.0;
 
+    // A delegation's result is a divider here too: the image export draws a card
+    // per message with the speaker's name, and this row has no speaker.
+    final notice = subagentResultPartOf(message.parts);
+    if (notice != null) {
+      return Container(
+        margin: EdgeInsets.all(containerMargin),
+        padding: EdgeInsets.symmetric(
+          horizontal: containerPadding,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: context.appColors.surfaceCard,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          SubagentResultDivider.labelOf(AppLocalizations.of(context)!, notice),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: isDesktop ? 11.5 : 13,
+            color: cs.onSurface.withValues(alpha: .6),
+          ),
+        ),
+      );
+    }
+
     final messageForExport = messageForThinkingExport(
       message,
       showThinkingAndToolCards: showThinkingAndToolCards,
@@ -2872,13 +2917,24 @@ class _ExportedChatImage extends StatelessWidget {
               ),
               SizedBox(height: isDesktop ? 10.0 : 12.0),
               for (final m in messages) ...[
-                _ExportedBubble(
-                  message: m,
-                  cs: cs,
-                  showThinkingAndToolCards: showThinkingAndToolCards,
-                  expandThinkingContent: expandThinkingContent,
-                  isDesktop: isDesktop,
-                ),
+                // A delegation's result is a divider here too: the bubble would
+                // print the user's name over a row they never wrote.
+                if (subagentResultPartOf(m.parts) case final notice?)
+                  _ExportedDivider(
+                    label: SubagentResultDivider.labelOf(
+                      AppLocalizations.of(context)!,
+                      notice,
+                    ),
+                    isDesktop: isDesktop,
+                  )
+                else
+                  _ExportedBubble(
+                    message: m,
+                    cs: cs,
+                    showThinkingAndToolCards: showThinkingAndToolCards,
+                    expandThinkingContent: expandThinkingContent,
+                    isDesktop: isDesktop,
+                  ),
                 SizedBox(height: isDesktop ? 6.0 : 8.0),
               ],
               SizedBox(height: isDesktop ? 10.0 : 12.0),
@@ -2887,6 +2943,45 @@ class _ExportedChatImage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The divider an exported conversation uses where a delegation's result sits.
+///
+/// A hairline with a bold small label rather than the timeline's 28px row: a PNG
+/// is a fixed width that gets scaled down and a PDF prints at 300dpi, and in both
+/// a 1px line alone either disappears or outweighs the body text. The word is
+/// what has to survive.
+class _ExportedDivider extends StatelessWidget {
+  const _ExportedDivider({required this.label, required this.isDesktop});
+
+  final String label;
+  final bool isDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final lineColor = cs.onSurface.withValues(alpha: .16);
+    return Row(
+      children: [
+        Expanded(child: Divider(height: 1, thickness: .5, color: lineColor)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: isDesktop ? 9.5 : 10.5,
+              fontWeight: AppFontWeights.emphasis,
+              letterSpacing: .3,
+              color: cs.onSurface.withValues(alpha: .62),
+            ),
+          ),
+        ),
+        Expanded(child: Divider(height: 1, thickness: .5, color: lineColor)),
+      ],
     );
   }
 }

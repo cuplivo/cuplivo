@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 提权访问的三选一</title>
+<style>
+  :root{
+    --bg:#0b0c0f;--card:#15171c;--card2:#1b1e25;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34);
+    --primary:#7aa2ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:28px 20px 52px}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:18px;font-weight:600;margin:0 0 6px}
+  .lede{color:var(--muted);font-size:12.5px;margin:0 0 24px}
+  h2{font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--dim);
+    text-transform:uppercase;margin:26px 0 10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .srow{display:flex;align-items:center;gap:10px;padding:11px 2px;font-size:13.5px}
+  .srow + .srow{border-top:1px solid var(--line)}
+  .srow .t{flex:1}
+  .srow .val{color:var(--muted);font-size:13px}
+  .srow .chev{color:var(--dim);font-size:12px}
+  .srow.sel .t{color:var(--primary)}
+  .srow .tick{color:var(--primary);font-size:12px}
+  .cap{color:var(--muted);font-size:12px;margin:12px 0 0}
+  .cap b{color:var(--fg);font-weight:600}
+  .dim{opacity:.45}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>子代理 · 提权访问的三选一</h1>
+<p class="lede">按你三点改的：名字换成「子代理提权访问」、行上不带说明、值改成三选一。其余照上一版（唤醒那段你已经点头）。</p>
+
+<h2>配置弹窗（第四行改了）</h2>
+<div class="card">
+  <div class="srow"><span class="t">开启</span><span class="val">开</span></div>
+  <div class="srow"><span class="t">深度</span><span class="val">1</span></div>
+  <div class="srow"><span class="t">模型</span><span class="val">继承本助手</span><span class="chev">›</span></div>
+  <div class="srow"><span class="t">子代理提权访问</span><span class="val">询问</span><span class="chev">›</span></div>
+  <p class="cap">四项，一行一句，没有说明行。第四行的值就是当前策略。</p>
+</div>
+
+<h2>点进去：三选一</h2>
+<div class="card">
+  <div class="srow sel"><span class="t">询问</span><span class="tick">✓</span></div>
+  <div class="srow"><span class="t">始终拒绝</span></div>
+  <div class="srow"><span class="t">始终允许</span></div>
+  <p class="cap">默认<b>询问</b>：需要提权的调用在子会话里弹批准卡，同时输入框上那条带图标（就是上一版那枚琥珀色图标），点一下就过去。选<b>始终拒绝</b>：不弹，直接回给子代理「无权批准」。选<b>始终允许</b>：不弹，直接放行——知道自己在干什么才用这个。</p>
+</div>
+
+<h2>它在代码里是什么</h2>
+<div class="card">
+  <p class="cap" style="margin-top:0">助手 JSON 上多一个枚举字段 <code>subagentEscalation</code>（<code>ask</code> / <code>deny</code> / <code>allow</code>，缺省 <code>ask</code>），和 <code>imageModelId</code> 同级——schema 仍是 5，没有新表新列。</p>
+  <p class="cap">判定点只有一个：子会话里那个「要用户批准」的分支。父会话的批准完全不受影响。</p>
+</div>
+
+</div>
+</body>
+</html>

@@ -79,13 +79,8 @@ Flutter entry (plugin UI only).
 - Drawer content in DSH mode, dark:
   - Search field `搜索当前助手` + history icon.
   - Remote row: whale avatar, name, trailing chevron (collapses the sections).
-  - Entry rows with line icons: **插件** (puzzle), then the fixed rows of the
-    known plugins the Host inventory reports (e.g. better-search's **搜索服务**,
-    magnifier, slot order 5), then **自动化任务** (clock), and **更多** (grid)
-    last. Tapping an entry opens its official WebUI page landed on that row.
-  - Before the first official-page harvest the known-plugin rows mount natively
-    from Cuplivo's fixed-entry table; the harvested official labels replace them
-    afterwards (plugin-compat.md §4.6).
+  - Three entry rows with line icons: **插件** (puzzle), **自动化任务** (clock),
+    **更多** (grid). Tapping an entry opens its Flutter entry page.
   - Workspace sections (`默认工作区`, `Test` are examples): folder icon + name,
     then session rows; the selected session has the Cuplivo selected-row
     treatment (filled rounded row). A workspace's new-session row is `新会话`.
@@ -132,17 +127,12 @@ Flutter entry (plugin UI only).
   (`开始`, layout/expand/close actions at the right).
 - Body (official DSH surface → Flutter native, rule "official UI is Flutter"):
   - compass/start glyph,
-  - native tool cards with leading icon, title, subtitle, shortcut:
+  - four tool cards with leading icon, title, subtitle, shortcut:
     `工作区文件` / `浏览会话工作区的文件` / `Ctrl + P`,
     `新建终端` / `在会话工作区运行命令` / `Ctrl + ` ``,
-  - the fixed cards of the known plugins the Host inventory reports, in the
-    official guide order (better-workspaces: `代码变更` / `新建 worktree` /
-    `Issue 与 PR`), each with the plugin's own subtitle,
-  - `更多工具` / (no subtitle), last. `浏览器` is intentionally absent: DSH
-    0.2.2-rc.1 exposes no remote browser API, so a browser card would be a
-    control the remote cannot serve (capability parity).
-- Plugin contributions beyond that fixed table appear as additional entries
-  once the official page has been harvested; their inner panel is
+    `浏览器` / `浏览网页` / `Ctrl + T`,
+    `更多工具` / (no subtitle).
+- Plugin contributions appear as additional entries; their inner panel is
   **[W] WebView** inside the Flutter rail chrome.
 - Official tool panels are native: workspace files browser, terminal, browser
   use Cuplivo's own surfaces driven by the remote's APIs, not an embedded DSH

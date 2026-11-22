@@ -97,9 +97,6 @@ class Lucide {
   static const IconData BookOpenText = lucide.LucideIcons.bookOpenText;
   static const IconData Pencil = lucide.LucideIcons.pencil;
   static const IconData GitFork = lucide.LucideIcons.gitFork;
-  static const IconData GitBranch = lucide.LucideIcons.gitBranch;
-  static const IconData GitCompare = lucide.LucideIcons.gitCompare;
-  static const IconData GitPullRequest = lucide.LucideIcons.gitPullRequest;
   static const IconData Eye = lucide.LucideIcons.eye;
   static const IconData EyeOff = lucide.LucideIcons.eyeOff;
   static const IconData Clipboard = lucide.LucideIcons.clipboard;

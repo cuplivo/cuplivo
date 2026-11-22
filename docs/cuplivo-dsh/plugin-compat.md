@@ -504,54 +504,6 @@ in order until the page identifies itself (`[data-plugin-panel]` for the plugin
 manager; a heading or `[data-slot]` content for others). §6.3 gives the probe
 shape and its cost.
 
-### 4.6 Cuplivo mounts the fixed entries of known plugins natively
-
-§4.4 says the wire never exposes client slot registrations, so a remote client
-cannot discover *arbitrary* plugin entries without rendering the official UI.
-That does not stop Cuplivo from mounting the **fixed** entries of a small,
-known set of plugins: the structural facts live in the plugin package (slot id,
-order, page-type kind, label dictionaries), and the Host inventory says whether
-the package is installed, enabled and active. The compatibility table lives in
-`lib/features/harness/pages/home/harness_plugin_entries.dart` (harness feature
-layer); the protocol and chat layers still know no plugin names.
-
-| contribution | `moduleName` gate | slot fact (from the package) | mounted as |
-|---|---|---|---|
-| 搜索服务 / Search services | `@ds-hu/dsh-better-search` | `sidebar.panellist` id `better-search`, order 5, `panel` labels zh/en | R5 row, ordered between 插件 (0) and 自动化任务 (10) |
-| 代码变更 / Changes | `@ds-hu/dsh-bw-diff` | guide entry `diff` order 20, kind `bw-diff` | R7 card in guide order |
-| 新建 worktree / New worktree | `@ds-hu/dsh-bw-worktree` | guide entry `worktree` order 30, kind `bw-worktree` | R7 card in guide order |
-| Issue 与 PR / Issues & PRs | `@ds-hu/dsh-bw-forge` | guide entry `forge` order 40, kind `bw-forge` | R7 card in guide order |
-
-The rules the table keeps (each has a unit test):
-
-1. **Inventory-gated, never assumed.** A row/card renders only when
-   `pluginInventory/list` reports its `moduleName` with `enabled=true` and a
-   `fiberPhase` that is not `failed`/`unloading`. No inventory entry → the
-   built-ins are all that renders.
-2. **The harvest overrides.** A non-empty sidebar/rail harvest replaces the
-   curated entries with the Host's live labels; a curated rail card whose
-   `kind` the harvest reports is dropped, so a plugin's own switch (搜索服务's
-   侧边栏入口) is honoured after one official page load.
-3. **Labels come from the plugin's dictionary, not from `meta.title`.** They
-   differ: the inventory title of `@ds-hu/dsh-bw-worktree` is 新建工作树 / New
-   Worktree while its guide card is 新建 worktree / New worktree. The display
-   label is app language → en → recorded fallback; the landing script tries
-   every official label because the WebUI locale is independent of the app
-   locale.
-4. **Left rows land by any official label, right cards by kind.** The rail DOM
-   carries the language-neutral `data-sidebar-right-guide-entry="<kind>"`, so
-   R7 needs no label matching; R5's `nav button` rows carry no id, hence the
-   small zh/en alias list.
-5. **Structural facts are version-pinned.** A plugin upgrade can change an id,
-   order or label; the table is updated together with the E2E fixture, and the
-   harvest keeps the remote honest in the meantime.
-
-Known limits: an unknown plugin contributes nothing natively (the harvest stays
-the generic channel); a plugin whose internal switch hides its row/card can
-still show the curated entry until the first harvest; and this table does not
-become an enumeration source — it lists the plugins Cuplivo was built against,
-not the 12k-entry plugin ecosystem.
-
 ---
 
 ## 5. Q3 — The right rail and its plugin cards
@@ -1022,12 +974,6 @@ Three independent blockers, each verified:
    promises those routes, their shapes, or their authentication are stable, and
    the Host RPC does not proxy them.
 
-A fixed-entry table (§4.6) sidesteps all three only because it does not
-enumerate: it carries structural facts copied from a handful of known packages
-at build time, is gated by the inventory, and still opens the official page for
-the body. It is a compatibility shim for first-run parity, not a per-plugin
-native surface.
-
 ### 7.3 Native equivalents worth having, surface by surface
 
 These are the parts of the official surfaces that are *not* plugin views and are
@@ -1052,17 +998,11 @@ the compatibility decision is self-contained.
 These rules are the actionable part of this note. They apply to Dart code, tests,
 and any WebView landing asset.
 
-1. **No plugin literals outside the harness compatibility table.** Protocol and
-   chat layers, tests and WebView landing assets must not name plugins, packages,
-   modules, row ids, panel ids, page kinds or languages. Not `better-search`,
-   not `@ds-hu/*`, not `bw-diff`, and not the localized labels `搜索服务` /
-   `Search services`; every plugin-derived value there must come from the RPC
-   (`BundleInfo.name`, `rows[].rowId`, `rows[].entryId`, `entryId`, `meta`) or
-   from the runtime DOM (labels, kinds, card ids). The one exception is the
-   fixed-entry table in `harness_plugin_entries.dart` (§4.6): those entries are
-   not on the wire at all, so the table records the structural facts copied from
-   the plugin packages; it is inventory-gated and harvest-overridden, and it
-   must never carry business data or live plugin state.
+1. **No plugin names, package names, module names, row ids, panel ids, page
+   kinds or languages.** Not `better-search`, not `@ds-hu/*`, not `bw-diff`, and not the localized
+   labels `搜索服务` / `Search services`. Every plugin-derived value must come from
+   the RPC (`BundleInfo.name`, `rows[].rowId`, `rows[].entryId`, `entryId`,
+   `meta`) or from the runtime DOM (labels, kinds, card ids).
 2. **No built-in UI literals as invariants.** In the stock web profile the rail
    normally shows 插件 and 自动化任务 (two built-in rows), plus whatever plugins
    add, plus 更多 only while an actions registrant exists — but any of those
@@ -1110,12 +1050,6 @@ and any WebView landing asset.
 - **Plugin churn.** Plugin versions change labels, order values, guide entries
   and module switches (`better-search` 0.5's sidebar module is the model: its
   row exists only while its own preference allows). Enumerate at runtime.
-- **The fixed-entry table drifts with plugin versions.** §4.6 records slot ids,
-  orders and label dictionaries copied from specific package versions; a
-  plugin upgrade can change any of them, and the inventory title is no
-  substitute (新建工作树 vs 新建 worktree). The table is updated with the E2E
-  fixture; until the first harvest the curated entry is the best available
-  approximate, and the harvest corrects it.
 - **A second browser client.** The WebView is a real DSH client: it restores its
   own session selection, may show the workspace picker first, and can create
   sessions. Landing scripts must not assume the dashboard state Cuplivo's native

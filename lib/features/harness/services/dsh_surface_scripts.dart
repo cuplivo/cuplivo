@@ -217,26 +217,15 @@ $_domHelpers
   /// sidebar dialog at phone width), clicks the row by its harvested label and
   /// lets the official UI close the drawer itself.
   static String sidebarLanding(String label) =>
-      sidebarLandingAny(<String>[label]);
-
-  /// Landing script for a left-sidebar row Cuplivo knows in several official
-  /// labels (a curated known-plugin row).
-  ///
-  /// The official WebUI may render the row in any language its plugin ships,
-  /// while the app shows its own locale, so every official alias is tried and
-  /// the first matching row is clicked. When no alias matches (for example the
-  /// plugin's own sidebar switch hides the row) the page is left untouched and
-  /// the harvest that preceded this script still refreshes the drawer.
-  static String sidebarLandingAny(List<String> labels) =>
       '''
 (async () => {
 $_domHelpers
-  const targets = ${jsonEncode(labels)};
+  const target = ${jsonEncode(label)};
   for (let attempt = 0; attempt < 60; attempt++) {
     await openSidebar();
     const row = navRows().find((button) =>
-      targets.includes(norm(button.getAttribute('aria-label'))) ||
-      targets.includes(norm(button.textContent).split('\\n')[0]));
+      norm(button.getAttribute('aria-label')) === target ||
+      norm(button.textContent).split('\\n')[0] === target);
     if (row) {
       press(row);
       await sleep(700);

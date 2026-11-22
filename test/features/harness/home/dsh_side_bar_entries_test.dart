@@ -1,7 +1,6 @@
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/harness/pages/home/harness_session_catalog.dart';
 import 'package:Cuplivo/features/harness/services/dsh_surface_harvest.dart';
-import 'package:Cuplivo/features/harness/state/dsh_gateway_models.dart';
 import 'package:Cuplivo/features/harness/widgets/dsh_side_bar.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -10,23 +9,15 @@ import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
 
-/// R5's entry list is spec-driven: the DSH built-ins (plus the curated rows of
-/// known plugins the Host inventory reports) before a harvest, the official
-/// sidebar rows afterwards plus exactly one built-in 更多. An unknown plugin's
-/// row must never be invented, and there is no placeholder text.
+/// R5's entry list is spec-driven: the DSH built-ins before a harvest, the
+/// official sidebar rows afterwards plus exactly one built-in 更多. Plugin rows
+/// must never be invented, and there is no placeholder text.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  const betterSearch = DshPluginEntry(
-    id: '@ds-hu/dsh-better-search',
-    title: 'Search services',
-    moduleName: '@ds-hu/dsh-better-search',
-  );
 
   Future<void> pumpSideBar(
     WidgetTester tester, {
     List<DshSurfaceEntry> harvestedEntries = const <DshSurfaceEntry>[],
-    List<DshPluginEntry> plugins = const <DshPluginEntry>[],
     ValueChanged<DshSidebarEntrySpec>? onOpenEntry,
   }) async {
     tester.view.physicalSize = const Size(420, 1000);
@@ -53,7 +44,6 @@ void main() {
               onNewSession: ({String? workspaceId}) async {},
               onOpenEntry: onOpenEntry ?? (_) {},
               harvestedEntries: harvestedEntries,
-              plugins: plugins,
             ),
           ),
         ),
@@ -103,123 +93,6 @@ void main() {
       expect(opened, hasLength(1));
       expect(opened.single.id, DshSidebarEntryIds.more);
       expect(opened.single.isHarvested, isFalse);
-    });
-  });
-
-  group('known-plugin rows before a harvest', () {
-    // The curated table mounts a fixed plugin row natively only when the Host
-    // inventory reports its package; the table's structure is tested in
-    // `harness_plugin_entries_test.dart`, this group covers the drawer wiring.
-    testWidgets('a reported better-search row sits between the built-ins in '
-        'the official slot order', (tester) async {
-      await pumpSideBar(tester, plugins: const <DshPluginEntry>[betterSearch]);
-
-      expect(
-        find.byKey(
-          const ValueKey<String>('dsh-sidebar-entry-plugin-better-search'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('dsh-entry-plugin-better-search')),
-        findsOneWidget,
-        reason: 'the e2e scenario anchors on the legacy wrapper too',
-      );
-      expect(find.text('Search services'), findsOneWidget);
-
-      final labels = <String>[
-        'Plugins',
-        'Search services',
-        'Automations',
-        'More',
-      ];
-      final ys = <double>[
-        for (final label in labels) tester.getTopLeft(find.text(label)).dy,
-      ];
-      expect(ys, orderedEquals(<double>[...ys]..sort()));
-    });
-
-    testWidgets(
-      'a tap reports the plugin row with its official landing labels',
-      (tester) async {
-        final opened = <DshSidebarEntrySpec>[];
-        await pumpSideBar(
-          tester,
-          plugins: const <DshPluginEntry>[betterSearch],
-          onOpenEntry: opened.add,
-        );
-
-        await tester.tap(
-          find.byKey(
-            const ValueKey<String>('dsh-sidebar-entry-plugin-better-search'),
-          ),
-        );
-        await tester.pump();
-
-        expect(opened, hasLength(1));
-        expect(opened.single.id, 'plugin-better-search');
-        expect(opened.single.isHarvested, isFalse);
-        expect(opened.single.landingLabels, <String>[
-          '搜索服务',
-          'Search services',
-        ]);
-      },
-    );
-
-    testWidgets('the curated row is not injected once a harvest arrived', (
-      tester,
-    ) async {
-      await pumpSideBar(
-        tester,
-        plugins: const <DshPluginEntry>[betterSearch],
-        harvestedEntries: const <DshSurfaceEntry>[
-          DshSurfaceEntry(label: '插件'),
-          DshSurfaceEntry(label: '搜索服务'),
-          DshSurfaceEntry(label: '自动化任务'),
-        ],
-      );
-
-      expect(
-        find.byKey(
-          const ValueKey<String>('dsh-sidebar-entry-plugin-better-search'),
-        ),
-        findsNothing,
-        reason:
-            'the harvest is authoritative; curated rows are only a fallback',
-      );
-      expect(
-        find.byKey(const ValueKey<String>('dsh-sidebar-entry-搜索服务')),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('an inventory that does not report the plugin adds no row', (
-      tester,
-    ) async {
-      await pumpSideBar(
-        tester,
-        plugins: const <DshPluginEntry>[
-          DshPluginEntry(
-            id: 'other',
-            title: 'Other',
-            moduleName: '@acme/dsh-other-panel',
-          ),
-          DshPluginEntry(
-            id: 'disabled-search',
-            title: 'Search services',
-            moduleName: '@ds-hu/dsh-better-search',
-            enabled: false,
-          ),
-        ],
-      );
-
-      expect(find.text('Search services'), findsNothing);
-      expect(
-        find.byKey(
-          const ValueKey<String>('dsh-sidebar-entry-plugin-better-search'),
-        ),
-        findsNothing,
-      );
     });
   });
 

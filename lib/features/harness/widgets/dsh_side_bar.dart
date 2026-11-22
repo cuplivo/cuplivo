@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../icons/lucide_adapter.dart';
@@ -10,11 +9,9 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../pages/home/harness_home_models.dart';
-import '../pages/home/harness_plugin_entries.dart';
 import '../pages/home/harness_surface_entries.dart';
 import '../services/dsh_surface_harvest.dart';
 import '../pages/home/harness_session_catalog.dart';
-import '../state/dsh_gateway_models.dart';
 import 'dsh_whale_mark.dart';
 
 /// Stable ids of the DSH built-in entry rows.
@@ -32,10 +29,9 @@ abstract final class DshSidebarEntryIds {
 ///
 /// The list is data, not a widget tree: with a harvest snapshot the rows are the
 /// official sidebar labels in official order; before one arrives they are the
-/// localized DSH built-ins plus the curated rows of known plugins the Host's
-/// plugin inventory reports (see `harness_plugin_entries.dart`). [isHarvested]
-/// decides only where a tap lands (the official WebUI landed on the row's own
-/// label vs. a built-in surface), never whether the row renders.
+/// three localized DSH built-ins. [isHarvested] decides only where a tap lands
+/// (the official WebUI landed on the row's own label vs. a built-in surface),
+/// never whether the row renders.
 @immutable
 class DshSidebarEntrySpec {
   const DshSidebarEntrySpec({
@@ -43,7 +39,6 @@ class DshSidebarEntrySpec {
     required this.label,
     required this.icon,
     this.isHarvested = false,
-    this.landingLabels = const <String>[],
   });
 
   /// Stable id; also the `dsh-sidebar-entry-<id>` key suffix.
@@ -57,11 +52,6 @@ class DshSidebarEntrySpec {
   /// True for rows read from the official WebUI's sidebar.
   final bool isHarvested;
 
-  /// The official labels a curated plugin row may render in the WebUI, for the
-  /// landing script (the official UI may run in another language than the app).
-  /// Empty for built-in and harvested rows, which land by [label] instead.
-  final List<String> landingLabels;
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -69,12 +59,10 @@ class DshSidebarEntrySpec {
           other.id == id &&
           other.label == label &&
           other.icon == icon &&
-          other.isHarvested == isHarvested &&
-          listEquals(other.landingLabels, landingLabels);
+          other.isHarvested == isHarvested;
 
   @override
-  int get hashCode =>
-      Object.hash(id, label, icon, isHarvested, Object.hashAll(landingLabels));
+  int get hashCode => Object.hash(id, label, icon, isHarvested);
 }
 
 /// The DeepSeek Harness sidebar body (R5).
@@ -99,7 +87,6 @@ class DshSideBar extends StatefulWidget {
     required this.onNewSession,
     required this.onOpenEntry,
     this.harvestedEntries = const <DshSurfaceEntry>[],
-    this.plugins = const <DshPluginEntry>[],
     this.query = '',
   });
 
@@ -121,10 +108,8 @@ class DshSideBar extends StatefulWidget {
   /// Opens the surface one entry row stands for.
   ///
   /// Every row is an official-WebUI page: a harvested row lands on its own
-  /// label, a curated plugin row lands on whichever official label its plugin
-  /// ships (see [DshSidebarEntrySpec.landingLabels]), the built-in 更多 row
-  /// lands on DSH's `PanelMoreMenu`, and the pre-harvest 插件 / 自动化任务
-  /// built-ins open the WebUI root.
+  /// label, the built-in 更多 row lands on DSH's `PanelMoreMenu`, and the
+  /// pre-harvest 插件 / 自动化任务 built-ins open the WebUI root.
   final ValueChanged<DshSidebarEntrySpec> onOpenEntry;
 
   /// The official sidebar entries the harvest read for this remote, in the
@@ -133,19 +118,9 @@ class DshSideBar extends StatefulWidget {
   /// 更多 is not part of the official panel list (it is DSH's own
   /// `PanelMoreMenu`), so Cuplivo always keeps exactly one built-in 更多 row
   /// after the harvested rows. Empty until a remote page has been opened once,
-  /// so the section renders the 插件 / 自动化任务 / 更多 built-ins plus the
-  /// curated rows of known plugins the inventory reports — never a made-up
-  /// label for an unknown plugin and no placeholder text.
+  /// so the section renders only the 插件 / 自动化任务 / 更多 built-ins — never a
+  /// fabricated plugin row and no placeholder text.
   final List<DshSurfaceEntry> harvestedEntries;
-
-  /// The Host's plugin inventory (`pluginInventory/list`).
-  ///
-  /// Used only before a harvest arrives, to gate the curated rows of known
-  /// plugins (see `harness_plugin_entries.dart`): a plugin row renders only
-  /// when the Host reports its package installed and enabled. Once the harvest
-  /// reports the official sidebar, the Host's own labels are authoritative and
-  /// these curated rows are not injected.
-  final List<DshPluginEntry> plugins;
 
   /// The shared search field's current text.
   final String query;
@@ -217,7 +192,7 @@ class _DshSideBarState extends State<DshSideBar> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final entry in _entrySpecs(context, l10n))
+                    for (final entry in _entrySpecs(l10n))
                       _sidebarEntryRow(context, entry, cs),
                     const SizedBox(height: 8),
                     _WorkspaceSections(
@@ -320,27 +295,17 @@ class _DshSideBarState extends State<DshSideBar> {
     );
   }
 
-  /// R5's entry rows: the DSH built-ins plus whatever Cuplivo knows about the
-  /// remote's client surfaces.
+  /// R5's entry rows: the three DSH built-ins plus whatever the harvest
+  /// discovered on this remote's WebUI.
   ///
-  /// Before a harvest arrives the built-ins are joined by the curated rows of
-  /// known plugins the Host's inventory reports (e.g. better-search's 搜索服务),
-  /// ordered by the official slot order. With a harvest snapshot the official
-  /// rows replace all of them: the harvested labels are the Host's own truth
-  /// (including a plugin whose internal switch hides its row), so no curated
-  /// row is injected then. Discovered rows whose label repeats a built-in are
-  /// dropped: the official sidebar lists its built-ins in the same DOM region
-  /// the harvest reads, so a harvested row for 插件 / 自动化任务 / 更多 would
-  /// otherwise render twice.
-  List<DshSidebarEntrySpec> _entrySpecs(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
+  /// Discovered rows whose label repeats a built-in are dropped: the official
+  /// sidebar lists its built-ins in the same DOM region the harvest reads, so a
+  /// harvested row for 插件 / 自动化任务 / 更多 would otherwise render twice.
+  List<DshSidebarEntrySpec> _entrySpecs(AppLocalizations l10n) {
     // 更多 is not a panellist row, so it is never in the harvest: exactly one
     // built-in 更多 row stays at the end, in both modes. Pre-harvest the two
-    // DSH plugin built-ins and the curated known-plugin rows are sorted by
-    // their official slot order; afterwards the official rows replace them and
-    // only 更多 is Cuplivo's own.
+    // DSH plugin built-ins come first; afterwards the official rows replace
+    // them and only 更多 is Cuplivo's own.
     final more = DshSidebarEntrySpec(
       id: DshSidebarEntryIds.more,
       label: l10n.dshSidebarMore,
@@ -348,47 +313,17 @@ class _DshSideBarState extends State<DshSideBar> {
     );
     final harvested = widget.harvestedEntries;
     if (harvested.isEmpty) {
-      final pluginRows = dshPluginSidebarRows(
-        plugins: widget.plugins,
-        languageCode: Localizations.localeOf(context).languageCode,
-      );
-      final ordered =
-          <({int order, int index, DshSidebarEntrySpec spec})>[
-            (
-              order: 0,
-              index: 0,
-              spec: DshSidebarEntrySpec(
-                id: DshSidebarEntryIds.plugins,
-                label: l10n.dshSidebarPlugins,
-                icon: Lucide.Boxes,
-              ),
-            ),
-            for (var index = 0; index < pluginRows.length; index++)
-              (
-                order: pluginRows[index].order,
-                index: index + 1,
-                spec: DshSidebarEntrySpec(
-                  id: pluginRows[index].id,
-                  label: pluginRows[index].label,
-                  icon: dshKnownPluginIconData(pluginRows[index].icon),
-                  landingLabels: pluginRows[index].landingLabels,
-                ),
-              ),
-            (
-              order: 10,
-              index: pluginRows.length + 1,
-              spec: DshSidebarEntrySpec(
-                id: DshSidebarEntryIds.automations,
-                label: l10n.dshSidebarAutomations,
-                icon: Lucide.clock,
-              ),
-            ),
-          ]..sort((left, right) {
-            final byOrder = left.order.compareTo(right.order);
-            return byOrder != 0 ? byOrder : left.index.compareTo(right.index);
-          });
       return <DshSidebarEntrySpec>[
-        for (final entry in ordered) entry.spec,
+        DshSidebarEntrySpec(
+          id: DshSidebarEntryIds.plugins,
+          label: l10n.dshSidebarPlugins,
+          icon: Lucide.Boxes,
+        ),
+        DshSidebarEntrySpec(
+          id: DshSidebarEntryIds.automations,
+          label: l10n.dshSidebarAutomations,
+          icon: Lucide.clock,
+        ),
         more,
       ];
     }

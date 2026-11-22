@@ -76,9 +76,7 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
 8. Open the local drawer, expand the current-assistant tile, tap the
    `DeepSeek Harness` owner row (R4): screenshot `r4_local_sidebar`. In harness
    mode assert the pre-harvest drawer (R5): built-in `插件`/`自动化任务`/`更多`
-   rows plus the fixed row of the known plugin the Host inventory reports
-   (`@ds-hu/dsh-better-search` → `搜索服务`), ordered 插件 → 搜索服务 →
-   自动化任务 → 更多; screenshot `r5_dsh_drawer`.
+   rows; screenshot `r5_dsh_drawer`.
 9. Create a session. Before the first prompt, assert the composer's
    **Agent 预设** chip (`dsh-preset-chip`) opens on the Host default and is
    selectable while the Session is blank: open it, assert the picker
@@ -117,31 +115,26 @@ Each step ends with `capture(..., '<name>')` when it produces evidence.
     with the composer still holding the text rather than time out elsewhere.
 12. Open the right rail; assert it pushes the chat off-screen and renders the
     built-in cards `工作区文件`/`新建终端`/`更多工具` (浏览器 intentionally
-    absent — capability parity), plus the fixed cards of the known plugins the
-    Host inventory reports (`代码变更`/`新建 worktree`/`Issue 与 PR` from
-    better-workspaces) in the official guide order; screenshot
-    `r7_right_rail`. Close the rail.
+    absent — capability parity); screenshot `r7_right_rail`. Close the rail.
 13. Harvest: open the drawer, tap the pre-harvest `插件` row (this WebUI load is
     what runs the official-sidebar harvest), return, and wait (bounded) for the
     snapshot. When it arrives, the drawer renders the Host's own rows verbatim —
     labels that exist only in the official DOM, so no fabricated row can pass —
-    the curated `搜索服务` row is replaced by the Host's own one (never
-    duplicated), and `更多` stays one built-in row; screenshot
+    and `更多` stays one built-in row, never duplicated; screenshot
     `r5_harvested_sidebar`. Then tap each harvested row and capture the official
     page it lands on: the first two rows (`r5_plugins_page`,
     `r5_search_service_page`) and the built-in `更多` row (`r5_more_menu`). Every
     WebUI open also re-harvests, so one open/return is enough.
     When no snapshot arrives (the hosted emulator's WebView cannot render the
-    official app), the scenario asserts the built-in drawer rows and the curated
-    `搜索服务` row stay complete and usable, logs the platform limit, and leaves
-    the harvest/landing proof to the `dom-contract` job; the page captures are
-    skipped because there is no loaded official page to show.
+    official app), the scenario asserts the built-in drawer rows stay complete
+    and usable, logs the platform limit, and leaves the harvest/landing proof to
+    the `dom-contract` job; the page captures are skipped because there is no
+    loaded official page to show.
 14. R7 harvested cards: open the rail again and assert the Host's own rail cards
     by label; screenshot `r7_harvested_cards`. Tap `代码变更` → official page;
     screenshot `r7_diff_page`. When the harvest is empty (same platform limit),
-    assert the built-in cards `工作区文件`/`新建终端` and the curated plugin cards
-    `代码变更`/`新建 worktree`/`Issue 与 PR` stay usable instead and skip the two
-    captures.
+    assert the built-in cards `工作区文件`/`新建终端` stay usable instead and skip
+    the two captures.
 15. R12 terminal: tap the `新建终端` card. Assert `dsh-terminal-panel`,
     `dsh-terminal-view`, a header with the live shell title (`bash`) and Host
     cwd (contains `workspace`), and no read-only banner; screenshot
@@ -239,10 +232,7 @@ absence:
   asserted;
 - the two pinned plugins `@ds-hu/dsh-better-search` 0.5.0 and
   `@ds-hu/dsh-better-workspaces` 0.4.1 (rail rows `代码变更` / `新建 worktree` /
-  `Issue 与 PR`), so the R5/R7 harvest has labels to find, and their module rows
-  (`@ds-hu/dsh-better-search`, `@ds-hu/dsh-bw-diff`, `@ds-hu/dsh-bw-worktree`,
-  `@ds-hu/dsh-bw-forge`) are reported enabled/active by `pluginInventory/list`,
-  so the curated R5/R7 entries mount before the harvest;
+  `Issue 与 PR`), so the R5/R7 harvest has labels to find;
 - terminal: `bash` as user `dsh` with cwd under `…/workspace`;
 - workspace seeds: `hello.txt`, `notes.md`, `assets/pixel.png`,
   `docs/report.pdf`, `data/table.csv`, `data/blob.bin`;

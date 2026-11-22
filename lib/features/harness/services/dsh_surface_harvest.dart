@@ -308,10 +308,6 @@ abstract final class DshSurfaceHarvest {
   static String sidebarLandingScript(String label) =>
       DshSurfaceScripts.sidebarLanding(label);
 
-  /// Lands on one curated plugin row by any of its official [labels].
-  static String sidebarLandingAnyScript(List<String> labels) =>
-      DshSurfaceScripts.sidebarLandingAny(labels);
-
   /// Lands on DSH's own 更多 entry.
   static const String moreMenuLandingScript = DshSurfaceScripts.moreMenuLanding;
 

@@ -214,8 +214,16 @@ void main() {
   group('secrecy', () {
     test('toString never carries the address or the pin', () {
       final text = payload().toString();
-      expect(text, isNot(contains(address)), reason: 'the address is a secret');
-      expect(text, isNot(contains(pin)), reason: 'the pin is one-shot');
+      // The field, not the bare value: a six-digit pin that happens to appear
+      // inside the fingerprint (hex digits) is still not the pin leaking.
+      expect(
+        text,
+        isNot(contains('address: $address')),
+        reason: 'the address is a secret',
+      );
+      expect(text, isNot(contains('pin: $pin')), reason: 'the pin is one-shot');
+      expect(text, contains('address: <redacted>'));
+      expect(text, contains('pin: <redacted>'));
       expect(text, contains(deviceId), reason: 'the fingerprint is not secret');
     });
 

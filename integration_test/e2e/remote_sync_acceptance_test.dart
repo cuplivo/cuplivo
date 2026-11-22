@@ -4,6 +4,7 @@ import 'package:Cuplivo/features/settings/pages/settings_page.dart';
 import 'package:Cuplivo/features/sync/widgets/sync_mode_panel.dart';
 import 'package:Cuplivo/features/sync/widgets/tailcat_remote_panel.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -46,8 +47,21 @@ void main() {
     );
     expect(find.byType(SettingsPage), findsOneWidget);
 
-    // The renamed entry itself is part of the change under review.
+    // The renamed entry itself is part of the change under review. It sits in
+    // the Data section, below the first screenful, so the scenario scrolls to
+    // it the way a user does instead of assuming a lazy list built it.
     final syncEntry = find.text('Convenient Sync');
+    await tester.scrollUntilVisible(
+      syncEntry,
+      250,
+      scrollable: find
+          .descendant(
+            of: find.byType(SettingsPage),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+      maxScrolls: 40,
+    );
     expect(syncEntry, findsWidgets);
     await tester.tap(syncEntry.first);
     await pumpUntil(

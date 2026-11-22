@@ -46,6 +46,7 @@ import '../../../core/providers/quick_phrase_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/memory_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../subagent/services/subagent_rules.dart';
 import '../../../core/utils/scheduler_idle.dart';
 import '../../../core/services/tts/tts_text_selection.dart';
 import '../../../core/services/haptics.dart';
@@ -3157,8 +3158,16 @@ class HomePageController extends ChangeNotifier {
     if (!_context.mounted || message.role != 'assistant') return;
     // A subagent finishes in its own conversation. Reading its conclusion aloud
     // while the user is looking at something else is the page-level callback
-    // answering for a turn nobody is watching; the notice is enough.
-    if (message.conversationId != currentConversation?.id) return;
+    // answering for a turn nobody is watching; the notice is enough. The test is
+    // "is this a delegated child", not "is this the open conversation" — a reply
+    // in some other chat the user left open is still theirs to hear.
+    final extras =
+        _context
+            .read<ChatService>()
+            .getConversation(message.conversationId)
+            ?.extras ??
+        const <String, dynamic>{};
+    if (extras[SubagentExtrasKeys.parent] != null) return;
     final settings = _context.read<SettingsProvider>();
     if (settings.ttsAutoPlayAssistantReplies) {
       await _speakAssistantMessage(message, autoPlay: true);

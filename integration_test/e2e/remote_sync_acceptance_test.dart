@@ -62,8 +62,13 @@ void main() {
           .first,
       maxScrolls: 40,
     );
-    expect(syncEntry, findsWidgets);
-    await tester.tap(syncEntry.first);
+    // Building and being visible are different: the lazy list builds a
+    // cache-extent beyond the viewport, and scrolling stops at the first built
+    // frame. Bring the row into the viewport before tapping it.
+    await tester.ensureVisible(syncEntry);
+    await pumpFrames(tester);
+    expect(syncEntry, findsOneWidget);
+    await tester.tap(syncEntry);
     await pumpUntil(
       tester,
       () => find.byType(SyncModePanel).evaluate().isNotEmpty,

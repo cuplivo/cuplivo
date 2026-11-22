@@ -49,7 +49,7 @@ The [changelog](CHANGELOG.md) carries 4.7 and everything before it.
 
 Cuplivo 4.0 moves the whole code base onto the **Kelivo v1.3.0** baseline and re-implements Cuplivo's own features on top of it. From here on the repository re-bases on upstream's own line instead of diverging permanently, so upstream's work keeps arriving.
 
-- **LAN sync** — conversations, the business data behind them, attachments and skills follow you across your own devices over the LAN. Pair once by QR code (endpoints + certificate fingerprint + a one-shot PIN), then sync without restarting: no server, no hub device, no manual merge.
+- **LAN sync** — conversations, the business data behind them, attachments and skills follow you across your own devices on the same network — and, with the experimental remote sync, across networks too. Pair once by QR code (endpoints + certificate fingerprint + a one-shot PIN), then sync without restarting: no Cuplivo server, no hub device, no manual merge.
 - **Input draft** — the unsent composer content (text, image paths and document attachments) is kept across restarts, so an accidental exit no longer loses what you were writing.
 - **Manual-first image compression** — alongside Kelivo's automatic pipeline you can compress by hand: pick JPEG / PNG / original, set the long edge and quality, and compare before and after 1:1 with a real full-image size estimate.
 
@@ -110,9 +110,9 @@ If the upstream Kelivo project is useful to you, you can also [support it on WeC
 | --- | --- | --- | --- |
 | iOS / iPadOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | Unsigned IPA (sideload) | iOS 15.0 or later |
 | Android | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | APK (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 7.0 or later |
-| macOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | DMG | macOS 12.0 or later, Apple silicon or Intel |
-| Windows | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | Installer (`setup.exe`) or portable ZIP | Windows 10 or 11 |
-| Linux | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | AppImage, DEB, RPM, tar.gz | x86_64 |
+| macOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | DMG | macOS 13.0 or later, Apple silicon or Intel |
+| Windows | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | Installer (`setup.exe`) or portable ZIP | Windows 10 or 11 (x64) |
+| Linux | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | AppImage, DEB, RPM, tar.gz | x86_64, glibc 2.28 or later |
 
 The [download page](https://kelivo.psycheas.top/downloads) on the website lists the same builds.
 
@@ -192,6 +192,13 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 - **Import** from Cherry Studio and Chatbox.
 - **Diagnostics**: request logs, context logs that show exactly what was sent to the model, and a storage usage breakdown.
 
+### 🔄 Sync
+
+Both modes share one settings page, **Convenient Sync**, switched by a segmented control: **LAN Sync** (the default) and **Remote Sync (Experimental)**.
+
+- **LAN sync** — conversations, the business data behind them, attachments, skills and workspace content follow you across your own devices on the same network. Pair once by QR code (endpoints + certificate fingerprint + a one-shot PIN), then sync without restarting: no Cuplivo server, no hub device, no manual merge. The wire protocol is versioned: protocol 10 requires every device to be on a build that speaks it.
+- **Remote sync (experimental)** — the same sync across networks, carried by an embedded [tailcat](https://github.com/tailscale/tailcat) tunnel: WireGuard-encrypted end to end, direct peer-to-peer when NAT traversal succeeds and Tailscale's public DERP relays as the fallback, with no account and no port forwarding. A device's remote identity is fixed, so its remote address is stable across restarts; **Reset key** changes that address, so devices paired over remote sync must pair again — the peer records and their LAN addresses are kept, and LAN sync is unaffected. Pairing is a remote QR code, or the remote address plus the six-digit code (the address is a long string, so scanning is easier when you can); a pair already made on the LAN needs no second pairing: once both sides run remote sync, the next session exchanges remote addresses by itself. The panel's About section says remote sync is built on tailcat, that everything sent between devices is encrypted with WireGuard, that devices connect directly when NAT traversal works and otherwise relay through Tailscale's public DERP servers (which see connection metadata only and cannot decrypt sync content), that Cuplivo runs no DERP servers of its own, and that offers of a compliant one are welcome. The public relay is free but rate-limited and has no SLA, and it may be geographically distant in mainland China. Remote Sync (Experimental) runs on Android, iOS 15+, macOS 13.0+, Windows x64 and Linux x86_64/arm64 (glibc 2.28+); Windows builds are x64 only, so a Windows-on-Arm build fails at the native-library step rather than shipping a disabled tab, and it adds about 6 MB compressed (14–17 MB uncompressed) per architecture to the download. Design record: [ADR-0020](docs/adr/0020-remote-sync-over-tailcat.md).
+
 ### 🔗 System Integration
 
 - **Mobile**: generation continues in the background with completion notifications, Live Activities on iOS, and Live Updates or a floating status capsule on Android. Share text and files to Cuplivo from other apps, or send selected text to it from the Android text selection menu.
@@ -212,6 +219,7 @@ Most features work on every platform. These depend on the operating system:
 | Background generation | Notification, Live Updates, floating capsule | Extra background time, Live Activities | While Cuplivo is running |
 | Platform-specific device tools | Calendar, location, screen time | Calendar, location, weather, reminders, Health | — |
 | Global shortcut and system tray | — | — | ✓ |
+| Remote sync (experimental) | ✓ | ✓ | ✓ (Windows x64 only) |
 | Choosing where data lives | — | — | Movable to any local folder (Windows) |
 
 On desktop, workspace commands run with your user account's permissions and are not sandboxed. Keep command approval turned on for workspaces that contain important files.
@@ -225,6 +233,7 @@ On desktop, workspace commands run with your user account's permissions and are 
 - Linux only (Debian/Ubuntu package names): `clang cmake ninja-build pkg-config libgtk-3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libkeybinder-3.0-dev libayatana-appindicator3-dev`
 - iOS only: `brew install meson ninja llvm lld`. The Xcode build compiles the iSH sandbox and prepares the Alpine Linux image automatically.
 - Android only: `python3`, `curl` and `tar`. The Gradle build downloads the PRoot binaries automatically.
+- Remote sync only: no extra toolchain. The libtailcat native library is downloaded and SHA-256-verified by the Dart build hook on the first build.
 
 ```bash
 git clone https://github.com/cuplivo/cuplivo.git
@@ -259,9 +268,10 @@ flutter test
 - [iSH](https://github.com/ish-app/ish), the upstream Linux shell for iOS behind the iOS sandbox.
 - [PRoot](https://github.com/termux/proot) and [Termux](https://termux.dev), which power the Android Linux sandbox.
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), which provides offline speech recognition.
+- [tailcat](https://github.com/tailscale/tailcat) and [libtailcat](https://github.com/cuplivo/libtailcat), the WireGuard tunnel and Dart bindings behind remote sync.
 - Every open-source package Cuplivo depends on, listed in [`pubspec.yaml`](pubspec.yaml).
 
-Full third-party notices for the sandbox components are in [`ios/sandbox/NOTICE`](ios/sandbox/NOTICE) and [`android/app/src/main/jniLibs/NOTICE`](android/app/src/main/jniLibs/NOTICE).
+Full third-party notices are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) (tailcat and libtailcat licenses, plus their build provenance); the sandbox components' notices are in [`ios/sandbox/NOTICE`](ios/sandbox/NOTICE) and [`android/app/src/main/jniLibs/NOTICE`](android/app/src/main/jniLibs/NOTICE).
 
 ## ⭐ Star History
 

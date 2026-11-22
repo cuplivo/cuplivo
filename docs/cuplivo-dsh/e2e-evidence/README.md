@@ -2,8 +2,8 @@
 
 These screenshots are the acceptance evidence for PR #1104. They come from the
 `Android E2E` workflow (`.github/workflows/e2e-android.yml`, `/e2e`), run
-[44813047289](https://github.com/cuplivo/cuplivo/actions/runs/44813047289) on
-`feat/cuplivo-dsh` at `3eafd30ca`, driving a **real** DSH 0.2.2-rc.1 host over
+[45045170799](https://github.com/cuplivo/cuplivo/actions/runs/45045170799) on
+`feat/cuplivo-dsh` at `ca12b3652`, driving a **real** DSH 0.2.2-rc.1 host over
 HTTPS with the repository's `E2E_DSH_URL` / `E2E_DSH_TOKEN` secrets.
 
 The scenario (`integration_test/e2e/dsh_remote_acceptance_test.dart`) runs in

@@ -19197,4 +19197,50 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Grup sohbetinde sıradaki konuşmacıyı belirler. Hızlı ve düşük maliyetli bir model en uygun seçimdir.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Bu sohbetin bir kopyasında, aynı çalışma alanında tek bir görevi yürütür.';
+
+  @override
+  String get subagentConfigEnabled => 'Açık';
+
+  @override
+  String get subagentConfigDepth => 'Derinlik';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'Alt ajanların kaç düzey daha devredebileceği';
+
+  @override
+  String get subagentConfigModel => 'Model';
+
+  @override
+  String get subagentConfigModelDescription =>
+      'Alt ajanı hangi model çalıştıracak';
+
+  @override
+  String get subagentConfigModelInherit => 'Bu asistanı izle';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · derinlik $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'Üst sohbeti gör · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Alt ajan yetkisi';
+
+  @override
+  String get subagentEscalationAsk => 'Sor';
+
+  @override
+  String get subagentEscalationDeny => 'Her zaman reddet';
+
+  @override
+  String get subagentEscalationAllow => 'Her zaman izin ver';
 }

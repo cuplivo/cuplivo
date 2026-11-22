@@ -296,7 +296,12 @@ class RequestImageContext {
     final turns = <String, String?>{};
     String? user;
     for (final message in messages) {
-      if (message.role == 'user') user = message.id;
+      // A subagent's notice is a `user` row, but it owns no images: keeping the
+      // previous turn as the owner is what makes an attached picture stay with
+      // the message a person actually sent.
+      if (message.role == 'user' && !hasSubagentResultPart(message.parts)) {
+        user = message.id;
+      }
       turns[message.id] = user;
     }
     return turns;

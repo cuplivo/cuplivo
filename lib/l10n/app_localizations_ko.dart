@@ -18513,4 +18513,47 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '그룹 채팅에서 다음 발언자를 선택합니다. 빠르고 저렴한 모델이 가장 적합합니다.';
+
+  @override
+  String get subagentConfigSubtitle => '이 대화의 복제본에서 같은 작업 공간으로 한 가지 작업을 실행합니다.';
+
+  @override
+  String get subagentConfigEnabled => '켜기';
+
+  @override
+  String get subagentConfigDepth => '깊이';
+
+  @override
+  String get subagentConfigDepthDescription => '하위 에이전트가 다시 위임할 수 있는 단계 수';
+
+  @override
+  String get subagentConfigModel => '모델';
+
+  @override
+  String get subagentConfigModelDescription => '하위 에이전트를 실행할 모델';
+
+  @override
+  String get subagentConfigModelInherit => '이 어시스턴트 따르기';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 깊이 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '상위 대화 보기 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '하위 에이전트 권한 위임';
+
+  @override
+  String get subagentEscalationAsk => '묻기';
+
+  @override
+  String get subagentEscalationDeny => '항상 거부';
+
+  @override
+  String get subagentEscalationAllow => '항상 허용';
 }

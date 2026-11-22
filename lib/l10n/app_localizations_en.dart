@@ -19103,4 +19103,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Run one task in a copy of this chat, in the same workspace.';
+
+  @override
+  String get subagentConfigEnabled => 'On';
+
+  @override
+  String get subagentConfigDepth => 'Depth';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'How many levels of subagents may delegate again.';
+
+  @override
+  String get subagentConfigModel => 'Model';
+
+  @override
+  String get subagentConfigModelDescription => 'Which model runs the subagent.';
+
+  @override
+  String get subagentConfigModelInherit => 'Follow this assistant';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · depth $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'View parent chat · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Subagent escalation';
+
+  @override
+  String get subagentEscalationAsk => 'Ask';
+
+  @override
+  String get subagentEscalationDeny => 'Always deny';
+
+  @override
+  String get subagentEscalationAllow => 'Always allow';
 }

@@ -19411,4 +19411,50 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Определяет, кто говорит следующим в групповом чате. Лучше всего подойдёт быстрая и недорогая модель.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Выполнить одну задачу в копии этого чата, в том же рабочем пространстве.';
+
+  @override
+  String get subagentConfigEnabled => 'Вкл.';
+
+  @override
+  String get subagentConfigDepth => 'Глубина';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'Сколько уровней подагентов может делегировать дальше';
+
+  @override
+  String get subagentConfigModel => 'Модель';
+
+  @override
+  String get subagentConfigModelDescription =>
+      'Какая модель выполняет подагента';
+
+  @override
+  String get subagentConfigModelInherit => 'Как у этого ассистента';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · глубина $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'К родительскому чату · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Полномочия подагента';
+
+  @override
+  String get subagentEscalationAsk => 'Спрашивать';
+
+  @override
+  String get subagentEscalationDeny => 'Всегда запрещать';
+
+  @override
+  String get subagentEscalationAllow => 'Всегда разрешать';
 }

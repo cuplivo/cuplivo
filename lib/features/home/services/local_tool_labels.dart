@@ -7,9 +7,15 @@ import 'local_tools_service.dart';
 
 /// Ids of the local tools offered on this platform, in the order the assistant
 /// "Local tools" tab lists them.
+///
+/// `await_job` is not one of them: it is the blocking half of 子代理, registered
+/// and switched together with `delegate`, and a second row would let a user turn
+/// off the half a delegation needs to report back.
 List<String> availableLocalToolIds() => [
   for (final id in LocalToolNames.all)
-    if (LocalToolsService.isAvailableOnThisPlatform(id)) id,
+    if (id != LocalToolNames.awaitJob &&
+        LocalToolsService.isAvailableOnThisPlatform(id))
+      id,
 ];
 
 IconData localToolIcon(String id) {

@@ -662,7 +662,15 @@ class MessageGenerationService {
       omitUserImages: settings.ocrActive,
       omitImages: omitImages,
       latestUserId: history
-          .where((m) => m.role == 'user' && !ContextOperation.isSummary(m))
+          .where(
+            (m) =>
+                m.role == 'user' &&
+                !ContextOperation.isSummary(m) &&
+                // A subagent's notice is a `user` message, but it is not the
+                // human's turn: the images that own the protected budget belong
+                // to the message the user actually sent.
+                !hasSubagentResultPart(m.parts),
+          )
           .lastOrNull
           ?.id,
       budget: cfg.requestBudgetForModel(modelId),

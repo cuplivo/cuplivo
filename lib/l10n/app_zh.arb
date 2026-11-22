@@ -6967,5 +6967,18 @@
   "groupChatDirectorFallbackWarning": "导演模型不可用，已由首位成员回复一次。请检查默认模型设置。",
   "groupChatUnavailableWarning": "这个群聊没有可用的成员。",
   "defaultModelPageDirectorModelTitle": "导演模型",
-  "defaultModelPageDirectorModelSubtitle": "决定群聊里下一位发言者，建议选择快速且低成本的模型"
+  "defaultModelPageDirectorModelSubtitle": "决定群聊里下一位发言者，建议选择快速且低成本的模型",
+  "subagentConfigSubtitle": "在本会话自己的工作区里派一个分身去做完一件任务。",
+  "subagentConfigEnabled": "开启",
+  "subagentConfigDepth": "深度",
+  "subagentConfigDepthDescription": "允许子代理再派子代理的层数",
+  "subagentConfigModel": "模型",
+  "subagentConfigModelDescription": "用哪个模型跑子代理",
+  "subagentConfigModelInherit": "继承本助手",
+  "subagentConfigSummary": "{model} · 深度 {depth}",
+  "subagentViewParent": "查看主对话 · {label}",
+  "subagentEscalation": "子代理提权访问",
+  "subagentEscalationAsk": "询问",
+  "subagentEscalationDeny": "始终拒绝",
+  "subagentEscalationAllow": "始终允许"
 }

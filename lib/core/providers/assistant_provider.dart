@@ -516,6 +516,16 @@ class AssistantProvider extends ChangeNotifier {
           clearImageModelId: true,
         );
       }
+      // The delegation model follows the same rule: left behind, it would point a
+      // child at a provider that no longer exists, and the delegation would fail
+      // instead of falling back to the conversation's own model.
+      if (assistant.subagentModelProvider == providerKey &&
+          (modelId == null || assistant.subagentModelId == modelId)) {
+        next = next.copyWith(
+          clearSubagentModelProvider: true,
+          clearSubagentModelId: true,
+        );
+      }
       if (!identical(next, assistant)) await updateAssistant(next);
     }
     await chatService?.clearConversationModelOverrides(

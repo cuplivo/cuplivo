@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>导出里的结果行 · 像素复刻</title>
+<style>
+  :root{--bg:#0b0c0f;--card:#15171c;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:26px 20px 46px}
+  .wrap{max-width:620px;margin:0 auto}
+  h1{font-size:17px;font-weight:600;margin:0 0 12px}
+  h2{font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--dim);
+    text-transform:uppercase;margin:22px 0 8px}
+  .cap{color:var(--muted);font-size:12px;margin:8px 0 0}
+  .cap b{color:var(--fg);font-weight:600}
+  .png{background:#000;border-radius:10px;padding:16px}
+  .pngcard{background:#101216;border-radius:12px;padding:14px}
+  .t{font-size:13px;font-weight:600}
+  .ts{font-size:9px;color:var(--muted);margin-top:1px}
+  .bub{background:rgba(122,162,255,.16);border-radius:11px;padding:8px 10px;font-size:12px;margin-top:10px;max-width:88%}
+  .chatdiv{display:flex;align-items:center;gap:6px;height:28px;margin:6px 0}
+  .chatdiv .ln{flex:1;height:1px;background:rgba(255,255,255,.14)}
+  .chatdiv .tx{font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap}
+  .ai{font-size:12px;margin-top:2px}
+  .pdf{background:#fff;color:#1b1d22;border-radius:10px;padding:18px 20px;font-size:12px;line-height:1.65}
+  .pdf .pt{font-size:15px;font-weight:600;margin-bottom:2px}
+  .pdf .ptime{font-size:9.5px;color:#7b818c}
+  .pdf .cd{display:flex;align-items:center;gap:8px;height:26px;margin:8px 0}
+  .pdf .cd .ln{flex:1;height:.6px;background:#d6dae1}
+  .pdf .cd .tx{font-size:10px;color:#6b7280;white-space:nowrap}
+  .pdf .surname{font-size:9.5px;color:#6b7280;margin:10px 0 3px}
+  .warn{color:#e0a34a;font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>导出里的结果行 · 像素复刻</h1>
+
+<h2>PNG（整段分享）</h2>
+<div class="png">
+  <div class="pngcard">
+    <div class="t">登录页重构</div>
+    <div class="ts">2026-11-22 13:04</div>
+    <div class="bub">派个子代理去把 test/auth 里挂掉的三个用例修掉。</div>
+    <div class="chatdiv"><span class="ln"></span><span class="tx">子代理完成 · 认证</span><span class="ln"></span></div>
+    <div class="ai">三个用例都过了。根因是 token 过期后本地缓存没清。</div>
+  </div>
+</div>
+<p class="cap">和聊天里<b>完全同尺寸</b>：28px 高、1px 线、11px 字。PNG 是固定宽度再缩，在手机上看这条线只有半个像素，实际会长成一条<b>发灰的虚边</b>。</p>
+
+<h2>PDF</h2>
+<div class="pdf">
+  <div class="pt">登录页重构</div>
+  <div class="ptime">2026-11-22 13:04</div>
+  <div class="surname">你</div>
+  <div>派个子代理去把 test/auth 里挂掉的三个用例修掉。</div>
+  <div class="cd"><span class="ln"></span><span class="tx">子代理完成 · 认证</span><span class="ln"></span></div>
+  <div>三个用例都过了。根因是 token 过期后本地缓存没清。</div>
+</div>
+<p class="warn">PDF 里同尺寸的 1px 线在 300dpi 打印下会变成一条 0.8pt 的实线，比正文的任何分割都重——它会把一段话切成两页的视觉块。</p>
+<p class="cap">好处是：截图、聊天、导出<b>三个地方长得一模一样</b>，不需要两套样式，也没有“这里是导出所以不同”的解释成本。</p>
+
+</div>
+</body>
+</html>

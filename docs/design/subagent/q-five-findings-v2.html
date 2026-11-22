@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 五个问题的落地（第二版）</title>
+<style>
+  :root{
+    --bg:#0b0c0f;--card:#15171c;--card2:#1b1e25;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34);
+    --primary:#7aa2ff;--warn:#e0a34a;--ok:#7fd08c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:28px 20px 56px}
+  .wrap{max-width:740px;margin:0 auto}
+  h1{font-size:19px;font-weight:600;margin:0 0 6px}
+  .lede{color:var(--muted);font-size:12.5px;margin:0 0 26px}
+  h2{font-size:12.5px;font-weight:600;letter-spacing:.05em;color:var(--dim);
+    text-transform:uppercase;margin:30px 0 10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .phone{background:var(--card2);border-radius:10px;padding:12px 12px 14px}
+  .strip{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);
+    padding:6px 2px}
+  .strip .ic{color:var(--warn);display:inline-flex}
+  .srow{display:flex;align-items:center;gap:10px;padding:9px 2px;font-size:13.5px}
+  .srow + .srow{border-top:1px solid var(--line)}
+  .srow .t{flex:1}
+  .srow .sub{color:var(--muted);font-size:11.5px;margin-top:1px}
+  .srow .val{color:var(--muted);font-size:13px}
+  .srow .chev{color:var(--dim);font-size:12px}
+  .subrow{padding:6px 2px 10px 42px;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
+  .cap{color:var(--muted);font-size:12px;margin:10px 0 0}
+  .cap b{color:var(--fg);font-weight:600}
+  pre{background:#0e1014;border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;overflow:auto;font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;
+    color:#cfd6e2;margin:8px 0 0}
+  pre .c{color:#6b7486}
+  pre .del{color:#e08383}
+  pre .add{color:#8fd39a}
+  pre .k{color:#9cbcff}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:2px 0 0}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:500;font-size:11.5px}
+  td:first-child{color:var(--muted);white-space:nowrap}
+  code{background:rgba(255,255,255,.07);border-radius:4px;padding:1px 5px;font-size:12px}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;
+    background:rgba(255,255,255,.07);color:var(--muted);margin-left:6px}
+  .tag.new{background:rgba(122,162,255,.16);color:#b7ccff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>子代理 · 五个问题的落地（第二版）</h1>
+<p class="lede">① 导出那一行照上一版（同一条分隔线），这里补齐你点的两处：概要行要有图标、加一个「不许自己批准」的开关，以及唤醒的伪代码。</p>
+
+<h2>① 概要行：有人等你的时候要有图标</h2>
+<div class="card">
+  <div class="phone">
+    <div class="strip">
+      <span class="ic">◔</span>
+      <span>2 个子代理 · 1 个在等你批准</span>
+      <span style="flex:1"></span><span class="chev">›</span>
+    </div>
+    <div class="strip">
+      <span class="ic">◔</span>
+      <span>2 个子代理 · 1 个正在运行</span>
+      <span style="flex:1"></span><span class="chev">›</span>
+    </div>
+  </div>
+  <p class="cap">折叠成一行的时候，<b>只在需要你的时候带图标</b>（琥珀色，圆形感叹号），普通运行不带。图标就是「里面有东西在等你」的唯一信号——不然两个子代理里有一个卡在批准上，你在主对话里完全看不出来。</p>
+</div>
+
+<h2>② 新增配置项：子代理不许自己批准 <span class="tag new">新</span></h2>
+<div class="card">
+  <div class="phone">
+    <div class="srow"><span class="t">开启</span><span class="val">开</span></div>
+    <div class="srow"><span class="t">深度</span><span class="val">1</span></div>
+    <div class="srow"><span class="t">模型</span><span class="val">继承本助手</span><span class="chev">›</span></div>
+    <div class="srow">
+      <div style="flex:1">
+        <div class="t">禁止子代理自己批准</div>
+        <div class="sub">子代理里需要你批准的工具调用，直接拒绝</div>
+      </div>
+      <span class="val">开</span>
+    </div>
+  </div>
+  <p class="cap">它的含义只有一条，写死不含糊：<b>子代理里需要批准的工具调用不弹批准卡，直接回给子代理「子代理无权批准」</b>，它自己换个做法或者失败。<br>
+  理由：批准是你在<b>看得见的那个会话</b>里对这一刻的授权。弹在一个看不见的子会话里、点「允许」，等于把越权的决定藏起来。默认<b>开</b>（禁止）。</p>
+</div>
+
+<h2>③ 等待的两张脸：回答 vs 批准</h2>
+<div class="card">
+  <table>
+    <tr><th>子代理此刻</th><th>运行状态</th><th>条上写</th><th>面板</th></tr>
+    <tr><td>在跑</td><td><code>requesting / streaming</code></td><td>子代理运行中（…）</td><td>运行中</td></tr>
+    <tr><td>等 <code>ask_user</code></td><td><code>waitingTool</code></td><td>子代理在等你回答 · 标题</td><td>等你回答</td></tr>
+    <tr><td>等工具批准</td><td><code>waitingTool</code></td><td>子代理在等你批准 · 标题</td><td>等待批准</td></tr>
+    <tr><td>批准完，接着跑</td><td><code>requesting</code></td><td>回到「运行中（…）」，计时接着走</td><td>运行中</td></tr>
+  </table>
+  <p class="cap">以 <code>run.state == waitingTool</code> 为<b>第一依据</b>：它一出现就是「在等你」，探针只负责分清是回答还是批准。批准后状态自己变回 <code>requesting</code>，文案和图标随之消失——不需要谁去清理。</p>
+</div>
+
+<h2>④ 唤醒：只问「有没有人在等」</h2>
+<pre><span class="c">// 终态落库之后</span>
+_finish(entry, phase, reason):
+    result = _writeResult(...)              <span class="c">// 先把结果行写进父会话</span>
+    entry.phase = phase; notify()           <span class="c">// 再翻状态：awaitJob 靠这一下醒来</span>
+    if result == null: return
+    await refreshTimeline(parent)           <span class="c">// 打开着的父会话看见这一行</span>
+
+    if phase ∉ {completed, failed}: return  <span class="c">// 取消/中断不解释</span>
+
+<span class="del">-   if messages.last.id != result.id: return   // ← 我上一轮加的：读的是窗口缓存，
+-                                               //    新写的这条不在里面，于是全被挡掉</span>
+<span class="add">+   if entry.waiters > 0: return                // ← 只剩这一条判断</span>
+    await _wakeParentIfAllowed(entry, result)
+
+awaitJob(jobId):
+<span class="add">+   entry.waiters++                          // 先说「我在等」</span>
+    while entry.isLive:
+        if entry.needsInput: return waiting_for_input
+        sleep 500ms
+<span class="add">+   entry.waiters--                          // 醒了就注销</span>
+    return completed | failed | cancelled</pre>
+  <p class="cap">一次委托只有两种结局：<b>有人正阻塞在等</b>（那一轮自己接着说，不能再唤醒，否则同一件事答两遍——这就是你看到的「双重触发」），或者<b>没人等</b>（该唤醒）。和这条消息排在第几行无关，所以那句位置判断删掉。</p>
+</div>
+
+</div>
+</body>
+</html>

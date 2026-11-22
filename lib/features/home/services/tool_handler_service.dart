@@ -74,6 +74,8 @@ class ToolHandlerService {
         updateConversationExtras: chat.updateConversationExtras,
         readPermissionState: ConversationToolPermissions.forChat(chat).read,
         permissionChanges: chat,
+        subagentPolicyOf: (id) =>
+            ConversationToolPermissions.subagentPolicy(chat, id),
         touchLastUsed: workspaces.touchLastUsed,
         onSkillRead: onSkillRead,
         onShellCompleted: onShellCompleted,
@@ -502,20 +504,30 @@ class ToolHandlerService {
       return '${name}_${DateTime.now().microsecondsSinceEpoch}';
     }
 
-    ToolCallPermission permissionFor(String name, String? toolCallId) =>
-        ToolCallPermission(
-          toolName: name,
-          toolCallId: approvalIdFor(name, toolCallId),
-          conversationId: conversationId,
-          assistantId: assistant?.id,
-          approvals: approvalService,
-          stateChanges: permissionChat,
-          readState: () => permissionChat != null && conversationId != null
-              ? ConversationToolPermissions.forChat(
-                  permissionChat,
-                ).read(conversationId)
-              : ToolPermissionState(assistantId: assistant?.id),
-        );
+    ToolCallPermission permissionFor(String name, String? toolCallId) {
+      final policy = permissionChat == null
+          ? null
+          : ConversationToolPermissions.subagentPolicy(
+              permissionChat,
+              conversationId,
+            );
+      return ToolCallPermission(
+        toolName: name,
+        toolCallId: approvalIdFor(name, toolCallId),
+        conversationId: conversationId,
+        assistantId: assistant?.id,
+        approvals: approvalService,
+        stateChanges: permissionChat,
+        subagentEscalation: policy?.policy,
+        delegatorHasFullAccess: policy?.delegatorHasFullAccess ?? false,
+        readState: () => permissionChat != null && conversationId != null
+            ? ConversationToolPermissions.forChat(
+                permissionChat,
+              ).read(conversationId)
+            : ToolPermissionState(assistantId: assistant?.id),
+      );
+    }
+
     Future<Object?> approveAndExecuteMcp(
       String name,
       Map<String, dynamic> args,

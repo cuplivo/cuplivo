@@ -19,6 +19,7 @@ import '../../../core/services/scheduled_tasks_service.dart';
 import '../../scheduled_tasks/scheduled_task_runner.dart';
 import '../services/tool_approval_service.dart';
 import '../../subagent/services/subagent_coordinator.dart';
+import '../../subagent/services/subagent_model.dart' show resolveSubagentModel;
 import 'dart:async';
 import 'package:flutter/foundation.dart' show listEquals, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -31,6 +32,7 @@ import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/chat_owner.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/models/queued_turn.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/models/workspace_binding.dart';
 import '../../../core/providers/workspace_provider.dart';
@@ -760,38 +762,26 @@ class HomePageController extends ChangeNotifier {
               assistant: assistant,
               task: task,
             ),
-    parentWaker:
+    enqueueResult:
         ({
           required parentConversationId,
-          required result,
+          required notice,
           required assistant,
-        }) => wakeAfterSubagent(
-          parentConversationId: parentConversationId,
-          result: result,
-          assistant: assistant,
+          required followUp,
+        }) => _viewModel.enqueueQueuedTurn(
+          QueuedSubagentResult(
+            parentConversationId,
+            notice: notice,
+            assistant: assistant,
+            followUp: followUp,
+          ),
         ),
-    canWake: (conversationId) async {
-      // A result that lands while the app is in the background must not start a
-      // generation: the OS may freeze the isolate, the startup sweep then
-      // terminalises it, and the user comes back to an extra interrupted reply.
-      // The row is already in the database, so the next visit reads it anyway.
-      final background = MobileBackgroundCoordinator.instance;
-      await background.initialize();
-      if (!background.isForeground) return false;
-      return !_chatController.isConversationLoading(conversationId) &&
-          _viewModel.currentQueuedInput?.conversationId != conversationId &&
-          !(_chatService.composerDrafts?.hasDraft(conversationId) ?? false);
-    },
     waitReasonFor: _waitReasonForChild,
     openConversation: (conversationId) {
       unawaited(switchConversationAnimated(conversationId));
     },
     cancelTurn: (conversationId) =>
         _viewModel.cancelGenerationOf(conversationId),
-    refreshTimeline: (conversationId) async {
-      if (currentConversation?.id != conversationId) return;
-      await _viewModel.refreshTimelineAfterExternalWrite();
-    },
   );
 
   /// Why a child conversation is parked, if it is: `ask_user` first because it
@@ -827,10 +817,14 @@ class HomePageController extends ChangeNotifier {
     if (conversation == null) {
       return const SubagentTurnStart.refused('conversation_missing');
     }
+    final model = resolveSubagentModel(assistant);
     final result = await _viewModel.sendScheduledMessage(
       input: ChatInputData(text: task),
       conversation: conversation,
       assistant: assistant,
+      modelOverride: model == null
+          ? null
+          : (providerKey: model.providerId, modelId: model.modelId),
       scheduledNotify: false,
       scheduledPreview: false,
     );
@@ -844,30 +838,7 @@ class HomePageController extends ChangeNotifier {
     return SubagentTurnStart.started(runId: runId);
   }
 
-  /// Continues [parentConversationId] once its child has finished.
-  ///
-  /// The result notice is a `user` message with no reply of its own yet, so
-  /// regenerating it produces exactly one thing: the parent's answer to it.
-  /// Returns whether a turn started — the coordinator retries when the parent
-  /// turned out to be busy.
-  Future<bool> wakeAfterSubagent({
-    required String parentConversationId,
-    required ChatMessage result,
-    required Assistant assistant,
-  }) async {
-    final conversation = _chatService.getConversation(parentConversationId);
-    if (conversation == null) return false;
-    final outcome = await _viewModel.regenerateScheduledMessage(
-      message: result,
-      conversation: conversation,
-      assistant: assistant,
-      scheduledNotify: false,
-      scheduledPreview: false,
-    );
-    return outcome.success;
-  }
-
-  QueuedChatInput? get currentQueuedInput => _viewModel.currentQueuedInput;
+  QueuedUserInput? get currentQueuedInput => _viewModel.currentQueuedInput;
   bool get currentQueuedInputPaused => _viewModel.currentQueuedInputPaused;
   bool get isCurrentConversationCompressing =>
       _viewModel.currentCompressionTask?.active ?? false;
@@ -3184,6 +3155,10 @@ class HomePageController extends ChangeNotifier {
 
   Future<void> _handleAssistantMessageFinished(ChatMessage message) async {
     if (!_context.mounted || message.role != 'assistant') return;
+    // A subagent finishes in its own conversation. Reading its conclusion aloud
+    // while the user is looking at something else is the page-level callback
+    // answering for a turn nobody is watching; the notice is enough.
+    if (message.conversationId != currentConversation?.id) return;
     final settings = _context.read<SettingsProvider>();
     if (settings.ttsAutoPlayAssistantReplies) {
       await _speakAssistantMessage(message, autoPlay: true);
@@ -4610,6 +4585,10 @@ class HomePageController extends ChangeNotifier {
       // conversation cache, the catch-up found no candidates, and nothing
       // retried afterwards because the chat was never resumed again.
       unawaited(_recoverProactiveCareOnResume());
+      // A queue that could not drain while the app was in the background gets its
+      // turn now: the drain refuses to start a generation while the OS may hold
+      // the isolate frozen, and nothing else re-asks on return.
+      _viewModel.drainAllQueuedTurns();
     }
   }
 

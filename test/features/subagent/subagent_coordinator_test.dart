@@ -15,7 +15,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('delegate: what begin refuses', () {
-    test('a conversation without a workspace is refused', () async {
+    test('a conversation without a workspace still delegates', () async {
+      // The child inherits whatever the parent has, including nothing: an
+      // unbound parent gets an unbound child rather than a refusal, because
+      // "no files" is a smaller problem than "the tool does not exist here".
       final chat = _FakeChat(<String, Conversation>{
         'parent': Conversation(id: 'parent', title: 'Chat'),
       });
@@ -30,9 +33,10 @@ void main() {
         assistant: _assistant(),
       );
 
-      expect(start, isA<SubagentRefused>());
-      expect((start as SubagentRefused).code, 'no_workspace');
-      expect(chat.created, isEmpty);
+      expect(start, isA<SubagentStarted>());
+      final created = chat.created.single;
+      expect(created.extras[WorkspaceBinding.keyId], isNull);
+      expect(created.extras[SubagentExtrasKeys.parent], 'parent');
       coordinator.dispose();
     });
 
@@ -253,11 +257,12 @@ void main() {
           },
         ),
       });
+      final wakes = _Wakes();
       final coordinator = SubagentCoordinator(
         chat,
         clock: _clock(),
         pollInterval: const Duration(milliseconds: 1),
-      )..attachHost(_host(chat));
+      )..attachHost(_host(chat, wakes: wakes));
       _turns(chat);
       await coordinator.begin(
         parentConversationId: 'parent',
@@ -272,8 +277,12 @@ void main() {
       );
       await _settle();
 
+      // Written when the child finishes, so a process killed while the app is in
+      // the background still leaves the divider, and handed to the queue in the
+      // same breath so the parent may be continued.
       expect(chat.written, hasLength(1));
       final message = chat.written.single;
+      expect(wakes.enqueued.single.id, message.id);
       expect(message.role, 'user');
       expect(
         message.id,
@@ -294,7 +303,7 @@ void main() {
     });
 
     test(
-      'a cancelled child writes a notice but does not wake the parent',
+      'a cancelled child leaves its row queued but asks for no continuation',
       () async {
         final chat = _FakeChat(<String, Conversation>{
           'parent': Conversation(
@@ -325,15 +334,10 @@ void main() {
         chat.repo.run = _run(state: GenerationRunState.cancelled);
         await _settle();
 
+        // The row lands, because the timeline is where "it stopped" is visible;
+        // no generation is spent explaining the user's own Stop.
         expect(chat.written, hasLength(1));
-        expect(
-          chat.written.single.parts
-              .whereType<SubagentResultPart>()
-              .single
-              .outcome,
-          'cancelled',
-        );
-        expect(wakes.woken, isEmpty);
+        expect(wakes.followUps.single, isFalse);
         coordinator.dispose();
       },
     );
@@ -374,19 +378,19 @@ void main() {
         await _settle();
 
         expect(
-          chat.written.single.parts
+          wakes.enqueued.single.parts
               .whereType<SubagentResultPart>()
               .single
               .outcome,
           'failed',
         );
-        expect(chat.written.single.content, contains('upstream_timeout'));
+        expect(wakes.enqueued.single.content, contains('upstream_timeout'));
         expect(wakes.woken, hasLength(1));
         coordinator.dispose();
       },
     );
 
-    test('a busy parent is not woken', () async {
+    test('a busy parent still gets the result queued', () async {
       final chat = _FakeChat(<String, Conversation>{
         'parent': Conversation(
           id: 'parent',
@@ -403,7 +407,7 @@ void main() {
         pollInterval: const Duration(milliseconds: 1),
       );
       final wakes = _Wakes();
-      coordinator.attachHost(_host(chat, canWake: false, wakes: wakes));
+      coordinator.attachHost(_host(chat, wakes: wakes));
       _turns(chat);
 
       await coordinator.begin(
@@ -416,68 +420,115 @@ void main() {
       chat.repo.run = _run(state: GenerationRunState.completed);
       await _settle();
 
+      // Nothing is dropped when the parent is busy: the row is written and the
+      // queue holds the continuation until the turn ends. The coordinator does not
+      // ask whether it may land.
+      expect(wakes.enqueued, hasLength(1));
       expect(chat.written, hasLength(1));
-      expect(wakes.woken, isEmpty);
       coordinator.dispose();
     });
   });
 
   group('delegate: the waiting state', () {
-    test(
-      'a child parked on a question reads as waiting, not running',
-      () async {
-        final chat = _FakeChat(<String, Conversation>{
-          'parent': Conversation(
-            id: 'parent',
-            title: 'Chat',
-            extras: const <String, dynamic>{
-              WorkspaceBinding.keyId: 'ws-1',
-              WorkspaceBinding.keyCwd: '/w',
-            },
-          ),
-        });
-        var waiting = false;
-        final coordinator = SubagentCoordinator(
-          chat,
-          clock: _clock(),
-          pollInterval: const Duration(milliseconds: 1),
-        );
-        coordinator.attachHost(_host(chat, isWaiting: () => waiting));
-        _turns(chat);
+    test('a child parked on a question reads as waiting, not running', () async {
+      final chat = _FakeChat(<String, Conversation>{
+        'parent': Conversation(
+          id: 'parent',
+          title: 'Chat',
+          extras: const <String, dynamic>{
+            WorkspaceBinding.keyId: 'ws-1',
+            WorkspaceBinding.keyCwd: '/w',
+          },
+        ),
+      });
+      var waiting = false;
+      final coordinator = SubagentCoordinator(
+        chat,
+        clock: _clock(),
+        pollInterval: const Duration(milliseconds: 1),
+      );
+      coordinator.attachHost(_host(chat, isWaiting: () => waiting));
+      _turns(chat);
 
-        await coordinator.begin(
-          parentConversationId: 'parent',
-          toolCallId: 'call-1',
-          task: 'x',
-          label: 'x',
-          assistant: _assistant(),
-        );
-        chat.repo.run = _run(state: GenerationRunState.waitingTool);
-        await _settle();
-        expect(coordinator.liveFor('parent').single.needsInput, isFalse);
+      await coordinator.begin(
+        parentConversationId: 'parent',
+        toolCallId: 'call-1',
+        task: 'x',
+        label: 'x',
+        assistant: _assistant(),
+      );
+      chat.repo.run = _run(state: GenerationRunState.waitingTool);
+      await _settle();
+      // The run state alone says "parked": `waitingTool` means the child is
+      // blocked on the user whatever the probe can see. The probe only decides
+      // which sentence the strip shows, and its silence falls back to the
+      // generic one.
+      expect(coordinator.liveFor('parent').single.needsInput, isTrue);
+      expect(
+        coordinator.liveFor('parent').single.waitReason,
+        SubagentWaitReason.answer,
+      );
 
-        waiting = true;
-        await _settle();
-        expect(coordinator.liveFor('parent').single.needsInput, isTrue);
-        // Waiting is not an outcome: nothing is written until the run ends.
-        expect(chat.written, isEmpty);
-        // And a wait returns instead of blocking, because only a person can
-        // move this along.
-        final parked = await coordinator.awaitJob(
-          coordinator.liveFor('parent').single.childConversationId,
-          timeout: const Duration(milliseconds: 50),
-        );
-        expect(parked['status'], 'waiting_for_input');
-        expect(parked['reason'], 'answer');
+      waiting = true;
+      await _settle();
+      expect(coordinator.liveFor('parent').single.needsInput, isTrue);
+      // Waiting is not an outcome: nothing is written until the run ends.
+      expect(chat.written, isEmpty);
+      // And a wait returns instead of blocking, because only a person can
+      // move this along.
+      final parked = await coordinator.awaitJob(
+        coordinator.liveFor('parent').single.childConversationId,
+        timeout: const Duration(milliseconds: 50),
+      );
+      expect(parked['status'], 'waiting_for_input');
+      expect(parked['reason'], 'answer');
 
-        waiting = false;
-        chat.repo.run = _run(state: GenerationRunState.completed);
-        await _settle();
-        expect(coordinator.liveFor('parent'), isEmpty);
-        expect(chat.written, hasLength(1));
-        coordinator.dispose();
-      },
-    );
+      waiting = false;
+      chat.repo.run = _run(state: GenerationRunState.completed);
+      await _settle();
+      expect(coordinator.liveFor('parent'), isEmpty);
+      coordinator.dispose();
+    });
+  });
+
+  group('delegate: a turn that waits', () {
+    test('gets the result instead of a notice, and nothing is written', () async {
+      // The turn already receives the conclusion as a tool result. Writing the
+      // notice as well would put the same report into the next request twice and
+      // leave a divider the user has to read past for no new information.
+      final chat = _FakeChat(<String, Conversation>{
+        'parent': Conversation(id: 'parent', title: 'Chat'),
+      });
+      final coordinator = SubagentCoordinator(
+        chat,
+        clock: _clock(),
+        pollInterval: const Duration(milliseconds: 1),
+      )..attachHost(_host(chat));
+
+      final start = await coordinator.begin(
+        parentConversationId: 'parent',
+        toolCallId: 'call-1',
+        task: 'summarise the repo',
+        label: 'summary',
+        assistant: _assistant(),
+      );
+      // The run has to exist before the first poll, or the watcher reads it as a
+      // deleted conversation and finishes the entry as interrupted.
+      chat.repo.run = _run(state: GenerationRunState.requesting);
+      final childId = (start as SubagentStarted).entry.childConversationId;
+
+      final wait = coordinator.awaitJob(childId);
+      await _settle();
+      chat.repo.run = _run(state: GenerationRunState.completed);
+      await _settle();
+
+      final result = await wait;
+      expect(result['status'], 'completed');
+      expect((result['payload'] as Map)['text'], isNotEmpty);
+      expect(chat.written, isEmpty);
+      expect(coordinator.liveFor('parent'), isEmpty);
+      coordinator.dispose();
+    });
   });
 
   group('delegate: cancellation', () {
@@ -506,12 +557,13 @@ void main() {
                 required assistant,
                 required task,
               }) async => const SubagentTurnStart.started(runId: 'run-1'),
-          parentWaker:
+          enqueueResult:
               ({
                 required parentConversationId,
-                required result,
+                required notice,
                 required assistant,
-              }) async => true,
+                required followUp,
+              }) {},
           cancelTurn: (conversationId) async => cancelled.add(conversationId),
         ),
       );
@@ -581,14 +633,15 @@ _Turns _turns(_FakeChat chat) {
   return turn;
 }
 
-/// Records the times the coordinator continued the parent conversation.
+/// Records what the coordinator handed to the parent's queue.
 final class _Wakes {
   final List<String> woken = <String>[];
+  final List<ChatMessage> enqueued = <ChatMessage>[];
+  final List<bool> followUps = <bool>[];
 }
 
 SubagentHost _host(
   _FakeChat chat, {
-  bool canWake = true,
   bool Function()? isWaiting,
   _Wakes? wakes,
 }) {
@@ -599,16 +652,17 @@ SubagentHost _host(
           chat.onStartTurn?.call(conversationId);
           return const SubagentTurnStart.started(runId: 'run-1');
         },
-    parentWaker:
+    enqueueResult:
         ({
           required parentConversationId,
-          required result,
+          required notice,
           required assistant,
-        }) async {
+          required followUp,
+        }) {
           record.woken.add(parentConversationId);
-          return true;
+          record.enqueued.add(notice);
+          record.followUps.add(followUp);
         },
-    canWake: (_) async => canWake,
     waitReasonFor: isWaiting == null
         ? null
         : (_) => isWaiting() ? SubagentWaitReason.answer : null,

@@ -6,6 +6,7 @@
 /// pin each rule without standing up the app.
 library;
 
+import '../../../core/models/assistant.dart' show SubagentEscalation;
 import '../../../core/models/workspace_binding.dart';
 import '../../../utils/utf16_safe_cut.dart';
 
@@ -28,6 +29,12 @@ abstract final class SubagentExtrasKeys {
   /// What this child was asked to be. `general` today; the placeholder is what
   /// lets a later slice add a target without migrating anything.
   static const String target = 'subagent.target';
+
+  /// How this child may spend the user's permission: the assistant's
+  /// `subagentEscalation` at the moment it was delegated. Copied rather than
+  /// looked up so the answer cannot change mid-run, and reachable from the one
+  /// place that asks for approval without a provider lookup.
+  static const String escalation = 'subagent.escalation';
 
   static const String generalTarget = 'general';
 }
@@ -59,6 +66,7 @@ final class SubagentChildSpec {
 SubagentChildSpec buildChildSpec({
   required String parentConversationId,
   required Map<String, dynamic> parentExtras,
+  SubagentEscalation escalation = SubagentEscalation.ask,
 }) {
   final parentBinding = WorkspaceBinding.fromExtras(parentExtras);
   final depth = parentDepth(parentExtras) + 1;
@@ -74,6 +82,7 @@ SubagentChildSpec buildChildSpec({
       SubagentExtrasKeys.root: root ?? parentConversationId,
       SubagentExtrasKeys.depth: depth,
       SubagentExtrasKeys.target: SubagentExtrasKeys.generalTarget,
+      SubagentExtrasKeys.escalation: escalation.name,
     },
   );
 }

@@ -24,6 +24,9 @@ import '../services/sync/sync_local_addresses.dart';
 import '../services/sync/sync_models.dart';
 import '../services/sync/sync_pair_qr.dart';
 import '../services/sync/sync_store.dart';
+import '../services/sync/sync_transport.dart';
+import '../services/sync/tailcat_pair_qr.dart';
+import '../services/sync/tailcat_remote_service.dart';
 import '../services/sync/windows_firewall.dart';
 import '../services/sync/workspace_content_sync.dart';
 
@@ -190,7 +193,8 @@ bool shouldAutoSyncNow(DateTime now, DateTime? lastRoundAt) {
   return now.difference(lastRoundAt) >= autoSyncInterval;
 }
 
-/// UI-facing state of the LAN sync engine (ADR-0003, slice 1b).
+/// UI-facing state of the sync engine: LAN (ADR-0003) and the tailcat remote
+/// listener that sits underneath it (ADR-0020).
 ///
 /// The engine is transport + session logic; this provider owns its lifecycle:
 /// start the listener with the app, keep the peer list the panels show in
@@ -209,6 +213,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     required Future<Directory> Function() syncDirectory,
     Future<List<LanAddress>> Function()? addressSource,
     EndpointProbeFn? endpointProbe,
+    TailcatRemoteService Function(Directory directory)? remoteServiceFactory,
   }) : // Public injection names intentionally omit the private-field prefix
        // (same convention as ChatService's own dependencies).
        // ignore: prefer_initializing_formals
@@ -228,7 +233,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
        // ignore: prefer_initializing_formals
        _addressSource = addressSource,
        // ignore: prefer_initializing_formals
-       _endpointProbe = endpointProbe;
+       _endpointProbe = endpointProbe,
+       _remoteServiceFactory =
+           remoteServiceFactory ?? _createTailcatRemoteService;
 
   final ChatService _chatService;
   final ChatDatabaseRepository _repository;
@@ -251,6 +258,27 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// authenticated probe against the peer's listener; a test injects per-endpoint
   /// verdicts so a peer can go on- and offline without a socket.
   final EndpointProbeFn? _endpointProbe;
+
+  /// Builds the tailcat runtime. Injected so a provider test can hand in a fake
+  /// without the native library; production is [_createTailcatRemoteService].
+  final TailcatRemoteService Function(Directory directory)
+  _remoteServiceFactory;
+
+  /// Remote sync (ADR-0020): the tailcat runtime, created once the sync
+  /// directory is known. Null before start and on a platform without tailcat
+  /// (web).
+  TailcatRemoteService? _remote;
+  Future<void>? _remoteStartFuture;
+
+  /// Whether this device has remote keys, i.e. remote sync has been used here
+  /// at least once. Drives the launch-time auto-start: a device that has paired
+  /// remotely must answer without the user opening the remote tab first.
+  bool remoteConfigured = false;
+
+  /// Remote listener lifecycle, as the remote tab renders it.
+  bool remoteStarting = false;
+  bool remoteStarted = false;
+  String? remoteStartError;
 
   SyncEngine? _engine;
   SyncStore? _store;
@@ -467,6 +495,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   String? get deviceId => _engine?.identity.deviceId;
   String? get deviceName => _engine?.identity.name;
 
+  /// The remote address while the remote listener runs, or null. A secret:
+  /// only the pairing dialogs show it, never a panel.
+  String? get remoteAddress => _remote?.address;
+
   /// Starts the listener. Idempotent; safe to call repeatedly (the app calls it
   /// once per launch from a post-frame callback, and [ensureListening] calls it
   /// again from the moments the app is usable but the listener is down).
@@ -516,6 +548,9 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       );
       if (_stopRequested) return;
       final store = await _ensureStore(directory: directory);
+      final remote = _remoteServiceFactory(directory);
+      _remote = remote;
+      remoteConfigured = await remote.hasIdentity();
       final workspaceContent = WorkspaceContentSync(
         businessRepository: _businessRepository,
         store: store,
@@ -529,6 +564,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
           store: store,
           workspaceContent: workspaceContent,
         ),
+        transport: remote.transport,
         onStateChanged: _onEngineStateChanged,
         // A beat can mark a peer online (see [_onEngineProgressChanged]); a
         // beat cannot have changed a peer record, and the blob pull fires one
@@ -550,6 +586,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       port = boundPort;
       started = true;
       peers = await store.listPeers();
+      // A device that has used remote sync is reachable from launch, without
+      // waiting for the user to open the remote tab; a first-time device starts
+      // its listener on demand (see [ensureRemoteStarted]).
+      if (remoteConfigured) unawaited(_startRemote());
       unawaited(_ensureFirewallRule());
       // Foreground rounds: one right after start ("opened the app" is the
       // pickup journey), then one per resume, throttled by [autoSyncInterval].
@@ -637,16 +677,27 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _stopPresenceTimer();
     _cancelBusyRetries();
     final engine = _engine;
-    if (engine == null) return;
+    final remote = _remote;
+    _remote = null;
+    _remoteStartFuture = null;
+    remoteStarted = false;
+    remoteStarting = false;
+    remoteStartError = null;
+    engine?.extraAdvertisedHosts = const [];
     final boundPort = port;
     port = null;
     started = false;
-    await engine.stop();
-    if (Platform.isWindows &&
-        boundPort != null &&
-        boundPort != SyncEngine.kPreferredPort) {
-      unawaited(WindowsFirewall.tryDeleteRule(boundPort));
+    if (engine != null) {
+      await engine.stop();
+      if (Platform.isWindows &&
+          boundPort != null &&
+          boundPort != SyncEngine.kPreferredPort) {
+        unawaited(WindowsFirewall.tryDeleteRule(boundPort));
+      }
     }
+    // After the LAN listener: a tunnel connection still arriving finds nothing
+    // to relay to, which is the honest state while stopping.
+    await remote?.stop();
     _notify();
   }
 
@@ -817,6 +868,190 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
           '${error.message}${error.statusCode == null ? '' : ' (${error.statusCode})'}',
         );
     }
+  }
+
+  // ---- remote (tailcat, ADR-0020) ----
+
+  /// Starts the remote listener when it is down; idempotent. The remote tab
+  /// calls this when it becomes visible, so opening the tab is the whole
+  /// first-time opt-in (the first run mints the fixed keys here).
+  Future<void> ensureRemoteStarted() async {
+    if (_disposed) return;
+    if (port == null || _engine == null) await start();
+    await _startRemote();
+  }
+
+  Future<void> _startRemote() {
+    final pending = _remoteStartFuture;
+    if (pending != null) return pending;
+    final remote = _remote;
+    final boundPort = port;
+    if (remote == null || boundPort == null) return Future<void>.value();
+    if (remote.isRunning) {
+      _syncRemoteAdvertisedHost();
+      return Future<void>.value();
+    }
+    final future = _runRemoteStart(remote, boundPort);
+    _remoteStartFuture = future;
+    return future.whenComplete(() {
+      if (identical(_remoteStartFuture, future)) _remoteStartFuture = null;
+    });
+  }
+
+  Future<void> _runRemoteStart(
+    TailcatRemoteService remote,
+    int boundPort,
+  ) async {
+    remoteStarting = true;
+    remoteStartError = null;
+    _notify();
+    try {
+      await remote.start(localSyncPort: boundPort);
+      if (!identical(_remote, remote)) return;
+      remoteStarted = remote.isRunning;
+      remoteConfigured = true;
+    } catch (_) {
+      if (!identical(_remote, remote)) return;
+      remoteStarted = false;
+      // The service already reports a scrubbed reason (a native exception may
+      // echo a key); the raw error here would only add its type twice.
+      remoteStartError = remote.startError ?? 'remote sync could not start';
+    } finally {
+      if (identical(_remote, remote)) {
+        remoteStarting = false;
+        _syncRemoteAdvertisedHost();
+        _notify();
+      }
+    }
+  }
+
+  /// Keeps the address the engine advertises in its hello in step with the
+  /// remote listener: a peer learns where to dial back from the hello itself.
+  void _syncRemoteAdvertisedHost() {
+    final engine = _engine;
+    if (engine == null) return;
+    final host = _remote?.advertisedHost;
+    engine.extraAdvertisedHosts = host == null ? const [] : [host];
+  }
+
+  /// Pairs over the tunnel from a pasted address and PIN. The address is the
+  /// other device's remote address, not a host: [looksLikeTailcatAddress] is
+  /// only a shape check, the tunnel answers authoritatively.
+  Future<SyncPairOutcome> pairWithRemote({
+    required String address,
+    required String pin,
+    String? expectedDeviceId,
+  }) async {
+    final normalized = normalizeTailcatAddress(address);
+    if (!looksLikeTailcatAddress(normalized)) {
+      return const SyncPairOutcome.failure('invalid_remote_address');
+    }
+    return _pairRemote(
+      endpoints: [(tailcatHost(normalized), kTailcatRemotePort)],
+      pin: pin,
+      expectedDeviceId: expectedDeviceId,
+    );
+  }
+
+  /// Pairs from a scanned remote pairing QR. The scanned fingerprint travels
+  /// as [TailcatPairQrPayload.deviceId] and is pinned inside the handshake,
+  /// exactly like the LAN QR path.
+  Future<SyncPairQrOutcome> pairWithRemoteQr(
+    TailcatPairQrPayload payload,
+  ) async {
+    final wasKnownPeer = peers.any((p) => p.deviceId == payload.deviceId);
+    final outcome = await _pairRemote(
+      endpoints: payload.endpoints,
+      pin: payload.pin,
+      expectedDeviceId: payload.deviceId,
+    );
+    return SyncPairQrOutcome(outcome, wasKnownPeer);
+  }
+
+  Future<SyncPairOutcome> _pairRemote({
+    required List<(String, int)> endpoints,
+    required String pin,
+    String? expectedDeviceId,
+  }) async {
+    if (endpoints.isEmpty) {
+      return const SyncPairOutcome.failure('invalid_remote_address');
+    }
+    await ensureRemoteStarted();
+    if (_remote?.address == null) {
+      return SyncPairOutcome.failure('remote_unavailable', remoteStartError);
+    }
+    final engine = _engine;
+    if (engine == null) return const SyncPairOutcome.failure('no_listener');
+    try {
+      final record = await engine.pairWithCandidates(
+        endpoints: endpoints,
+        pin: pin,
+        expectedDeviceId: expectedDeviceId,
+        advertisedAddresses: _advertisedAddresses,
+      );
+      await refreshPeers();
+      // Same first-sync rule as the LAN paths: pairing proves the peer is
+      // reachable right now, which is the window a first full transfer needs.
+      _kickInitialSync(record);
+      return SyncPairOutcome.success(
+        peerName: record.displayName,
+        peerDeviceId: record.deviceId,
+      );
+    } on SyncClientException catch (error) {
+      return mapPairError(error);
+    } on SocketException catch (error) {
+      return SyncPairOutcome.failure('unreachable', error.message);
+    } on TimeoutException catch (error) {
+      return SyncPairOutcome.failure('unreachable', error.message);
+    } catch (error) {
+      return SyncPairOutcome.failure('unknown', '$error');
+    }
+  }
+
+  /// Replaces this device's remote keys; its remote address changes.
+  ///
+  /// Peers keep their pairing records — the LAN half of an endpoint set is
+  /// still good, and the record is what a re-pair updates — but the `tcat:`
+  /// endpoints are dropped: they name an address that no longer exists, and a
+  /// dial would only spend its budget proving that on every round.
+  Future<void> resetRemoteKeys() async {
+    final remote = _remote;
+    final store = _store;
+    final boundPort = port;
+    if (remote == null || store == null || boundPort == null) return;
+    await ensureRemoteStarted();
+    try {
+      await remote.resetKeys(localSyncPort: boundPort);
+      remoteStarted = remote.isRunning;
+      remoteStartError = remote.isRunning ? null : remote.startError;
+      remoteConfigured = true;
+    } catch (_) {
+      remoteStarted = false;
+      remoteStartError = remote.startError ?? 'remote sync could not start';
+    }
+    _syncRemoteAdvertisedHost();
+    for (final peer in peers) {
+      final dropped = [
+        for (final endpoint in peer.endpoints)
+          if (isTailcatEndpointHost(endpoint.host))
+            (endpoint.host, endpoint.port),
+      ];
+      if (dropped.isEmpty) continue;
+      await store.mutatePeer(peer.deviceId, (record) {
+        var changed = false;
+        for (final (host, endpointPort) in dropped) {
+          changed = record.removeEndpoint(host, endpointPort) || changed;
+        }
+        return changed;
+      });
+      _probeResults[peer.deviceId]?.removeWhere(
+        (key, _) => isTailcatEndpointHost(key.$1),
+      );
+    }
+    await refreshPeers();
+    _fullProbePending = true;
+    unawaited(refreshPresence());
+    _notify();
   }
 
   // ---- peers ----
@@ -1527,9 +1762,13 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// This device's own addresses as sent to a peer while pairing, so the
   /// responder remembers more than the single address the pairing arrived from.
-  List<String> get _advertisedAddresses => [
-    for (final address in localAddresses) address.address,
-  ];
+  List<String> get _advertisedAddresses {
+    final remoteHost = _remote?.advertisedHost;
+    return [
+      for (final address in localAddresses) address.address,
+      if (remoteHost != null) remoteHost,
+    ];
+  }
 
   /// Re-enumerates this device's addresses. Called on start, on every resume and
   /// whenever the pairing dialog opens: a laptop changes networks without
@@ -1628,9 +1867,17 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _disposed = true;
     _stopPresenceTimer();
     _cancelBusyRetries();
+    final remote = _remote;
+    _remote = null;
+    if (remote != null) unawaited(remote.stop().catchError((Object _) {}));
     _arrivals.close();
     WidgetsBinding.instance.removeObserver(this);
     AppShutdown.unregister(stop);
     super.dispose();
   }
 }
+
+/// The production tailcat runtime: the dependency is created here so the
+/// provider's field has one construction site and a test can replace it.
+TailcatRemoteService _createTailcatRemoteService(Directory directory) =>
+    TailcatRemoteService(directory: directory);

@@ -63,6 +63,13 @@ dependencies:
   # Self-signed certificate generation + PEM/DER helpers for the LAN sync
   # device identity (ADR-0003): the certificate IS the device identity.
   basic_utils: ^5.8.2
+  # Tailcat remote sync (ADR-0020): Dart bindings over Tailscale's tailcat
+  # library. The fork pins the upstream commit and the one Android interface
+  # registration patch; prebuilt native libraries come from its CI release.
+  libtailcat:
+    git:
+      url: https://github.com/cuplivo/libtailcat.git
+      ref: e2384d3024c64e669498d03e4593f353758fc341
   ffi: ^2.2.0
   dio: 5.9.2
   socks5_proxy: ^2.1.1

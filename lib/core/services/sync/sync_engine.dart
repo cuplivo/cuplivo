@@ -20,6 +20,7 @@ import 'sync_models.dart';
 import 'sync_pairing_prober.dart';
 import 'sync_server.dart';
 import 'sync_store.dart';
+import 'sync_transport.dart';
 import 'workspace_content_sync.dart';
 
 /// One beat of an initiator session, for the card's progress line.
@@ -251,6 +252,7 @@ class SyncEngine implements SyncServerHandler {
     required this.identity,
     required this.store,
     required this.dataPlane,
+    this.transport,
     required this.onStateChanged,
     this.onProgressChanged,
     this.onResponderSession,
@@ -267,6 +269,12 @@ class SyncEngine implements SyncServerHandler {
   final SyncDeviceIdentity identity;
   final SyncStore store;
   final SyncDataPlane dataPlane;
+
+  /// The remote transport a `tcat:` endpoint dials through (ADR-0020). The
+  /// engine never reads it: it is handed to [SyncClient], which owns the URL
+  /// rewrite and the tunnel dial, so every session path gets remote support by
+  /// construction and LAN endpoints stay on the plain dial.
+  final SyncTransport? transport;
 
   /// How long an accepted session may go *untouched* before it is swept.
   ///
@@ -328,6 +336,13 @@ class SyncEngine implements SyncServerHandler {
   /// first enumeration lands, which leaves candidate order untouched.
   List<LanAddress> localAddresses = const [];
 
+  /// Addresses this device advertises in addition to [localAddresses]: its
+  /// tailcat endpoint while remote sync runs (ADR-0020). Kept separate rather
+  /// than folded into [localAddresses] because the LAN enumeration is about
+  /// interfaces this device stands on, while a remote endpoint is a capability
+  /// that comes and goes with the remote listener.
+  List<String> extraAdvertisedHosts = const [];
+
   /// The listener port this device advertises in its hello: [port], unless a
   /// test says otherwise.
   ///
@@ -343,7 +358,10 @@ class SyncEngine implements SyncServerHandler {
     store: store,
     handler: this,
   );
-  late final SyncClient client = SyncClient(identity: identity);
+  late final SyncClient client = SyncClient(
+    identity: identity,
+    transport: transport,
+  );
 
   final Random _random = Random.secure();
   final Map<String, _ResponderSession> _sessions = {};
@@ -791,7 +809,9 @@ class SyncEngine implements SyncServerHandler {
         _setProgress(
           peer.deviceId,
           SyncSessionPhase.connecting,
-          address: formatHostPort(candidateHost, candidatePort),
+          address: isTailcatEndpointHost(candidateHost)
+              ? redactEndpointHost(candidateHost)
+              : formatHostPort(candidateHost, candidatePort),
         );
         final report = await _syncWithPeerAt(
           peer,
@@ -977,6 +997,7 @@ class SyncEngine implements SyncServerHandler {
             // these are the addresses it falls back to when it has to dial back.
             candidateHosts: [
               for (final address in localAddresses) address.address,
+              ...extraAdvertisedHosts,
             ],
             clockUs: myClockUs,
             unappliedConversations: previous.unappliedConversations,
@@ -995,7 +1016,10 @@ class SyncEngine implements SyncServerHandler {
       } on SocketException catch (error) {
         // Refused, unroutable: nothing answered at this address. The caller
         // tries the next one.
-        debugPrint('sync: ${peer.deviceId} unreachable at $host:$port: $error');
+        debugPrint(
+          'sync: ${peer.deviceId} unreachable at '
+          '${redactEndpointHost(host)}:$port: $error',
+        );
         return null;
       } on TlsException catch (error) {
         // The address answered, and the pin refused what answered: a recycled
@@ -1011,7 +1035,10 @@ class SyncEngine implements SyncServerHandler {
         );
         return null;
       } on TimeoutException catch (error) {
-        debugPrint('sync: ${peer.deviceId} timed out at $host:$port: $error');
+        debugPrint(
+          'sync: ${peer.deviceId} timed out at '
+          '${redactEndpointHost(host)}:$port: $error',
+        );
         return null;
       }
       // The peer answered *this* round, so it is a live session: from here on a
@@ -1033,6 +1060,12 @@ class SyncEngine implements SyncServerHandler {
         );
       }
       final peerHello = hello.hello!;
+      // The hello is where a remote-capable peer advertises its tailcat
+      // endpoint beside its LAN addresses (ADR-0020). A pair made on the LAN
+      // becomes remote-capable the first time the two sessions meet, with no
+      // second pairing step; a peer without the transport advertises nothing
+      // here and the record is unchanged.
+      await _rememberRemoteCandidates(peer.deviceId, peerHello.candidateHosts);
       // Yellow-flag clock divergence (slice 5): informational only, the
       // session proceeds regardless.
       final clockSkewMs = _clockSkewMs(myClockUs, peerHello.clockUs);
@@ -1692,6 +1725,13 @@ class SyncEngine implements SyncServerHandler {
         'This device is not paired with the caller.',
       );
     }
+    // Mirror of the initiator side: a paired peer that runs remote sync says so
+    // in its hello, and the next session can therefore reach it across
+    // networks even if this pair was made on the LAN (ADR-0020).
+    await _rememberRemoteCandidates(
+      initiatorHello.deviceId,
+      initiatorHello.candidateHosts,
+    );
     final active = _sessions.isEmpty ? null : _sessions.keys.first;
     if (active != null && active != initiatorHello.deviceId) {
       return const SyncHelloRefusal(
@@ -1801,6 +1841,13 @@ class SyncEngine implements SyncServerHandler {
       manifest: myManifest,
       listenPort: port,
       clockUs: myClockUs,
+      // The answer carries this device's remote endpoint when it has one: the
+      // initiator persists a `tcat:` candidate from the hello it receives, which
+      // is what makes a LAN pair remote-capable in both directions without a
+      // second pairing (ADR-0020, decision 7). LAN addresses are not repeated
+      // here — the answer has no reverse-dial consumer — and the whole field is
+      // optional on the wire, so older builds simply ignore it.
+      candidateHosts: extraAdvertisedHosts,
       // The responder answers with the same report: it too may have deferred
       // an apply, and the initiator needs it before it plans.
       unappliedConversations: checkpoint.unappliedConversations,
@@ -2091,11 +2138,46 @@ class SyncEngine implements SyncServerHandler {
         await opened.ping();
         return opened;
       } catch (error) {
-        debugPrint('sync: dialling back $host:$candidatePort failed: $error');
+        debugPrint(
+          'sync: dialling back ${redactEndpointHost(host)}:'
+          '$candidatePort failed: $error',
+        );
         opened.close();
       }
     }
     return null;
+  }
+
+  /// Stores the tailcat endpoints a peer advertised in its hello.
+  ///
+  /// The LAN entries in [candidateHosts] are route hints, not facts this device
+  /// may dial later (they are the peer's own idea of where it is, and pairing
+  /// already records them); a tailcat endpoint is the opposite — it is the only
+  /// way to reach that peer once it is on another network, and it costs nothing
+  /// to keep. Endpoints are additive and capped by the record itself, so a
+  /// repeated hello is a read, not a write.
+  Future<void> _rememberRemoteCandidates(
+    String peerDeviceId,
+    Iterable<String> candidateHosts,
+  ) async {
+    final candidates = <(String, int)>[
+      for (final host in candidateHosts)
+        if (isTailcatEndpointHost(host)) (host, kTailcatRemotePort),
+    ];
+    if (candidates.isEmpty) return;
+    try {
+      await store.mutatePeer(peerDeviceId, (peer) {
+        final before = peer.endpoints.length;
+        peer.rememberEndpointCandidates(candidates);
+        return peer.endpoints.length != before;
+      });
+    } catch (error) {
+      // A remembered route is an optimization; a store write that fails must
+      // not turn a valid hello into a failed session.
+      debugPrint(
+        'sync: could not remember $peerDeviceId\'s remote endpoint: $error',
+      );
+    }
   }
 
   /// The addresses this device may dial the initiator back on, in the order they
@@ -2123,9 +2205,22 @@ class SyncEngine implements SyncServerHandler {
       if (candidates.length >= kMaxReverseDialCandidates) return;
       final normalized = normalizeHost(host);
       if (!seen.add(normalized)) return;
-      candidates.add((normalized, port));
+      candidates.add((normalized, endpointPortForHost(normalized, port)));
     }
 
+    // A remote arrival has no source address to prefer: the relay's loopback
+    // source is suppressed (the request carried the remote marker), so the
+    // peer's tailcat endpoint is the one direction that demonstrably works.
+    // Add those first or a laptop full of LAN addresses could fill the cap the
+    // reverse dial depends on.
+    if (session.initiatorHost == null) {
+      for (final host in session.initiatorHello.candidateHosts) {
+        if (isTailcatEndpointHost(host)) add(host);
+      }
+      for (final endpoint in peer.endpoints) {
+        if (isTailcatEndpointHost(endpoint.host)) add(endpoint.host);
+      }
+    }
     add(session.initiatorHost);
     for (final host in session.initiatorHello.candidateHosts) {
       add(host);
@@ -2544,7 +2639,7 @@ class SyncEngine implements SyncServerHandler {
       peer.rememberEndpointCandidates([
         for (final host in request.candidateHosts)
           if (!myHosts.contains(normalizeHost(host)))
-            (host, request.listenPort!),
+            (host, endpointPortForHost(host, request.listenPort!)),
       ]);
     }
     // And the networks this pair already met, behind the fresh ones — the

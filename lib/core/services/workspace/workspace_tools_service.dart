@@ -26,6 +26,7 @@ import 'workspace_file_access.dart';
 import 'workspace_file_coordinator.dart';
 import '../conversation_tool_permissions.dart';
 import '../../models/tool_permission_mode.dart';
+import '../../models/assistant.dart' show SubagentEscalation;
 import 'output_buffer.dart';
 import 'tool_run_registry.dart';
 import 'workspace_paths.dart';
@@ -52,6 +53,7 @@ class WorkspaceToolsService {
     this.updateConversationExtras,
     this.readPermissionState,
     this.permissionChanges,
+    this.subagentPolicyOf,
     this.touchLastUsed,
     this.onSkillRead,
     this.onShellCompleted,
@@ -97,6 +99,15 @@ class WorkspaceToolsService {
   final Listenable? permissionChanges;
   final ToolPermissionState? Function(String conversationId)?
   readPermissionState;
+
+  /// The escalation policy of a delegated conversation, and whether the
+  /// conversation that delegated it already holds full access. The same answer
+  /// `ToolCallPermission` takes from the chat turn, asked here because a
+  /// workspace tool builds its own permission further down.
+  final ({SubagentEscalation policy, bool delegatorHasFullAccess})? Function(
+    String conversationId,
+  )?
+  subagentPolicyOf;
   final Future<void> Function(String workspaceId)? touchLastUsed;
   final Future<void> Function(String skillId)? onSkillRead;
   final Future<void> Function()? onShellCompleted;
@@ -467,6 +478,7 @@ class WorkspaceToolsService {
         await loadEnvironment?.call() ?? EnvironmentExecutionConfig();
     final redactor = EnvironmentOutputRedactor(environment);
     final id = conversationId ?? ctx.conversationId;
+    final policy = id == null ? null : subagentPolicyOf?.call(id);
     final access = WorkspaceFileAccess(
       paths: ctx.paths,
       skillsOnly: ctx.skillsOnly,
@@ -479,6 +491,8 @@ class WorkspaceToolsService {
         assistantId: ctx.assistantId,
         approvals: approvalService,
         stateChanges: permissionChanges,
+        subagentEscalation: policy?.policy,
+        delegatorHasFullAccess: policy?.delegatorHasFullAccess ?? false,
         isEnabled: () => ctx.skillsOnly || _enabled(ctx, name),
         readState: () => readPermissionState != null && id != null
             ? readPermissionState!(id)

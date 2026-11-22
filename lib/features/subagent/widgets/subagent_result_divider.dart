@@ -26,9 +26,7 @@ class SubagentResultDivider extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final outcome = part.outcome;
-    final label = (part.label ?? '').trim();
-    final word = _word(l10n, outcome);
-    final text = label.isEmpty ? word : '$word · $label';
+    final text = labelOf(l10n, part);
     final failed = outcome == 'failed';
     final interactive = onTap != null;
 
@@ -110,6 +108,14 @@ class SubagentResultDivider extends StatelessWidget {
     // as "it is over", never as an error.
     _ => l10n.subagentResultCompleted,
   };
+
+  /// The divider's one line, shared with the exports so a screenshot and a PDF
+  /// say the same thing as the timeline.
+  static String labelOf(AppLocalizations l10n, SubagentResultPart part) {
+    final word = _word(l10n, part.outcome);
+    final label = part.label?.trim() ?? '';
+    return label.isEmpty ? word : '$word · $label';
+  }
 
   static IconData _icon(String? outcome) => switch (outcome) {
     'failed' => Lucide.CircleAlert,

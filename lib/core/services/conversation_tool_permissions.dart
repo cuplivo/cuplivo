@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
+import '../models/assistant.dart' show SubagentEscalation;
 import '../models/tool_permission_mode.dart';
 import '../models/workspace_binding.dart';
 import 'chat/chat_service.dart';
 import 'api/tool_call_cancellation.dart';
 import '../../features/home/services/tool_approval_service.dart';
+import '../../features/subagent/services/subagent_rules.dart'
+    show SubagentExtrasKeys;
 
 class ToolPermissionException implements Exception {
   const ToolPermissionException(this.code, this.message);
@@ -48,6 +51,32 @@ class ConversationToolPermissions {
       mode: ToolPermissionMode.fromExtras(conversation.extras),
       workspaceId: WorkspaceBinding.fromExtras(conversation.extras).workspaceId,
       assistantId: conversation.assistantId,
+    );
+  }
+
+  /// The policy written on this conversation when it was delegated, plus whether
+  /// the conversation that delegated it already holds full access. Null for a
+  /// conversation a user started.
+  static ({SubagentEscalation policy, bool delegatorHasFullAccess})?
+  subagentPolicy(ChatService chat, String? conversationId) {
+    if (conversationId == null) return null;
+    final extras = chat.getConversation(conversationId)?.extras;
+    if (extras == null) return null;
+    final raw = extras[SubagentExtrasKeys.escalation];
+    if (raw is! String) return null;
+    var policy = SubagentEscalation.ask;
+    for (final value in SubagentEscalation.values) {
+      if (value.name == raw) policy = value;
+    }
+    final parent = extras[SubagentExtrasKeys.parent];
+    final parentMode = parent is String && parent.isNotEmpty
+        ? ToolPermissionMode.fromExtras(
+            chat.getConversation(parent)?.extras ?? const {},
+          )
+        : null;
+    return (
+      policy: policy,
+      delegatorHasFullAccess: parentMode == ToolPermissionMode.fullAccess,
     );
   }
 
@@ -141,6 +170,8 @@ class ToolCallPermission {
     this.approvals,
     this.stateChanges,
     this.isEnabled,
+    this.subagentEscalation,
+    this.delegatorHasFullAccess = false,
   });
   final String toolName;
   final String toolCallId;
@@ -151,6 +182,14 @@ class ToolCallPermission {
   final ToolApprovalService? approvals;
   final Listenable? stateChanges;
   final bool Function()? isEnabled;
+
+  /// Escalation policy of the conversation this call runs in, null when it was
+  /// not delegated.
+  final SubagentEscalation? subagentEscalation;
+
+  /// Whether the delegating conversation already holds full access: the ceiling
+  /// `SubagentEscalation.allow` may reach.
+  final bool delegatorHasFullAccess;
   bool _approvedOnce = false;
   bool byFullAccess = false;
 
@@ -187,6 +226,22 @@ class ToolCallPermission {
       return;
     }
     byFullAccess = false;
+    // A delegated conversation answers to the policy its delegator chose, because
+    // the card would appear in a conversation the user may not be watching.
+    switch (subagentEscalation) {
+      case SubagentEscalation.deny:
+        throw const ToolPermissionException(
+          'subagent_escalation_denied',
+          'This subagent may not ask for approval; do the task without the '
+              'tool, or report that it is blocked.',
+        );
+      case SubagentEscalation.allow:
+        // Capped by the delegator: "always allow" buys no permission the
+        // conversation that started this one does not already hold.
+        if (delegatorHasFullAccess) return;
+      case SubagentEscalation.ask || null:
+        break;
+    }
     if (approvals == null) {
       throw const ToolPermissionException(
         'approval_denied',

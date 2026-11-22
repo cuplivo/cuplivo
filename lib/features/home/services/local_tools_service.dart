@@ -516,13 +516,26 @@ class LocalToolsService {
     }
 
     final tools = <Map<String, dynamic>>[];
+    final enabled = assistant.localToolIds;
+    // The pair is one capability: an assistant switched on before `await_job`
+    // existed has only `delegate`, and reading membership literally would hand it
+    // half the toolbox while the dialog reports "on".
+    final delegation = enabled.contains(LocalToolNames.delegate);
     for (final id in LocalToolNames.all) {
-      if (!assistant.localToolIds.contains(id)) continue;
+      final on = id == LocalToolNames.awaitJob
+          ? delegation
+          : enabled.contains(id);
+      if (!on) continue;
       if (!isAvailableOnThisPlatform(id)) continue;
-      // A conversation already at the delegation limit does not get the tool at
+      // A conversation already at the delegation limit does not get the pair at
       // all: a model that cannot see it does not spend a call discovering the
       // limit, and the handler still refuses if one is remembered from history.
-      if (id == LocalToolNames.delegate && !allowDelegation) continue;
+      // `await_job` goes with `delegate` — a wait tool with no delegation it
+      // could have started only ever answers `not_found`.
+      if (!allowDelegation &&
+          (id == LocalToolNames.delegate || id == LocalToolNames.awaitJob)) {
+        continue;
+      }
       if (id == LocalToolNames.healthSummary) {
         tools.add(
           _healthSummaryDefinition(
@@ -545,9 +558,14 @@ class LocalToolsService {
     Assistant? assistant, {
     TextToSpeechStarter? onSpeakText,
   }) async {
-    if (assistant == null || !assistant.localToolIds.contains(name)) {
-      return null;
-    }
+    if (assistant == null) return null;
+    // `await_job` is the blocking half of 子代理: it is offered and handled
+    // wherever `delegate` is, so an assistant configured before the pair existed
+    // still gets both.
+    final on = name == LocalToolNames.awaitJob
+        ? assistant.localToolIds.contains(LocalToolNames.delegate)
+        : assistant.localToolIds.contains(name);
+    if (!on) return null;
     if (name == LocalToolNames.timeInfo) {
       return jsonEncode(_buildTimeInfoPayload(DateTime.now()));
     }

@@ -13,19 +13,19 @@ import 'package:flutter_test/flutter_test.dart';
 /// `await_job` answers with the conclusion, and it does not answer before the
 /// conclusion exists.
 ///
-/// The coordinator used to flip the phase to terminal before writing the result
-/// row, so a wait that woke in that window reported `completed` with
-/// `text: ''` — a model blocked on the job would have been told "done, nothing
-/// to say". The order is now write-then-flip; this test parks the write on a
-/// gate so the window is deterministic instead of a race.
+/// The coordinator computes the brief and then flips the phase; a wait that woke
+/// in between used to report `completed` with `text: ''` — a model blocked on the
+/// job would have been told "done, nothing to say". The order is now
+/// compute-then-flip; this test parks the brief's read so the window is
+/// deterministic instead of a race.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
-    'a wait is still_running until the row exists, then carries the text',
+    'a wait is still_running until the brief exists, then carries the text',
     () async {
-      final writeGate = Completer<void>();
-      final chat = _GatedChat(writeGate);
+      final briefGate = Completer<void>();
+      final chat = _GatedChat(briefGate);
       final coordinator = SubagentCoordinator(
         chat,
         clock: DateTime.now,
@@ -39,12 +39,13 @@ void main() {
                 required assistant,
                 required task,
               }) async => const SubagentTurnStart.started(runId: 'run-1'),
-          parentWaker:
+          enqueueResult:
               ({
                 required parentConversationId,
-                required result,
+                required notice,
                 required assistant,
-              }) async => true,
+                required followUp,
+              }) {},
         ),
       );
 
@@ -57,9 +58,9 @@ void main() {
       );
       final childId = (start as SubagentStarted).entry.childConversationId;
 
-      // The watcher saw the terminal run and is now parked inside the write.
+      // The watcher saw the terminal run and is now parked inside the brief.
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(chat.writeEntered, isTrue, reason: 'watcher reached the write');
+      expect(chat.briefEntered, isTrue, reason: 'watcher reached the brief');
 
       // With no timeout the wait has no ceiling of its own: a delegation may run
       // for half an hour, and giving up early would turn the model into a poller.
@@ -75,7 +76,7 @@ void main() {
       expect(whileWriting['status'], 'still_running');
       expect(whileWriting['elapsed_ms'], isA<int>());
 
-      writeGate.complete();
+      briefGate.complete();
       await Future<void>.delayed(const Duration(milliseconds: 20));
 
       final settled = await coordinator.awaitJob(
@@ -93,6 +94,11 @@ void main() {
 }
 
 class _FixedRepository extends Fake implements ChatDatabaseRepository {
+  _FixedRepository({this.briefGate, this.onBriefEntered});
+
+  final Completer<void>? briefGate;
+  final void Function()? onBriefEntered;
+
   @override
   Future<GenerationRun?> getGenerationRun(String id) async {
     final at = DateTime(2026, 11, 21, 12);
@@ -111,19 +117,23 @@ class _FixedRepository extends Fake implements ChatDatabaseRepository {
   }
 
   @override
-  Future<ChatMessage?> getMessage(String id) async => ChatMessage(
-    id: id,
-    role: 'assistant',
-    content: 'everything the subagent concluded',
-    conversationId: 'child-1',
-  );
+  Future<ChatMessage?> getMessage(String id) async {
+    onBriefEntered?.call();
+    await briefGate?.future;
+    return ChatMessage(
+      id: id,
+      role: 'assistant',
+      content: 'everything the subagent concluded',
+      conversationId: 'child-1',
+    );
+  }
 }
 
 class _GatedChat extends Fake implements ChatService {
-  _GatedChat(this.writeGate);
+  _GatedChat(this.briefGate);
 
-  final Completer<void> writeGate;
-  bool writeEntered = false;
+  final Completer<void> briefGate;
+  bool briefEntered = false;
   final Map<String, Conversation> _conversations = <String, Conversation>{
     'parent': Conversation(
       id: 'parent',
@@ -142,7 +152,10 @@ class _GatedChat extends Fake implements ChatService {
   bool isTemporaryConversation(String? id) => false;
 
   @override
-  ChatDatabaseRepository get chatRepositoryOrNull => _FixedRepository();
+  ChatDatabaseRepository get chatRepositoryOrNull => _FixedRepository(
+    briefGate: briefGate,
+    onBriefEntered: () => briefEntered = true,
+  );
 
   @override
   Future<Conversation> createConversation({
@@ -166,10 +179,7 @@ class _GatedChat extends Fake implements ChatService {
   Future<void> addMessageDirectly(
     String conversationId,
     ChatMessage message,
-  ) async {
-    writeEntered = true;
-    await writeGate.future;
-  }
+  ) async {}
 
   @override
   List<ChatMessage> getMessages(String conversationId) => const <ChatMessage>[];

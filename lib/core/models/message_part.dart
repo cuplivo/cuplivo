@@ -219,6 +219,23 @@ final class SubagentResultPart extends MessagePart {
       Object.hash(childConversationId, elapsedMs, label, outcome);
 }
 
+/// Whether [parts] carry the notice a finished subagent wrote into its parent.
+///
+/// Identity is the part, never the message id: an import, a restore or a sync may
+/// rewrite ids, and the part travels with the row. Everything that has to know
+/// "this `user` message is not something the user typed" asks here, so the answer
+/// cannot drift between the request builder, the image selector and the renderer.
+bool hasSubagentResultPart(Iterable<MessagePart> parts) =>
+    subagentResultPartOf(parts) != null;
+
+/// The notice in [parts], or null when this is an ordinary message.
+SubagentResultPart? subagentResultPartOf(Iterable<MessagePart> parts) {
+  for (final part in parts) {
+    if (part is SubagentResultPart) return part;
+  }
+  return null;
+}
+
 final class TextPart extends MessagePart {
   const TextPart(this.text);
 

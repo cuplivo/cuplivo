@@ -145,15 +145,8 @@ class MessageBuilderService {
   static const String internalRevisionIdKey = multimodalInternalRevisionIdKey;
 
   /// Whether [message] is the notice a finished subagent wrote into a parent.
-  ///
-  /// Identity is the part, never the id: a restore or a sync may rewrite ids,
-  /// and the part travels with the row.
-  static bool _isSubagentResult(ChatMessage message) {
-    for (final part in message.parts) {
-      if (part is SubagentResultPart) return true;
-    }
-    return false;
-  }
+  static bool _isSubagentResult(ChatMessage message) =>
+      hasSubagentResultPart(message.parts);
 
   MessageBuilderService({
     required this.chatService,

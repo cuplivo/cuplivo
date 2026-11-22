@@ -24,6 +24,7 @@ import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
 import '../features/home/services/local_tools_service.dart';
 import '../features/image_job/widgets/image_model_subrow.dart';
+import '../features/subagent/widgets/subagent_config_sheet.dart';
 import '../core/models/assistant.dart';
 import '../features/group_chat/widgets/group_member_strip.dart';
 import '../features/home/utils/model_display_helper.dart';
@@ -438,6 +439,54 @@ class _ToolsContent extends StatelessWidget {
       );
       for (final id in localToolIds) {
         final isEnabled = enabledLocalTools.contains(id);
+        // 子代理 is two lines of the same grammar as 绘图: the row, and the
+        // indented summary under it. Both open its three-row dialog.
+        if (id == LocalToolNames.delegate) {
+          final assistant = a;
+          rows.add(
+            (context) => _RowItem(
+              leading: Icon(
+                localToolIcon(id),
+                size: 16,
+                color: isEnabled ? cs.primary : cs.onSurface,
+              ),
+              label: localToolTitle(l10n, id),
+              trailing: Icon(
+                Lucide.ChevronRight,
+                size: 16,
+                color: cs.onSurface.withValues(alpha: .55),
+              ),
+              selected: isEnabled,
+              onTap: () {
+                onDone();
+                unawaited(
+                  showSubagentConfig(hostContext, assistantId: assistantId),
+                );
+              },
+            ),
+          );
+          if (isEnabled) {
+            rows.add(
+              (context) => ImageModelSubRow(
+                label: subagentSummary(
+                  AppLocalizations.of(context)!,
+                  assistant,
+                ),
+                configured: true,
+                inset: 36,
+                height: 30,
+                fontSize: 12,
+                onTap: () {
+                  onDone();
+                  unawaited(
+                    showSubagentConfig(hostContext, assistantId: assistantId),
+                  );
+                },
+              ),
+            );
+          }
+          continue;
+        }
         rows.add(
           (context) => _RowItem(
             leading: Icon(
@@ -671,12 +720,16 @@ class _RowItem extends StatefulWidget {
     super.key,
     required this.leading,
     this.detail,
+    this.trailing,
     required this.label,
     this.selected,
     required this.onTap,
   });
   final Widget leading;
   final String? detail;
+
+  /// Replaces the on/off mark, e.g. a chevron for a row that opens a dialog.
+  final Widget? trailing;
   final String label;
   final bool? selected;
   final VoidCallback? onTap;
@@ -763,17 +816,20 @@ class _RowItemState extends State<_RowItem> {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 160),
-                    child: widget.selected == true
-                        ? Icon(
-                            Lucide.Check,
-                            key: const ValueKey('check'),
-                            size: 16,
-                            color: cs.primary,
-                          )
-                        : const SizedBox(width: 16, key: ValueKey('space')),
-                  ),
+                  if (widget.trailing case final trailing?)
+                    trailing
+                  else
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 160),
+                      child: widget.selected == true
+                          ? Icon(
+                              Lucide.Check,
+                              key: const ValueKey('check'),
+                              size: 16,
+                              color: cs.primary,
+                            )
+                          : const SizedBox(width: 16, key: ValueKey('space')),
+                    ),
                 ],
               ),
             ),

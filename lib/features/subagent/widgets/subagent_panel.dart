@@ -8,20 +8,21 @@ import '../../../core/models/message_part.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../shared/responsive/breakpoints.dart';
+import '../../../utils/platform_utils.dart';
 import '../services/subagent_coordinator.dart';
 
 /// Opens the list of this conversation's subagents.
 ///
-/// A dialog on a wide screen and a sheet on a narrow one: the repo never puts a
-/// bottom sheet on desktop, and the content is the same either way.
+/// A dialog on desktop and a sheet on a phone, decided by the platform rather
+/// than by the window width: the repo forbids a bottom sheet on desktop, and a
+/// narrow desktop window is still a desktop (the image-job panel does this the
+/// same way).
 Future<void> showSubagentPanel(
   BuildContext context, {
   required String conversationId,
 }) {
-  final wide = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
   final child = _SubagentPanel(conversationId: conversationId);
-  if (wide) {
+  if (PlatformUtils.isDesktop) {
     return showDialog<void>(
       context: context,
       builder: (_) => Dialog(

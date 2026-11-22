@@ -101,6 +101,9 @@ import '../utils/chat_layout_constants.dart';
 import '../controllers/home_page_controller.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
 import '../../subagent/services/subagent_coordinator.dart';
+import '../../../core/models/conversation.dart';
+import '../../subagent/services/subagent_rules.dart' show SubagentExtrasKeys;
+import '../../subagent/widgets/subagent_parent_link.dart';
 import 'home_mobile_layout.dart';
 import 'home_desktop_layout.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
@@ -1459,6 +1462,29 @@ class _HomePageState extends State<HomePage>
     return kToolbarHeight + MediaQuery.paddingOf(context).top;
   }
 
+  /// The two `查看主对话` links a delegated conversation carries, top and bottom.
+  ///
+  /// Only a child has a parent, so every other conversation gets null and its
+  /// timeline is untouched. The label names the parent instead of saying "back",
+  /// because a nested delegation has exactly one parent and the user may have
+  /// three of these open.
+  Widget? _buildSubagentParentLink(
+    BuildContext context,
+    Conversation? conversation,
+  ) {
+    final parentId = conversation?.extras[SubagentExtrasKeys.parent] as String?;
+    if (parentId == null || parentId.isEmpty) return null;
+    final parent = context.select<ChatService, Conversation?>(
+      (chat) => chat.getConversation(parentId),
+    );
+    if (parent == null) return null;
+    final l10n = AppLocalizations.of(context)!;
+    return SubagentParentLink(
+      label: l10n.subagentViewParent(parent.title),
+      onTap: () => _controller.switchConversationAnimated(parent.id),
+    );
+  }
+
   Widget _buildMessageListView(
     BuildContext context, {
     required double topContentPadding,
@@ -1522,6 +1548,10 @@ class _HomePageState extends State<HomePage>
           : const [],
     );
     return MessageListView(
+      subagentParentLink: _buildSubagentParentLink(
+        context,
+        suggestionConversation,
+      ),
       contextTask: compression,
       contextTaskRevision: compression == null
           ? null

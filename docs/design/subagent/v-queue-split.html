@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>结果入队 · 分隔线立即落地</title>
+<style>
+  :root{--bg:#0b0c0f;--card:#15171c;--card2:#1b1e25;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34);--primary:#7aa2ff;--warn:#e0a34a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:26px 20px 46px}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:17px;font-weight:600;margin:0 0 6px}
+  .lede{color:var(--muted);font-size:12.5px;margin:0 0 20px}
+  h2{font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--dim);
+    text-transform:uppercase;margin:24px 0 10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .phone{background:var(--card2);border-radius:10px;padding:12px}
+  .bub{background:rgba(122,162,255,.14);border-radius:12px;padding:8px 11px;font-size:12.5px;max-width:86%}
+  .ai{font-size:12.5px;padding:6px 2px}
+  .divider{display:flex;align-items:center;gap:8px;margin:9px 0;color:var(--muted);font-size:12px}
+  .divider .ln{flex:1;height:.5px;background:rgba(255,255,255,.12)}
+  .queue{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
+    border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-top:10px}
+  .queue .x{margin-left:auto;color:var(--dim)}
+  .cap{color:var(--muted);font-size:12px;margin:10px 0 0}
+  .cap b{color:var(--fg);font-weight:600}
+  ul{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
+  li{margin:4px 0}
+  li b{color:var(--fg);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>结果入队 · 分隔线立即落地</h1>
+<p class="lede">完成即入队，不再「试 15 次再放弃」。分隔线马上出现在时间线上，排队的是它后面的那一轮续写。</p>
+
+<h2>父会话空闲时</h2>
+<div class="card">
+  <div class="phone">
+    <div class="bub">派两个子代理，一个改测试，一个查登录页。</div>
+    <div class="divider"><span class="ln"></span>子代理完成 · 改测试<span class="ln"></span></div>
+    <div class="ai">三个用例都过了。根因是 token 过期后本地缓存没清。</div>
+    <div class="divider"><span class="ln"></span>子代理完成 · 查登录页<span class="ln"></span></div>
+    <div class="ai">登录页那边没有问题，只是文案旧了。</div>
+  </div>
+</div>
+
+<h2>父会话忙 / 你在打字 / 应用在后台</h2>
+<div class="card">
+  <div class="phone">
+    <div class="divider"><span class="ln"></span>子代理完成 · 查登录页<span class="ln"></span></div>
+    <div class="queue"><span>排队 1 条 · 子代理结果</span><span class="x">✕</span></div>
+  </div>
+  <p class="cap">分隔线<b>已经在了</b>，你不会看到一条没有下文的横线。续写排在输入框上方那条，等父会话空出来就发；点 ✕ 只丢掉这一轮续写，<b>结果行还在</b>。</p>
+</div>
+
+<h2>规则</h2>
+<div class="card">
+  <ul>
+    <li><b>完成即入队</b>，不判断「现在能不能打扰」——那个判断只决定什么时候发，不决定丢不丢。</li>
+    <li><b>按完成时间排队</b>，一条一条续写；两条同时完成时先到先答，不合并、不批量。</li>
+    <li><b>你正在打字</b>也算忙：队列等你停下来（或按发送）再发，但不清空。</li>
+    <li><b>取消只取消续写</b>，结果行与子会话都在。</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../theme/app_semantic_colors.dart';
 import '../services/subagent_coordinator.dart';
 import 'subagent_panel.dart';
 
@@ -85,8 +86,10 @@ class _SubagentTaskStripState extends State<SubagentTaskStrip> {
                 Icon(
                   waiting > 0 ? Lucide.CircleAlert : Lucide.Bot,
                   size: 14,
+                  // Amber only when a person is the one who has to move: it is
+                  // the one signal that something inside is blocked on you.
                   color: waiting > 0
-                      ? cs.primary
+                      ? context.appColors.warning
                       : cs.onSurface.withValues(alpha: .55),
                 ),
                 const SizedBox(width: 6),

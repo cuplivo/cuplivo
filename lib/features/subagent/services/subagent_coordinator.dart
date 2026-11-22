@@ -41,18 +41,6 @@ typedef SubagentTurnStarter =
       required String task,
     });
 
-/// How the host continues the parent conversation once a child is done.
-///
-/// Returns whether a turn actually started: the parent may have begun
-/// generating between the check and the call, and the coordinator retries in
-/// that case.
-typedef SubagentParentWaker =
-    Future<bool> Function({
-      required String parentConversationId,
-      required ChatMessage result,
-      required Assistant assistant,
-    });
-
 /// What a turn starter produced.
 final class SubagentTurnStart {
   const SubagentTurnStart.started({required this.runId}) : refusal = null;
@@ -120,6 +108,11 @@ final class SubagentEntry {
   /// back the conclusion without re-reading the message.
   String? brief;
 
+  /// How many turns are blocked in [SubagentCoordinator.awaitJob] right now. A
+  /// non-zero count means somebody is already waiting to report this outcome, so
+  /// the terminal write must not wake the parent a second time.
+  int waiters = 0;
+
   bool get isLive =>
       phase == SubagentPhase.running || phase == SubagentPhase.waitingForInput;
 
@@ -173,23 +166,27 @@ final class SubagentRefused extends SubagentStart {
 final class SubagentHost {
   const SubagentHost({
     required this.turnStarter,
-    required this.parentWaker,
-    this.canWake,
+    this.enqueueResult,
     this.waitReasonFor,
     this.openConversation,
     this.cancelTurn,
-    this.refreshTimeline,
   });
 
   final SubagentTurnStarter turnStarter;
-  final SubagentParentWaker parentWaker;
 
-  /// Whether [parentConversationId] may be continued right now. Null: always.
+  /// Hands a finished result to the parent's queue, as one unit: the notice row
+  /// and the turn that reads it.
   ///
-  /// Asynchronous because the honest answers need one: whether the app is in
-  /// front has to be asked of the background coordinator, which only learns it
-  /// asynchronously.
-  final Future<bool> Function(String parentConversationId)? canWake;
+  /// The coordinator does not decide when it may land — that is the queue's one
+  /// job, and asking here is what made a second delegation's result vanish behind
+  /// the first one's answer.
+  final void Function({
+    required String parentConversationId,
+    required ChatMessage notice,
+    required Assistant assistant,
+    required bool followUp,
+  })?
+  enqueueResult;
 
   /// Whether [childConversationId] is parked on an approval or an `ask_user`
   /// card, and which. The two services that know live above this coordinator,
@@ -202,11 +199,6 @@ final class SubagentHost {
 
   /// Stops the generation running in a child conversation.
   final Future<void> Function(String conversationId)? cancelTurn;
-
-  /// Reloads the visible timeline of [conversationId] after a write that did not
-  /// go through the chat flow. Without it a result row sits in the database but
-  /// not on screen until the next send or conversation switch.
-  final Future<void> Function(String conversationId)? refreshTimeline;
 }
 
 /// The coordinator above [context], or null when this subtree has none.
@@ -375,19 +367,15 @@ class SubagentCoordinator extends ChangeNotifier {
     final spec = buildChildSpec(
       parentConversationId: parentConversationId,
       parentExtras: parent.extras,
+      escalation: assistant.subagentEscalation,
     );
+    // No workspace is not a refusal: a child inherits whatever the parent has,
+    // including nothing. An unbound parent that still wants a second opinion gets
+    // an unbound child, which can read and answer and simply has no files.
     final workspaceId = spec.extras[WorkspaceBinding.keyId] as String?;
-    if (workspaceId == null) {
-      // A subagent without a workspace can read and answer, but every useful
-      // part of the job needs files. Refusing here tells the model something it
-      // can act on instead of starting work that cannot finish.
-      return const SubagentRefused(
-        'no_workspace',
-        'This conversation has no workspace, so there is nothing for a '
-            'subagent to work on. Ask the user to bind a workspace first.',
-      );
-    }
-    if (workspaceExists != null && !workspaceExists(workspaceId)) {
+    if (workspaceId != null &&
+        workspaceExists != null &&
+        !workspaceExists(workspaceId)) {
       return const SubagentRefused(
         'workspace_not_ready',
         'The workspace this conversation uses no longer exists.',
@@ -468,35 +456,43 @@ class SubagentCoordinator extends ChangeNotifier {
     if (entry == null) {
       return <String, dynamic>{'status': 'not_found'};
     }
-    final deadline = timeout == null ? null : DateTime.now().add(timeout);
-    while (entry.isLive) {
-      if (entry.needsInput) {
-        // Waiting longer cannot help: the child's next step needs a person.
-        return <String, dynamic>{
-          'status': 'waiting_for_input',
-          'reason': (entry.waitReason ?? SubagentWaitReason.answer).name,
-          'conversation_id': entry.childConversationId,
-        };
+    // Registering the wait is what stops the wake: a turn that chose to block is
+    // the turn that reports the result, and waking it again would answer the same
+    // event twice.
+    entry.waiters++;
+    try {
+      final deadline = timeout == null ? null : DateTime.now().add(timeout);
+      while (entry.isLive) {
+        if (entry.needsInput) {
+          // Waiting longer cannot help: the child's next step needs a person.
+          return <String, dynamic>{
+            'status': 'waiting_for_input',
+            'reason': (entry.waitReason ?? SubagentWaitReason.answer).name,
+            'conversation_id': entry.childConversationId,
+          };
+        }
+        if (deadline != null && !DateTime.now().isBefore(deadline)) {
+          return <String, dynamic>{
+            'status': 'still_running',
+            'elapsed_ms': DateTime.now()
+                .difference(entry.startedAt)
+                .inMilliseconds,
+          };
+        }
+        if (cancelled == null) {
+          await Future<void>.delayed(pollInterval);
+          continue;
+        }
+        // A Stop must end the wait, not sit inside it: the generation is being
+        // cancelled and the run has to be given the chance to close.
+        final stopped = await Future.any<bool>(<Future<bool>>[
+          Future<void>.delayed(pollInterval).then((_) => false),
+          cancelled.then((_) => true),
+        ]);
+        if (stopped) return <String, dynamic>{'status': 'cancelled'};
       }
-      if (deadline != null && !DateTime.now().isBefore(deadline)) {
-        return <String, dynamic>{
-          'status': 'still_running',
-          'elapsed_ms': DateTime.now()
-              .difference(entry.startedAt)
-              .inMilliseconds,
-        };
-      }
-      if (cancelled == null) {
-        await Future<void>.delayed(pollInterval);
-        continue;
-      }
-      // A Stop must end the wait, not sit inside it: the generation is being
-      // cancelled and the run has to be given the chance to close.
-      final stopped = await Future.any<bool>(<Future<bool>>[
-        Future<void>.delayed(pollInterval).then((_) => false),
-        cancelled.then((_) => true),
-      ]);
-      if (stopped) return <String, dynamic>{'status': 'cancelled'};
+    } finally {
+      entry.waiters--;
     }
     if (entry.phase == SubagentPhase.completed) {
       return <String, dynamic>{
@@ -507,10 +503,17 @@ class SubagentCoordinator extends ChangeNotifier {
         },
       };
     }
+    // Both outcomes carry the conclusion: a failed run's closing sentence is the
+    // only place the parent learns *why*, and a wait that was told "failed" with
+    // no text had to ask again with another call.
     return <String, dynamic>{
       'status': 'failed',
       'reason': entry.failureReason ?? entry.phase.name,
       'conversation_id': entry.childConversationId,
+      'payload': <String, dynamic>{
+        'conversation_id': entry.childConversationId,
+        'text': entry.brief ?? '',
+      },
     };
   }
 
@@ -534,7 +537,18 @@ class SubagentCoordinator extends ChangeNotifier {
         // a child parked on an approval or an `ask_user` card will never finish
         // on its own, and the user needs to be told that instead of a ticking
         // timer. Recompute every tick because answering the card unparks it.
-        _noteWaiting(entry);
+        //
+        // Two witnesses, because neither is always present: the probe knows which
+        // service holds the pending request (and which sentence the strip shows),
+        // and `waitingTool` names the state even when the probe cannot see the
+        // request. The probe has to be asked unconditionally — nothing in the app
+        // currently *writes* `waitingTool`; it is only a declared transition.
+        final reason = _host?.waitReasonFor?.call(entry.childConversationId);
+        _noteWaiting(
+          entry,
+          parked: reason != null || run.state == GenerationRunState.waitingTool,
+          reason: reason,
+        );
         continue;
       }
       await _finish(
@@ -547,16 +561,18 @@ class SubagentCoordinator extends ChangeNotifier {
     }
   }
 
-  void _noteWaiting(SubagentEntry entry) {
-    final probe = _host?.waitReasonFor;
-    if (probe == null) return;
-    final reason = probe(entry.childConversationId);
-    final next = reason == null
+  void _noteWaiting(
+    SubagentEntry entry, {
+    required bool parked,
+    SubagentWaitReason? reason,
+  }) {
+    final waiting = parked ? (reason ?? SubagentWaitReason.answer) : null;
+    final next = waiting == null
         ? SubagentPhase.running
         : SubagentPhase.waitingForInput;
-    if (entry.phase == next && entry.waitReason == reason) return;
+    if (entry.phase == next && entry.waitReason == waiting) return;
     entry.phase = next;
-    entry.waitReason = reason;
+    entry.waitReason = waiting;
     notifyListeners();
   }
 
@@ -570,108 +586,100 @@ class SubagentCoordinator extends ChangeNotifier {
     entry.failureReason = reason;
     entry.elapsed = _clock().difference(entry.startedAt);
 
-    // Write before flipping the phase. `awaitJob` waits for the phase to stop
-    // being live and then reads `brief`, so a flip first would answer with an
-    // empty conclusion to a model that is blocked on it.
-    ChatMessage? result;
+    // A turn blocked in `await_job` receives this outcome as a tool result and
+    // answers it itself. Writing the notice as well would put the same conclusion
+    // into the conversation twice: a divider the user has to skip past, and a
+    // second copy of the report in the next request's context.
+    final waited = entry.waiters > 0;
+
+    // Compute the conclusion before flipping the phase. `awaitJob` waits for the
+    // phase to stop being live and then reads `brief`, so a flip first would
+    // answer with an empty conclusion to a model that is blocked on it.
+    ChatMessage? notice;
     try {
-      result = await _writeResult(
+      entry.brief = await _briefFor(
         entry,
         phase,
         reason,
         targetMessageId: targetMessageId,
       );
+      // Read again, not the snapshot: a wait that ended while the brief was being
+      // read (a Stop, an explicit timeout) is gone, and its tool result will never
+      // be seen. Trusting the stale read would leave the delegation with no row
+      // and no continuation — a result that happened and left no trace.
+      if (!waited || entry.waiters == 0) {
+        notice = _noticeFor(entry, phase, entry.brief!);
+      }
     } finally {
-      // A failed write must not leave the entry looking alive forever.
+      // A failed computation must not leave the entry looking alive forever.
       entry.phase = phase;
       notifyListeners();
     }
 
-    if (result == null) return;
-    // The row is now in the database but not in the open timeline: nothing else
-    // reloads a conversation that was written by something other than the chat
-    // flow.
-    await _host?.refreshTimeline?.call(entry.parentConversationId);
-    // A cancellation is the user's own doing and an interruption is the
-    // environment's; neither should spend another generation explaining it.
-    // A failure should: one line in the timeline is easy to scroll past, and
-    // the user's next move depends on knowing the work did not happen.
-    if (phase == SubagentPhase.completed || phase == SubagentPhase.failed) {
-      await _wakeParentIfAllowed(entry, result);
+    if (notice == null) return;
+    // The handover: the result goes into the parent's queue as one unit (row and
+    // continuation). Whether it may land now is the queue's question, not this
+    // one's — asking it here is what silently dropped a second delegation when
+    // the first was still being answered.
+    //
+    // The row is written here, not when the queue gets to it. It is the durable
+    // part of a finished delegation: a process killed while the app is in the
+    // background must still leave the divider behind, and `addMessageDirectly`
+    // is idempotent on the notice's derived id, so the delivery below writing it
+    // again costs nothing.
+    await _chat.addMessageDirectly(entry.parentConversationId, notice);
+    // What the queue decides is only whether the parent is *continued* now.
+    final followUp =
+        phase == SubagentPhase.completed || phase == SubagentPhase.failed;
+    final enqueue = _host?.enqueueResult;
+    if (enqueue != null) {
+      enqueue(
+        parentConversationId: entry.parentConversationId,
+        notice: notice,
+        assistant: entry.assistant,
+        followUp: followUp,
+      );
     }
   }
 
-  Future<ChatMessage?> _writeResult(
+  /// The one-sentence report the parent is given, in either delivery: the notice
+  /// row, or the tool result of a turn that waited.
+  Future<String> _briefFor(
     SubagentEntry entry,
     SubagentPhase phase,
     String? reason, {
     String? targetMessageId,
   }) async {
     final text = await _childClosingText(entry, targetMessageId);
-    final elapsed = entry.elapsed;
-    final brief = resultBrief(
+    return resultBrief(
       label: entry.title,
       outcome: _outcomeWord(phase, reason),
       text: text,
       childConversationId: entry.childConversationId,
     );
-    final message = ChatMessage(
-      id: SubagentResultPart.messageIdFor(entry.childConversationId),
-      role: 'user',
-      conversationId: entry.parentConversationId,
-      parts: <MessagePart>[
-        SubagentResultPart(
-          childConversationId: entry.childConversationId,
-          elapsedMs: elapsed?.inMilliseconds,
-          label: entry.title,
-          outcome: phase.name,
-        ),
-        TextPart(brief),
-      ],
-      timestamp: _clock(),
-    );
-    // The id is derived from the child, so calling this twice cannot add a row.
-    await _chat.addMessageDirectly(entry.parentConversationId, message);
-    entry.brief = brief;
-    return message;
   }
 
-  /// How long a wake keeps retrying while the parent is busy.
-  static const Duration _wakeRetryDelay = Duration(seconds: 2);
-  static const int _wakeAttempts = 15;
-
-  /// Continues the parent, waiting out a busy turn.
-  ///
-  /// The wake is the only thing that puts the notice in front of the user
-  /// without them acting, so "the parent happened to be generating" must not be
-  /// the end of the story: the notice would sit there until the user's next
-  /// message. A turn ends in seconds, so a bounded retry covers the real case; a
-  /// parent that stays busy for half a minute (a draft, a long compression) keeps
-  /// the notice for the next turn, which is where it would have landed anyway.
-  Future<void> _wakeParentIfAllowed(
+  /// The notice row itself: a `user` message carrying the part the renderer and
+  /// the exports read, plus the one-sentence brief as its text.
+  ChatMessage _noticeFor(
     SubagentEntry entry,
-    ChatMessage result,
-  ) async {
-    if (_chat.getConversation(entry.parentConversationId) == null) return;
-    for (var attempt = 0; attempt < _wakeAttempts; attempt++) {
-      if (_disposed) return;
-      final host = _host;
-      if (host == null) return;
-      final canWake = host.canWake;
-      if (canWake == null || await canWake(entry.parentConversationId)) {
-        if (_chat.getConversation(entry.parentConversationId) == null) return;
-        final woken = await host.parentWaker(
-          parentConversationId: entry.parentConversationId,
-          result: result,
-          assistant: entry.assistant,
-        );
-        // A turn that could not start (the parent started generating in the
-        // meantime) is worth another attempt for the same reason as above.
-        if (woken) return;
-      }
-      await Future<void>.delayed(_wakeRetryDelay);
-    }
-  }
+    SubagentPhase phase,
+    String brief,
+  ) => ChatMessage(
+    id: SubagentResultPart.messageIdFor(entry.childConversationId),
+    role: 'user',
+    conversationId: entry.parentConversationId,
+    parts: <MessagePart>[
+      SubagentResultPart(
+        childConversationId: entry.childConversationId,
+        elapsedMs: entry.elapsed?.inMilliseconds,
+        label: entry.title,
+        outcome: phase.name,
+      ),
+      TextPart(brief),
+    ],
+    timestamp: _clock(),
+  );
 
   /// The child's last non-empty assistant text, which is what the parent reads.
   ///

@@ -513,8 +513,13 @@ class _RecordingChatService extends ChatService {
     String? assistantId,
     String? groupChatId,
     bool activate = true,
+    Map<String, dynamic>? extras,
   }) async {
-    final conversation = Conversation(title: title!, assistantId: assistantId);
+    final conversation = Conversation(
+      title: title!,
+      assistantId: assistantId,
+      extras: extras ?? const <String, dynamic>{},
+    );
     created.add(conversation);
     return conversation;
   }

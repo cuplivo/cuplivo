@@ -6,6 +6,8 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'blob_sync.dart';
+import 'sync_admission.dart';
+import 'sync_budget.dart';
 import 'sync_client.dart';
 import 'sync_data_plane.dart';
 import 'sync_family_registry.dart';
@@ -126,6 +128,19 @@ class SyncSessionReport {
   /// counted: they are continuation state, not the user's work.
   final int conversationsWithDocumentsReplaced;
 
+  /// Conversations this push left behind because they did not fit: the budget
+  /// admitted the batch without them, their checkpoints stayed at `prior`, and
+  /// the next round retries them.
+  ///
+  /// Counted separately from [deferred] because the reason is its own: a
+  /// deferred conversation waits for a generation to stop or a fetch to deliver,
+  /// while one omitted for size was measured against this round. Most of them
+  /// are the plan's tail and ride the next session on their own; only a
+  /// conversation past the single-conversation ceiling has to be pulled by the
+  /// other device instead. Nothing was deleted either way, and a conversation
+  /// that silently stops syncing is the one thing this face must never do.
+  final int conversationsOmittedForSize;
+
   /// Workspace content in either direction (slice 18), counted the same way the
   /// blob face is: what this device itself landed, deleted, lost and could not
   /// apply — plus how many workspaces it shared no content for (turned off, or
@@ -162,6 +177,7 @@ class SyncSessionReport {
     this.messagesUpserted = 0,
     this.messagesDeleted = 0,
     this.deferred = 0,
+    this.conversationsOmittedForSize = 0,
     this.conversationsDeletedLocally = 0,
     this.deletedBlocked = 0,
     this.entityRows = 0,
@@ -196,6 +212,7 @@ class SyncSessionReport {
     deletedConversations: conversationsDeletedLocally,
     deletedBlocked: deletedBlocked,
     deferred: deferred,
+    conversationsOmittedForSize: conversationsOmittedForSize,
     entityRows: entityRows,
     preferenceRows: preferenceRows,
     blobsMoved: blobsMoved,
@@ -240,6 +257,8 @@ class SyncEngine implements SyncServerHandler {
     this.onProbes,
     this.sessionIdleTtl = kSessionIdleTtl,
     this.yieldedSessionTtl = kYieldedSessionTtl,
+    this.deltaByteBudget = kSyncDeltaByteBudget,
+    this.maxConversationBytes = kSyncMaxConversationBytes,
     int Function()? clockUs,
     DateTime Function()? now,
   }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch),
@@ -262,6 +281,14 @@ class SyncEngine implements SyncServerHandler {
   /// A parameter only so a test can shrink the window instead of sleeping
   /// through the production one; production never passes it.
   final Duration yieldedSessionTtl;
+
+  /// How many bytes one push may carry, and how large one conversation may be
+  /// to ride in it. Parameters only so a test can pin the budget's state table
+  /// with conversations of a few hundred bytes instead of fixtures of tens of
+  /// megabytes; production never passes them, and the relations between them
+  /// and the server's body cap are asserted in `sync_limits_test.dart`.
+  final int deltaByteBudget;
+  final int maxConversationBytes;
 
   /// This engine's wall clock. Read for every session timestamp — the hello
   /// stamp, a session's start, each beat — so a test can drive the clocks a
@@ -648,7 +675,15 @@ class SyncEngine implements SyncServerHandler {
   /// per-peer secret is what authenticated the request, so no third device
   /// can revoke someone else's pairing.
   @override
-  Future<void> handleRevoke(String peerDeviceId) async {
+  Future<void> handleRevoke(
+    String peerDeviceId, {
+    required SyncAdmission admission,
+  }) async {
+    // One commit: the session, the publication, the record on disk and the
+    // in-memory secret. Checked before the first of them, so a revoke the
+    // deadline abandoned leaves the pairing exactly as it was — the peer's next
+    // session finds it too and revokes again.
+    admission.check();
     _sessions.remove(peerDeviceId);
     dataPlane.clearWorkspacePublication(peerDeviceId);
     await store.deletePeer(peerDeviceId);
@@ -903,7 +938,14 @@ class SyncEngine implements SyncServerHandler {
     // checkpoint write alive behind the session that superseded it.
     round.session = session;
     try {
-      final myManifest = await dataPlane.buildManifest();
+      // Read before the manifest, because the manifest is what the set
+      // subtracts: a row this device withholds is not offered at all, and the
+      // hello's `localOnly` list is what stops the peer reading that absence as
+      // a deletion.
+      final myLocalOnly = await store.readLocalOnlyKeys();
+      final myManifest = await dataPlane.buildManifest(
+        withheldKeys: myLocalOnly,
+      );
       if (round.cancelled) return null;
       final myClockUs = clockUs();
       // Read before the hello, as one pair: the checkpoint carries what this
@@ -944,6 +986,10 @@ class SyncEngine implements SyncServerHandler {
             // This device's data epoch: a bulk replacement since the last session
             // tells the peer not to read this device's missing rows as deletions.
             epoch: myEpoch,
+            // ...and the rows it holds without offering, which the peer must
+            // not read as deletions either. Sorted, because the store writes it
+            // that way and a stable list is one less thing to diff.
+            localOnly: myLocalOnly.toList(growable: false),
           ),
         );
       } on SocketException catch (error) {
@@ -1020,6 +1066,12 @@ class SyncEngine implements SyncServerHandler {
       // lacks were dropped by that replacement, not deleted, so no absence of
       // its may justify a deletion here.
       final peerReplaced = peerHello.epoch != previous.peerEpoch;
+      // The rows either side holds without offering: this device's own set and
+      // the peer's announcement. One set, because every reader needs both
+      // halves — the plan (do not send, do not delete), the apply (do not
+      // write over the peer's copy) and the checkpoint (do not record an
+      // agreement nobody reached).
+      final businessSkipKeys = {...myLocalOnly, ...peerHello.localOnly};
       var plan = composeConversationPlan(
         mine: myManifest,
         peers: peerHello.manifest,
@@ -1033,6 +1085,7 @@ class SyncEngine implements SyncServerHandler {
           mine: myManifest,
           peers: peerHello.manifest,
           checkpoint: previous,
+          localOnly: businessSkipKeys,
         ),
         peerHello.unappliedBusiness,
       );
@@ -1047,8 +1100,12 @@ class SyncEngine implements SyncServerHandler {
       // both the outgoing manifest and the content verdict are read from here.
       final mySkillHashes = await dataPlane.skillDirHashes();
 
+      // Read every conversation the plan wants to send. Whether one can ride is
+      // the budget's question, answered below: the rows *are* the wire format,
+      // so a read is the only way to know a subtree's size, and a conversation
+      // the budget then leaves behind costs that read and nothing else.
       final skippedSends = <String>{};
-      final outgoing = <SyncSubtreePayload>[];
+      final planned = <SyncSubtreePayload>[];
       for (final item in plan) {
         if (item.action != SyncConvAction.iSend &&
             item.action != SyncConvAction.bothSend) {
@@ -1063,20 +1120,11 @@ class SyncEngine implements SyncServerHandler {
           skippedSends.add(item.conversationId);
           continue;
         }
-        outgoing.add(subtree);
+        planned.add(subtree);
       }
 
-      // The push payload exactly as it was read. A sent conversation's
-      // checkpoint entry must describe what crossed the wire: re-reading local
-      // state at advance time would record a message written during the session
-      // as peer-seen, and the next session's deletion oracle would then remove
-      // it from this device — the peer never received it.
-      final sentSubtrees = {
-        for (final subtree in outgoing)
-          subtree.conversation['id'] as String: subtree,
-      };
-
-      // Business rows this device owes the peer.
+      // Business rows this device owes the peer. Read before the budget is
+      // measured: they travel in the same body and belong to no conversation.
       final outgoingEntityIds = <String, Set<String>>{};
       final outgoingPreferenceKeys = <String>{};
       for (final item in businessPlan) {
@@ -1099,6 +1147,80 @@ class SyncEngine implements SyncServerHandler {
       // between) is not sent, and must not advance the checkpoint.
       final sentBusiness = outgoingRead.keys;
 
+      // Workspace content (slice 18): the file tables travel in the body too, so
+      // the walk has to happen before the budget is measured. The publish stays
+      // just before the push, because the responder fetches whatever it decides
+      // it needs *inside* that beat: a file this device has not advertised and
+      // published by then cannot be served.
+      final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
+      final advertised = dataPlane.workspaceTables(myWorkspaceSnapshots);
+
+      // Only the skill bodies this push actually carries advertise a hash.
+      final sentSkillIds =
+          outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
+      // The body hashes that travel with this payload. Named because the
+      // checkpoint entry for a skill has to name the hash the peer was *told*
+      // about, and a second read at advance time could describe a directory
+      // nobody advertised.
+      final pushedSkillHashes = {
+        for (final id in sentSkillIds)
+          if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
+      };
+
+      // The asset manifest for *every planned* conversation is an upper bound of
+      // the manifest that will be sent: the admitted rows are a subset, so they
+      // can name no blob the planned set does not. Measuring it here is what
+      // makes the budget a bound rather than a guess; the admitted set's own
+      // manifest is built below.
+      final plannedAssets = await dataPlane.buildBlobManifest(
+        subtrees: planned,
+        business: outgoingBusiness,
+      );
+      final envelopeBytes = pushEnvelopeBytes(
+        business: outgoingBusiness,
+        assets: plannedAssets,
+        skillHashes: pushedSkillHashes,
+        workspaceFiles: advertised.tables,
+      );
+      // What this push can carry, decided before the batch exists. A
+      // conversation that does not fit is left for the next round with its
+      // checkpoint untouched, and the conversations behind it still ride. The
+      // alternative is a 413 for the whole round — and the next round
+      // rebuilding the same oversized body.
+      final outbound = admitConversations(
+        planned: planned,
+        envelopeBytes: envelopeBytes,
+        budgetBytes: deltaByteBudget,
+        perConversationBytes: maxConversationBytes,
+      );
+      final outgoing = outbound.admitted;
+      final sizeOmitted = outbound.omitted;
+      // One manifest build for the ordinary round. The measured one is exactly
+      // what will be sent when nothing was left behind, and rebuilding it there
+      // would let a file that vanished between the two builds drop out of the
+      // manifest that actually travels — the receiver registers the reference
+      // from the advertisement, and a retry it never asked for is a blob that
+      // never lands. Only an omission makes the planned manifest broader than
+      // what may be advertised, and only then is it rebuilt.
+      final outgoingAssets = sizeOmitted.isEmpty
+          ? plannedAssets
+          : await dataPlane.buildBlobManifest(
+              subtrees: outgoing,
+              business: outgoingBusiness,
+            );
+      _rememberPublished(outgoingAssets);
+      dataPlane.publishWorkspaceContent(peer.deviceId, myWorkspaceSnapshots);
+
+      // The push payload exactly as it was read. A sent conversation's
+      // checkpoint entry must describe what crossed the wire: re-reading local
+      // state at advance time would record a message written during the session
+      // as peer-seen, and the next session's deletion oracle would then remove
+      // it from this device — the peer never received it.
+      final sentSubtrees = {
+        for (final subtree in outgoing)
+          subtree.conversation['id'] as String: subtree,
+      };
+
       // What the responder acknowledged about this push: a conversation it
       // deferred is *not* state the peer holds, and an entry advanced as if it
       // were would turn the peer's older copy into a deletion next session.
@@ -1114,40 +1236,30 @@ class SyncEngine implements SyncServerHandler {
       // responder executes its own blob pull — including the retries its
       // checkpoint still owes — and skipping it would both lose that retry and
       // persist the empty pull outcome over the pending list.
-      final outgoingAssets = await dataPlane.buildBlobManifest(
-        subtrees: outgoing,
-        business: outgoingBusiness,
-      );
-      _rememberPublished(outgoingAssets);
-      // Workspace content (slice 18). The walk and the publish happen here,
-      // just before the push, because the responder fetches whatever it decides
-      // it needs *inside* that beat: a file this device has not advertised and
-      // published by then cannot be served, and the responder would have to
-      // wait a whole session for it.
-      final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
-      final advertised = dataPlane.workspaceTables(myWorkspaceSnapshots);
-      dataPlane.publishWorkspaceContent(peer.deviceId, myWorkspaceSnapshots);
-      // Only the skill bodies this push actually carries advertise a hash.
-      final sentSkillIds =
-          outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
-      // The body hashes that travel with this payload. Named because the
-      // checkpoint entry for a skill has to name the hash the peer was *told*
-      // about, and a second read at advance time could describe a directory
-      // nobody advertised.
-      final pushedSkillHashes = {
-        for (final id in sentSkillIds)
-          if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
-      };
       _setProgress(peer.deviceId, SyncSessionPhase.sending);
-      final ack = await session.pushDelta(
-        SyncDeltaBatch(
-          outgoing,
-          business: outgoingBusiness,
-          assets: outgoingAssets,
-          skillHashes: pushedSkillHashes,
-          workspaceFiles: advertised.tables,
-        ),
+      final pushBatch = SyncDeltaBatch(
+        outgoing,
+        business: outgoingBusiness,
+        assets: outgoingAssets,
+        skillHashes: pushedSkillHashes,
+        workspaceFiles: advertised.tables,
       );
+      // G0 as a fact about the bytes that are about to leave, not only as the
+      // arithmetic `sync_budget_test.dart` proves over a hand-built batch: this
+      // measures the very batch `pushDelta` sends, so an edit that measures one
+      // list and sends another fails here — where the sender can still say so —
+      // instead of as a 413 on the peer that stalls the pair for good. Debug and
+      // test builds only (release strips it): the encode is a second copy of a
+      // body that can reach the budget.
+      assert(() {
+        assertPushFits(
+          pushBatch,
+          deltaByteBudget,
+          envelopeBytes: envelopeBytes,
+        );
+        return true;
+      }());
+      final ack = await session.pushDelta(pushBatch);
       peerDeferred = ack.deferred;
       peerBusinessDeferred = ack.businessDeferred;
       peerDeferredSkills = ack.deferredSkills;
@@ -1295,6 +1407,10 @@ class SyncEngine implements SyncServerHandler {
         applicableBusiness,
         myDeviceId: identity.deviceId,
         peerDeviceId: peer.deviceId,
+        // A row either side holds without offering is never written here: the
+        // peer's plan does not send it, and this is the last gate in case some
+        // later path ever does.
+        skipKeys: businessSkipKeys,
       );
       // A swapped-in or deleted skill body changes what the skills service
       // exposes even when the record row itself did not move.
@@ -1392,13 +1508,15 @@ class SyncEngine implements SyncServerHandler {
         myManifest: myManifest,
         previous: previous,
         plan: plan,
-        skippedSends: skippedSends,
-        missingIncoming: missingIncoming,
         outcomes: outcomes,
         deletedIds: deleted,
         failedDeletes: failedDeletes,
         peerDeferredConversations: peerDeferred,
         sentSubtrees: sentSubtrees,
+        receivedSubtrees: {
+          for (final subtree in incoming.subtrees)
+            subtree.conversation['id'] as String: subtree,
+        },
       );
       final nextBusiness = await _advanceBusinessCheckpoint(
         previous: previous,
@@ -1456,7 +1574,17 @@ class SyncEngine implements SyncServerHandler {
           sent: outgoing.length,
           received: outcomes.length,
           outcomes: outcomes.values,
-          deferred: skippedSends.length + missingIncoming.length,
+          // One conversation, one row. Deferred is what a live generation held
+          // back or what the fetch did not deliver, minus the conversations the
+          // budget already names: a `bothSend` conversation this push left
+          // behind *and* the peer could not serve is one conversation, and it
+          // belongs to the specific count, not to both. The two numbers then
+          // partition the set they describe.
+          deferred: {
+            ...skippedSends,
+            ...missingIncoming,
+          }.difference(sizeOmitted).length,
+          conversationsOmittedForSize: sizeOmitted.length,
           deletedLocally: deleted.length,
           deletedBlocked: blockedDeletes.length + blockedBusinessDeletes.length,
           business: outgoingBusiness,
@@ -1522,6 +1650,7 @@ class SyncEngine implements SyncServerHandler {
     String peerDeviceId,
     SyncHello initiatorHello, {
     String? remoteAddress,
+    required SyncAdmission admission,
   }) async {
     _sweepSessions();
     // A new session replaces the previous session's advertisement: it was
@@ -1595,7 +1724,11 @@ class SyncEngine implements SyncServerHandler {
       round.cancel();
     }
 
-    final myManifest = await dataPlane.buildManifest();
+    // Read before the manifest: the rows this device withholds are what the
+    // manifest leaves out, and what the response hello has to announce so the
+    // caller does not read their absence as a deletion.
+    final myLocalOnly = await store.readLocalOnlyKeys();
+    final myManifest = await dataPlane.buildManifest(withheldKeys: myLocalOnly);
     // One pair, epoch first: see [SyncStore.loadSession].
     final opened = await store.loadSession(initiatorHello.deviceId);
     final checkpoint = opened.previous;
@@ -1609,6 +1742,10 @@ class SyncEngine implements SyncServerHandler {
     // missing rows were dropped, not deleted, so none of its absences may
     // justify a deletion here.
     final peerReplaced = initiatorHello.epoch != checkpoint.peerEpoch;
+    // Both halves: this device's own set and the caller's announcement. The
+    // session keeps it, because the fetch beat and the skill pairing apply rows
+    // long after this plan was made.
+    final businessSkipKeys = {...myLocalOnly, ...initiatorHello.localOnly};
     var plan = composeConversationPlan(
       mine: myManifest,
       peers: initiatorHello.manifest,
@@ -1622,6 +1759,7 @@ class SyncEngine implements SyncServerHandler {
         mine: myManifest,
         peers: initiatorHello.manifest,
         checkpoint: checkpoint,
+        localOnly: businessSkipKeys,
       ),
       initiatorHello.unappliedBusiness,
     );
@@ -1639,6 +1777,7 @@ class SyncEngine implements SyncServerHandler {
       myManifest: myManifest,
       checkpoint: checkpoint,
       epochAtHello: myEpoch,
+      businessSkipKeys: businessSkipKeys,
       startedAt: now(),
       myHosts: _myHosts,
       initiatorHost: remoteAddress,
@@ -1646,6 +1785,11 @@ class SyncEngine implements SyncServerHandler {
       peerReplaced: peerReplaced,
       yielded: yielded,
     );
+    // The commit: installing the session is what makes every later beat of this
+    // exchange possible, so it is the point past which a cancelled hello must
+    // not go. Everything above it is planning; everything below it is that
+    // plan being promised to the peer.
+    admission.check();
     _sessions[initiatorHello.deviceId] = session;
     _assertSessionInvariants();
     return SyncHello(
@@ -1663,14 +1807,19 @@ class SyncEngine implements SyncServerHandler {
       unappliedBusiness: checkpoint.unappliedBusiness,
       deletedConversations: _deletionsToAnnounce(checkpoint, myManifest),
       epoch: myEpoch,
+      // The caller has to know which of this device's rows are held rather
+      // than deleted: it plans from this hello, and one of its absences here is
+      // a row this device chose to keep.
+      localOnly: myLocalOnly.toList(growable: false),
     );
   }
 
   @override
   Future<SyncApplyAck> handleApplySubtrees(
     String peerDeviceId,
-    SyncDeltaBatch batch,
-  ) async {
+    SyncDeltaBatch batch, {
+    required SyncAdmission admission,
+  }) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw const SyncRequestRefusal.sessionMissing();
     // One push, one fetch — the half of the rule the fetch beat enforces from
@@ -1687,7 +1836,7 @@ class SyncEngine implements SyncServerHandler {
     // long it runs.
     _beginBeat(session);
     try {
-      return await _applyPushedBatch(peerDeviceId, session, batch);
+      return await _applyPushedBatch(peerDeviceId, session, batch, admission);
     } finally {
       _endBeat(session);
       _assertSessionInvariants();
@@ -1698,6 +1847,7 @@ class SyncEngine implements SyncServerHandler {
     String peerDeviceId,
     _ResponderSession session,
     SyncDeltaBatch batch,
+    SyncAdmission admission,
   ) async {
     // The fetch beat answers the same peer on the same session, and it reads the
     // ledger this beat produces. Marked before any await, so a fetch that
@@ -1738,7 +1888,11 @@ class SyncEngine implements SyncServerHandler {
     try {
       session.blobPull = reverse == null
           ? _unreachableBlobPull(wanted.values.toList())
-          : await _pullBlobs(wanted.values.toList(), reverse);
+          : await _pullBlobs(
+              wanted.values.toList(),
+              reverse,
+              cancelled: () => !admission.alive,
+            );
       session.deferredSkills = {
         ...adoptions.deferred,
         for (final id in adoptions.wantedSkillIds)
@@ -1746,10 +1900,24 @@ class SyncEngine implements SyncServerHandler {
       };
       session.skillConflicts = adoptions.conflicts;
 
+      // Kept for the checkpoint advance one beat later: a `peerSends` entry
+      // describes the payload that arrived, never the local state the merge
+      // leaves behind (which also carries rows written here mid-session), and
+      // the fetch beat no longer has this batch in hand.
+      session.receivedSubtrees = {
+        for (final subtree in batch.subtrees)
+          subtree.conversation['id'] as String: subtree,
+      };
+
       outcomes = await dataPlane.applySubtrees(
         batch.subtrees,
         myDeviceId: identity.deviceId,
         peerDeviceId: peerDeviceId,
+        // The apply is the one place a push beat can run long: one transaction
+        // per conversation. The check is between transactions (never inside
+        // one), so a cancelled beat finishes the conversation it is on and
+        // starts none after it.
+        cancelled: () => !admission.alive,
         checkpointRowsByConversation: _rowsOf(
           session.checkpoint,
           // A replaced caller's absences prove nothing about this device's rows.
@@ -1786,10 +1954,15 @@ class SyncEngine implements SyncServerHandler {
       // the push has to be able to put it back (slice 24).
       session.pushedBusiness = batch.business;
       session.receivedBusiness = applicable;
+      admission.check();
       session.businessOutcome = await dataPlane.applyBusiness(
         applicable,
         myDeviceId: identity.deviceId,
         peerDeviceId: peerDeviceId,
+        // The caller's plan already leaves out what either side withholds; this
+        // is the gate that keeps a row this device holds from being written
+        // over if some later path ever pushes one anyway.
+        skipKeys: session.businessSkipKeys,
       );
       if (session.blobPull.landedSkillIds.isNotEmpty) {
         await dataPlane.reloadBusiness();
@@ -1808,6 +1981,10 @@ class SyncEngine implements SyncServerHandler {
         peerTables: batch.workspaceFiles,
         ledger: session.checkpoint.workspaceFiles,
         allowDeletes: !session.peerReplaced,
+        // Per file, because that is the commit: a landing that has not started
+        // is not owed once the beat is cancelled, while one already landing
+        // is atomic (staging, then a rename).
+        cancelled: () => !admission.alive,
         fetch: reverse == null
             ? null
             : (workspaceId, relPath, destination) => reverse.fetchWorkspaceFile(
@@ -1989,8 +2166,9 @@ class SyncEngine implements SyncServerHandler {
   @override
   Future<SyncDeltaBatch> handleFetchSubtrees(
     String peerDeviceId,
-    SyncFetchRequest request,
-  ) async {
+    SyncFetchRequest request, {
+    required SyncAdmission admission,
+  }) async {
     final session = _sessions[peerDeviceId];
     if (session == null) throw const SyncRequestRefusal.sessionMissing();
     // The fetch beat is the second half of one push: the initiator pushes, then
@@ -2003,7 +2181,12 @@ class SyncEngine implements SyncServerHandler {
     if (!session.pushSeen) throw const SyncRequestRefusal.pushRequired();
     _beginBeat(session);
     try {
-      return await _serveFetchSubtrees(peerDeviceId, session, request);
+      return await _serveFetchSubtrees(
+        peerDeviceId,
+        session,
+        request,
+        admission,
+      );
     } finally {
       _endBeat(session);
       _assertSessionInvariants();
@@ -2014,6 +2197,7 @@ class SyncEngine implements SyncServerHandler {
     String peerDeviceId,
     _ResponderSession session,
     SyncFetchRequest request,
+    SyncAdmission admission,
   ) async {
     final outgoing = <SyncSubtreePayload>[];
     final skipped = <String>{};
@@ -2040,12 +2224,23 @@ class SyncEngine implements SyncServerHandler {
           entry.key: entry.value.toSet(),
       },
       preferenceKeys: request.preferenceKeys.toSet(),
+      // A row this device withholds is not served, however it was asked for:
+      // the request names what the peer wants, and the peer is not the one
+      // deciding what leaves this machine.
+      skipKeys: session.businessSkipKeys,
     );
 
     final deleted = <String>{};
     final failedDeletes = <String>{};
     final blockedDeletes = <String>{};
+    // The deletion loops are the last stretch of state changes before the
+    // checkpoint, and each deletion is idempotent against the plan that asked
+    // for it ("still stands" re-reads the row), so one check before the loop is
+    // the boundary: a beat cancelled here removes nothing further and records
+    // the rest as failed, which the next session re-plans.
+    final deletionsAllowed = admission.alive;
     for (final item in session.plan) {
+      if (!deletionsAllowed) break;
       if (item.action != SyncConvAction.iDelete) continue;
       if (!await _conversationDeletionStillStands(
         item.conversationId,
@@ -2067,6 +2262,7 @@ class SyncEngine implements SyncServerHandler {
     final deletedSkillIds = <String>{};
     var keptWorkspaceFolders = 0;
     for (final item in session.businessPlan) {
+      if (!deletionsAllowed) break;
       if (item.action != SyncConvAction.iDelete) continue;
       final key = syncBusinessKey(item.kindWire, item.id);
       if (!await _businessDeletionStillStands(
@@ -2099,8 +2295,6 @@ class SyncEngine implements SyncServerHandler {
       myManifest: session.myManifest,
       previous: session.checkpoint,
       plan: session.plan,
-      skippedSends: skipped,
-      missingIncoming: missing,
       outcomes: session.outcomes,
       deletedIds: deleted,
       failedDeletes: failedDeletes,
@@ -2108,6 +2302,8 @@ class SyncEngine implements SyncServerHandler {
       // advance unconfirmed state here either.
       peerDeferredConversations: session.initiatorHello.unappliedConversations
           .toSet(),
+      // What the initiator pushed, for the arms that record an arrival.
+      receivedSubtrees: session.receivedSubtrees,
       // The fetch response is never acknowledged, so a conversation this beat
       // sends back is not state the peer holds. Advancing it would make the
       // next session read the peer's missing copy as a deletion and destroy
@@ -2181,6 +2377,13 @@ class SyncEngine implements SyncServerHandler {
       skillHashes: responseSkillHashes,
       workspaceFiles: advertised.tables,
     );
+    // The last commit of the session, and the only one that must never happen
+    // after the deadline: the checkpoint is what both sides plan their next
+    // session from, so a cancelled beat that wrote it would advance state the
+    // peer was told (504) never arrived. Everything after this point is one
+    // unwind — the peer record, the report and the session removal describe the
+    // outcome the file now holds.
+    admission.check();
     await store.saveCheckpointUnlessReplaced(
       peerDeviceId,
       epochAtHello: session.epochAtHello,
@@ -2219,7 +2422,10 @@ class SyncEngine implements SyncServerHandler {
       sent: outgoing.length,
       received: session.outcomes.length,
       outcomes: session.outcomes.values,
-      deferred: skipped.length + missing.length,
+      // One conversation, one row: a conversation this side skipped *and* the
+      // initiator never received crossed in neither direction, but it is still
+      // one conversation.
+      deferred: {...skipped, ...missing}.length,
       deletedLocally: deleted.length,
       deletedBlocked: blockedDeletes.length + blockedBusinessDeletes.length,
       business: businessRead.payload,
@@ -2277,8 +2483,9 @@ class SyncEngine implements SyncServerHandler {
   @override
   Future<SyncPairAnswer?> handlePair(
     SyncPairRequest request,
-    String? initiatorHost,
-  ) async {
+    String? initiatorHost, {
+    required SyncAdmission admission,
+  }) async {
     if (!isPairingOpen) return null;
     if (request.pin != _pairingPin) {
       // A 6-digit PIN is brute-forceable inside the window unless wrong
@@ -2291,6 +2498,12 @@ class SyncEngine implements SyncServerHandler {
       }
       return null;
     }
+    // Before the PIN is spent: a pairing the deadline abandoned must not close a
+    // window the user is standing in front of. (A cancellation that lands after
+    // this point but before the write below loses the PIN without installing
+    // anything; one that lands *inside* the write leaves the record — see the
+    // note at the commit.)
+    admission.check();
     // One-shot: a PIN is spent on first success.
     _pairingPin = null;
     _pairingExpiresAt = null;
@@ -2337,6 +2550,19 @@ class SyncEngine implements SyncServerHandler {
     // And the networks this pair already met, behind the fresh ones — the
     // responder's half of the memory the initiator keeps (see [pairWith]).
     if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
+    // The commit: from here the pair exists on this side, and a pairing
+    // abandoned at the deadline must stop before it — the initiator never gets
+    // the answer that carries [secret], and this device would list a peer whose
+    // every request it refuses 401.
+    //
+    // The check is as close to the write as the shape allows, and it is a
+    // check *then* write: a deadline that lands inside `savePeer` still leaves
+    // the record. That window is the write's own duration (one file, chained
+    // behind the peer's other writes), and what heals it is the initiator's
+    // re-pair — the one it performs because it got a 504 in place of the
+    // secret. Making it atomic would need the store to refuse a commit on a
+    // gate it does not know about, which is a wider change than this one.
+    admission.check();
     await store.savePeer(peer);
     // The pairing request arrived on this listener, so the peer is known here
     // already; the initiator learns the same secret from the answer.
@@ -2354,10 +2580,20 @@ class SyncEngine implements SyncServerHandler {
   // ---- internals ----
 
   /// Advances the per-peer checkpoint. A conversation only gets a *new* entry
-  /// once this device knows the peer reached the same state: skipped sends,
+  /// once this device knows the peer reached the same state: undelivered sends,
   /// undelivered fetches, deferred applies — this device's own and, per the
   /// push acknowledgement, the peer's — and a peer deletion the peer reported
   /// as failed all keep the previous entry so the next session retries them.
+  ///
+  /// **A send arm advances only when its payload crossed the wire.** Both send
+  /// arms ask the same question of the same two facts — [sentSubtrees] (the
+  /// batch this beat actually built) and [sendsConfirmed] — because the
+  /// alternative is what made a skipped send look like a delivered one: the
+  /// `bothSend` arm used to advance from the peer's apply alone, and an entry
+  /// built that way claims the peer holds rows it never received, after which
+  /// the next apply deletes them (they are local-only, and their clock is the
+  /// one recorded). A conversation this round's budget left behind is in
+  /// neither set, so it is retried exactly like one that was generating.
   ///
   /// [peerDeferredConversations] are the conversations the peer accepted but
   /// did not apply; without it "sent" would be indistinguishable from
@@ -2370,6 +2606,15 @@ class SyncEngine implements SyncServerHandler {
   /// flight was never sent, and recording it as peer-seen would make the next
   /// merge delete it here.
   ///
+  /// [receivedSubtrees] is the other direction, and it is the same argument:
+  /// a `peerSends` entry describes the payload that arrived, never the local
+  /// state the merge left behind, which also carries rows written here while
+  /// the session ran. `bothSend` is the one arm that cannot be described by a
+  /// single payload; see the case below for what it does instead.
+  ///
+  /// The `none` arm is the third writer of an entry and its only source is a
+  /// live re-read; see that arm for what makes a refresh admissible.
+  ///
   /// [sendsConfirmed] is false for the responder's fetch beat, whose response
   /// is never acknowledged: a conversation this device *sent* back is not
   /// state the peer holds, and advancing it would make the next session read
@@ -2379,13 +2624,12 @@ class SyncEngine implements SyncServerHandler {
     required SyncManifest myManifest,
     required SyncCheckpoint previous,
     required List<SyncConvPlan> plan,
-    required Set<String> skippedSends,
-    required Set<String> missingIncoming,
     required Map<String, SyncSubtreeApplyOutcome> outcomes,
     required Set<String> deletedIds,
     required Set<String> failedDeletes,
     Set<String> peerDeferredConversations = const {},
     Map<String, SyncSubtreePayload> sentSubtrees = const {},
+    Map<String, SyncSubtreePayload> receivedSubtrees = const {},
     bool sendsConfirmed = true,
   }) async {
     final next = <String, SyncCheckpointConversation>{};
@@ -2404,6 +2648,23 @@ class SyncEngine implements SyncServerHandler {
           // both are computed from the same rows this refresh would read: when
           // they match the entry, re-reading every message of every settled
           // conversation would rebuild exactly the entry already in hand.
+          //
+          // A refresh is a *live* read, though, and the manifests attest an
+          // older instant: a write in the window is in the refresh and in
+          // neither manifest, and recording it would make the next session read
+          // the peer's silence as a deletion of it. So the refresh is admitted
+          // only when it *is* the attested state — the manifest's digest is the
+          // message identity the peer saw (it contributes each row's id and
+          // clock), and the row clock is the one field that identity cannot see
+          // (the digest covers the families below the root, never the row) and
+          // that the delete branch reads to tell an edit from an untouched copy.
+          //
+          // The comparison is by value, not against a clock of this device's
+          // own: a message clock was written by whichever device authored the
+          // row, and a peer whose clock runs ahead (the session report names
+          // that skew) would make every such row look "newer than this device
+          // ever was". Comparing the agreement with itself has no such ruler:
+          // a row that merely runs ahead moves neither value.
           final mine = myManifest.conversations[id];
           if (prior != null &&
               mine != null &&
@@ -2413,40 +2674,86 @@ class SyncEngine implements SyncServerHandler {
             break;
           }
           final entry = await dataPlane.checkpointFromLocal(id);
-          if (entry != null) {
+          final attested =
+              entry != null &&
+              mine != null &&
+              entry.digest == mine.digest &&
+              entry.updatedAtUs == mine.updatedAtUs;
+          if (attested) {
             next[id] = entry;
           } else if (prior != null) {
             next[id] = prior;
           }
         case SyncConvAction.iSend:
+          final sent = sentSubtrees[id];
           if (!sendsConfirmed ||
-              skippedSends.contains(id) ||
+              sent == null ||
               peerDeferredConversations.contains(id)) {
             if (prior != null) next[id] = prior;
           } else {
-            final sent = sentSubtrees[id];
-            if (sent != null) {
-              // Composed from the payload itself. A re-read would be wrong here:
-              // a row written while the session was in flight was never sent, and
-              // recording it as peer-seen makes the next merge read the peer's
-              // silence as a deletion.
-              next[id] = buildCheckpointConversation(
-                conversationRow: sent.conversation,
-                messageRows: sent.rowsOf(_messageFamily),
-                digest: composeConversationDigest(
-                  identityContributionsOf(sent),
-                ),
-              );
-            } else if (prior != null) {
-              next[id] = prior;
-            }
+            // Composed from the payload itself. A re-read would be wrong here:
+            // a row written while the session was in flight was never sent, and
+            // recording it as peer-seen makes the next merge read the peer's
+            // silence as a deletion.
+            next[id] = buildCheckpointConversation(
+              conversationRow: sent.conversation,
+              messageRows: sent.rowsOf(_messageFamily),
+              digest: composeConversationDigest(identityContributionsOf(sent)),
+            );
           }
-        case SyncConvAction.peerSends:
-        case SyncConvAction.bothSend:
+        case SyncConvAction.peerSends || SyncConvAction.bothSend:
+          // An entry describes a payload that crossed, never the local state a
+          // merge left behind. The apply reads its base inside its own
+          // transaction, so a row written here while the session ran — the push
+          // beat plus the whole blob pull — is in that snapshot; an entry built
+          // from it claims the peer has a row it has never seen, and the next
+          // session deletes it here.
+          //
+          // Which payload a device may claim depends on which half of the
+          // session it can show crossed:
+          //
+          // - `peerSends`, and `bothSend` on the **responder**: this device's own
+          //   half is the fetch response, and nothing acknowledges a response.
+          //   What it can vouch for is the payload the peer handed it, so that
+          //   is what it records. The rows it served itself are not in it: they
+          //   may have been lost with the response, and claiming them would make
+          //   the peer's later silence a deletion of them. They are recorded one
+          //   session later, when both manifests agree and the heal runs.
+          // - `bothSend` on the **initiator** whose push crossed (the ack is the
+          //   difference): the peer's copy is read after it applied that push,
+          //   so the two payloads' merge *is* the peer's copy — except for rows
+          //   written here after the read, which `_snapshotOutrunsPeerCopy`
+          //   catches by clock.
+          // - A `bothSend` whose own push never crossed — a live generation, a
+          //   conversation this round's budget left behind — claims nothing new:
+          //   keeping the previous entry is what makes the next session retry it
+          //   with the peer's older copy still readable as an edit, not a delete.
+          final received = receivedSubtrees[id];
           final outcome = outcomes[id];
           if (outcome == null ||
               outcome.deferred ||
               peerDeferredConversations.contains(id)) {
+            if (prior != null) next[id] = prior;
+            break;
+          }
+          final claimsPeerCopy =
+              item.action == SyncConvAction.peerSends ||
+              (item.action == SyncConvAction.bothSend && !sendsConfirmed);
+          if (claimsPeerCopy) {
+            if (received == null) {
+              if (prior != null) next[id] = prior;
+              break;
+            }
+            next[id] = _entryFor(received);
+            break;
+          }
+          // `bothSend` on the initiator: only a payload that actually left may
+          // be recorded, and a conversation the budget left behind has none.
+          if (sentSubtrees[id] == null) {
+            if (prior != null) next[id] = prior;
+            break;
+          }
+          if (_snapshotOutrunsPeerCopy(outcome, received)) {
             if (prior != null) next[id] = prior;
             break;
           }
@@ -2484,6 +2791,51 @@ class SyncEngine implements SyncServerHandler {
       }
     }
     return SyncCheckpoint(next);
+  }
+
+  /// The checkpoint entry one payload makes: what crossed the wire, nothing
+  /// else.
+  ///
+  /// The sender's `iSend` arm composes the same entry for the same payload, so
+  /// the two sides of one transfer record the same agreement — and a row this
+  /// device wrote while the session ran is in neither.
+  static SyncCheckpointConversation _entryFor(SyncSubtreePayload payload) =>
+      buildCheckpointConversation(
+        conversationRow: payload.conversation,
+        messageRows: payload.rowsOf(_messageFamily),
+        digest: composeConversationDigest(identityContributionsOf(payload)),
+      );
+
+  /// Whether the apply's post-merge snapshot holds a message row the peer's own
+  /// copy does not carry at that clock.
+  ///
+  /// The apply reads its base inside its own transaction and the merge keeps the
+  /// newer copy, so a row written here while the session ran is in the snapshot
+  /// at a clock the peer has never seen. A ledger recording that clock makes the
+  /// peer's later silence read as "untouched here" — the one reading the
+  /// deletion oracle acts on — so the entry waits a round instead: the row is
+  /// here, and the next session sends it.
+  ///
+  /// The comparison is by **clock**, not by id. An id check admits an *edit* of
+  /// an existing row, whose id is known and whose clock is new, and an edit is
+  /// exactly the write that loses: the snapshot would record it as the
+  /// agreement, and a later peer deletion of that row would read as a deletion
+  /// of a row nobody touched. The peer's copy is the right witness — it is read
+  /// after the responder applied this session's push, so a row that crossed is
+  /// in it at the clock it crossed with.
+  static bool _snapshotOutrunsPeerCopy(
+    SyncSubtreeApplyOutcome outcome,
+    SyncSubtreePayload? received,
+  ) {
+    if (received == null) return true;
+    final peerClocks = {
+      for (final row in received.rowsOf(_messageFamily))
+        row['id'] as String: messageRowMutationUs(row),
+    };
+    for (final row in outcome.messageRows) {
+      if (peerClocks[row['id']] != messageRowMutationUs(row)) return true;
+    }
+    return false;
   }
 
   /// The peer-observed row state for the conversations in [conversationIds],
@@ -2542,10 +2894,10 @@ class SyncEngine implements SyncServerHandler {
   /// — in its messages or in the conversation row's clock — was written here
   /// since, and an edit beats a delete exactly as it does in the plan table.
   ///
-  /// The clock is what makes a restore from the recycle bin an edit: the bin
-  /// writes the row back with `now()` while the messages come back identical, so
-  /// the digest cannot tell the restored copy from the deleted one and only the
-  /// row clock can (protocol v8). The comparison is `<=` rather than `!=` on
+  /// The clock is what makes a restore from the recycle bin an edit: the
+  /// messages come back identical and the row keeps the display clock it was
+  /// deleted with, so the digest cannot tell the restored copy from the deleted
+  /// one and only the re-stamped sync clock can (protocol v8). The comparison is `<=` rather than `!=` on
   /// purpose: deleting too much is recoverable (the copy is staged into the bin
   /// again), while keeping too much resurrects content the peer's user deleted.
   static List<SyncConvPlan> _applyDeletionAnnouncements(
@@ -2882,6 +3234,17 @@ class SyncEngine implements SyncServerHandler {
         store(entry);
       }
 
+      // A withheld key is not an agreement. Nothing crossed, so there is
+      // nothing to record — and refreshing the entry from the local row
+      // (`none`'s own arm) would be worse than useless: it would claim the peer
+      // holds this version, which turns the first session after the user
+      // un-withholds the row from "the table's last-write-wins settles it" into
+      // "this device's copy wins", silently.
+      if (item.withheld) {
+        keepPrior();
+        continue;
+      }
+
       switch (item.action) {
         case SyncConvAction.none:
           await setFromLocal();
@@ -3083,6 +3446,7 @@ class SyncEngine implements SyncServerHandler {
     List<SyncBlobEntry> wanted,
     SyncClientSession session, {
     void Function(int done, int total)? onProgress,
+    bool Function()? cancelled,
   }) async {
     final outcome = _BlobPullOutcome();
     // Nothing to pull is not a beat: publishing "downloading files" for an
@@ -3090,6 +3454,14 @@ class SyncEngine implements SyncServerHandler {
     if (wanted.isEmpty) return outcome;
     for (var i = 0; i < wanted.length; i++) {
       final entry = wanted[i];
+      if (cancelled?.call() ?? false) {
+        // Stop here rather than pull into a beat the peer has already been told
+        // is over. The ones not tried are *not* recorded as failed: a cancelled
+        // beat writes no checkpoint, so nothing would carry that record — the
+        // retry set this beat would have advanced is behind the same gate, and
+        // what is still owed comes back from the peer's next manifest.
+        break;
+      }
       onProgress?.call(i, wanted.length);
       File? temp;
       try {
@@ -3268,7 +3640,13 @@ class SyncEngine implements SyncServerHandler {
   /// throw the transfer away. The hasher memoises by (path, length, mtime), so
   /// an unchanged file costs a stat.
   Future<File?> _blobToPush(String peerDeviceId, SyncBlobEntry entry) async {
-    final file = await handleFetchBlob(peerDeviceId, entry.contentHash);
+    final File? file;
+    try {
+      file = await _servableBlob(entry.contentHash);
+    } catch (error) {
+      debugPrint('sync: serving blob ${entry.contentHash} failed: $error');
+      return null;
+    }
     if (file == null) return null;
     if (entry.kind == SyncBlobEntry.kindFile) {
       final hash = await dataPlane.fileHasher.hashOf(file);
@@ -3301,23 +3679,18 @@ class SyncEngine implements SyncServerHandler {
   }
 
   @override
-  Future<File?> handleFetchBlob(String peerDeviceId, String contentHash) async {
+  Future<File?> handleFetchBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required SyncAdmission admission,
+  }) async {
     try {
-      final published = _publishedBlobs[contentHash];
-      if (published != null && await published.exists()) return published;
-      final skillId = _publishedSkillIds[contentHash];
-      if (skillId != null) {
-        return await dataPlane.skillBlobForHash(
-          skillId: skillId,
-          dirHash: contentHash,
-        );
-      }
-      // A pending retry from a previous launch: the content-addressed asset
-      // registry is the durable authority for what this device holds.
-      final registered = await dataPlane.assetFileForContentHash(contentHash);
-      if (registered != null && await registered.exists()) return registered;
-      // A skill body that still hashes to the requested value.
-      return await dataPlane.skillBlobForContentHash(contentHash);
+      // Zipping a skill body is the one read that can take minutes (it walks
+      // and archives a directory), so the whole resolution runs under the
+      // request's budget: a peer that stopped waiting is not owed a body.
+      return await admission.io(() => _servableBlob(contentHash));
+    } on SyncAdmissionLost {
+      rethrow;
     } catch (error) {
       // A body that changed between the manifest and the fetch is simply not
       // servable: the peer records the miss and retries next session.
@@ -3326,12 +3699,33 @@ class SyncEngine implements SyncServerHandler {
     }
   }
 
+  /// The local file this device can serve for [contentHash], or null.
+  ///
+  /// Shared by the `GET` route (through [handleFetchBlob]) and by this device's
+  /// own push of a blob the peer asked for, so a pushed blob is exactly the one
+  /// a fetch would have received.
+  Future<File?> _servableBlob(String contentHash) async {
+    final published = _publishedBlobs[contentHash];
+    if (published != null && await published.exists()) return published;
+    final skillId = _publishedSkillIds[contentHash];
+    if (skillId != null) {
+      return dataPlane.skillBlobForHash(skillId: skillId, dirHash: contentHash);
+    }
+    // A pending retry from a previous launch: the content-addressed asset
+    // registry is the durable authority for what this device holds.
+    final registered = await dataPlane.assetFileForContentHash(contentHash);
+    if (registered != null && await registered.exists()) return registered;
+    // A skill body that still hashes to the requested value.
+    return dataPlane.skillBlobForContentHash(contentHash);
+  }
+
   @override
   Future<File?> handleFetchWorkspaceFile(
     String peerDeviceId,
     String workspaceId,
-    String relPath,
-  ) async {
+    String relPath, {
+    required SyncAdmission admission,
+  }) async {
     final content = dataPlane.workspaceContent;
     // No content support in this build (conversation-only tests): the route
     // answers 404 and the caller counts an unapplied file, which is exactly
@@ -3372,6 +3766,7 @@ class SyncEngine implements SyncServerHandler {
     String relPath, {
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     final session = _sessions[peerDeviceId];
     if (session == null) {
@@ -3393,6 +3788,7 @@ class SyncEngine implements SyncServerHandler {
         relPath,
         size: size,
         body: body,
+        admission: admission,
       );
     } finally {
       _endBeat(session);
@@ -3406,6 +3802,7 @@ class SyncEngine implements SyncServerHandler {
     String relPath, {
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     if (!session.pushSeen) {
       await _discard(body, size);
@@ -3450,6 +3847,10 @@ class SyncEngine implements SyncServerHandler {
         );
         return false;
       }
+      // The commit: the rename into the workspace happens inside `acceptPushed`,
+      // so a cancel has to land before the call rather than inside it. Staging
+      // is not state — the whole body arrived, and it is thrown away either way.
+      admission.check();
       final landed = await content.acceptPushed(
         workspaceId: workspaceId,
         relPath: relPath,
@@ -3483,6 +3884,10 @@ class SyncEngine implements SyncServerHandler {
       // session, and the next one re-plans from the ledger this produced.
       session.workspaceRequests.remove(key);
       return true;
+    } on SyncAdmissionLost {
+      // Not a failed transfer: the request is over, and the caller must hear
+      // 504 rather than the 404 a refused push would mean.
+      rethrow;
     } catch (error) {
       debugPrint(
         'sync workspace: receiving the pushed $workspaceId/$relPath failed: '
@@ -3543,6 +3948,7 @@ class SyncEngine implements SyncServerHandler {
     required String key,
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     final session = _sessions[peerDeviceId];
     if (session == null) {
@@ -3562,6 +3968,7 @@ class SyncEngine implements SyncServerHandler {
         key: key,
         size: size,
         body: body,
+        admission: admission,
       );
     } finally {
       _endBeat(session);
@@ -3577,6 +3984,7 @@ class SyncEngine implements SyncServerHandler {
     required String key,
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   }) async {
     if (!session.pushSeen) {
       await _discard(body, size);
@@ -3632,6 +4040,9 @@ class SyncEngine implements SyncServerHandler {
           return false;
         }
       }
+      // The commit, same rule as the file plane: the placement (a rename, or a
+      // verified directory swap) must not start once the request is over.
+      admission.check();
       final landed = await _landStagedBlob(requested, staged);
       if (landed == null) {
         debugPrint('sync blob: the pushed $kind "$key" did not verify');
@@ -3647,6 +4058,8 @@ class SyncEngine implements SyncServerHandler {
         await _pairPushedSkill(peerDeviceId, session, key);
       }
       return true;
+    } on SyncAdmissionLost {
+      rethrow;
     } catch (error) {
       debugPrint('sync blob: receiving the pushed $kind "$key" failed: $error');
       return false;
@@ -3691,6 +4104,7 @@ class SyncEngine implements SyncServerHandler {
       SyncBusinessPayload(entities: {SyncDataPlane.skillWire: rows}),
       myDeviceId: identity.deviceId,
       peerDeviceId: peerDeviceId,
+      skipKeys: session.businessSkipKeys,
     );
     if (outcome.deferred) {
       // A restore holds the write fence: the record is not ours to write yet,
@@ -3739,6 +4153,7 @@ class SyncEngine implements SyncServerHandler {
     required Iterable<SyncSubtreeApplyOutcome> outcomes,
     required int deferred,
     required int deletedLocally,
+    int conversationsOmittedForSize = 0,
     int deletedBlocked = 0,
     SyncBusinessPayload business = const SyncBusinessPayload(),
     SyncBusinessPayload receivedBusiness = const SyncBusinessPayload(),
@@ -3838,6 +4253,8 @@ class SyncEngine implements SyncServerHandler {
       if (blobsMissing > 0) '$blobsMissing blobs missing',
       if (deferredSkills > 0) 'deferred $deferredSkills skills',
       if (deferred > 0) 'deferred $deferred',
+      if (conversationsOmittedForSize > 0)
+        'omitted $conversationsOmittedForSize for size',
       if (appliedBusiness?.deferred == true) 'business deferred',
       if (entityRowsLost > 0) 'lost $entityRowsLost entity rows',
       if (preferencesLost > 0) 'lost $preferencesLost prefs',
@@ -3853,6 +4270,7 @@ class SyncEngine implements SyncServerHandler {
       messagesUpserted: upserted,
       messagesDeleted: deleted,
       deferred: deferred,
+      conversationsOmittedForSize: conversationsOmittedForSize,
       conversationsDeletedLocally: deletedLocally,
       deletedBlocked: deletedBlocked,
       entityRows: entityRows,
@@ -4117,6 +4535,7 @@ class _ResponderSession {
     required this.myManifest,
     required this.checkpoint,
     required this.epochAtHello,
+    this.businessSkipKeys = const {},
     required this.startedAt,
     required this.myHosts,
     this.initiatorHost,
@@ -4134,6 +4553,12 @@ class _ResponderSession {
   /// and the response batch are both read from it.
   final SyncManifest myManifest;
   final SyncCheckpoint checkpoint;
+
+  /// The rows either side holds without offering, as `syncBusinessKey`
+  /// strings, fixed at the hello: this device's own set joined with the
+  /// caller's announcement. The fetch beat and the skill pairing apply rows
+  /// beats later, when only the session can answer this.
+  final Set<String> businessSkipKeys;
 
   /// This device's data epoch as the session read it, before any beat ran. The
   /// closing save compares it against the epoch on disk: a replacement that
@@ -4167,6 +4592,12 @@ class _ResponderSession {
   /// unanswered dial. Such a session is a bet on the peer's client still being
   /// alive to drive it — see [SyncEngine.kYieldedSessionTtl].
   final bool yielded;
+
+  /// The conversations the initiator pushed this session, by id. The fetch
+  /// beat's checkpoint advance records an arrival from these — the payload that
+  /// crossed — rather than from the post-merge local state, which also carries
+  /// rows written here while the session ran.
+  Map<String, SyncSubtreePayload> receivedSubtrees = const {};
 
   /// When this session's first beat arrived *or ended*, or null while the peer's
   /// client has not touched it yet (the state [SyncEngine.kYieldedSessionTtl]

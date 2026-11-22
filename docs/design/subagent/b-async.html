@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>变体 B — 先回「已派出」，结果回来再补一轮（async）</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92; --primary-ink:#2F3B66;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:820px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:54em}
+  .lede b{color:var(--ink);font-weight:600}
+  .lede code,.closing code,.note code,.card-body code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:.92em;background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .title{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 10px}
+  .row{display:flex;justify-content:flex-end;padding:6px 16px}
+  .bubble{max-width:78%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 16px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .card{margin:12px 0 6px;border:1px solid var(--line);border-radius:12px;background:var(--card);
+        overflow:hidden}
+  .card-head{display:flex;align-items:center;gap:6px;padding:9px 12px;font-size:13px}
+  .card-head .label{font-weight:600;display:flex;align-items:center;gap:6px}
+  .card-head .elapsed{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .card-head .grow{flex:1}
+  .quiet-action{font-size:13px;color:var(--primary);font-weight:500}
+  .card-body{padding:0 12px 10px}
+  .task{font-size:13px;line-height:1.6;color:#3A3A42}
+  .cmeta{font-size:12px;color:var(--muted);margin-top:6px}
+  .cmeta b{color:#4A4A52;font-weight:600}
+  .tick{width:13px;height:13px;color:var(--primary);flex:none}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--primary);flex:none;
+       animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+  .composer{padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line-soft);
+            display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:36px;border-radius:18px;border:1px solid var(--line);display:flex;
+         align-items:center;padding:0 12px;font-size:14px;color:var(--ink);background:var(--card)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;
+        align-items:center;justify-content:center;flex:none}
+  .arrive{margin:18px 0 0;border:1px dashed rgba(77,92,146,.4);border-radius:14px;background:rgba(77,92,146,.04);
+          padding:12px 14px}
+  .arrive .stamp{font-size:11px;letter-spacing:.06em;color:var(--primary);margin:0 0 8px;font-weight:600}
+  .arrive .who{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+  .arrive .body{font-size:14.5px;line-height:1.6;margin:0}
+  .arrive .avatar{width:26px;height:26px;font-size:12px}
+  .arrive .name{font-size:12px}
+  .notes{flex:1 1 300px;min-width:280px;max-width:400px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  .timeline{margin:0 0 14px;border-left:2px solid var(--line);padding-left:12px}
+  .tl{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 7px}
+  .tl b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:560px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第 1 轮 · 变体 B · async</p>
+  <h1>先回「已派出」，结果回来再补一轮</h1>
+  <p class="lede"><code>delegate</code> 立刻返回 <code>{status:"started", conversation_id}</code>，父模型把这句说完就结束本轮；子代理跑完后，父会话<b>多出一条没人按过发送的消息</b>。父会话立刻可用，代价是「结果」和「谁在说话」都要另外定。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">登录页重构</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="row">
+          <div class="bubble">test 里有三个红的，看看能不能修掉。</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">21:07</div>
+            </div>
+          </div>
+
+          <p class="body">我派了一个子代理去查 <code>test/auth</code> 的三个红，修完告诉你。我这边先不动手，免得两个人在同一个目录里改同一批文件。</p>
+
+          <div class="card">
+            <div class="card-head">
+              <span class="label">
+                <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                已派出
+              </span>
+              <span class="elapsed">运行 1 分 24 秒</span>
+              <span class="grow"></span>
+              <span class="quiet-action">打开</span>
+            </div>
+            <div class="card-body">
+              <div class="task">修掉 <code>test/auth</code> 里挂掉的三个用例，不要改公开接口。</div>
+              <div class="cmeta">工作区 <b>cuplivo</b> · 继承自本会话</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="input">顺便看下 CI 的缓存</div>
+        <div class="send">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="timeline">
+        <p class="tl"><b>t+0</b> 父模型调 <code>delegate</code>，拿到 <code>started</code>，一句话说完，本轮结束</p>
+        <p class="tl"><b>t+1:24</b> 父会话空闲：正常发送键，用户已经在问下一件事</p>
+        <p class="tl"><b>t+3:40</b> 子代理结束 → 结果要<b>自己走进</b>父会话（见下面的虚线框）</p>
+      </div>
+
+      <p class="note"><b>机制：</b>工具立即返回；完成时往父会话持久化一条消息。仓库里有<span>半个先例</span>——主动关怀就是把回复直接写进会话（<code>proactive_care_message_flow.dart:94-97</code>），但它<b>不续写对话</b>。</p>
+      <p class="note"><b>真正缺的：</b>「结果到达要不要再跑一轮父模型」。不跑，用户可能根本没注意到；跑，就是一次没人按按钮的计费。</p>
+      <p class="note"><b>并且父回合已经结束：</b><code>isStreaming=false</code>，这条写入是<b>非用户触发</b>的会话改动，得和 LAN sync、备份、上下文压缩同时握手，还要被幂等键去重。</p>
+    </div>
+  </div>
+
+  <div class="arrive">
+    <p class="stamp">t+3:40 · 结果到达时多出来的那条（这是 B 独有的东西，也是它最主要的未决）</p>
+    <div class="who">
+      <span class="avatar">C</span>
+      <div>
+        <div class="name">子代理任务完成 · 登录页重构</div>
+      </div>
+    </div>
+    <p class="body">三个用例都修好了，改动在 <code>test/auth/session_test.dart</code> 与 <code>lib/features/auth/session_guard.dart</code>。根因是 token 过期后没有清理本地缓存，第二个用例连带受影响。<b>要我现在继续做别的吗？</b></p>
+  </div>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li>派出去就结束本轮：输入框立刻可用，子代理可以跑很久，多个任务可以并行派出。</li>
+      <li>与 DSH 同形（先回 <code>started subagent</code>，最终答复走完成通知），以后做子代理间通信时事件流已经在了。</li>
+      <li>父会话的 Stop 不再等于停掉子代理——取消要另给入口，反而更清楚。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li><b>父模型的答复不是答案。</b>「已经派了」在结果回来之前什么也没解决，用户得自己判断这话说完了没有。</li>
+      <li><b>「谁在说话」要现定。</b>结果到达是第二条 assistant 消息：算子代理说的、算父助手转述，还是算一条系统回执？三种读法三种 UI。</li>
+      <li><b>多一个没人按按钮的计费。</b>自动续跑父模型意味着用户不在场时也花钱；不续跑，结果可能被划过去没看见。</li>
+      <li><b>写入落在一条空闲会话上。</b>这可能正被 LAN sync / 备份 / 压缩动到；而且以后要做重试、要防重复投递，都得自己造一套。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>分水岭</h2>
+    <p class="note">B 是<b>用户先走，结果后到</b>。好处是这个会话从头到尾属于用户；代价是「结果」不再是回答，而变成一条新消息——而那套送达机制，仓库里只有半个先例。</p>
+  </section>
+
+  <p class="closing"><b>两个变体共用：</b>同一个工具名 <code>delegate</code>、继承父会话的助手与工作区、深度上限默认 1、子会话禁用 <code>ask_user</code> 与审批类工具、幂等键 = 父会话 + 消息 + toolCallId、中断由渲染层派生而不落库。<b>这个变体唯一要你定的：</b>父会话是等，还是不等——选了 B，就得连「送达后要不要续写」一起定。</p>
+
+</main>
+</body>
+</html>

@@ -1,5 +1,24 @@
 # Changelog
 
+## [4.8.0] - 2026-11-22
+
+### Added
+
+- **A built-in drawing tool**: a text model can call the drawing model configured in Kelivo and write a Markdown placeholder in its reply; the picture appears when it is generated (#1096 by @cup113)
+- **Subagents, reworked**: a subagent needs no assistant of its own, inherits the workspace, can run a different model, does not block the reply, and can be woken and awaited (#1108 by @cup113)
+- **A decision model can direct a group chat**: the director slot that picks the next speaker can hold a decision model (#1103 by @cup113)
+- **MCP servers gain a This device only switch**: so a STDIO server whose path differs on each machine stops being synced back and forth (#1106 by @cup113)
+
+### Changed
+
+- **LAN sync, largely rebuilt, moves to protocol 10**: update every device before syncing (#1088, #1093, #1100, #1101, #1102, #1107 by @cup113)
+
+### Fixed
+
+- **Compression and prompt caching broke after a sync**: the conversation fields LAN sync was missing now travel (#1087 by @cup113)
+- **The backup target is complete**: the file prefix follows the target, and the Kelivo label reads 1.3.2+ (#1098 by @cup113)
+- **Switching assistants and group chats in the sidebar**: a tap now opens the conversation that matches the assistant or group it names, and follows Auto switch to Topics and New chat when switching assistants (#1094 by @cup113)
+
 ## [4.7.0] - 2026-11-16
 
 ### Changed

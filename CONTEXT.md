@@ -138,6 +138,16 @@ contradicts one of them is a bug, not a preference.
   nothing on the peer, so its row is filtered out at the row level — the one entity kind with a
   per-row exclusion, and it has to stay that way, because a row that never entered the manifest
   cannot be read as a deletion.
+- **A row can be held on one device (仅本机)**: the MCP edit form's switch holds one server — its
+  `syncBusinessKey` goes into a device-local file (`sync/local-only.json`), not a column, because a
+  column would travel under LWW and the peer's "not held" would flip this device's "held". A held row
+  is left out of this device's manifest, plans **no exchange at all** (not even a deletion, and not the
+  `none` that means "we agree"), and is refused on the apply side; the hello announces the *keys*
+  (`hello.localOnly`, protocol 10) so the peer knows an absence it sees is a hold rather than a
+  deletion. Without that announcement the peer plans `peerDeletes` and removes its own copy, every
+  session — the defect this exists for. A hold is not a fourth disposition: nothing about the row
+  changes, only whether this device offers it, and a key whose row is gone is kept so a server
+  restored from the recycle bin comes back still held.
 - **A family is a registration (家族登记)**: what crosses devices, how it enters a
   conversation's identity, and which of its columns may reference a file are **one entry** in
   `sync_family_registry.dart` — table, scope, kind filter, identity rule, blob columns, and
@@ -358,6 +368,27 @@ contradicts one of them is a bug, not a preference.
   deviceId; row present on one side: union in. Both devices compute the same result
   independently. There is deliberately **no direction knob** (no initiatorWins/serverWins) —
   the 3.x session-priority control existed only because its merge was not symmetric.
+- **A conversation row carries two clocks (两枚时钟)**: `updated_at` is the *display* clock — it
+  says when the conversation's content last changed, and it is what the home list orders and
+  groups by, so a new message, an edit or a deletion moves it — and a restore from the recycle bin
+  does not, because undoing a deletion is not activity and the row comes back where it was. `extras['sync.clock']` is the
+  *mutation* clock — it says when a device last wrote the row, and it is what sync compares, so
+  renaming, pinning, summarising, regenerating suggestions, changing the model override or
+  changing the workspace binding travel without reordering anything. Every local write moves the
+  mutation clock to `max(now, updated_at, previous + 1)`, read from the row inside the writing
+  transaction; a row written before the key existed falls back to `updated_at`, so there is no
+  backfill. The applier writes the winner's clock and never stamps — stamping would push both
+  peers' clocks to "now" every session — and floors `updated_at` at the local value, because the
+  winner (decided by the mutation clock) may carry the older content clock. The manifest's SQL
+  and the Dart merge read the same key and are held equal by a test: a plan that reads one clock
+  and a merge that reads the other re-sends the row every round.
+- **Two readers never mix across builds (混合版本由版本门拦下)**: the key rides inside `extras_json`
+  and the schema does not move, but the *meaning* of the row clock does. A peer still reading
+  `updated_at` would either miss this build's metadata writes or carry a stale key forward into
+  its own writes, so the two readers must not meet. The protocol version is what keeps them apart:
+  hello refuses a mismatch ("Update it first"), and every released build speaks an earlier version
+  than this line's, so the only pair that could mix them is two development builds of this line on
+  either side of the change. The release that ships this change moves the protocol version with it.
 - **A local edit never lowers a row's clock**: every update path floors `updated_at` at the row's
   own `timestamp` (message updates, the UI's partial-field writes, parts and provider artifacts
   alike), because the effective LWW clock is `COALESCE(updated_at, timestamp)`: a message authored
@@ -583,6 +614,19 @@ contradicts one of them is a bug, not a preference.
   a session needs, and it is cheap enough to ask every ten seconds. It is what replaced the bare
   TCP connect that used to decide the online dot: that probe could answer while every session
   failed, because "the port is open" is not "this peer will talk to me".
+- **A push has a byte budget (一次推送的字节预算)**: one push is one JSON document, and the
+  receiver counts it after decompression, refusing 413 past `kSyncMaxBodyBytes`. A refused push
+  fails the whole round and the next round rebuilds the same body, so an over-cap push is a pair
+  that stops converging. Before the batch is built, `sync_budget.dart` measures the parts that
+  travel whatever the conversation list is — business rows, the asset manifest, the skill hashes,
+  the workspace tables — and admits conversations in plan order against what is left
+  (`kSyncDeltaByteBudget`, with half of it as one conversation's ceiling). A conversation that
+  does not fit is **deferred, not failed**: it stays out of the push, its checkpoint does not
+  move, and the next session retries it while everything else still travels. The report names the
+  count (`conversationsOmittedForSize`): most of them are the plan's tail and ride the next session
+  on their own, and only one past the single-conversation ceiling needs the peer to pull it.
+  Not fragmented: a conversation too large for any push still arrives when the peer *pulls* it,
+  which is the fetch response's unbounded path (ADR-0003's known limitation).
 - **One plan, two faces**: conversations and business rows (entities + preferences) are decided
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.
@@ -653,7 +697,16 @@ contradicts one of them is a bug, not a preference.
   (conversations and business rows) — and an interrupted fetch deleted the only copy on both
   devices. An `iSend` entry also describes the payload that was actually sent, never a fresh read:
   a row written while the session was in flight was never sent, and recording it as peer-seen made
-  the next merge delete it here.
+  the next merge delete it here. The receive side asks the same question of the payload it was handed
+  (`peerSends`, and `bothSend` on the responder, whose own half — the fetch response — is never
+  acknowledged); `bothSend` on the initiator, whose push the responder acknowledged, is the apply's
+  snapshot admitted only when every row in it sits at the clock the peer's own copy carries, because the
+  clock is what tells a later deletion that this device edited the row. The `none` heal — the one entry
+  built from a live re-read — is admitted only when that read **is** the state the manifest attested:
+  same digest (the message identity) and same conversation-row clock (the only carrier of a rename, a
+  pin or a version selection). Both comparisons are by value, never against a clock of this device's
+  own, so a peer's fast clock or a backdated import cannot block the heal — which would leave the ledger
+  empty and every later deletion undone.
 - **A premise is re-read where it is used (前提在用的时刻重读)**: a plan is computed from a walk and
   executed beats later, so the half of its premise that can move — the local row, the local file,
   the workspace switch, the history — is read again at the moment of the write, while the half that
@@ -786,10 +839,21 @@ contradicts one of them is a bug, not a preference.
   unpaired or revokes, when a workspace is switched off, and at the next hello (the responder's table
   has to outlive the fetch response, because the initiator pulls *after* it — the files are served
   from that table by stamp-checked path).
-- **Every request is bounded**: a peer that stops answering costs one deadline, not the process.
-  Client budgets are hello 60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s;
-  server routes are bounded too (pair/hello 60 s, revoke 30 s, data routes 30 min), so a body that
-  stops arriving cannot hold the serial request loop open and silence pairing and sync alike.
+- **Every request is bounded, and the bound starts at admission (从入队起有界)**: a peer that stops
+  answering costs one deadline, not the process, and time spent queued behind another beat is spent —
+  a request that waited is answered 504 rather than given a fresh budget. Client budgets are hello
+  60 s, push/fetch 20 min, blob 15 min of inactivity, pairing 60 s, and a push is one budget from its
+  first byte to its last drain; server routes are bounded too (pair/hello 60 s, revoke 30 s, data
+  routes 30 min). The deadline **cancels**: the request carries a gate that a handler checks before
+  each state change, so a handler the deadline abandoned cannot *begin* installing a session, writing
+  a checkpoint or landing a file after its peer was told the request was over — one that had already
+  begun can still finish, which is why those writes are idempotent and re-planned by the next session.
+  The lane orders answers; the gate orders commits.
+- **A route runs on a lane chosen by its effect (按效果分道)**: reads run beside everything (a blob
+  pull is what a three-device ring would otherwise deadlock on), writes run one at a time
+  device-wide, probes and pairing have lanes of their own — pairing capped, and answered 503
+  `pair_busy` past the cap rather than queued. A `/sync/*` request that cannot prove a paired caller
+  is answered 401 at dispatch and never joins a queue.
 - **Clock skew: accept and surface (接受+显性化)**: hello exchanges clock readings (protocol
   v4); a divergence beyond five minutes raises a yellow-flag line in the sync report — on
   **both** devices, each computing it from the same pair of readings — but sync proceeds

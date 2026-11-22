@@ -22,6 +22,9 @@ import '../features/chat/widgets/image_recall_control.dart';
 import '../features/chat/utils/tools_summary.dart';
 import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
+import '../features/home/services/local_tools_service.dart';
+import '../features/image_job/widgets/image_model_subrow.dart';
+import '../features/subagent/widgets/subagent_config_sheet.dart';
 import '../core/models/assistant.dart';
 import '../features/group_chat/widgets/group_member_strip.dart';
 import '../features/home/utils/model_display_helper.dart';
@@ -76,6 +79,10 @@ Future<void> showDesktopToolsPopover(
       supportsModelTools: supportsModelTools,
       modelSupportsTools: modelSupportsTools,
       members: members,
+      // Alive for as long as the composer is: the popover's own context dies
+      // with its overlay entry, and anything that opens a route (the model
+      // picker) has to outlive that close.
+      hostContext: context,
       onClose: () {
         try {
           entry.remove();
@@ -94,9 +101,14 @@ class _ToolsPopover extends StatefulWidget {
     required this.conversationId,
     required this.supportsModelTools,
     required this.onClose,
+    required this.hostContext,
     this.modelSupportsTools,
     this.members,
   });
+
+  /// A context from above the overlay this popover lives in, so a route opened
+  /// from a row survives the popover closing (see [pickImageModel]).
+  final BuildContext hostContext;
 
   /// Non-null in a group chat: the roster whose member the strip selects.
   final List<Assistant>? members;
@@ -250,6 +262,7 @@ class _ToolsPopoverState extends State<_ToolsPopover>
                           modelSupportsTools: widget.modelSupportsTools,
                           header: _memberStrip,
                           onDone: _close,
+                          hostContext: widget.hostContext,
                         ),
                       ),
                     ),
@@ -323,6 +336,7 @@ class _ToolsContent extends StatelessWidget {
     required this.conversationId,
     required this.supportsModelTools,
     required this.onDone,
+    required this.hostContext,
     this.header,
     this.modelSupportsTools,
   });
@@ -330,6 +344,9 @@ class _ToolsContent extends StatelessWidget {
   final String? conversationId;
   final bool supportsModelTools;
   final VoidCallback onDone;
+
+  /// Alive above the popover's overlay entry; used by rows that open a route.
+  final BuildContext hostContext;
 
   /// Rendered above the rows; a group puts its member strip here.
   final Widget? header;
@@ -422,6 +439,54 @@ class _ToolsContent extends StatelessWidget {
       );
       for (final id in localToolIds) {
         final isEnabled = enabledLocalTools.contains(id);
+        // 子代理 is two lines of the same grammar as 绘图: the row, and the
+        // indented summary under it. Both open its three-row dialog.
+        if (id == LocalToolNames.delegate) {
+          final assistant = a;
+          rows.add(
+            (context) => _RowItem(
+              leading: Icon(
+                localToolIcon(id),
+                size: 16,
+                color: isEnabled ? cs.primary : cs.onSurface,
+              ),
+              label: localToolTitle(l10n, id),
+              trailing: Icon(
+                Lucide.ChevronRight,
+                size: 16,
+                color: cs.onSurface.withValues(alpha: .55),
+              ),
+              selected: isEnabled,
+              onTap: () {
+                onDone();
+                unawaited(
+                  showSubagentConfig(hostContext, assistantId: assistantId),
+                );
+              },
+            ),
+          );
+          if (isEnabled) {
+            rows.add(
+              (context) => ImageModelSubRow(
+                label: subagentSummary(
+                  AppLocalizations.of(context)!,
+                  assistant,
+                ),
+                configured: true,
+                inset: 36,
+                height: 30,
+                fontSize: 12,
+                onTap: () {
+                  onDone();
+                  unawaited(
+                    showSubagentConfig(hostContext, assistantId: assistantId),
+                  );
+                },
+              ),
+            );
+          }
+          continue;
+        }
         rows.add(
           (context) => _RowItem(
             leading: Icon(
@@ -442,6 +507,30 @@ class _ToolsContent extends StatelessWidget {
             },
           ),
         );
+        // 绘图 is the one entry with a next level: the model row it grows.
+        if (id == LocalToolNames.generateImage && isEnabled) {
+          rows.add(
+            (context) => ImageModelSubRow(
+              label: imageModelSubRowLabel(
+                AppLocalizations.of(context)!,
+                context.watch<SettingsProvider>(),
+                a,
+              ),
+              configured:
+                  resolveImageModel(
+                    context.read<SettingsProvider>(),
+                    a,
+                  ).binding !=
+                  null,
+              inset: 36,
+              height: 30,
+              fontSize: 12,
+              onTap: () => unawaited(
+                pickImageModel(hostContext, assistant: a, closeFirst: onDone),
+              ),
+            ),
+          );
+        }
       }
       rows.add(
         (context) => ImageRecallControl(
@@ -631,12 +720,16 @@ class _RowItem extends StatefulWidget {
     super.key,
     required this.leading,
     this.detail,
+    this.trailing,
     required this.label,
     this.selected,
     required this.onTap,
   });
   final Widget leading;
   final String? detail;
+
+  /// Replaces the on/off mark, e.g. a chevron for a row that opens a dialog.
+  final Widget? trailing;
   final String label;
   final bool? selected;
   final VoidCallback? onTap;
@@ -723,17 +816,20 @@ class _RowItemState extends State<_RowItem> {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 160),
-                    child: widget.selected == true
-                        ? Icon(
-                            Lucide.Check,
-                            key: const ValueKey('check'),
-                            size: 16,
-                            color: cs.primary,
-                          )
-                        : const SizedBox(width: 16, key: ValueKey('space')),
-                  ),
+                  if (widget.trailing case final trailing?)
+                    trailing
+                  else
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 160),
+                      child: widget.selected == true
+                          ? Icon(
+                              Lucide.Check,
+                              key: const ValueKey('check'),
+                              size: 16,
+                              color: cs.primary,
+                            )
+                          : const SizedBox(width: 16, key: ValueKey('space')),
+                    ),
                 ],
               ),
             ),

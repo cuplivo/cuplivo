@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -28,6 +29,16 @@ class SyncClientException implements Exception {
 
   @override
   String toString() => 'SyncClientException($statusCode): $message';
+}
+
+/// A transfer's budget ran out between two awaits.
+///
+/// A class of its own so the expiry is recognisable where it is thrown
+/// (`left()`), rather than being reported as a peer refusal: the request must be
+/// aborted on this path exactly as on a timed-out await, and `_transfer` cannot
+/// see an exception it cannot name.
+class _TransferBudgetSpent implements Exception {
+  const _TransferBudgetSpent();
 }
 
 /// Default request budgets (see [SyncClientSession]). The control beats answer
@@ -235,7 +246,7 @@ class SyncClient {
       request.headers.contentType = ContentType.json;
       request.add(const []);
       final response = await request.close().timeout(_revokeTimeout);
-      await response.drain<void>();
+      await response.drain<void>().timeout(_revokeTimeout);
       if (response.statusCode != HttpStatus.ok) {
         throw SyncClientException(
           'revoke_failed',
@@ -443,8 +454,9 @@ class SyncClientSession {
     _authenticate(request);
     final response = await request.close().timeout(blobDeadline);
     if (response.statusCode != HttpStatus.ok) {
-      // Drain so the connection can be reused/closed cleanly.
-      await response.drain<void>();
+      // Drain so the connection can be reused/closed cleanly — bounded, because
+      // a body that never ends is the same stalled peer one step later.
+      await response.drain<void>().timeout(blobDeadline);
       throw SyncClientException(
         'blob_unavailable',
         statusCode: response.statusCode,
@@ -503,7 +515,7 @@ class SyncClientSession {
     SyncClient._writeJson(request, {'ws': workspaceId, 'path': relPath});
     final response = await request.close().timeout(blobDeadline);
     if (response.statusCode != HttpStatus.ok) {
-      await response.drain<void>();
+      await response.drain<void>().timeout(blobDeadline);
       throw SyncClientException(
         'workspace_file_unavailable',
         statusCode: response.statusCode,
@@ -526,6 +538,49 @@ class SyncClientSession {
       rethrow;
     }
     return received;
+  }
+
+  /// One pushed transfer, from its first byte to its last drain, under **one**
+  /// budget.
+  ///
+  /// `addStream` used to sit outside every timer: a peer that stopped reading a
+  /// 200 MB upload left this `await` pending forever, and the session's own
+  /// `busyDeviceIds` with it. A per-await `.timeout` is not the fix either — the
+  /// budget belongs to the transfer, so a peer that reads a byte a minute is as
+  /// gone as one that reads nothing.
+  ///
+  /// The request is *aborted* when the budget runs out, whichever way it ran
+  /// out. `.timeout` alone only stops waiting: the socket stays open, the peer
+  /// keeps the connection, and this session's next request queues behind it.
+  /// The budget can also be found already spent by the *next* `left()` — an
+  /// await can complete in the same turn its timer would have fired — so both
+  /// ways out abort.
+  ///
+  /// [body] receives the remaining budget as a function rather than a duration,
+  /// so each await inside it spends what is actually left.
+  Future<void> _transfer(
+    HttpClientRequest request,
+    Duration budget,
+    Future<void> Function(Duration Function() left) body,
+  ) async {
+    final watch = Stopwatch()..start();
+    Duration left() {
+      final remaining = budget - watch.elapsed;
+      if (remaining <= Duration.zero) throw const _TransferBudgetSpent();
+      return remaining;
+    }
+
+    try {
+      await body(left);
+    } on TimeoutException {
+      request.abort(TimeoutException('transfer_timeout', budget));
+      throw const SyncClientException('transfer_timeout');
+    } on _TransferBudgetSpent {
+      request.abort(const SyncClientException('transfer_timeout'));
+      throw const SyncClientException('transfer_timeout');
+    } finally {
+      watch.stop();
+    }
   }
 
   /// Pushes one workspace file the peer asked for (slice 23).
@@ -555,16 +610,36 @@ class SyncClientSession {
     );
     request.headers.contentType = ContentType.binary;
     request.headers.contentLength = advertised.size;
-    await request.addStream(source.openRead());
-    final response = await request.close().timeout(blobDeadline);
-    if (response.statusCode != HttpStatus.noContent) {
-      await response.drain<void>();
-      throw SyncClientException(
-        'workspace_push_refused',
-        statusCode: response.statusCode,
-      );
-    }
-    await response.drain<void>();
+    await _transfer(request, blobDeadline, (left) async {
+      // `left()` is taken *before* the future it bounds, every time. `f.timeout(g())`
+      // evaluates `f` first, so asking for the budget in the argument position
+      // creates the request body — or the close future — with nobody to listen
+      // to it: the budget then throws, `_transfer` aborts, and the abort
+      // completes an unlistened future, which reports to the zone instead of to
+      // the caller.
+      final sendWait = left();
+      await request.addStream(source.openRead()).timeout(sendWait);
+      final closeWait = left();
+      final response = await request.close().timeout(closeWait);
+      if (response.statusCode != HttpStatus.noContent) {
+        // The refusal *is* the answer, so a body that then stalls — or a
+        // connection the peer tears down under it — must not turn it into a
+        // generic transport error: the socket is aborted and the peer's status
+        // is what the caller hears.
+        try {
+          final refuseWait = left();
+          await response.drain<void>().timeout(refuseWait);
+        } catch (_) {
+          request.abort(const SyncClientException('transfer_timeout'));
+        }
+        throw SyncClientException(
+          'workspace_push_refused',
+          statusCode: response.statusCode,
+        );
+      }
+      final drainWait = left();
+      await response.drain<void>().timeout(drainWait);
+    });
   }
 
   /// Pushes one blob the peer asked for (slice 24).
@@ -590,16 +665,28 @@ class SyncClientSession {
     );
     request.headers.contentType = ContentType.binary;
     request.headers.contentLength = size;
-    await request.addStream(source.openRead());
-    final response = await request.close().timeout(blobDeadline);
-    if (response.statusCode != HttpStatus.noContent) {
-      await response.drain<void>();
-      throw SyncClientException(
-        'blob_push_refused',
-        statusCode: response.statusCode,
-      );
-    }
-    await response.drain<void>();
+    await _transfer(request, blobDeadline, (left) async {
+      // Same rule as the workspace push: the budget is read before the future it
+      // bounds, so a spent one starts no body and leaves no unlistened future.
+      final sendWait = left();
+      await request.addStream(source.openRead()).timeout(sendWait);
+      final closeWait = left();
+      final response = await request.close().timeout(closeWait);
+      if (response.statusCode != HttpStatus.noContent) {
+        try {
+          final refuseWait = left();
+          await response.drain<void>().timeout(refuseWait);
+        } catch (_) {
+          request.abort(const SyncClientException('transfer_timeout'));
+        }
+        throw SyncClientException(
+          'blob_push_refused',
+          statusCode: response.statusCode,
+        );
+      }
+      final drainWait = left();
+      await response.drain<void>().timeout(drainWait);
+    });
   }
 
   void close() => _client.close(force: true);

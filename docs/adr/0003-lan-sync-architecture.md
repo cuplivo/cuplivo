@@ -2293,3 +2293,395 @@ is not sandboxed, whatever the flag says, so a loosened copy skips a prompt *ins
 than widening what the sandbox confines. Whether the flag should be device-local is a product question
 about policy versus grant, and it is not decided by this rule — a policy that turns out to be the same
 kind of fact needs its own argument.
+
+## Amendment (2026-11, admission): three lanes, one budget, and what cancelling means
+
+### Context
+
+The listener served every request on one arrival-ordered chain, with two exceptions bolted on: the
+liveness probe (slice 19) and, later, nothing else. Two questions had never been answered together —
+*who may run beside whom*, and *what happens when the caller stops waiting* — and the answers had
+been added one call site at a time.
+
+Three defects were the same missing design:
+
+* A read queued behind a write. A session's push beat pulls attachments from the peer, so the pull is
+  a `GET` against the peer's own listener — and that listener was busy serving *its* inbound session.
+  Three devices (A→B, B→C, C→A, each missing an attachment) therefore waited on each other in a ring
+  that no one link could break.
+* The deadline ended the caller's wait, not the handler. A route that timed out answered 504 and kept
+  running: it installed the session, wrote the checkpoint and landed the file afterwards. The peer had
+  been told the request was over; the device kept acting as though it were not.
+* The budget started at dequeue, so "queued for thirty minutes, then ran for thirty more" was a legal
+  state.
+
+The client had the fourth: `addStream` sat outside every timer, so a peer that accepted a push and
+stopped reading held the upload forever, and seven `response.drain()` calls had no deadline at all.
+
+### Decision
+
+**A route is classified by effect, not by path, in one table.** `SyncServer._classify` returns the
+route *and* its lane, `_laneOf` reads the lane from that one row, and `_route` is an exhaustive
+`switch` over the route — so a route cannot be served without a lane, and a lane cannot be answered
+twice. (The first cut had two answers: a `_writesState` for read-or-write and a separate path `switch`
+for the handler. The gap between them was fail-open — a mutating route added to one and forgotten in
+the other ran on the concurrent read lane, beside a write beat, with nothing failing loudly — and the
+table is the repair.) `/pair` is classified by authentication rather than by effect: it is the one
+route with no secret to check, and the row says so. A path no row names writes nothing and answers its
+404 beside the lanes.
+
+| route | effect | lane |
+|---|---|---|
+| `GET /sync/blob/<hash>` | reads a published file | read (concurrent) |
+| `POST /sync/wsfile` | reads an advertised file | read (concurrent) |
+| `POST /sync/ping` | nothing | ping (capped, slice 19) |
+| `POST /pair` | writes the peer record | pair (**capped**, `kMaxPairRequestsInFlight`) |
+| `POST /sync/hello` | installs a session | write (one, device-wide) |
+| `PUT /sync/subtrees` | applies, lands files | write |
+| `POST /sync/subtrees` | deletes, writes the checkpoint, ends the session | write |
+| `POST /sync/revoke` | deletes the peer record | write |
+| `PUT /sync/blob/<h>`, `PUT /sync/wsfile` | lands a file | write |
+| anything else | nothing | read (answers 404/405 beside the lanes) |
+
+**The write lane stays device-wide.** Splitting it per peer was considered and rejected (see below):
+the ring is broken by the read lane alone, and *the order of commits* is the invariant the session
+map, the checkpoint file and the apply path were designed around — one request admitted at a time, and
+one *committable* admission at a time (the next bullet says why those are two claims).
+
+**A request's budget starts when the listener reads it, and it is measured on the monotonic clock.**
+`SyncAdmission` carries both the budget and the right to write; a request that waited behind a long
+beat starts already spent and is answered 504 at dequeue instead of getting a fresh one. A stopwatch,
+not the wall clock: a budget is how much *work* a request may spend, so an NTP correction must not
+decide that a request which is making progress has run out — and its mirror image, a backward step
+buying a request extra time, is the same bug. (The pre-amendment `.timeout()` ran on a `Timer`, which
+was monotonic for the same reason.)
+
+**Cancellation is a right that is checked, not a future that is ignored.** Three operations, one
+object:
+
+* `check()` at a **commit point** refuses everything after it. The commit points are the state
+  changes, never a transaction interior: the session install, the peer record (and its secret), the
+  record delete, the staged file's rename, the checkpoint write that also ends the session, and each
+  conversation transaction of an apply. Everything committed before a cancellation stays — those
+  writes are idempotent against the plan that asked for them, so the next session redoes them.
+* `io()` around an await that can hang (a body that stops arriving, a peer that stops reading) so the
+  handler unwinds and its `finally` runs: the beat counter comes back to zero, the staged file is
+  deleted, the session is not left half-claimed. It takes a callback, because a future passed as an
+  argument has already started — a gate that refuses it would leave its error unlistened.
+* `ioStream()` for the same reason, chunk by chunk.
+
+**The lane orders answers; the gate orders commits.** A handler the deadline abandoned keeps
+running until its next await or check — the lane admits the next write the moment the 504 is written —
+so "no two write handlers overlap" is not what holds, and an earlier draft of this amendment said it
+did. What holds is weaker and testable: only a live admission commits. Every state change sits behind
+`check()`, so an abandoned handler's next commit point refuses, and two writes are never *committed*
+concurrently. A cancelled beat may still finish the unit it was inside — one file or blob landing —
+which is idempotent, content-addressed and re-planned by the next session, because the checkpoint
+that would have recorded it is behind the check.
+
+**Cancellation is per unit.** `applySubtrees` checks between conversations, the workspace apply
+between files, the blob pull between blobs, so what a cancelled beat stops on is one unit — and what
+that unit committed stays: a conversation's transaction, a file's rename, a blob's placement are
+idempotent against the plan that asked for them, and the next session re-plans them. The untried
+remainder is *not* recorded anywhere, and that is deliberate: a cancelled beat writes no checkpoint,
+so a bookkeeping entry naming it would never be persisted — the retry set comes back from the peer's
+next manifest. The deletion loops check once, before they start: each deletion re-reads the row it
+would remove, so stopping there is the same as not having started.
+
+**Authentication is decided once, at dispatch.** A `/sync/*` request that cannot name a paired caller
+is answered 401 before it joins any queue — including the probe's: the identity is checked before the
+request is dispatched to a lane, and `_servePing` no longer decides pairing itself. Refusing it *on
+the write lane* — where an unauthenticated `POST /sync/hello` used to land — let a stranger's forged
+flood queue in front of a paired peer's beat with requests that were only ever going to be refused.
+
+**Pairing has its own lane, capped.** It is the one face that answers before any authentication
+exists, so it cannot share the data lanes: past `kMaxPairRequestsInFlight` the caller is answered 503
+`pair_busy`, the same refusal language `ping_busy` uses. The cap is four and is deliberately not
+derived from the endpoint cap — pairing is bounded by a human standing in front of two devices, while
+`kMaxPeerEndpoints` is a memory of networks.
+
+**A transfer has one budget on the client too.** `pushBlob` and `pushWorkspaceFile` run inside
+`_transfer`: one stopwatch from the first byte sent to the last drain, each await spending what is
+actually left, and the request **aborted** however the budget is found spent — a `.timeout` alone
+stops waiting but keeps the socket, and the session's next request queues behind it. Two ways out on
+purpose: the await's own timer, and the next `left()` finding nothing left (an await can complete in
+the same turn its timer would have fired).
+
+### What the read lane's concurrency rests on
+
+Two facts that predate this amendment and are now load-bearing, which is why they are written down in
+`_classify`'s comment:
+
+* **A read serves a published snapshot, never a table being built.** `WorkspaceContentSync.publish`
+  constructs the whole table and assigns it, so a reader sees the old one or the new one and never a
+  half-filled map. A read that answers a version the peer planned against a moment ago is a miss it
+  retries, not a corrupt transfer.
+* **No write holds a database transaction across a network await.** `_fetchOne` is network, then
+  file, then DB. A transaction that waited on a socket would put the read lane behind a transfer, and
+  the ring would come back with the database as its medium.
+
+### Rejected: one write lane per peer
+
+The obvious reading of "the ring waits on the write chain" is that the chain is too coarse. It is the
+wrong half: what crossed the ring was a *read*, so separating reads breaks it, and per-peer writes buy
+nothing that G0 asked for. They would make concurrent writes normal — the session map, the checkpoint
+file and the apply path all rest on "one writer at a time" — and the ADR's own sentence about why the
+data routes are serial ("they share session state and a checkpoint file") would have to be weakened to
+a per-peer claim. That is a decision to take on measured contention, not on a diagnosis that turned out
+to point one lane over.
+
+### Known limits
+
+* **A skill's zip is built in place in the serving cache**, so a `GET` that lands while the same
+  archive is being rebuilt can read a short file. The receiver re-hashes an extracted body and refuses
+  it, so the transfer fails and is retried — not corruption, but it is a window this amendment opens,
+  and it is why `zipToCache` is the place a later slice may need an atomic rename.
+* **The read lane is not capped.** One paired peer can hold as many reads open as its sockets allow.
+  Today's traffic is one pull at a time per session, so a cap would be a number without a basis; the
+  refusal path (`ping_busy`'s shape) is what it would take.
+* **One commit point is check-then-write, so the window is the write.** `handlePair` checks the gate
+  immediately before `savePeer`, and a deadline that lands *inside* that write still leaves the peer
+  record — a peer this device lists whose secret the initiator never received (F-6's state). It is
+  one file write, chained behind the record's other writes, and the initiator's re-pair heals it,
+  because the 504 is what makes it pair again. Closing it needs the store to refuse a commit on a
+  gate it does not know about, which is a wider change than this amendment.
+* **A paired peer's write flood now queues other peers behind it**, because the write lane is
+  device-wide. That is the price of the lane key; it is not worse than the single chain it replaced.
+* **A push refused while it was queued spends its own transfer budget.** A request whose deadline runs
+  out in the queue is answered 504 when the lane reaches it, and the peer is still inside
+  `addStream`, where it cannot read a status: measured with a 4 MB push behind a held lane, the
+  client ends in `transfer_timeout` rather than 504. Answering before the body arrives does not help
+  — the peer is blocked on a socket nobody is reading — and draining the body first delays the 504
+  that a *stalled* body is owed, which is the case the deadline exists for. The peer has spent the
+  send either way and retries next session; what it loses is the reason.
+
+### Consequences for earlier claims
+
+* Slice 3's "the data routes run one at a time — they share session state and a checkpoint file" holds
+  as "their commits are ordered": a lane for the answers, a gate for the commits.
+* Slice 19's probe lane is unchanged; its authentication moved to the dispatch point, so the route no
+  longer decides pairing itself.
+* The "Every request has a deadline, on both planes" bullet (slice 5) is now "from admission", and the
+  deadline *cancels* rather than merely returning.
+* Slice 19's and slice 24's descriptions of the request loop are superseded by the lane table above.
+
+## A push has a byte budget
+
+One push is one JSON document (`SyncDeltaBatch`), and the receiving side counts it **after
+decompression** against `kSyncMaxBodyBytes` (`sync_server.dart`). Past that cap it answers 413 and
+the whole round fails — and the next round rebuilds the same body from the same rows, so an
+over-cap push is not a slow pair: it is a pair that never syncs again, with one "failed" line on the
+card to show for it. The conversations that made the body big are exactly the ones carrying the
+documents v9 started sending, so the failure arrives with the feature that makes it likely.
+
+The client therefore builds a batch that fits, decided before the batch exists:
+
+- `sync_budget.dart` measures the part that travels whatever the conversation list is — business
+  rows, the asset manifest, the skill hashes, the workspace tables — by serialising it once
+  (`pushEnvelopeBytes`). The asset manifest is built for *every planned* conversation, which is an
+  upper bound of the one that will be sent, so the measurement cannot be beaten by the final batch.
+- Conversations are admitted in plan order against `kSyncDeltaByteBudget - envelope`, each costing
+  its own serialised length plus one comma. The identity is exact — `body = envelope + Σ(size + 1)
+  − 1` — so the bound is arithmetic, not headroom. `kSyncMaxConversationBytes` (half the budget)
+  stops one huge conversation from displacing the rest of the round.
+- A conversation that does not fit is **deferred, not failed**. It stays out of `outgoing`, its
+  checkpoint entry stays at `prior`, and the next session retries it while the other conversations
+  still travel. The report names the count (`conversationsOmittedForSize`): most of them are
+  the plan's tail and ride the next round on their own, and a conversation past the
+  per-conversation limit is the one that can only arrive when the peer pulls it.
+
+Two things this does **not** do, both deliberate:
+
+- **No fragmentation.** A conversation larger than `kSyncMaxConversationBytes` cannot ride in any
+  push. It still arrives when the peer *pulls* it: the fetch response is a response body, which the
+  receiver never caps, and the peer's own plan requests it. So the conversation converges as long as
+  the peer dials — and an install where only one side ever dials keeps it one-sided. That is the
+  known limitation, and the reason the panel says the conversation *did not fit in this push*
+  rather than *lost*. One cost is measure-side and worth naming: the subtree is read and serialised
+  before admission can know its size, so such a conversation costs one full read and one full encode
+  on every session until it is trimmed or the peer pulls it.
+- **The fetch response is not budgeted.** The 256 MB cap is a request-body cap; a 200 MB response is
+  read whole by the client. Bounding that direction needs its own admission point and its own state
+  table (the responder cannot report an omission — the response is never acknowledged), which is a
+  separate change. Until then a library large enough to matter can still hurt the *pulling* side.
+
+And one edge the measurement cannot fix: **the parts that travel whatever the conversations are can
+themselves exceed the budget.** The envelope is measured, not capped — workspace tables top out at
+20,000 ledger entries and the asset manifest grows with the blobs the rows reference, so a fixed part
+above 153.6 MB admits no conversation at all and the body is still only refused at the 256 MB cap.
+Reaching it takes a pathological library; shrinking it needs the business/asset faces to be admitted
+too, which is a different change.
+
+The send path's own copies are why the budget is 60% of the cap: the batch's row maps, the JSON
+text, its UTF-8 buffer and the gzip buffer are all alive before a byte reaches the socket. The very
+batch that leaves is measured once more under `assert` (`assertPushFits`), so a future edit that
+measures one list and sends another fails on the sender instead of as a 413 on the peer.
+
+### The rule the budget exposed in the checkpoint
+
+Deferring a send was already a thing (a conversation being generated is not pushed). The budget adds
+a second, *durable* reason, and that turned a latent bug into a deterministic one: the checkpoint's
+`iSend` arm refused to advance for a skipped send, but the `bothSend` arm advanced from the peer's
+apply alone. An entry built that way recorded the post-merge local state as "the peer has this" —
+including rows the peer never received — so the next session planned `peerSends`, fetched a copy
+without those rows, and the merge deleted them (local-only, clock equal to the recorded one). Two
+sessions turned "not sent this round" into data loss.
+
+The rule is now one question, asked by both send arms: **did this device's copy cross the wire** —
+`sentSubtrees` (the batch this beat built) plus `sendsConfirmed` (a fetch response is never
+acked). `sync_engine_integration_test.dart` holds the proof twice: a conversation omitted on the
+`bothSend` path keeps the edit it did not send, with a prior entry and without one.
+
+### The same question, asked of an arrival
+
+The rule above is about what this device *sent*. The entry for a conversation the peer sends has the
+same requirement, and had the same defect: whether `peerSends` or `bothSend`, it was composed from the
+apply's post-merge snapshot. That snapshot starts from a local read taken **inside** the apply
+transaction, so a row the user wrote between the hello and the apply — a window that spans the push
+beat and the whole blob pull — is in it. The entry then recorded that row as peer-held, and the next
+session, planning from a checkpoint that already matched its own digest, fetched a copy without the
+row and deleted it here. Same data loss, other direction, longer window.
+
+The rule is now symmetric, in bytes:
+
+- **`peerSends` records the payload that arrived** — the same construction the sender's `iSend` arm
+  makes of the same payload, so one transfer produces one entry, identical on both sides. A row this
+  device wrote while the session ran is in neither payload and cannot be claimed.
+- **`bothSend` is the merge of two payloads**, which no single payload describes, so which payload a
+  device may claim depends on which half of the session it can show crossed.
+  On the **initiator**, whose push the responder acknowledged, the peer's copy is read after it applied
+  that push — so the entry is the apply's snapshot, admitted only when every row in it sits at the clock
+  the peer's own copy carries for it. The comparison is by **clock**, not by id, and that distinction is
+  the whole rule: an edit keeps the id and moves the clock, so an id check admits it, the ledger records
+  the edit as the agreement, and the peer's later deletion of that row reads "untouched here" — the one
+  reading the deletion oracle acts on — and deletes the edit.
+  On the **responder**, whose half is the fetch response and nothing acknowledges a response, the entry
+  is the payload the initiator pushed — the same construction `peerSends` uses. The rows the responder
+  served itself are deliberately not in it: they may have been lost with the response, and claiming them
+  would let the peer's later silence delete them. They are recorded one session later, when both
+  manifests agree and the heal runs. Without that distinction the responder's entry never moved at all,
+  so a row that arrived in the push had no ledger clock and the initiator's later deletion of it could
+  not be inferred: the responder kept it and served it back.
+  What the rule still cannot see is a mid-session write in a family the ledger does not index (an
+  artifact row, which carries no message clock); that costs one round of convergence, never a deletion.
+
+`sync_engine_integration_test.dart` holds the halves: the receiver's mid-session insert survives and
+travels one round later for `peerSends` and `bothSend`, and a mid-session *edit* survives the peer
+deleting that same row.
+
+### And the guard knows about the edge it cannot fix
+
+The send-site guard (`assertPushFits`) takes the measured fixed part as its bound when that part is
+larger than the budget: a round whose envelope alone is over the budget admits no conversation and its
+body *is* the envelope, which only the receiver's 256 MB cap may refuse. A debug build must not fail a
+round release lets the peer answer.
+
+### The third writer: a heal is a live read too
+
+`none` is the arm where both manifests agree and the entry is refreshed, and its source is a live
+re-read — the one place a checkpoint entry is built from "however the row looks now" rather than from
+a payload. The same window therefore applies: a message written while the session ran is in the
+refresh and in neither manifest, so the entry claims the peer holds it, and the next session — whose
+plan reads that checkpoint as current — fetches a copy without the row and deletes it here.
+
+The refresh cannot simply be dropped: it is what records that the peer has seen these rows, and
+without it a peer's deletion of a row in a settled conversation would never be applied, because the
+ledger only knows what to delete from what an earlier agreement claimed. So a refresh is admitted only
+when it **is** the state the manifest attested: same digest (the message identity the peer saw — it
+contributes each row's id and clock) and same conversation-row clock (the one field the identity cannot
+see, and the one the delete branch reads). A write in the window moves one of the two, and the refresh
+then waits a round, keeping the previous entry — or none, which is safe, since no entry means no
+deletions inferred. The next session finds the write in both manifests and either heals or sends it.
+
+`sync_engine_integration_test.dart` holds it: `a none heal does not record a row written during the
+session` (a message row) and `a rename during a heal is not recorded as the agreement` (the row clock).
+
+Both comparisons are **by value, never against a clock of this device's own**, and that distinction is
+load-bearing rather than stylistic. A message clock was written by whichever device authored the row,
+and the session report already names the case where a peer's clock runs ahead; a rule of the form "a
+row newer than my instant" then refuses the heal on every session, for ever. With no entry written,
+the ledger is empty, `mergeMessageRows` keeps every local row the peer's payload lacks, and a deletion
+— never inferred — comes back as a row the other side re-sends, for as long as the clock stays ahead.
+Comparing the agreement with itself has no such ruler: a row that merely runs ahead moves neither
+value, and the row that *was* written mid-session moves one of them, whatever its clock says. Symmetric
+for the backdated import: it cannot slip under a bound that is not expressed in wall-clock terms.
+
+What remains unseen is a mid-session write in a *different* family — a part or an artifact row. The
+digest moves (it covers those families) but no ledger row does, so the entry claims a digest the peer
+has not seen; the deletion oracle only knows ledger rows, so nothing is deleted and the cost is one
+redundant round. The same was once said here about a rename and it was wrong: the row clock above is
+exactly what a rename is made of.
+
+## Amendment (2026-11, protocol 10): the third announcement — a row this device holds and does not offer
+
+The MCP list is the first business kind whose rows are not portable. A stdio server's command is a
+path, and a path that means `C:/tools/chrome-devtools.exe` on one machine means nothing on the other;
+#1029 reported the pair's PCs exchanging exactly that. The request was a blacklist — keep syncing
+everything else, exclude a few — so the mechanism had to answer a question the plan cannot: **is a row
+missing from a manifest because the peer deleted it, or because the peer kept it?**
+
+The plan's only answer is deletion. `planRowSync` reads an absent peer row as `peerDeletes` once the
+checkpoint says the two sides agreed, and that inference is what makes ordinary deletion propagate at
+all. A row the user marks "this device only" is therefore indistinguishable from a row the user
+deleted: the peer deletes its own copy, then does it again every session, because the checkpoint entry
+it keeps re-plans the same deletion. Filtering the send side alone is the defect, not the fix.
+
+- **The state is announced, not filtered (第三条公告).** The hello carries the keys this device holds
+  without offering (`SyncHello.localOnly`, `syncBusinessKey` strings) beside the deletion list and the
+  data epoch, and for the same reason those exist: an absence is not evidence. It arrives with the
+  hello because both sides plan before a byte of rows moves. Protocol 9 never shipped (4.7.0 is
+  protocol 8), so this shape lands inside the upgrade window the v9 projection already opened rather
+  than adding a second one.
+- **Both sides skip the key, and the skip is not `none`.** A held key plans no exchange at all — it is
+  neither sent nor requested nor deleted, on either device — and the plan item says so
+  (`SyncBusinessPlanItem.withheld`). It cannot borrow `none`: that arm is the *agreement* arm, and the
+  business checkpoint advance records the local row as the shared state when it runs. For a held row
+  that would be a fabricated agreement — this device's copy recorded as what the peer holds — and the
+  first session after the hold is released would resolve by "this device wins" instead of by the
+  table's last-write-wins. The entry keeps whatever it had, which is also what makes the release a
+  normal merge rather than a surprise. `sync_engine_integration_test.dart` pins it with the held row's
+  entry compared before and after a marked session.
+- **The hold lives on the device, not in the row (`仅本机` is device-local).** A column would travel
+  under row-level LWW, so the peer's "not held" would flip this device's "held" on every session the
+  peer won — a switch that turns itself off. The set is `sync/local-only.json`, read-modify-write
+  serialized like the workspace toggles, written by the MCP form and read by the session at its hello:
+  a key naming a row that no longer exists is **kept, not swept**, because the row may come back from
+  the recycle bin and has to come back still held. The manifest leaves held rows out
+  (`syncEntityRefs(skipKeys:)`), the plan skips the union of both devices' sets, and the apply refuses
+  the union as a last gate — the same shape the linked-workspace rule uses at the row level, except
+  that rule is static and this one is the user's.
+- **Rejected: a per-kind exemption ("MCP rows never delete").** It needs no protocol change, which is
+  its whole appeal, and it costs the feature: deleting an unmarked MCP server on one device would
+  never remove it on the other, for every server, forever. The user asked to exclude a few rows, not
+  to stop deletions from crossing. It also has no answer for the mixed pair — an older build never
+  hears the announcement, so it deletes the held row and says nothing.
+- **Rejected: carrying the row as "the state we last agreed on".** Advertising the checkpoint digest
+  for a held row keeps the two manifests equal, so both sides plan `none` without a protocol change —
+  and makes the manifest claim a row this device does not hold. That is the one invariant every other
+  reader of a manifest depends on (it is the receipt), and it turns a held-then-deleted row into a
+  permanent re-offer in one direction and a silent resurrection in the other.
+- **What a hold is not.** It is not a retraction: a copy the peer already holds before the mark stays
+  there, with whatever command it had, and the peer is never told — the announcement only covers the
+  keys this device offers nothing for. It is also not a freeze on the *table's* rules: a row this
+  device deleted while holding, then released, plans `iDelete` on the first session after the release
+  when the peer still has an untouched copy, exactly as any other deleted row would. Both follow from
+  "held means not exchanged", and both are worth saying in release notes rather than discovering.
+- **The hold is enforced on the row face.** The two body faces — a skill's directory and a
+  workspace's files — read the row face (a held row is not in the manifest, so it is not planned) but
+  do not consult the set themselves. Nothing but the MCP form writes a key today, and an MCP server
+  has no body; a future kind that does would need the same predicate at those two faces, and copying
+  the filter into four places is the maintenance trap this note exists to name.
+- **An unreadable `local-only.json` reads as "nothing held".** The same direction the workspace
+  toggles take, and the asymmetry is deliberate: the alternative — refusing to sync *anything* because
+  a preferences file was truncated — costs every row instead of one. The cost lands on the user whose
+  file is damaged: those rows start crossing again, and only a `debugPrint` says so. Worth remembering
+  that here the failure leaks a command line rather than merely a file.
+- **Known cost, accepted.** Seven cells of the state table live in
+  `sync_engine_integration_test.dart` under `a row held on this device`: the peer keeps its copy, the
+  peer's edit does not cross, a deletion does not cross, the checkpoint keeps its entry, a released
+  hold converges, a row held before pairing never arrives, and a 4.7.0 peer is refused at hello.
+  Proved red by injection (the mechanism switched off at the store: five cells; the checkpoint guard
+  removed: the entry cell), then reverted byte-exact. The cells do not each prove their own mechanism
+  — the apply gate alone would keep the peer's row safe — which is the point of three gates over one
+  rule; the deletion cell is the one that only the announcement can pass.
+

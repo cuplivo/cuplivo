@@ -2952,6 +2952,83 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Поручить субагенту: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Субагент завершил';
+
+  @override
+  String get subagentResultFailed => 'Субагент не справился';
+
+  @override
+  String get subagentResultCancelled => 'Субагент отменён';
+
+  @override
+  String get subagentResultInterrupted => 'Субагент прерван';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Субагент работает ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Субагентов работает: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Субагент ждёт вашего ответа · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return 'Субагентов: $count ($running работают)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Субагенту нужно разрешение · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Субагенты';
+
+  @override
+  String get subagentPanelEmpty => 'В этом разговоре пока нет субагентов.';
+
+  @override
+  String get subagentTag => 'Субагент';
+
+  @override
+  String get subagentPanelRunning => 'Работает';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Ждёт ответа';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Ждёт разрешения';
+
+  @override
+  String get subagentPanelCompleted => 'Завершено';
+
+  @override
+  String get subagentPanelFailed => 'Ошибка';
+
+  @override
+  String get subagentPanelCancelled => 'Отменено';
+
+  @override
+  String get subagentPanelInterrupted => 'Прервано';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes мин $seconds с';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => 'Встроенный поиск';
 
   @override
@@ -3748,6 +3825,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => 'Включено';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'Только это устройство';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Сохранено, но этот сервер не удалось оставить только на этом устройстве.';
+
+  @override
   String get mcpServerEditSheetNameLabel => 'Название';
 
   @override
@@ -4030,6 +4114,32 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Эмбеддинг';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Решение';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'API решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Адрес решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Пусто — дополняется к адресу провайдера';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Некоторые провайдеры дают доступ к моделям решений по отдельному адресу — укажите путь, чтобы переопределить адрес по умолчанию.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Заполнить';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Текущий';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Байлянь';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Режимы ввода';
@@ -16254,6 +16364,62 @@ class AppLocalizationsRu extends AppLocalizations {
   String get retry => 'Повторить';
 
   @override
+  String get imageJobTitle => 'Иллюстрация';
+
+  @override
+  String get imageJobFailed => 'Не удалось создать иллюстрацию';
+
+  @override
+  String get imageJobInterrupted => 'Иллюстрация прервана';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Рисование';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => 'Субагент';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Ожидание задачи';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Модель изображений';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'Модель, которая рисует картинки в ответе; если не задана, рисование отключено.';
+
+  @override
+  String get imageJobPanelCopy => 'Копировать';
+
+  @override
+  String get imageJobPanelPromptLabel => 'Запрос';
+
+  @override
+  String get imageJobPanelModelLabel => 'Модель';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Размер';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Затраченное время';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Использование';
+
+  @override
+  String get imageJobPanelAuto => 'Авто';
+
+  @override
+  String get imageJobPanelOneImage => '1 изображение';
+
+  @override
+  String get imageJobNotConfigured => 'Не настроено · Выбрать';
+
+  @override
+  String get imageModelFollowGlobal =>
+      'Использовать модель изображений по умолчанию';
+
+  @override
   String get recoveryGuideTitle => 'Восстановим ваши чаты';
 
   @override
@@ -17866,6 +18032,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Не удалось связаться с устройством. Проверьте адрес и порт, а также что оба устройства в одной сети.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'Другое устройство занято другим запросом на сопряжение. Повторите попытку через минуту.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'Другое устройство не подтвердило свою личность. Сопряжение прервано.';
 
@@ -18175,6 +18345,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return 'Рабочих областей без синхронизации файлов: $count';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return 'Не вошло в эту отправку чатов: $count';
   }
 
   @override
@@ -19252,6 +19427,52 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Определяет, кто говорит следующим в групповом чате. Лучше всего подойдёт быстрая и недорогая модель.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Выполнить одну задачу в копии этого чата, в том же рабочем пространстве.';
+
+  @override
+  String get subagentConfigEnabled => 'Вкл.';
+
+  @override
+  String get subagentConfigDepth => 'Глубина';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'Сколько уровней подагентов может делегировать дальше';
+
+  @override
+  String get subagentConfigModel => 'Модель';
+
+  @override
+  String get subagentConfigModelDescription =>
+      'Какая модель выполняет подагента';
+
+  @override
+  String get subagentConfigModelInherit => 'Как у этого ассистента';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · глубина $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'К родительскому чату · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Полномочия подагента';
+
+  @override
+  String get subagentEscalationAsk => 'Спрашивать';
+
+  @override
+  String get subagentEscalationDeny => 'Всегда запрещать';
+
+  @override
+  String get subagentEscalationAllow => 'Всегда разрешать';
 
   @override
   String get dshProductName => 'DeepSeek Harness';

@@ -255,6 +255,46 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   SyncEngine? _engine;
   SyncStore? _store;
 
+  /// The store, created once and shared by the engine and the panel.
+  ///
+  /// Deliberately not owned by [start]: a row's "keep it on this device" choice
+  /// is persisted whether or not the listener has ever run, and a *second*
+  /// [SyncStore] over the same directory would carry its own write queue — two
+  /// serialized writers that are not serialized with each other, which is
+  /// exactly how one of two toggles is lost.
+  ///
+  /// A **failed** open is not cached: the future is dropped so the next caller
+  /// tries again. Keeping it would turn one unresolvable directory into a
+  /// permanent failure of the whole retry path (`start` after a start error
+  /// hands every caller the same rejected future), which is a regression
+  /// against the version that built a fresh store per attempt.
+  ///
+  /// [directory] is honoured only while no store exists — the first caller's
+  /// root is the one this provider uses, deliberately: two roots would mean two
+  /// write queues over one file.
+  Future<SyncStore> _ensureStore({Directory? directory}) async {
+    final pending = _storeFuture;
+    if (pending != null) return pending;
+    final created = _openStore(directory);
+    _storeFuture = created;
+    try {
+      return await created;
+    } catch (_) {
+      if (identical(_storeFuture, created)) _storeFuture = null;
+      rethrow;
+    }
+  }
+
+  /// [directory] is the root `start` already resolved for the identity: the
+  /// store and the identity must name one directory, not two resolutions of it.
+  Future<SyncStore> _openStore(Directory? directory) async {
+    final store = SyncStore(directory ?? await _syncDirectory());
+    _store = store;
+    return store;
+  }
+
+  Future<SyncStore>? _storeFuture;
+
   /// The workspace content plane, once the engine owns one: the panel's rows
   /// come from here (the index walk and the device-local switch), and the
   /// engine reads the same plane during a session.
@@ -475,7 +515,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         ),
       );
       if (_stopRequested) return;
-      final store = SyncStore(directory);
+      final store = await _ensureStore(directory: directory);
       final workspaceContent = WorkspaceContentSync(
         businessRepository: _businessRepository,
         store: store,
@@ -657,7 +697,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         peerDeviceId: record.deviceId,
       );
     } on SyncClientException catch (error) {
-      return _mapPairError(error);
+      return mapPairError(error);
     } on SocketException catch (error) {
       return SyncPairOutcome.failure('unreachable', error.message);
     } on TimeoutException catch (error) {
@@ -708,7 +748,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         wasKnownPeer,
       );
     } on SyncClientException catch (error) {
-      return SyncPairQrOutcome(_mapPairError(error), wasKnownPeer);
+      return SyncPairQrOutcome(mapPairError(error), wasKnownPeer);
     } on SocketException catch (error) {
       return SyncPairQrOutcome(
         SyncPairOutcome.failure('unreachable', error.message),
@@ -747,7 +787,14 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(syncNow(peer.deviceId).catchError((Object _) => null));
   }
 
-  static SyncPairOutcome _mapPairError(SyncClientException error) {
+  /// The pairing form's failure table: a wire refusal code to the outcome the
+  /// form renders.
+  ///
+  /// Public so a test can drive it: every code here is produced by a *listener*
+  /// this device does not own, and one of them (`pair_busy`) is the listener
+  /// saying "I answered, and I am full" — reporting that as `unreachable` sends
+  /// the user to check an address that just worked.
+  static SyncPairOutcome mapPairError(SyncClientException error) {
     switch (error.message) {
       case 'invalid_pin':
         return SyncPairOutcome.failure(
@@ -760,6 +807,10 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         return const SyncPairOutcome.failure('id_mismatch');
       case 'pair_fingerprint_mismatch':
         return const SyncPairOutcome.failure('fingerprint_mismatch');
+      case 'pair_busy':
+        // The peer's pairing lane was full: it answered, and it is busy. The
+        // request is worth retrying, and nothing about the address is wrong.
+        return const SyncPairOutcome.failure('busy');
       default:
         return SyncPairOutcome.failure(
           'unreachable',
@@ -1271,6 +1322,34 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
     await content.setEnabled(id, enabled);
     await refreshWorkspaceContent();
+  }
+
+  // ---- rows held on this device ----
+
+  /// Reads the device-local set of rows this machine holds without offering
+  /// them, as `syncBusinessKey` strings.
+  ///
+  /// The file is the truth — a session reads it directly at its hello — and the
+  /// forms read it through here because they and the session must share one
+  /// [SyncStore].
+  Future<Set<String>> readLocalOnlyKeys() async {
+    final store = await _ensureStore();
+    return store.readLocalOnlyKeys();
+  }
+
+  /// Marks one row as held on this device, or releases it. Returns whether the
+  /// stored choice changed.
+  ///
+  /// The row's content is untouched either way: what changes is whether the
+  /// pair may exchange it. A held row stops being offered, and the peer stops
+  /// reading its absence as a deletion — the announcement on the hello
+  /// (`SyncHello.localOnly`) is what carries that second half.
+  Future<bool> setLocalOnly(String key, bool localOnly) async {
+    if (key.isEmpty) return false;
+    final store = await _ensureStore();
+    return store.mutateLocalOnlyKeys(
+      (keys) => localOnly ? keys.add(key) : keys.remove(key),
+    );
   }
 
   // ---- automatic rounds (foreground) ----

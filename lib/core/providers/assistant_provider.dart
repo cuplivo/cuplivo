@@ -501,10 +501,32 @@ class AssistantProvider extends ChangeNotifier {
   }) async {
     await loaded;
     for (final assistant in assistants) {
+      var next = assistant;
       if (assistant.chatModelProvider == providerKey &&
           (modelId == null || assistant.chatModelId == modelId)) {
-        await updateAssistant(assistant.copyWith(clearChatModel: true));
+        next = next.copyWith(clearChatModel: true);
       }
+      // The drawing model has the same assistant-level tier, and it is resolved
+      // with the same precedence: a stored pair whose provider is gone would beat
+      // the still-valid global default.
+      if (assistant.imageModelProvider == providerKey &&
+          (modelId == null || assistant.imageModelId == modelId)) {
+        next = next.copyWith(
+          clearImageModelProvider: true,
+          clearImageModelId: true,
+        );
+      }
+      // The delegation model follows the same rule: left behind, it would point a
+      // child at a provider that no longer exists, and the delegation would fail
+      // instead of falling back to the conversation's own model.
+      if (assistant.subagentModelProvider == providerKey &&
+          (modelId == null || assistant.subagentModelId == modelId)) {
+        next = next.copyWith(
+          clearSubagentModelProvider: true,
+          clearSubagentModelId: true,
+        );
+      }
+      if (!identical(next, assistant)) await updateAssistant(next);
     }
     await chatService?.clearConversationModelOverrides(
       providerKey: providerKey,

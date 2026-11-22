@@ -2139,11 +2139,20 @@ class ChatService extends ChangeNotifier {
     return len;
   }
 
+  /// Creates a conversation and returns it.
+  ///
+  /// [extras] replaces the default bag when provided. A caller that inherits a
+  /// parent conversation's binding has to be able to say "no workspace" as well
+  /// as "this workspace", and merging over the default could only ever add
+  /// keys. Whichever bag wins, a tool grant is stripped here: this is the one
+  /// place a new conversation's extras are built, so a new conversation can
+  /// never start with a grant nobody gave it.
   Future<Conversation> createConversation({
     String? title,
     String? assistantId,
     String? groupChatId,
     bool activate = true,
+    Map<String, dynamic>? extras,
   }) async {
     if (!_initialized) await init();
     if (activate) _discardTemporaryConversation(_currentConversationId);
@@ -2152,10 +2161,16 @@ class ChatService extends ChangeNotifier {
     // message, so the owner column stays empty exactly as it does for a global
     // conversation, and only `extras` links it to its group.
     final ownerId = groupChatId == null ? assistantId : null;
+    final base = extras == null
+        ? _extrasForNewConversation(ownerId, groupChatId: groupChatId)
+        : <String, dynamic>{
+            ...extras,
+            if (groupChatId != null) Conversation.groupChatIdKey: groupChatId,
+          };
     final conversation = Conversation(
       title: title ?? _defaultConversationTitle,
       assistantId: ownerId,
-      extras: _extrasForNewConversation(ownerId, groupChatId: groupChatId),
+      extras: ToolPermissionMode.withoutGrant(base),
     );
 
     await _saveConversation(conversation);
@@ -2483,8 +2498,11 @@ class ChatService extends ChangeNotifier {
     for (final part in message.parts) {
       if (part is ImagePart) {
         // Unavailable placeholders stay in history for UI but must not enter
-        // asset sync — missing files would otherwise dirty/throw forever.
-        if (part.unavailable) continue;
+        // asset sync — missing files would otherwise dirty/throw forever. A
+        // promise is the same case one level earlier: `state != null` means no
+        // bytes exist yet, and this walk must not be the one place that asks the
+        // filesystem about a file nobody wrote.
+        if (part.unavailable || !part.hasBytes) continue;
         final uri = part.uri.trim();
         if (uri.isEmpty || uri.startsWith('http') || uri.startsWith('data:')) {
           continue;
@@ -3379,15 +3397,16 @@ class ChatService extends ChangeNotifier {
     if (_draftConversations.containsKey(id)) {
       final draft = _draftConversations[id]!;
       draft.title = newTitle;
-      draft.updatedAt = DateTime.now();
       notifyListeners();
       return;
     }
     final conversation = _conversationsCache[id];
     if (conversation == null) return;
 
+    // A rename is tidying, not activity: it travels on the conversation's sync
+    // clock and leaves `updated_at` where it was, so renaming a three-day-old
+    // conversation does not put it at the top of the list.
     conversation.title = newTitle;
-    conversation.updatedAt = DateTime.now();
     await _saveConversation(conversation);
     _bumpConversationListRevision();
     notifyListeners();
@@ -4062,6 +4081,21 @@ class ChatService extends ChangeNotifier {
       messages[index] = updatedMessage;
     }
     _touchMessageCache(updatedMessage.conversationId);
+  }
+
+  /// One message by id, from the in-memory cache when it is still there and from
+  /// storage otherwise.
+  ///
+  /// The message cache is bounded (720 entries / 8 MB) and drops finished
+  /// replies. A writer that runs *later* — an image job finishing tens of seconds
+  /// after its reply was finalized — therefore cannot assume its message is still
+  /// cached, and a cache-only read turns that write into a silent no-op.
+  Future<ChatMessage?> getMessageById(String messageId) async {
+    final temporary = _cachedTemporaryMessage(messageId);
+    if (temporary != null) return temporary;
+    final cached = _cachedMessage(messageId);
+    if (cached != null) return cached;
+    return _repo.getMessage(messageId);
   }
 
   Future<void> updateMessage(

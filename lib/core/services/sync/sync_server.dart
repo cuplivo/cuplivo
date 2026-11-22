@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'sync_admission.dart';
 import 'sync_identity.dart';
 import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
@@ -13,6 +14,14 @@ import 'sync_store.dart';
 
 /// Handler surface the sync engine implements behind [SyncServer]. The server
 /// is transport only: mTLS, routing, JSON/gzip codecs, certificate pinning.
+///
+/// Every method takes the request's [SyncAdmission]. It is the only way the
+/// handler can know that the deadline already took this request: the transport
+/// answers 504 at the deadline, and a handler that has not been told would keep
+/// writing after its peer was told the request is over. A handler must call
+/// `check()` at each commit point (before installing a session, writing a
+/// checkpoint, landing a file — never inside a transaction) and must run every
+/// await that can hang through `io()`/`ioStream()`.
 abstract class SyncServerHandler {
   /// Returns this device's hello, or a refusal. [peerDeviceId] is the pinned
   /// identity of the caller.
@@ -24,14 +33,16 @@ abstract class SyncServerHandler {
     String peerDeviceId,
     SyncHello initiatorHello, {
     String? remoteAddress,
+    required SyncAdmission admission,
   });
 
   /// Everything this device owes the initiator for the request's conversations
   /// and business rows.
   Future<SyncDeltaBatch> handleFetchSubtrees(
     String peerDeviceId,
-    SyncFetchRequest request,
-  );
+    SyncFetchRequest request, {
+    required SyncAdmission admission,
+  });
 
   /// Applies what the initiator sent (conversation subtrees + business rows).
   /// Returns the acknowledgement the initiator's checkpoint advance needs:
@@ -39,13 +50,18 @@ abstract class SyncServerHandler {
   /// deferred as a whole.
   Future<SyncApplyAck> handleApplySubtrees(
     String peerDeviceId,
-    SyncDeltaBatch batch,
-  );
+    SyncDeltaBatch batch, {
+    required SyncAdmission admission,
+  });
 
   /// The local file backing one blob this device published, or null when the
   /// hash is unknown here (or the file is gone). The server only ever streams
   /// a file the handler names — a request never supplies a path.
-  Future<File?> handleFetchBlob(String peerDeviceId, String contentHash);
+  Future<File?> handleFetchBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required SyncAdmission admission,
+  });
 
   /// The local file backing one `(workspace, path)` this device advertised in
   /// its file table for that peer, or null when it did not advertise it — or
@@ -58,8 +74,9 @@ abstract class SyncServerHandler {
   Future<File?> handleFetchWorkspaceFile(
     String peerDeviceId,
     String workspaceId,
-    String relPath,
-  );
+    String relPath, {
+    required SyncAdmission admission,
+  });
 
   /// Receives one workspace file this device asked the caller to push, as the
   /// raw request body (slice 23).
@@ -79,6 +96,7 @@ abstract class SyncServerHandler {
     String relPath, {
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   });
 
   /// Receives one blob this device asked the caller to push, as the raw request
@@ -99,6 +117,7 @@ abstract class SyncServerHandler {
     required String key,
     required int size,
     required Stream<List<int>> body,
+    required SyncAdmission admission,
   });
 
   /// Pairing: validate the PIN, persist the peer, answer with our identity.
@@ -107,16 +126,25 @@ abstract class SyncServerHandler {
   /// [initiatorHost] is the address the initiator connected from (as this
   /// server saw it) and [request.listenPort] the initiator's own sync
   /// listener — together they let the responder store a usable endpoint.
+  ///
+  /// This route writes a peer record and a secret, so its admission matters more
+  /// than most: a pairing abandoned at the deadline must not install the peer,
+  /// because the peer never receives the answer and would hold a pairing this
+  /// device granted but it cannot prove.
   Future<SyncPairAnswer?> handlePair(
     SyncPairRequest request,
-    String? initiatorHost,
-  );
+    String? initiatorHost, {
+    required SyncAdmission admission,
+  });
 
   /// Unpair propagation (slice 5): a paired peer presented its secret and
   /// asks this device to forget it. The handler drops the caller's peer
   /// record; only the caller's — the secret authenticates exactly that
   /// identity.
-  Future<void> handleRevoke(String peerDeviceId);
+  Future<void> handleRevoke(
+    String peerDeviceId, {
+    required SyncAdmission admission,
+  });
 }
 
 class SyncPairRequest {
@@ -187,6 +215,14 @@ class SyncPairAnswer {
     'secret': secret,
   };
 }
+
+/// The lanes a request can be served on, decided by `SyncServer._laneOf`.
+enum _Lane { ping, pair, read, write }
+
+/// Every route this listener serves. One row per route in [_classify], and the
+/// subject of [_route]'s exhaustive switch: adding a route is adding an arm
+/// there, and that arm cannot compile without a lane here.
+enum _Route { ping, pair, hello, subtrees, revoke, workspaceFile, blob }
 
 /// HTTPS server for LAN sync.
 ///
@@ -323,36 +359,163 @@ class SyncServer {
   }
 
   Future<void> _serve(HttpServer server) async {
-    // The data routes still run one at a time — they share session state and a
-    // checkpoint file — but the *loop* must not block waiting for one: a data
-    // beat can run for twenty minutes, and a request the loop never reads is a
-    // request the liveness probe cannot answer. The serial lane is therefore a
-    // chained future, and the probe is dispatched straight from the loop.
-    var serial = Future<void>.value();
+    // The *loop* must not block waiting for a request: a data beat can run for
+    // twenty minutes, and a request the loop never reads is a request nothing
+    // can answer. Each request is handed to a lane straight from the loop, and
+    // its budget starts here — at the instant the listener read it — so the time
+    // it spends queued is time it has spent.
+    //
+    // Authentication is decided here too, once, before any lane: a `/sync/*`
+    // request that cannot name a paired caller is answered 401 without ever
+    // occupying a place in a queue. Answering it on the write lane — which is
+    // where an unauthenticated `POST /sync/hello` used to be refused — let a
+    // stranger's flood of forged requests queue in front of a paired peer's.
+    var writeTail = Future<void>.value();
     await for (final request in server) {
-      if (request.uri.path == pingPath) {
-        // Idempotent, no session state, bounded concurrency: safe beside the
-        // lane. A probe queued behind a running session would report the peer
-        // offline for the whole session, every tick, for every peer.
-        unawaited(_servePing(request));
+      final admission = SyncAdmission(budget: _deadlineFor(request.uri.path));
+      final lane = _laneOf(request);
+      if (lane == _Lane.pair) {
+        // Unauthenticated by nature — a pairing has no secret yet — so it
+        // answers on a lane of its own, capped: a stranger who fills it gets a
+        // 503 that says so, and the data routes keep running beside it. What the
+        // cap does *not* do is spare this device's own pairing — in the responder
+        // role that request is the fifth one, and it is refused too. The refusal
+        // is why it is worth retrying rather than queueing, and why the client
+        // renders `pair_busy` as "busy, try again" instead of an unreachable
+        // address.
+        unawaited(_servePair(request, admission));
         continue;
       }
-      serial = serial.then((_) => _serveSerial(request));
+      final peer = request.uri.path.startsWith('/sync/')
+          ? _authenticatedPeer(request)
+          : null;
+      if (peer == null && request.uri.path.startsWith('/sync/')) {
+        _safeRespond(request, HttpStatus.unauthorized, {
+          'error': SyncRefusalReason.notPaired.wire,
+        });
+        continue;
+      }
+      if (lane == _Lane.ping) {
+        // Idempotent, no session state, bounded concurrency: safe beside the
+        // lanes. A probe queued behind a running session would report the peer
+        // offline for the whole session, every tick, for every peer.
+        unawaited(_servePing(request, peer!));
+        continue;
+      }
+      if (lane == _Lane.read) {
+        // A read serves what a running write *published*, never what it is in
+        // the middle of building, so it needs no place in the write order. This
+        // is what a peer's blob pull rides on: a session's push beat pulls
+        // attachments from the other side, and that pull used to queue behind
+        // this device's own inbound session — three devices then waited on each
+        // other in a ring.
+        unawaited(_serveOne(request, peer, admission));
+      } else {
+        writeTail = writeTail.then((_) => _serveOne(request, peer, admission));
+      }
     }
-    await serial;
+    await writeTail;
   }
 
-  /// One request on the serial lane, bounded by its route deadline.
+  /// How many `/pair` requests this listener answers at once.
+  int _pairsInFlight = 0;
+
+  /// One pairing request, on the capped pairing lane.
   ///
-  /// Each route runs under a deadline: a stalled peer (Wi-Fi gone, process
-  /// killed) or a body that stops arriving mid-request is answered and
-  /// abandoned instead of holding the lane. This method never throws — the
-  /// lane is a future chain, and one uncaught error would break every request
-  /// queued behind it.
-  Future<void> _serveSerial(HttpRequest request) async {
+  /// Past the cap the caller is answered 503 `pair_busy`: a refusal it can act
+  /// on ("try again", or the other device is busy), not a place in a queue it
+  /// cannot see. The refusal is the same shape `ping_busy` has, because it says
+  /// the same thing — the listener is loaded, not that the peer is wrong.
+  Future<void> _servePair(HttpRequest request, SyncAdmission admission) async {
+    if (_pairsInFlight >= kMaxPairRequestsInFlight) {
+      _safeRespond(request, HttpStatus.serviceUnavailable, {
+        'error': 'pair_busy',
+      });
+      return;
+    }
+    _pairsInFlight++;
     try {
-      await _route(request).timeout(_deadlineFor(request.uri.path));
-    } on TimeoutException {
+      await _serveOne(request, null, admission);
+    } finally {
+      _pairsInFlight--;
+    }
+  }
+
+  /// Which lane one request belongs to: **by effect, not by path**.
+  ///
+  /// Reads the same table [_route] dispatches from, so a route is classified
+  /// exactly once — the lane and the handler are two answers about one row.
+  _Lane _laneOf(HttpRequest request) =>
+      _classify(request.method, request.uri.path)?.$2 ?? _Lane.read;
+
+  /// Every route this listener serves: which one it is, and which lane it takes.
+  ///
+  /// One table, read by [_laneOf] and by [_route]. It used to be two — a
+  /// `_writesState` that answered read/write and a `switch` that answered
+  /// "which handler" — and the gap between them was **fail-open**: a mutating
+  /// route added to the dispatch and forgotten in `_writesState` ran on the
+  /// concurrent read lane, beside a write beat, with nothing failing loudly. The
+  /// enum is what closes it: the dispatch is an exhaustive `switch` over it, so
+  /// a route cannot be served without a row here, and a row cannot exist without
+  /// a lane.
+  ///
+  /// Classification is by *effect*, not by path: `POST /sync/wsfile` streams a
+  /// file this device advertised (a read) while `PUT` on the same path lands one
+  /// (a write), and `GET /sync/hello` writes nothing even though every `POST`
+  /// there installs a session. A method a route does not serve still gets a row
+  /// — on the read lane, where it answers its 405 — so a wrong method can never
+  /// queue on the lane it would have taken.
+  ///
+  /// What the read lane's concurrency rests on, and both facts predate it:
+  /// a read resolves against state that is *swapped whole* when it changes
+  /// (`WorkspaceContentSync.publish` builds a new table and assigns it), and no
+  /// write runs a network await inside a database transaction (`_fetchOne` is
+  /// network, then file, then DB) — so a read waiting on the database waits for
+  /// one transaction, not for a transfer.
+  static (_Route, _Lane)? _classify(String method, String path) {
+    if (path == pingPath) return (_Route.ping, _Lane.ping);
+    if (path == '/pair') return const (_Route.pair, _Lane.pair);
+    if (path == '/sync/hello') {
+      return (_Route.hello, method == 'POST' ? _Lane.write : _Lane.read);
+    }
+    if (path == '/sync/subtrees') {
+      final writes = method == 'POST' || method == 'PUT';
+      return (_Route.subtrees, writes ? _Lane.write : _Lane.read);
+    }
+    if (path == '/sync/revoke') {
+      return (_Route.revoke, method == 'POST' ? _Lane.write : _Lane.read);
+    }
+    if (path == workspaceFilePath) {
+      return (_Route.workspaceFile, method == 'PUT' ? _Lane.write : _Lane.read);
+    }
+    if (path.startsWith(blobPathPrefix)) {
+      return (_Route.blob, method == 'PUT' ? _Lane.write : _Lane.read);
+    }
+    // Served by nothing: it answers its 404 beside the lanes.
+    return null;
+  }
+
+  /// One request, on whichever lane the loop put it, bounded by its budget.
+  ///
+  /// The deadline is spent through [SyncAdmission], not through a bare
+  /// `.timeout()`: it must both end the wait here *and* take the handler's right
+  /// to write, because a `.timeout()` alone leaves the abandoned handler running
+  /// — writing a checkpoint, installing a session — after the peer has been told
+  /// the request is over. The budget is what is *left* of the request's, so a
+  /// request that queued behind a long beat starts already spent.
+  ///
+  /// A request whose budget ran out while it waited is answered 504 without
+  /// reaching its handler. This method never throws — the write lane is a future
+  /// chain, and one uncaught error would break every request queued behind it.
+  Future<void> _serveOne(
+    HttpRequest request,
+    String? peerDeviceId,
+    SyncAdmission admission,
+  ) async {
+    try {
+      admission.check();
+      await admission.io(() => _route(request, peerDeviceId, admission));
+    } on SyncAdmissionLost {
       _safeRespond(request, HttpStatus.gatewayTimeout, {'error': 'timeout'});
     } on _RequestBodyTooLarge {
       _safeRespond(request, HttpStatus.requestEntityTooLarge, {
@@ -373,14 +536,18 @@ class SyncServer {
     }
   }
 
-  /// Answers one liveness probe beside the serial request lane.
+  /// Answers one liveness probe beside the request lanes.
   ///
   /// Idempotent by construction: no body, no session lookup, no write. The
   /// answer is the point — an authenticated status line proves both halves a
   /// sync needs (the address answers *and* this device's secret is still good),
   /// which a bare TCP connect cannot say. The caller measures the latency
   /// itself, so the response carries nothing.
-  Future<void> _servePing(HttpRequest request) async {
+  ///
+  /// [peerDeviceId] is the caller's authenticated identity, decided once at the
+  /// loop before this is dispatched: an unauthenticated probe is answered 401
+  /// there, so it never takes one of the lane's slots.
+  Future<void> _servePing(HttpRequest request, String peerDeviceId) async {
     if (_pingsInFlight >= kMaxPingsInFlight) {
       _safeRespond(request, HttpStatus.serviceUnavailable, {
         'error': 'ping_busy',
@@ -392,12 +559,6 @@ class SyncServer {
       if (request.method != 'POST') {
         _safeRespond(request, HttpStatus.methodNotAllowed, {
           'error': 'post_only',
-        });
-        return;
-      }
-      if (_authenticatedPeer(request) == null) {
-        _safeRespond(request, HttpStatus.unauthorized, {
-          'error': SyncRefusalReason.notPaired.wire,
         });
         return;
       }
@@ -456,41 +617,50 @@ class SyncServer {
     _ => _dataDeadline,
   };
 
-  Future<void> _route(HttpRequest request) async {
-    if (request.uri.path == '/pair') {
-      await _handlePair(request);
-      return;
-    }
-    if (!request.uri.path.startsWith('/sync/')) {
+  /// Routes one already-authenticated request, over the same table that chose
+  /// its lane.
+  ///
+  /// [peerDeviceId] is null only for `/pair`, the one route that answers before
+  /// any authentication exists. The authentication decision itself is made once,
+  /// at the loop (see [_serve]) — not here as well.
+  Future<void> _route(
+    HttpRequest request,
+    String? peerDeviceId,
+    SyncAdmission admission,
+  ) async {
+    final match = _classify(request.method, request.uri.path);
+    if (match == null) {
       _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
       return;
     }
-    final peerDeviceId = _authenticatedPeer(request);
-    if (peerDeviceId == null) {
-      _safeRespond(request, HttpStatus.unauthorized, {
-        'error': SyncRefusalReason.notPaired.wire,
-      });
+    final route = match.$1;
+    if (route == _Route.pair) {
+      await _handlePair(request, admission);
       return;
     }
-    switch (request.uri.path) {
-      case '/sync/hello':
-        await _handleHello(request, peerDeviceId);
-        break;
-      case '/sync/subtrees':
-        await _handleSubtrees(request, peerDeviceId);
-        break;
-      case '/sync/revoke':
-        await _handleRevoke(request, peerDeviceId);
-        break;
-      case workspaceFilePath:
-        await _handleWorkspaceFile(request, peerDeviceId);
-        break;
-      default:
-        if (request.uri.path.startsWith(blobPathPrefix)) {
-          await _handleBlob(request, peerDeviceId);
-          break;
-        }
+    final peer = peerDeviceId;
+    if (peer == null) {
+      _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
+      return;
+    }
+    switch (route) {
+      case _Route.ping:
+        // Answered at the loop, on its own lane: it never reaches this method,
+        // and the arm is here so the switch stays exhaustive over the table.
         _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
+      case _Route.pair:
+        // Handled above, before the peer is needed: pairing has no secret yet.
+        _safeRespond(request, HttpStatus.notFound, {'error': 'not_found'});
+      case _Route.hello:
+        await _handleHello(request, peer, admission);
+      case _Route.subtrees:
+        await _handleSubtrees(request, peer, admission);
+      case _Route.revoke:
+        await _handleRevoke(request, peer, admission);
+      case _Route.workspaceFile:
+        await _handleWorkspaceFile(request, peer, admission);
+      case _Route.blob:
+        await _handleBlob(request, peer, admission);
     }
   }
 
@@ -558,7 +728,7 @@ class SyncServer {
     return address == null ? null : normalizeHost(address);
   }
 
-  Future<void> _handlePair(HttpRequest request) async {
+  Future<void> _handlePair(HttpRequest request, SyncAdmission admission) async {
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
         'error': 'post_only',
@@ -571,7 +741,7 @@ class SyncServer {
     // anything past the cap is answered, not buffered.
     final Map<String, dynamic>? body;
     try {
-      body = await _readJson(request, maxBytes: _pairMaxBodyBytes);
+      body = await _readJson(request, admission, maxBytes: _pairMaxBodyBytes);
     } on _RequestBodyTooLarge {
       _safeRespond(request, HttpStatus.requestEntityTooLarge, {
         'error': 'body_too_large',
@@ -609,7 +779,11 @@ class SyncServer {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'id_mismatch'});
       return;
     }
-    final answer = await handler.handlePair(pairRequest, _remoteHost(request));
+    final answer = await handler.handlePair(
+      pairRequest,
+      _remoteHost(request),
+      admission: admission,
+    );
     if (answer == null) {
       _safeRespond(request, HttpStatus.forbidden, {'error': 'invalid_pin'});
       return;
@@ -617,14 +791,22 @@ class SyncServer {
     _respondJson(request, HttpStatus.ok, answer.toJson());
   }
 
-  Future<void> _handleHello(HttpRequest request, String peerDeviceId) async {
+  Future<void> _handleHello(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
         'error': 'post_only',
       });
       return;
     }
-    final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
+    final body = await _readJson(
+      request,
+      admission,
+      maxBytes: kSyncMaxBodyBytes,
+    );
     if (body == null) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
       return;
@@ -633,6 +815,7 @@ class SyncServer {
       peerDeviceId,
       SyncHello.fromJson(body),
       remoteAddress: _remoteHost(request),
+      admission: admission,
     );
     if (result is SyncHelloRefusal) {
       _respondJson(request, HttpStatus.conflict, result.toJson());
@@ -649,9 +832,13 @@ class SyncServer {
   /// (if any) backs a served hash, and a peer-supplied file entry is only ever
   /// remembered for a managed blob root, so a request can never read an
   /// arbitrary path off this device.
-  Future<void> _handleBlob(HttpRequest request, String peerDeviceId) async {
+  Future<void> _handleBlob(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.method == 'PUT') {
-      await _receiveBlob(request, peerDeviceId);
+      await _receiveBlob(request, peerDeviceId, admission);
       return;
     }
     if (request.method != 'GET') {
@@ -667,14 +854,25 @@ class SyncServer {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_hash'});
       return;
     }
-    final file = await handler.handleFetchBlob(peerDeviceId, hash);
-    await _streamFile(request, file, error: 'blob_unavailable');
+    final file = await admission.io(
+      () => handler.handleFetchBlob(peerDeviceId, hash, admission: admission),
+    );
+    await _streamFile(
+      request,
+      file,
+      admission: admission,
+      error: 'blob_unavailable',
+    );
   }
 
   /// Receives one pushed blob. The hash is the route's subject, the entry's
   /// kind and key are in headers, and the body is the raw bytes with a declared
   /// length — nothing is buffered as JSON, so an attachment streams through.
-  Future<void> _receiveBlob(HttpRequest request, String peerDeviceId) async {
+  Future<void> _receiveBlob(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.headers.value(HttpHeaders.contentEncodingHeader) != null) {
       // The bytes are the content the hash names; a coded body would have to be
       // decoded before its length or its digest meant anything.
@@ -709,7 +907,11 @@ class SyncServer {
       kind: kind,
       key: key,
       size: size,
-      body: request,
+      // The body is the one await here that can hang forever: a peer that sends
+      // a length and then stops arriving. Wrapped so the handler's own read
+      // throws at the budget instead of holding the lane.
+      body: admission.ioStream(request),
+      admission: admission,
     );
     await _respondNoContent(
       request,
@@ -730,9 +932,10 @@ class SyncServer {
   Future<void> _handleWorkspaceFile(
     HttpRequest request,
     String peerDeviceId,
+    SyncAdmission admission,
   ) async {
     if (request.method == 'PUT') {
-      await _receiveWorkspaceFile(request, peerDeviceId);
+      await _receiveWorkspaceFile(request, peerDeviceId, admission);
       return;
     }
     if (request.method != 'POST') {
@@ -741,7 +944,11 @@ class SyncServer {
       });
       return;
     }
-    final body = await _readJson(request, maxBytes: _workspaceFileMaxBodyBytes);
+    final body = await _readJson(
+      request,
+      admission,
+      maxBytes: _workspaceFileMaxBodyBytes,
+    );
     if (body == null) {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
       return;
@@ -755,12 +962,20 @@ class SyncServer {
       _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_request'});
       return;
     }
-    final file = await handler.handleFetchWorkspaceFile(
-      peerDeviceId,
-      workspaceId,
-      relPath,
+    final file = await admission.io(
+      () => handler.handleFetchWorkspaceFile(
+        peerDeviceId,
+        workspaceId,
+        relPath,
+        admission: admission,
+      ),
     );
-    await _streamFile(request, file, error: 'workspace_file_unavailable');
+    await _streamFile(
+      request,
+      file,
+      admission: admission,
+      error: 'workspace_file_unavailable',
+    );
   }
 
   /// Receives one pushed workspace file. The metadata is in the headers and the
@@ -769,6 +984,7 @@ class SyncServer {
   Future<void> _receiveWorkspaceFile(
     HttpRequest request,
     String peerDeviceId,
+    SyncAdmission admission,
   ) async {
     if (request.headers.value(HttpHeaders.contentEncodingHeader) != null) {
       // The body is bytes, not a codec: a compressed one would have to be
@@ -800,7 +1016,8 @@ class SyncServer {
       workspaceId,
       relPath,
       size: size,
-      body: request,
+      body: admission.ioStream(request),
+      admission: admission,
     );
     await _respondNoContent(
       request,
@@ -826,6 +1043,7 @@ class SyncServer {
   Future<void> _streamFile(
     HttpRequest request,
     File? file, {
+    required SyncAdmission admission,
     required String error,
   }) async {
     if (file == null || !await file.exists()) {
@@ -837,19 +1055,42 @@ class SyncServer {
       request.response.statusCode = HttpStatus.ok;
       request.response.headers.contentType = ContentType.binary;
       request.response.headers.set(HttpHeaders.contentLengthHeader, '$length');
-      await request.response.addStream(file.openRead());
-      await request.response.close();
+      // A peer that stops reading never completes `addStream`, so this is the
+      // await that would hold the read lane forever without the budget.
+      await admission.io(
+        () => request.response.addStream(admission.ioStream(file.openRead())),
+      );
+      await admission.io(() => request.response.close());
+    } on SyncAdmissionLost {
+      // The budget died mid-file, and the status line went out as `200` with the
+      // full length before the first chunk did: no 504 can follow it now, and
+      // `_serveOne`'s arm never runs because this method returns normally. What
+      // the peer holds is a truncated body under a 200 — its client reads that
+      // as a stream error and re-fetches, which is the retry this side wants.
+      // (An earlier note here claimed the peer "was told 504"; it was not, and
+      // the status is decided before the first await for exactly that reason.)
+      try {
+        await request.response.close().timeout(const Duration(seconds: 5));
+      } catch (_) {}
     } catch (_) {
       // The peer hung up mid-stream; nothing to salvage.
       try {
-        await request.response.close();
+        await request.response.close().timeout(const Duration(seconds: 5));
       } catch (_) {}
     }
   }
 
-  Future<void> _handleSubtrees(HttpRequest request, String peerDeviceId) async {
+  Future<void> _handleSubtrees(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.method == 'PUT') {
-      final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
+      final body = await _readJson(
+        request,
+        admission,
+        maxBytes: kSyncMaxBodyBytes,
+      );
       if (body == null) {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
         return;
@@ -857,12 +1098,17 @@ class SyncServer {
       final ack = await handler.handleApplySubtrees(
         peerDeviceId,
         SyncDeltaBatch.fromJson(body),
+        admission: admission,
       );
       _respondJson(request, HttpStatus.ok, ack.toJson());
       return;
     }
     if (request.method == 'POST') {
-      final body = await _readJson(request, maxBytes: _syncMaxBodyBytes);
+      final body = await _readJson(
+        request,
+        admission,
+        maxBytes: kSyncMaxBodyBytes,
+      );
       if (body == null) {
         _safeRespond(request, HttpStatus.badRequest, {'error': 'bad_json'});
         return;
@@ -870,6 +1116,7 @@ class SyncServer {
       final batch = await handler.handleFetchSubtrees(
         peerDeviceId,
         SyncFetchRequest.fromJson(body),
+        admission: admission,
       );
       _respondJson(request, HttpStatus.ok, batch.toJson());
       return;
@@ -880,14 +1127,18 @@ class SyncServer {
   /// Unpair propagation. The auth gate already proved the caller holds the
   /// paired secret, so this is the minimal "forget me" — one status, no body
   /// semantics to version.
-  Future<void> _handleRevoke(HttpRequest request, String peerDeviceId) async {
+  Future<void> _handleRevoke(
+    HttpRequest request,
+    String peerDeviceId,
+    SyncAdmission admission,
+  ) async {
     if (request.method != 'POST') {
       _safeRespond(request, HttpStatus.methodNotAllowed, {
         'error': 'post_only',
       });
       return;
     }
-    await handler.handleRevoke(peerDeviceId);
+    await handler.handleRevoke(peerDeviceId, admission: admission);
     _safeRespond(request, HttpStatus.ok, {'revoked': true});
   }
 
@@ -898,12 +1149,10 @@ class SyncServer {
   /// request (certificate PEM + metadata) is a few KB.
   static const int _pairMaxBodyBytes = 64 * 1024;
 
-  /// Cap on an authenticated `/sync/*` JSON body, counted after decompression.
-  /// Only a paired peer reaches these routes, so the cap is not a defense
-  /// against a hostile LAN host — it bounds what a buggy or wedged peer can
-  /// make this device allocate. A push body carries rows (skill bodies travel
-  /// as blobs, not in the body), so this sits far above any real batch.
-  static const int _syncMaxBodyBytes = 256 * 1024 * 1024;
+  // The cap on an authenticated `/sync/*` JSON body, counted after
+  // decompression, is [kSyncMaxBodyBytes]. It lives in `sync_limits.dart`
+  // because the client's push budget is derived from it: a sender that built a
+  // body this side refuses would stall the pair for good.
 
   /// Cap on a workspace file request body: one workspace id and one relative
   /// path. A path can be long, but nothing legitimate here is a kilobyte.
@@ -916,8 +1165,20 @@ class SyncServer {
   /// allows a single listen, and abandoning it mid-stream aborts the
   /// connection before the refusal can be delivered), while nothing past the
   /// cap is buffered.
+  ///
+  /// The read is *not* wrapped in the admission's stream deadline, and that is
+  /// deliberate. Cancelling a request body's subscription makes the server drop
+  /// the connection, which takes the 504 down with it — a peer that announces a
+  /// length and then stalls still deserves to be told the request is over (the
+  /// half-sent `/pair` case is exactly this). Such a route opens no beat and
+  /// commits nothing before its body is parsed, so an abandoned read leaves no
+  /// state behind; the route's own `io()` is what returns the 504. Bodies that
+  /// stream *inside* a handler (the two `PUT`s) are bounded with `ioStream`,
+  /// where unwinding matters and a peer that is not reading its own upload is
+  /// not owed an answer.
   Future<Map<String, dynamic>?> _readJson(
-    HttpRequest request, {
+    HttpRequest request,
+    SyncAdmission admission, {
     int? maxBytes,
   }) async {
     final buffer = <int>[];
@@ -939,6 +1200,9 @@ class SyncServer {
     } catch (_) {
       return null;
     }
+    // A body that finished arriving after the deadline took the request must not
+    // reach its handler: the peer has been told the request is over.
+    admission.check();
     if (tooLarge) throw const _RequestBodyTooLarge();
     try {
       return jsonDecode(utf8.decode(buffer)) as Map<String, dynamic>;

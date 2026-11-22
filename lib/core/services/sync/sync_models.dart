@@ -58,6 +58,22 @@ import 'sync_limits.dart';
 /// owed" and had no reverse connection to fetch over either, so an undiallable
 /// peer's images would keep failing while both reports claimed success.
 ///
+/// v10: the hello announces the rows this device holds but does not offer
+/// ([SyncHello.localOnly]), as `syncBusinessKey` strings.
+///
+/// Withholding is not a send-side filter. The plan reads "missing from the
+/// peer's manifest" as "the peer deleted it", so a row this device keeps to
+/// itself is, to the peer, indistinguishable from a row this device deleted —
+/// the peer would put its own copy in the recycle bin and do it again every
+/// session. The key list is what tells the two apart, and it has to arrive with
+/// the hello: both sides plan before a single row moves.
+///
+/// A v9 peer would read this device's silence as a deletion, which is the
+/// defect this version exists to fix, so the shape is refused at hello like
+/// every other one. (Protocol 9 never shipped — 4.7.0 is protocol 8 — so this
+/// costs no second upgrade window: a 4.7.0 device is already refused by the
+/// equality gate.)
+///
 /// v9: the conversation's own families (the projection). The subtree now carries
 /// the compression history, the image-context switches, the compression
 /// configuration and the provider artifacts — the four families that hung off a
@@ -74,15 +90,16 @@ import 'sync_limits.dart';
 /// v8: the deletion announcement carries the conversation row's clock beside the
 /// digest ([SyncAnnouncedDeletion]). v8's digest was computed from the message
 /// rows alone, so it could not see a row write that left every message untouched
-/// — which is exactly what a restore from the recycle bin is: the row goes back
-/// with `now()` while the messages come back byte-identical. Without the clock,
+/// — which is exactly what a restore from the recycle bin is: the messages come
+/// back byte-identical and the row is written back, so only a row clock can tell
+/// the restored copy from the deleted one. Without the clock,
 /// the announcing peer deletes the restored conversation again at the next
 /// session. (v9 composes the digest from every travelling family, so a document
 /// write is visible there; the clock stays, because a rename is still a row write
 /// that moves no family's content.) A v7 peer would read the pair as a digest
 /// string (`toString`), match nothing, and silently stop honouring announced
 /// deletions, so this is refused at hello like every other shape change.
-const int kSyncProtocolVersion = 9;
+const int kSyncProtocolVersion = 10;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
 /// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons
@@ -510,6 +527,21 @@ class SyncHello {
   /// rows were never deletions.
   final int epoch;
 
+  /// The business keys (`syncBusinessKey`) this device holds but does not
+  /// offer — rows kept to this machine.
+  ///
+  /// The plan cannot tell a withheld row from a deleted one: both are absent
+  /// from a manifest. Without this list the peer plans `peerDeletes` for the
+  /// key and removes its own copy, then does it again every session — the
+  /// defect that makes "keep this server here" a protocol change rather than a
+  /// filter. Both sides skip an announced key: this device because it will not
+  /// send the row, the peer because it must neither read the absence as a
+  /// deletion nor write its own version over it.
+  ///
+  /// Absent from the JSON when empty, the shape [epoch] already uses: a pair
+  /// that withholds nothing pays no bytes for the mechanism.
+  final List<String> localOnly;
+
   /// Conversations this device shared with the peer and no longer holds — a
   /// deletion the peer has not confirmed yet — with the digest *and the row
   /// clock* both sides last agreed on. A deletion is otherwise inferred from the
@@ -536,6 +568,7 @@ class SyncHello {
     this.unappliedBusiness = false,
     this.deletedConversations = const {},
     this.epoch = 0,
+    this.localOnly = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -556,6 +589,7 @@ class SyncHello {
           entry.key: entry.value.toJson(),
       },
     if (epoch != 0) 'epoch': epoch,
+    if (localOnly.isNotEmpty) 'localOnly': localOnly,
   };
 
   static SyncHello fromJson(Map<String, dynamic> json) => SyncHello(
@@ -586,6 +620,10 @@ class SyncHello {
           entry.key: deletion,
     },
     epoch: (json['epoch'] as num?)?.toInt() ?? 0,
+    localOnly: [
+      for (final key in (json['localOnly'] as List? ?? const []))
+        if (key is String && key.isNotEmpty) key,
+    ],
   );
 }
 
@@ -777,6 +815,16 @@ class SyncPeerReport {
   /// the card names compression history and settings.
   final int conversationsWithDocumentsReplaced;
 
+  /// Conversations the push budget left behind this round: too large to ride,
+  /// so their checkpoints did not move and the next session retries them.
+  ///
+  /// Persisted with the rest of the card because that is what the panel reads
+  /// (`sync_report_breakdown.dart`), and named for the user because the number
+  /// is the only trace of a conversation that did not travel: most are the
+  /// plan's tail and ride the next session by themselves, while one past the
+  /// single-conversation ceiling arrives only when the peer pulls it.
+  final int conversationsOmittedForSize;
+
   /// Signed clock divergence against this peer in milliseconds, present only
   /// when it exceeded [kClockSkewWarnMs] (positive: this device ran ahead).
   /// The session still succeeded — this is the yellow flag, not a failure.
@@ -814,6 +862,7 @@ class SyncPeerReport {
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
     this.conversationsWithDocumentsReplaced = 0,
+    this.conversationsOmittedForSize = 0,
     this.clockSkewMs,
     this.refusal,
     this.failure,
@@ -842,6 +891,7 @@ class SyncPeerReport {
     'workspaceFilesMissing': workspaceFilesMissing,
     'workspaceFoldersKept': workspaceFoldersKept,
     'workspacesOmitted': workspacesOmitted,
+    'conversationsOmittedForSize': conversationsOmittedForSize,
     'entityRowsLost': entityRowsLost,
     'preferencesLost': preferencesLost,
     'conversationsWithDocumentsReplaced': conversationsWithDocumentsReplaced,
@@ -875,6 +925,8 @@ class SyncPeerReport {
         (json['workspaceFilesMissing'] as num?)?.toInt() ?? 0,
     workspaceFoldersKept: (json['workspaceFoldersKept'] as num?)?.toInt() ?? 0,
     workspacesOmitted: (json['workspacesOmitted'] as num?)?.toInt() ?? 0,
+    conversationsOmittedForSize:
+        (json['conversationsOmittedForSize'] as num?)?.toInt() ?? 0,
     entityRowsLost: (json['entityRowsLost'] as num?)?.toInt() ?? 0,
     preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,
     conversationsWithDocumentsReplaced:

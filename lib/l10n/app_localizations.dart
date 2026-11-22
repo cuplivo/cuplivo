@@ -5368,6 +5368,132 @@ abstract class AppLocalizations {
   /// **'Read page: {target}'**
   String chatMessageWidgetWebFetch(String target);
 
+  /// Tool-call title for a delegation; {label} is the model's short name for the job.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegate: {label}'**
+  String chatMessageWidgetDelegate(String label);
+
+  /// Divider label where a finished subagent's result appears in the parent conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent finished'**
+  String get subagentResultCompleted;
+
+  /// Divider label for a subagent whose run ended in an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent failed'**
+  String get subagentResultFailed;
+
+  /// Divider label for a subagent the user stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent cancelled'**
+  String get subagentResultCancelled;
+
+  /// Divider label for a subagent whose run the app stopped (for example a restart).
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent interrupted'**
+  String get subagentResultInterrupted;
+
+  /// Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent running ({elapsed}) {label}'**
+  String subagentStripRunning(String elapsed, String label);
+
+  /// Progress line above the composer while several subagents work and none of them needs the user.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagents running: {count}'**
+  String subagentStripRunningMany(int count);
+
+  /// Progress line while one subagent is parked on a question or approval in its own conversation; {label} is the job's short name.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent waiting for you · {label}'**
+  String subagentStripWaiting(String label);
+
+  /// Progress line while several subagents exist and at least one waits for the user; {count} is the total, {running} how many are still working.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} subagents ({running} running)'**
+  String subagentStripCounts(int count, int running);
+
+  /// Progress line while one subagent is blocked on a tool approval in its own conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent waiting for approval · {label}'**
+  String subagentStripWaitingApproval(String label);
+
+  /// Title of the panel listing the subagents of this conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagents'**
+  String get subagentPanelTitle;
+
+  /// Shown in the subagent panel when this process has never delegated anything here.
+  ///
+  /// In en, this message translates to:
+  /// **'No subagents in this conversation yet.'**
+  String get subagentPanelEmpty;
+
+  /// Short tag beside a conversation's title in the sidebar, saying this chat is a delegated task rather than one the user started.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent'**
+  String get subagentTag;
+
+  /// State word for a subagent that is still working, shown at the right of its row in the panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get subagentPanelRunning;
+
+  /// State word for a subagent whose question is waiting for the user to answer it.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for you'**
+  String get subagentPanelWaitingAnswer;
+
+  /// State word for a subagent whose tool call is waiting for the user's approval.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval'**
+  String get subagentPanelWaitingApproval;
+
+  /// State word for a subagent that finished successfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get subagentPanelCompleted;
+
+  /// State word for a subagent whose run ended in an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get subagentPanelFailed;
+
+  /// State word for a subagent the user stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get subagentPanelCancelled;
+
+  /// State word for a subagent whose run the app stopped, for example when the app restarts.
+  ///
+  /// In en, this message translates to:
+  /// **'Interrupted'**
+  String get subagentPanelInterrupted;
+
+  /// How long one subagent ran, shown at the end of its row in the panel.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m {seconds}s'**
+  String subagentPanelElapsed(int minutes, int seconds);
+
   /// Tool-call title for the model's built-in search tool.
   ///
   /// In en, this message translates to:
@@ -6790,6 +6916,18 @@ abstract class AppLocalizations {
   /// **'Enabled'**
   String get mcpServerEditSheetEnabledLabel;
 
+  /// Label for the toggle switch that keeps an MCP server on this device: a held row is neither offered to a paired device nor overwritten by one.
+  ///
+  /// In en, this message translates to:
+  /// **'This device only'**
+  String get mcpServerEditSheetLocalOnlyLabel;
+
+  /// Warning shown after saving an MCP server whose "this device only" switch could not be written. The server itself was saved; the message says what did not happen, so the user knows the server is still shared.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved, but this server could not be held on this device.'**
+  String get mcpServerEditSheetLocalOnlySaveFailed;
+
   /// Label for the text field entering an MCP server's display name.
   ///
   /// In en, this message translates to:
@@ -7272,6 +7410,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Embedding'**
   String get modelDetailSheetEmbeddingType;
+
+  /// Model type segment and model tag for a decision model: it answers typed yes/no or choice questions with probabilities and never generates chat text.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision'**
+  String get modelDetailSheetDecisionType;
+
+  /// Label of the segmented control that picks which decision protocol a decision model speaks (System One or OpenAI decisions).
+  ///
+  /// In en, this message translates to:
+  /// **'Decision API'**
+  String get modelDetailSheetDecisionDialectLabel;
+
+  /// Label of the optional field that overrides the endpoint address of a decision model.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision URL'**
+  String get modelDetailSheetDecisionUrlLabel;
+
+  /// Placeholder of the decision address field: leaving it empty appends the dialect's default path to the provider URL.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: appended to the provider URL'**
+  String get modelDetailSheetDecisionUrlHint;
+
+  /// First paragraph of the help sheet behind the info icon next to the decision address field: some providers serve decision models on a separate endpoint, so the default address has to be overridden.
+  ///
+  /// In en, this message translates to:
+  /// **'Some providers serve decision models on their own endpoint; enter the path to override the default address.'**
+  String get modelDetailSheetDecisionUrlHelp;
+
+  /// Button in the decision address help sheet that writes the shown example path into the address field.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill'**
+  String get modelDetailSheetDecisionUrlFill;
+
+  /// Small tag in the decision address help sheet marking the example row that matches the current provider's host.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get modelDetailSheetDecisionUrlCurrent;
+
+  /// Name of Alibaba's Bailian model platform, used as the provider name of a decision address example.
+  ///
+  /// In en, this message translates to:
+  /// **'Bailian'**
+  String get modelDetailSheetDecisionUrlBailian;
 
   /// Section header and field label for supported input modalities (text/image/audio) in the model spec form.
   ///
@@ -28164,6 +28350,114 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration'**
+  String get imageJobTitle;
+
+  /// Header of the same card when the picture could not be generated; a sentence explaining why follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration failed'**
+  String get imageJobFailed;
+
+  /// Header of the same card when the app closed before the picture arrived; nothing is retried automatically.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration interrupted'**
+  String get imageJobInterrupted;
+
+  /// Name of the drawing capability in the assistant's local-tool list.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing'**
+  String get assistantEditLocalToolImageTitle;
+
+  /// Name of the delegation capability in the assistant's local-tool list.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent'**
+  String get assistantEditLocalToolDelegateTitle;
+
+  /// Name of the capability that blocks until a delegated task finishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for task'**
+  String get assistantEditLocalToolAwaitJobTitle;
+
+  /// Settings row for choosing the model that draws pictures.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Model'**
+  String get defaultModelPageImageModelTitle;
+
+  /// Explains that the drawing model is optional and that leaving it unset turns drawing off.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that draws pictures inside a reply; leave it unset to turn drawing off.'**
+  String get defaultModelPageImageModelSubtitle;
+
+  /// Button that copies the prompt to the clipboard; a confirmation toast follows.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get imageJobPanelCopy;
+
+  /// Label of the prompt that produced the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get imageJobPanelPromptLabel;
+
+  /// Label of the model that drew the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get imageJobPanelModelLabel;
+
+  /// Label of the picture's pixel size, or of the requested aspect ratio when the file cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get imageJobPanelSizeLabel;
+
+  /// Label of how long the picture took to generate.
+  ///
+  /// In en, this message translates to:
+  /// **'Time taken'**
+  String get imageJobPanelElapsedLabel;
+
+  /// Label of what the picture consumed: today a count of pictures, later possibly a token count.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get imageJobPanelUsageLabel;
+
+  /// Value of the size row when the request left the aspect ratio to the model.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get imageJobPanelAuto;
+
+  /// Value of the usage row: this reply produced a single picture.
+  ///
+  /// In en, this message translates to:
+  /// **'1 image'**
+  String get imageJobPanelOneImage;
+
+  /// Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured · Choose'**
+  String get imageJobNotConfigured;
+
+  /// Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the default image model'**
+  String get imageModelFollowGlobal;
+
   /// Header title on the restore failure screen when local copies are being searched for recovery.
   ///
   /// In en, this message translates to:
@@ -30888,6 +31182,12 @@ abstract class AppLocalizations {
   /// **'Could not reach the device. Check the address and port, and that both devices are on the same network.'**
   String get lanSyncPairErrorUnreachable;
 
+  /// Pairing error shown when the other device's pairing lane is full (four requests in flight), so this one was refused. The advice must not be about the address: the device answered.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device is busy with another pairing request. Try again in a moment.'**
+  String get lanSyncPairErrorBusy;
+
   /// Pairing error shown when the other device did not present a certificate, so pairing was aborted.
   ///
   /// In en, this message translates to:
@@ -31355,6 +31655,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} workspaces not syncing files'**
   String lanSyncReportWorkspacesOmitted(Object count);
+
+  /// Sync report count of conversations this device left out of a push because the round's byte budget had no room for them. Most are ordinary conversations that ride in the next session; only a conversation larger than the single-conversation limit has to be pulled by the other device instead. Nothing was deleted. count is that number of conversations.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conversations did not fit in this push'**
+  String lanSyncReportConversationsOmittedForSize(Object count);
 
   /// Sync report count of workspace folders left on disk because the workspace's sync switch is off, or because the folder holds files the two devices never agreed on; count is that number.
   ///
@@ -33119,6 +33425,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.'**
   String get defaultModelPageDirectorModelSubtitle;
+
+  /// One sentence above the three settings, saying what delegating does in this conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Run one task in a copy of this chat, in the same workspace.'**
+  String get subagentConfigSubtitle;
+
+  /// Label of the switch that turns delegation on for this assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get subagentConfigEnabled;
+
+  /// Label of the row that states how deep delegation may go.
+  ///
+  /// In en, this message translates to:
+  /// **'Depth'**
+  String get subagentConfigDepth;
+
+  /// Explains the depth option itself, not its current value.
+  ///
+  /// In en, this message translates to:
+  /// **'How many levels of subagents may delegate again.'**
+  String get subagentConfigDepthDescription;
+
+  /// Label of the row that chooses the model delegations run on.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get subagentConfigModel;
+
+  /// Explains the model option itself, not its current value.
+  ///
+  /// In en, this message translates to:
+  /// **'Which model runs the subagent.'**
+  String get subagentConfigModelDescription;
+
+  /// The model value shown when delegations follow the assistant, and the matching choice in the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow this assistant'**
+  String get subagentConfigModelInherit;
+
+  /// Second line of the toolbox row: what a delegation runs on and how deep it may go.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} · depth {depth}'**
+  String subagentConfigSummary(String model, int depth);
+
+  /// The row at the top and bottom of a delegated conversation that returns to the conversation that started it; {label} is that conversation's title.
+  ///
+  /// In en, this message translates to:
+  /// **'View parent chat · {label}'**
+  String subagentViewParent(String label);
+
+  /// Label of the row that decides how a delegated task may spend the user's permission.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent escalation'**
+  String get subagentEscalation;
+
+  /// Escalation policy: ask the user, in the child conversation, whenever a tool call needs approval.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get subagentEscalationAsk;
+
+  /// Escalation policy: never ask; refuse the tool call inside a subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'Always deny'**
+  String get subagentEscalationDeny;
+
+  /// Escalation policy: do not ask, but only up to what the delegating conversation already allows.
+  ///
+  /// In en, this message translates to:
+  /// **'Always allow'**
+  String get subagentEscalationAllow;
 
   /// The DeepSeek Harness product name. Brand name: identical in every locale; used as the create-menu row label, the default assistant name and the fallback for an unnamed remote record.
   ///

@@ -108,6 +108,8 @@ import 'core/services/mcp/mcp_tool_service.dart';
 import 'core/services/logging/flutter_logger.dart';
 import 'features/home/services/ask_user_interaction_service.dart';
 import 'features/home/services/tool_approval_service.dart';
+import 'features/image_job/services/image_job_coordinator.dart';
+import 'features/subagent/services/subagent_coordinator.dart';
 import 'utils/app_directories.dart';
 import 'utils/platform_utils.dart';
 import 'utils/sandbox_path_resolver.dart';
@@ -1039,6 +1041,15 @@ class MyApp extends StatelessWidget {
             );
             return settings;
           },
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => ImageJobCoordinator(
+            ctx.read<SettingsProvider>(),
+            ctx.read<ChatService>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => SubagentCoordinator(ctx.read<ChatService>()),
         ),
         ChangeNotifierProvider(
           create: (_) =>

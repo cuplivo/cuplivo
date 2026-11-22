@@ -16,3 +16,12 @@ library;
 /// turn" covers injected lore and a peer's turn alike — two predicates that a
 /// second helper would have to repeat at every call site.
 const String groupPeerSenderKey = '_groupPeerSender';
+
+/// Set on the one `user` message a finished subagent writes into its parent.
+///
+/// It travels as `user` because that is what the parent model should read, but
+/// it is not something the user typed: carried images, the built-in search query
+/// and the video attachment all hang off the human's last turn, and a subagent's
+/// conclusion landing after that turn must not become "the last user input" and
+/// take them over. Same reason as a group peer, same predicate.
+const String subagentResultKey = '_subagentResult';

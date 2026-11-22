@@ -2783,6 +2783,83 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失败';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中断';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理运行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 个子代理正在运行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 个子代理（$running 个正在运行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '这个会话还没有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '正在运行';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失败';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中断';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '模型内置搜索';
 
   @override
@@ -3545,6 +3622,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => '是否启用';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => '仅本机';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已保存，但这台服务器没能设成仅本机。';
+
+  @override
   String get mcpServerEditSheetNameLabel => '名称';
 
   @override
@@ -3808,6 +3891,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -15147,6 +15254,60 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retry => '重试';
 
   @override
+  String get imageJobTitle => '插图';
+
+  @override
+  String get imageJobFailed => '生成失败';
+
+  @override
+  String get imageJobInterrupted => '已中断';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
+  String get defaultModelPageImageModelTitle => '绘图模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回复里画图所用的模型；不设置就等于不启用绘图。';
+
+  @override
+  String get imageJobPanelCopy => '复制';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示词';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用时';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自动';
+
+  @override
+  String get imageJobPanelOneImage => '1 张';
+
+  @override
+  String get imageJobNotConfigured => '未配置 · 去选择';
+
+  @override
+  String get imageModelFollowGlobal => '使用默认绘图模型';
+
+  @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
 
   @override
@@ -16649,6 +16810,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
 
   @override
+  String get lanSyncPairErrorBusy => '另一台设备正在处理另一个配对请求，请稍后再试。';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
 
   @override
@@ -16946,6 +17110,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count 个工作区未同步文件';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '$count 个对话没能放进本轮推送';
   }
 
   @override
@@ -17926,6 +18095,49 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '决定群聊里下一位发言者，建议选择快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
+
+  @override
+  String get subagentConfigEnabled => '开启';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪个模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '继承本助手';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主对话 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提权访问';
+
+  @override
+  String get subagentEscalationAsk => '询问';
+
+  @override
+  String get subagentEscalationDeny => '始终拒绝';
+
+  @override
+  String get subagentEscalationAllow => '始终允许';
 
   @override
   String get dshProductName => 'DeepSeek Harness';
@@ -21533,6 +21745,83 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失败';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中断';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理运行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 个子代理正在运行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 个子代理（$running 个正在运行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '这个会话还没有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '正在运行';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失败';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中断';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '模型内置搜索';
 
   @override
@@ -22295,6 +22584,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get mcpServerEditSheetEnabledLabel => '是否启用';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => '仅本机';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已保存，但这台服务器没能设成仅本机。';
+
+  @override
   String get mcpServerEditSheetNameLabel => '名称';
 
   @override
@@ -22558,6 +22853,30 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -33897,6 +34216,60 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get retry => '重试';
 
   @override
+  String get imageJobTitle => '插图';
+
+  @override
+  String get imageJobFailed => '生成失败';
+
+  @override
+  String get imageJobInterrupted => '已中断';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
+  String get defaultModelPageImageModelTitle => '绘图模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回复里画图所用的模型；不设置就等于不启用绘图。';
+
+  @override
+  String get imageJobPanelCopy => '复制';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示词';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用时';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自动';
+
+  @override
+  String get imageJobPanelOneImage => '1 张';
+
+  @override
+  String get imageJobNotConfigured => '未配置 · 去选择';
+
+  @override
+  String get imageModelFollowGlobal => '使用默认绘图模型';
+
+  @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
 
   @override
@@ -35399,6 +35772,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
 
   @override
+  String get lanSyncPairErrorBusy => '另一台设备正在处理另一个配对请求，请稍后再试。';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
 
   @override
@@ -35696,6 +36072,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count 个工作区未同步文件';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '$count 个对话没能放进本轮推送';
   }
 
   @override
@@ -36676,6 +37057,49 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '决定群聊里下一位发言者，建议选择快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
+
+  @override
+  String get subagentConfigEnabled => '开启';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪个模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '继承本助手';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主对话 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提权访问';
+
+  @override
+  String get subagentEscalationAsk => '询问';
+
+  @override
+  String get subagentEscalationDeny => '始终拒绝';
+
+  @override
+  String get subagentEscalationAllow => '始终允许';
 
   @override
   String get dshProductName => 'DeepSeek Harness';
@@ -40288,6 +40712,83 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失敗';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中斷';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理執行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 個子代理正在執行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 個子代理（$running 個正在執行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '這個會話還沒有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '執行中';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失敗';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中斷';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '模型內建搜尋';
 
   @override
@@ -41050,6 +41551,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get mcpServerEditSheetEnabledLabel => '是否啟用';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => '僅本機';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已儲存，但這台伺服器沒能設成僅本機。';
+
+  @override
   String get mcpServerEditSheetNameLabel => '名稱';
 
   @override
@@ -41313,6 +41820,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '決策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '決策介面';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '決策位址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空則接在 provider 位址後';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供應商的決策模型使用獨立介面，需要覆寫預設請求網址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '目前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百煉';
 
   @override
   String get modelDetailSheetInputModesLabel => '輸入模式';
@@ -52658,6 +53189,60 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get retry => '重試';
 
   @override
+  String get imageJobTitle => '插圖';
+
+  @override
+  String get imageJobFailed => '生成失敗';
+
+  @override
+  String get imageJobInterrupted => '已中斷';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '繪圖';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任務';
+
+  @override
+  String get defaultModelPageImageModelTitle => '繪圖模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回覆裡畫圖所用的模型；不設定就等於不啟用繪圖。';
+
+  @override
+  String get imageJobPanelCopy => '複製';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示詞';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用時';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自動';
+
+  @override
+  String get imageJobPanelOneImage => '1 張';
+
+  @override
+  String get imageJobNotConfigured => '未設定 · 去選擇';
+
+  @override
+  String get imageModelFollowGlobal => '使用預設繪圖模型';
+
+  @override
   String get recoveryGuideTitle => '幫你找回聊天記錄';
 
   @override
@@ -54160,6 +54745,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncPairErrorUnreachable => '無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。';
 
   @override
+  String get lanSyncPairErrorBusy => '另一台裝置正在處理另一個配對請求，請稍後再試。';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '對方未能出示身分，配對已中止。';
 
   @override
@@ -54457,6 +55045,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count 個工作區未同步檔案';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '$count 個對話沒能放進本輪推送';
   }
 
   @override
@@ -55448,6 +56041,49 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '決定群組聊天中下一位發言者，建議選擇快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本會話自己的工作區裡派一個分身去做完一件任務。';
+
+  @override
+  String get subagentConfigEnabled => '開啟';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允許子代理再派子代理的層數';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪個模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '繼承本助手';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主對話 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提權存取';
+
+  @override
+  String get subagentEscalationAsk => '詢問';
+
+  @override
+  String get subagentEscalationDeny => '始終拒絕';
+
+  @override
+  String get subagentEscalationAllow => '始終允許';
 
   @override
   String get dshProductName => 'DeepSeek Harness';

@@ -145,9 +145,26 @@ Future<ExportDocument> buildExportDocument({
   bool markdown = true,
   List<ContextOperation> operations = const <ContextOperation>[],
   String Function(ContextOperation op, {required bool hidden})? contextLabelOf,
+  String Function(SubagentResultPart part)? subagentResultLabelOf,
 }) async {
   final exported = <ExportMessage>[];
+  // Dividers that arrived before any message was written: they are prepended to
+  // the next one, so nothing is lost at the top of a conversation.
+  final pendingNodes = <String>[];
   for (final message in messages) {
+    final notice = subagentResultPartOf(message.parts);
+    if (notice != null && subagentResultLabelOf != null) {
+      // A delegation's result is a divider, not something the user said. It is
+      // folded into the neighbouring message so the export does not print a
+      // speaker header for a line that has no speaker.
+      final label = subagentResultLabelOf(notice);
+      if (exported.isEmpty) {
+        pendingNodes.add(label);
+      } else {
+        exported.last.blocks.add(ExportContextNode(label));
+      }
+      continue;
+    }
     exported.add(
       ExportMessage(
         time: formatTime(message.timestamp),
@@ -158,6 +175,7 @@ Future<ExportDocument> buildExportDocument({
         citationIndex:
             citationIndexOf?.call(message) ?? const <String, String>{},
         blocks: [
+          for (final label in pendingNodes) ExportContextNode(label),
           ...await exportBlocksOf(
             message,
             includeThinking: includeThinking,
@@ -177,6 +195,7 @@ Future<ExportDocument> buildExportDocument({
         ],
       ),
     );
+    pendingNodes.clear();
   }
   return ExportDocument(title: title, messages: exported);
 }
@@ -263,6 +282,9 @@ Future<List<ExportBlock>> exportBlocksOf(
         if (body.isEmpty) continue;
         blocks.add(ExportText(body));
       case ImagePart(:final uri):
+        // No bytes, no picture: a promise would export as a dead absolute path
+        // and a missing-image slot in the PDF.
+        if (!part.hasBytes) continue;
         final trimmed = uri.trim();
         if (trimmed.isEmpty) continue;
         blocks.add(

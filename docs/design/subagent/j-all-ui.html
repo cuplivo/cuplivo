@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 全部 UI 一览（动工前过目）</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:21px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 24px;max-width:62em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  h2.sec{font-size:13px;letter-spacing:.04em;color:var(--muted);font-weight:600;
+         margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .grid{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .phone.narrow{width:300px}
+  .desk{width:620px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+        border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .tit{flex:1;text-align:center}
+  .appbar .tit .t{font-size:15px;font-weight:600}
+  .appbar .tit .s{font-size:10.5px;color:var(--muted);margin-top:1px}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 8px}
+  .row{display:flex;justify-content:flex-end;padding:16px 16px 6px}
+  .bubble{max-width:80%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 16px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .toolcard{margin:10px 0 6px;border-radius:16px;padding:12px 16px;background:rgba(77,92,146,.10);
+            display:flex;align-items:center;gap:10px}
+  .toolcard .ic{width:18px;height:18px;color:var(--primary);flex:none;opacity:.85}
+  .toolcard .ttl{font-size:14px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;
+                 text-overflow:ellipsis}
+  .divider{height:28px;display:flex;align-items:center;gap:8px;margin:10px 16px}
+  .divider .ln{flex:1;height:1px;background:rgba(20,20,25,.10)}
+  .divider .lbl{display:flex;align-items:center;gap:6px;font-size:12.5px;
+                color:rgba(32,32,32,.6);white-space:nowrap;max-width:80%;
+                overflow:hidden;text-overflow:ellipsis}
+  .divider .lbl .ic{width:14px;height:14px;flex:none}
+  .divider .chev{width:14px;height:14px;color:rgba(32,32,32,.45);flex:none}
+  .composerwrap{background:var(--bg);padding:0 10px 10px}
+  .capsule{background:rgba(252,252,253,.92);border-radius:20px;
+           border:1px solid rgba(20,20,25,.14);padding:10px 10px 6px;
+           box-shadow:0 6px 18px rgba(20,20,25,.06)}
+  .field{font-size:15px;color:rgba(32,32,32,.45);padding:1px 2px 12px;min-height:34px}
+  .field.desk{font-size:14px}
+  .bar{display:flex;align-items:center;gap:8px}
+  .bar .left{display:flex;align-items:center;gap:8px;flex:1}
+  .bar .right{display:flex;align-items:center;gap:8px;flex:none}
+  .btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+       border-radius:8px;color:rgba(32,32,32,.62)}
+  .btn svg{width:20px;height:20px}
+  .sendbtn{width:32px;height:32px;border-radius:50%;background:var(--primary);
+           display:flex;align-items:center;justify-content:center;flex:none}
+  .sendbtn svg{width:18px;height:18px}
+  .stripwrap{background:var(--bg);padding:2px 10px 0}
+  .strip{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 6px;border-radius:8px;
+         color:rgba(32,32,32,.6)}
+  .strip .ic{width:14px;height:14px;flex:none}
+  .strip .txt{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;
+              overflow:hidden;text-overflow:ellipsis}
+  .strip .txt.sheen{background:linear-gradient(100deg,rgba(32,32,32,.5) 30%,rgba(32,32,32,.92) 50%,rgba(32,32,32,.5) 70%);
+              background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+              animation:sheen 2.6s linear infinite}
+  @keyframes sheen{0%{background-position:120% 0}100%{background-position:-40% 0}}
+  .strip .chev{width:14px;height:14px;flex:none;opacity:.7}
+  .strip .dot{width:6px;height:6px;border-radius:50%;background:#C9822A;flex:none}
+  .desk .strip{min-height:24px;padding:2px 6px}
+  .desk .capsule{border-radius:20px}
+  .desk .field{min-height:30px}
+  /* drawer */
+  .drawer{background:var(--card);padding:6px 0 14px}
+  .dhead{display:flex;align-items:center;gap:10px;padding:10px 14px 12px}
+  .dhead .avatar{width:34px;height:34px}
+  .dhead .who{flex:1}
+  .dhead .who .n{font-size:14px;font-weight:600}
+  .dhead .who .s{font-size:11px;color:var(--muted)}
+  .dsearch{margin:0 12px 12px;height:32px;border-radius:10px;background:rgba(20,20,25,.045);
+           display:flex;align-items:center;padding:0 10px;font-size:13px;color:var(--muted);gap:6px}
+  .dgroup{font-size:12px;font-weight:600;color:var(--primary);padding:8px 14px 4px}
+  .drow{display:flex;align-items:center;gap:8px;padding:10px 14px}
+  .drow .n{font-size:15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .drow .tag{font-size:11px;color:var(--primary);flex:none}
+  /* dialog / panel */
+  .dim{background:rgba(20,20,25,.28)}
+  .dlg{margin:26px 12px 12px;background:var(--card);border-radius:14px;overflow:hidden;
+       box-shadow:0 12px 30px rgba(20,20,25,.18)}
+  .dlg h3{margin:0;padding:14px 14px 10px;font-size:15px;font-weight:600}
+  .dlg p.sub{margin:0;padding:0 14px 12px;font-size:12px;color:var(--muted);line-height:1.5}
+  .srow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--line-soft)}
+  .srow .txt{flex:1;min-width:0}
+  .srow .txt .n{font-size:14px}
+  .srow .txt .s{font-size:11.5px;color:var(--muted)}
+  .srow .val{font-size:13px;color:var(--muted);flex:none}
+  .sw{width:40px;height:24px;border-radius:12px;background:var(--primary);position:relative;flex:none}
+  .sw::after{content:"";position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;
+             background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .chev{width:14px;height:14px;color:rgba(32,32,32,.3);flex:none}
+  /* panel */
+  .panel{background:var(--card);padding:8px 0 12px}
+  .prow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line-soft)}
+  .prow .ic{width:18px;height:18px;flex:none;color:var(--primary);opacity:.85}
+  .prow .txt{flex:1;min-width:0}
+  .prow .txt .n{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .txt .s{font-size:11.5px;color:var(--muted)}
+  .prow .st{font-size:11.5px;flex:none}
+  .st.wait{color:#B3701F}
+  .st.run{color:var(--primary)}
+  .st.done{color:var(--muted)}
+  .cap{font-size:12px;color:var(--muted);padding:10px 12px 0;line-height:1.6}
+  .cap b{color:var(--ink);font-weight:600}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:8px}
+  .closing b{color:var(--ink)}
+  @media (max-width:760px){
+    .page{padding:18px 10px 44px}
+    .phone,.phone.narrow,.desk{width:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 全部 UI 一览 · 动工前过目</p>
+  <h1>一处不漏地放一页</h1>
+  <p class="lede">七屏：主对话里的工具卡与分隔线、用户在主对话接着说话、输入框上方那条（手机与桌面）、侧边栏、配置弹窗、子代理面板、子会话自己。<b>没有唤醒</b>——结果传播到主对话，是为了让<b>你</b>在那里接着说话。</p>
+
+  <h2 class="sec">① 主对话：卡 → 分隔线 → 你接着说话</h2>
+  <div class="grid">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="tit"><div class="t">登录页重构</div></div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+      <div class="chat">
+        <div class="row"><div class="bubble">test 里有三个红的，能修就修。</div></div>
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div><div class="name">Cuplivo · GPT-5</div><div class="time">21:07</div></div>
+          </div>
+          <p class="body">派一个人去修，我先看发布清单。</p>
+          <div class="toolcard">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+            <span class="ttl">派遣子代理：修掉 test/auth 的三个用例</span>
+          </div>
+          <p class="body">清单里只剩一个阻塞项：<code>pubspec.lock</code> 没跟着提交。</p>
+          <div class="divider">
+            <span class="ln"></span>
+            <span class="lbl">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+              子代理完成 · 修掉 test/auth 的三个用例
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </span>
+            <span class="ln"></span>
+          </div>
+        </div>
+        <div class="row"><div class="bubble">那就一起提交吧。</div></div>
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div><div class="name">Cuplivo · GPT-5</div><div class="time">21:11</div></div>
+          </div>
+          <p class="body">好，一次提交带上 <code>session_guard.dart</code>、<code>session_test.dart</code> 和 lock。</p>
+        </div>
+      </div>
+      <div class="composerwrap">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1 1 320px;min-width:280px;max-width:520px">
+      <p class="cap"><b>卡：</b>普通工具卡一行，`派遣子代理：&lt;label&gt;`，不计时、不覆写。<b>线：</b>28px，两侧 1px 线，中间图标 + 标题 + chevron；点开是面板。</p>
+      <p class="cap"><b>结果不说话：</b>子代理的结论不进时间线正文。用户想读全文，点线进子会话；不想读，就继续问自己的事。</p>
+      <p class="cap"><b>「你」在主语位置：</b>下一句是用户说的，主代理因为那条 <code>user</code> 消息本就在历史里，自然知道「刚才那个修好了」。</p>
+      <p class="cap"><b>为什么不是一条回复：</b>用户不关心子代理的全文；全量渲染会像另一个助手插进来一段话。这条线只报一件事：那件事完了。</p>
+    </div>
+  </div>
+
+  <h2 class="sec">② 输入框上方那条：手机 / 桌面，一个 / 多个</h2>
+  <div class="grid">
+    <div class="phone">
+      <div class="chat" style="padding-top:14px">
+        <div class="msg"><p class="body" style="font-size:14.5px;color:rgba(32,32,32,.7)">…发布清单我先看，那边我派了三个。</p></div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <span class="txt">3 个子代理（2 个正在运行）</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composerwrap" style="padding-top:2px">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="chat" style="padding-top:14px">
+        <div class="msg"><p class="body" style="font-size:14.5px;color:rgba(32,32,32,.7)">…我先读一眼 CHANGELOG。</p></div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <span class="txt sheen">正在跑 test/auth</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composerwrap" style="padding-top:2px">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="desk">
+      <div class="chat" style="padding-top:16px">
+        <div class="msg"><p class="body" style="font-size:14.5px;color:rgba(32,32,32,.7)">…发布清单我先看，你那边修好了说一声。</p></div>
+      </div>
+      <div class="composerwrap" style="padding:0 16px 14px">
+        <div class="stripwrap" style="padding:0 0 2px">
+          <div class="strip">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+            <span class="txt sheen">正在跑 test/auth</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+        <div class="capsule">
+          <div class="field desk">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <p class="cap" style="padding:8px 0 0">桌面：同一条、同一位置；最小高 24，鼠标悬停整条亮起；宽度跟着输入框那一列。</p>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="sec">③ 侧边栏 · ④ 配置 · ⑤ 面板 · ⑥ 子会话</h2>
+  <div class="grid">
+    <div class="phone narrow">
+      <div class="drawer">
+        <div class="dhead">
+          <span class="avatar">慢</span>
+          <div class="who"><div class="n">慢下来</div><div class="s">GPT-5 · 12 个对话</div></div>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="dsearch">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          搜索对话
+        </div>
+        <div class="dgroup">今天</div>
+        <div class="drow"><span class="n">登录页重构</span></div>
+        <div class="drow"><span class="n">修掉 test/auth 的三个用例</span><span class="tag">子代理</span></div>
+        <div class="drow"><span class="n">周报怎么写</span></div>
+        <div class="dgroup">昨天</div>
+        <div class="drow"><span class="n">旅行计划</span></div>
+        <div class="cap">单行、不缩进、不画时间；<b>子代理</b> 三个字在草稿标签那个位置（11px、主色）。</div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="dim">
+        <div class="dlg">
+          <h3>子代理</h3>
+          <p class="sub">在本会话自己的工作区里派一个分身去做完一件任务。</p>
+          <div class="srow"><div class="txt"><div class="n">开启</div></div><div class="sw"></div></div>
+          <div class="srow"><div class="txt"><div class="n">深度</div><div class="s">允许子代理再派子代理的层数</div></div><div class="val">1</div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="srow"><div class="txt"><div class="n">模型</div><div class="s">用哪个模型跑子代理</div></div><div class="val">继承本助手</div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+        <div class="cap" style="color:rgba(255,255,255,.75)">只有三项；说明写的是<b>选项</b>，不是当前值。</div>
+      </div>
+      <div style="padding:10px 12px 12px;background:var(--card)">
+        <div class="srow" style="border-top:none;padding-left:0;padding-right:0">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt" style="flex:1"><div class="n">子代理</div><div class="s" style="font-size:11.5px;color:var(--muted)">继承本助手 · 深度 1</div></div>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+        <p class="cap" style="padding:6px 0 0">工具箱里就是这一行：概要 + chevron，点进上面那个弹窗。</p>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="tit"><div class="t">子代理</div></div>
+        <span style="width:20px"></span>
+      </div>
+      <div class="panel">
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">改哪个标题</div><div class="s">来自 登录页重构 · 2 分钟</div></div>
+          <span class="st wait">等你回答</span>
+        </div>
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">修掉 test/auth 的三个用例</div><div class="s">来自 登录页重构 · 1 分 52 秒</div></div>
+          <span class="st run">正在运行</span>
+        </div>
+        <div class="prow" style="border-bottom:none">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">整理发布清单</div><div class="s">来自 登录页重构 · 21:09</div></div>
+          <span class="st done">已完成</span>
+        </div>
+      </div>
+      <div class="cap">排序：等你回答 → 正在运行 → 最近完成；每条点进去是子会话，长按有「查看父对话」。</div>
+    </div>
+
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="tit"><div class="t">修掉 test/auth 的三个用例</div><div class="s">子代理 · 来自 登录页重构</div></div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+      <div class="chat">
+        <div class="row"><div class="bubble">修掉 test/auth 里挂掉的三个用例，不要改公开接口。</div></div>
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div><div class="name">Cuplivo · GPT-5</div><div class="time">21:07</div></div>
+          </div>
+          <p class="body">三个用例都过了。根因是 token 过期后本地缓存没清，连带失败的那个也一起好了。</p>
+        </div>
+      </div>
+      <div class="composerwrap">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">子会话就是普通会话，唯一新增是标题下那行 10.5px 副标题（「子代理 · 来自 &lt;父标题&gt;」）；它在等 <code>ask_user</code> 的答案时，这里就是那张提问卡。</div>
+    </div>
+  </div>
+
+  <p class="closing"><b>这一页就是动工前要你过目的全部：</b>① 主对话的卡 / 分隔线 / 用户作答 ② 输入框上方那条（手机两个状态 + 桌面）③ 侧边栏 ④ 配置弹窗与工具箱那一行 ⑤ 面板 ⑥ 子会话自身。<b>没有唤醒、没有简报注入、没有透传</b>——结果是一条 <code>user</code> 消息，界面只把它画成一条线，剩下的交给你在主对话里说。</p>
+
+</main>
+</body>
+</html>

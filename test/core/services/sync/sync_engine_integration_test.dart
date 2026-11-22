@@ -17,6 +17,7 @@ import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
 import 'package:Cuplivo/core/services/skills/skill_directory_sync.dart';
 import 'package:Cuplivo/core/services/sync/blob_sync.dart';
 import 'package:Cuplivo/core/services/business_state_reloader.dart';
+import 'package:Cuplivo/core/services/sync/sync_admission.dart';
 import 'package:Cuplivo/core/services/sync/sync_client.dart';
 import 'package:Cuplivo/core/services/sync/sync_data_plane.dart';
 import 'package:Cuplivo/core/services/sync/sync_endpoint_prober.dart';
@@ -181,6 +182,7 @@ class _MidApplyWritePlane extends SyncDataPlane {
     required String myDeviceId,
     required String peerDeviceId,
     required Map<String, Map<String, int>> checkpointRowsByConversation,
+    bool Function()? cancelled,
   }) async {
     if (!_fired && subtrees.isNotEmpty) {
       _fired = true;
@@ -191,6 +193,7 @@ class _MidApplyWritePlane extends SyncDataPlane {
       myDeviceId: myDeviceId,
       peerDeviceId: peerDeviceId,
       checkpointRowsByConversation: checkpointRowsByConversation,
+      cancelled: cancelled,
     );
   }
 }
@@ -312,8 +315,10 @@ class _LegacyPeerPlane extends SyncDataPlane {
   final Set<String> hides;
 
   @override
-  Future<SyncManifest> buildManifest() async {
-    final manifest = await super.buildManifest();
+  Future<SyncManifest> buildManifest({
+    Set<String> withheldKeys = const {},
+  }) async {
+    final manifest = await super.buildManifest(withheldKeys: withheldKeys);
     return SyncManifest(
       manifest.conversations,
       entities: manifest.entities,
@@ -329,6 +334,7 @@ class _LegacyPeerPlane extends SyncDataPlane {
     SyncBusinessPayload payload, {
     required String myDeviceId,
     required String peerDeviceId,
+    Set<String> skipKeys = const {},
   }) {
     // `continue`, not a deferral: the older build's apply silently skips a key
     // it does not sync, and reports success.
@@ -343,6 +349,7 @@ class _LegacyPeerPlane extends SyncDataPlane {
       filtered,
       myDeviceId: myDeviceId,
       peerDeviceId: peerDeviceId,
+      skipKeys: skipKeys,
     );
   }
 }
@@ -402,6 +409,8 @@ class _Side {
     this.workspaceMaxFiles = kMaxWorkspaceFiles,
     this.workspaceMaxLedgerEntries = kMaxWorkspaceLedgerEntries,
     this.yieldedSessionTtl = SyncEngine.kYieldedSessionTtl,
+    this.deltaByteBudget = kSyncDeltaByteBudget,
+    this.maxConversationBytes = kSyncMaxConversationBytes,
     this.now,
   });
 
@@ -441,6 +450,12 @@ class _Side {
   /// sweep drops it. The production default everywhere: the tests that drive a
   /// session's clock move *time*, which is what the rule is defined by.
   final Duration sessionIdleTtl = SyncEngine.kSessionIdleTtl;
+
+  /// This side's push budget and per-conversation cap — the production values,
+  /// shrunk by the budget tests so a conversation of a few kilobytes is "too
+  /// large to push" instead of a fixture of tens of megabytes.
+  final int deltaByteBudget;
+  final int maxConversationBytes;
 
   /// This side's wall clock, when a test needs to move time instead of waiting
   /// for it. Null means the production `DateTime.now`.
@@ -740,6 +755,8 @@ class _Side {
       onResponderSession: (peer, report) => responderReport = report,
       yieldedSessionTtl: yieldedSessionTtl,
       sessionIdleTtl: sessionIdleTtl,
+      deltaByteBudget: deltaByteBudget,
+      maxConversationBytes: maxConversationBytes,
       now: now,
       clockUs: () => DateTime.now().microsecondsSinceEpoch + clockOffsetUs,
     );
@@ -803,6 +820,16 @@ class _Side {
     }
     return record;
   }
+
+  /// A request's gate, as the listener builds one: the whole budget still
+  /// ahead, which is what a test that is not about a deadline needs.
+  SyncAdmission gate({Duration budget = const Duration(minutes: 5)}) =>
+      SyncAdmission(budget: budget);
+
+  /// A gate whose budget is already gone — the state the listener hands a
+  /// handler the deadline has abandoned.
+  SyncAdmission spentGate({Duration budget = const Duration(minutes: 30)}) =>
+      SyncAdmission(budget: budget, alreadySpent: budget * 2);
 
   SyncHello hello({
     int? schemaVersion,
@@ -1173,6 +1200,21 @@ Future<Set<String>> _messageIds(_Side side, String conversationId) async => {
     row['id'] as String,
 };
 
+/// One message row's stored text, or null when the row is not there.
+///
+/// The wire read of a message row carries no `content` (the body travels as a
+/// document, not in the ledger row), so this goes through [getMessage], which
+/// rebuilds the message the way a reader sees it.
+Future<String?> _messageContent(
+  _Side side,
+  String conversationId,
+  String messageId,
+) async {
+  final message = await side.repository.getMessage(messageId);
+  if (message == null || message.conversationId != conversationId) return null;
+  return message.content;
+}
+
 /// The stored `message_order` of every row, in order — the property the apply's
 /// re-derivation must produce, and the one id-set assertions cannot see.
 Future<List<int>> _messageOrders(_Side side, String conversationId) async {
@@ -1514,6 +1556,12 @@ void main() {
     // arriving used to hold it forever, so no pairing and no sync request was
     // ever served again. The route deadline frees the loop; the short budget
     // here is the test seam for the same path.
+    //
+    // *Both* requests get the short budget, deliberately. Pairing has a lane of
+    // its own (`sync_admission_test.dart` holds that), so the complete request
+    // is not queued behind the stalled one and answers well inside 300 ms —
+    // while a budget that depended on which connection the loop happened to read
+    // first would make this test's meaning depend on that order.
     final b = _Side('b');
     await b.start(root);
     sides.add(b);
@@ -1560,17 +1608,281 @@ void main() {
     // And the stalled request itself is answered with the timeout status. The
     // five-second guard is what makes a regression fail fast instead of
     // hanging: with the deadline gone, the answer only arrives after the
-    // production budget. The bytes are read raw — the body is gzipped JSON, but
-    // the status line is plain ASCII.
-    final raw = await socket
-        .cast<List<int>>()
-        .expand((chunk) => chunk)
-        .toList()
-        .timeout(const Duration(seconds: 5));
+    // production budget. The status line is read out of the bytes rather than
+    // waiting for the socket to close — whether the connection is reused or
+    // dropped is not this test's subject, and a keep-alive connection that
+    // stays open would turn a correct answer into a false failure.
+    final raw = <int>[];
+    final answered = Completer<void>();
+    final subscription = socket.listen(
+      (chunk) {
+        raw.addAll(chunk);
+        final head = latin1.decode(raw.take(512).toList(), allowInvalid: true);
+        if (head.contains('504') && !answered.isCompleted) answered.complete();
+      },
+      onError: (_) {
+        if (!answered.isCompleted) answered.complete();
+      },
+      onDone: () {
+        if (!answered.isCompleted) answered.complete();
+      },
+      cancelOnError: true,
+    );
+    await answered.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+    await subscription.cancel();
     final head = latin1.decode(raw.take(512).toList(), allowInvalid: true);
     expect(head, contains('504'));
     socket.destroy();
   });
+
+  test('a fetch beat the deadline abandoned writes no checkpoint', () async {
+    // G1. The old route `.timeout()` answered 504 and left the handler running:
+    // it went on to write the checkpoint and remove the session, advancing state
+    // the peer had been told never arrived. The gate is what stops it, and the
+    // commit point is the checkpoint write.
+    final (a, b) = await pair();
+    expect(
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
+      isA<SyncHello>(),
+    );
+    await b.engine.handleApplySubtrees(
+      a.identity.deviceId,
+      const SyncDeltaBatch([]),
+      admission: b.gate(),
+    );
+
+    final checkpointPath =
+        '${b.store.root.path}${Platform.pathSeparator}checkpoints'
+        '${Platform.pathSeparator}${a.identity.deviceId}.json.gz';
+    expect(
+      File(checkpointPath).existsSync(),
+      isFalse,
+      reason: 'nothing before the fetch beat writes the checkpoint',
+    );
+
+    // A gate whose budget is already spent, exactly as the listener would hand
+    // one to a handler the deadline had abandoned. Everything the beat does
+    // before its commit point is allowed; the checkpoint is not.
+    Object? cancelled;
+    try {
+      await b.engine.handleFetchSubtrees(
+        a.identity.deviceId,
+        const SyncFetchRequest(),
+        admission: b.spentGate(),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+
+    // The state first, and deliberately: with the commit-point check removed the
+    // beat completes normally and writes the file, so this is the assertion that
+    // names the defect. (The throw is the transport's half — `_serveOne` answers
+    // 504 on it — and is asserted below.)
+    expect(
+      File(checkpointPath).existsSync(),
+      isFalse,
+      reason: 'a cancelled fetch beat must not write the checkpoint',
+    );
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      b.engine.hasResponderSession(a.identity.deviceId),
+      isTrue,
+      reason:
+          'nor remove the session it did not finish — the peer retries on it',
+    );
+
+    // And the session is still usable: the same beat, with a live budget,
+    // commits. Without this a gate that killed the session would pass above.
+    await b.engine.handleFetchSubtrees(
+      a.identity.deviceId,
+      const SyncFetchRequest(),
+      admission: b.gate(),
+    );
+    expect(File(checkpointPath).existsSync(), isTrue);
+    expect(b.engine.hasResponderSession(a.identity.deviceId), isFalse);
+  });
+
+  test('a hello the deadline abandoned installs no session', () async {
+    // The other commit point of the responder role: installing the session is
+    // what makes every later beat of the exchange possible, so it is the point a
+    // cancelled hello must stop at. The peer is told 504 and re-drives; a session
+    // left behind here would answer its next hello with `busy` instead.
+    final (a, b) = await pair();
+    Object? cancelled;
+    try {
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.spentGate(budget: const Duration(seconds: 60)),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      b.engine.hasResponderSession(a.identity.deviceId),
+      isFalse,
+      reason: 'a cancelled hello leaves no session to refuse the retry',
+    );
+
+    // And the retry lands: the same hello with a live budget opens the session.
+    expect(
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
+      isA<SyncHello>(),
+    );
+    expect(b.engine.hasResponderSession(a.identity.deviceId), isTrue);
+  });
+
+  test('a pairing the deadline abandoned installs nothing', () async {
+    // `/pair` writes a peer record and a secret, and the initiator only learns
+    // the secret from the answer. A pairing abandoned at the deadline must
+    // therefore install neither: a record here would show a paired device whose
+    // every request this side refuses 401, and only a re-pair would fix it.
+    final a = _Side('a');
+    await a.start(root);
+    sides.add(a);
+    final pin = a.engine.openPairing();
+    const strangerId = 'stranger-device';
+    final request = SyncPairRequest(
+      pin: pin,
+      deviceId: strangerId,
+      deviceName: 'stranger',
+      platform: 'test',
+      certPem: 'not-a-real-pem',
+    );
+
+    Object? cancelled;
+    try {
+      await a.engine.handlePair(
+        request,
+        '127.0.0.1',
+        admission: a.spentGate(budget: const Duration(seconds: 60)),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(await a.store.findPeer(strangerId), isNull);
+    expect(
+      a.engine.isPairingOpen,
+      isTrue,
+      reason:
+          'a cancellation before the PIN is spent leaves the window the '
+          'user is standing at open',
+    );
+
+    // The same request with a live gate does pair, so the gate is what refused.
+    expect(
+      await a.engine.handlePair(request, '127.0.0.1', admission: a.gate()),
+      isA<SyncPairAnswer>(),
+    );
+    expect(await a.store.findPeer(strangerId), isNotNull);
+  });
+
+  test('a revoke the deadline abandoned forgets nothing', () async {
+    // Unpair propagation is one commit: the session, the publication, the record
+    // and the in-memory secret. A revoke abandoned at the deadline must leave the
+    // pairing exactly as it was — the peer's next session finds it too and asks
+    // again, so stopping early is the safe half.
+    final (a, b) = await pair();
+    Object? cancelled;
+    try {
+      await b.engine.handleRevoke(
+        a.identity.deviceId,
+        admission: b.spentGate(budget: const Duration(seconds: 30)),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      await b.store.findPeer(a.identity.deviceId),
+      isNotNull,
+      reason: 'a cancelled revoke keeps the pairing it was asked to drop',
+    );
+
+    await b.engine.handleRevoke(a.identity.deviceId, admission: b.gate());
+    expect(await b.store.findPeer(a.identity.deviceId), isNull);
+  });
+
+  test('a push beat the deadline abandoned applies no conversation', () async {
+    // The cell below proves the *loop* stops between conversations; this one
+    // proves the engine hands it a predicate that can stop it. Without the hook
+    // the loop applies every conversation and only the later `check()` throws —
+    // the DB writes are already committed, so the beat lands rows the peer was
+    // told never arrived.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-x1', contents: ['one']);
+    await _seedConversation(a, id: 'conv-x2', contents: ['two']);
+    final first = (await a.dataPlane.readSubtree('conv-x1'))!;
+    final second = (await a.dataPlane.readSubtree('conv-x2'))!;
+    expect(
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
+      isA<SyncHello>(),
+    );
+
+    Object? cancelled;
+    try {
+      await b.engine.handleApplySubtrees(
+        a.identity.deviceId,
+        SyncDeltaBatch([first, second]),
+        admission: b.spentGate(),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+
+    expect(cancelled, isA<SyncAdmissionLost>());
+    final ids = await _conversationIds(b);
+    expect(
+      ids,
+      isNot(contains('conv-x1')),
+      reason:
+          'a cancelled push applies nothing, not even its first conversation',
+    );
+    expect(ids, isNot(contains('conv-x2')));
+  });
+
+  test(
+    'a cancelled apply finishes the conversation it is on, then stops',
+    () async {
+      // Cancellation lands between transactions, never inside one: the apply checks
+      // before each conversation, so a beat that dies mid-push keeps what it already
+      // wrote (the next session re-plans it) and starts nothing new.
+      final (a, b) = await pair();
+      await _seedConversation(a, id: 'conv-c1', contents: ['one']);
+      await _seedConversation(a, id: 'conv-c2', contents: ['two']);
+      final first = (await a.dataPlane.readSubtree('conv-c1'))!;
+      final second = (await a.dataPlane.readSubtree('conv-c2'))!;
+
+      var asked = 0;
+      final outcomes = await b.dataPlane.applySubtrees(
+        [first, second],
+        myDeviceId: b.identity.deviceId,
+        peerDeviceId: a.identity.deviceId,
+        checkpointRowsByConversation: const {},
+        cancelled: () => asked++ > 0,
+      );
+
+      expect(outcomes.keys, {'conv-c1'});
+      expect(await _conversationIds(b), contains('conv-c1'));
+      expect(await _conversationIds(b), isNot(contains('conv-c2')));
+    },
+  );
 
   test('/sync/ping authenticates and is idempotent', () async {
     final (a, b) = await pair();
@@ -1720,6 +2032,7 @@ void main() {
         platform: 'test',
         manifest: await a.dataPlane.buildManifest(),
       ),
+      admission: b.gate(),
     );
     expect(hello, isA<SyncHello>(), reason: 'the session was accepted');
     final refused = await b.engine.syncWithPeer(bPeer);
@@ -1731,10 +2044,12 @@ void main() {
     await b.engine.handleApplySubtrees(
       a.identity.deviceId,
       const SyncDeltaBatch([]),
+      admission: b.gate(),
     );
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
+      admission: b.gate(),
     );
 
     // (2) An initiator round in flight here that has not heard the peer's hello
@@ -1764,6 +2079,7 @@ void main() {
         platform: 'test',
         manifest: await b.dataPlane.buildManifest(),
       ),
+      admission: a.gate(),
     );
     expect(answer, isA<SyncHello>(), reason: 'the arriving hello wins');
     // The yielded round reports that it was superseded, and records nothing:
@@ -1787,6 +2103,7 @@ void main() {
         platform: 'test',
         manifest: await b.dataPlane.buildManifest(),
       ),
+      admission: a.gate(),
     );
     expect(again, isA<SyncHello>());
   });
@@ -1852,11 +2169,19 @@ void main() {
         listenPort: a.port,
       );
       expect(
-        await a.engine.handleHello(b.identity.deviceId, helloAtA),
+        await a.engine.handleHello(
+          b.identity.deviceId,
+          helloAtA,
+          admission: a.gate(),
+        ),
         isA<SyncHello>(),
       );
       expect(
-        await b.engine.handleHello(a.identity.deviceId, helloAtB),
+        await b.engine.handleHello(
+          a.identity.deviceId,
+          helloAtB,
+          admission: b.gate(),
+        ),
         isA<SyncHello>(),
       );
 
@@ -1905,7 +2230,11 @@ void main() {
     await pairSides(a, b);
 
     expect(
-      await a.engine.handleHello(b.identity.deviceId, b.hello()),
+      await a.engine.handleHello(
+        b.identity.deviceId,
+        b.hello(),
+        admission: a.gate(),
+      ),
       isA<SyncHello>(),
       reason: 'this device answers B, so it holds a live session for it',
     );
@@ -1919,6 +2248,7 @@ void main() {
     await a.engine.handleApplySubtrees(
       b.identity.deviceId,
       const SyncDeltaBatch([]),
+      admission: a.gate(),
     );
     clock = clock.add(const Duration(seconds: 1));
     final peer = await a.peer(b);
@@ -1943,6 +2273,7 @@ void main() {
     final batch = await a.engine.handleFetchSubtrees(
       b.identity.deviceId,
       const SyncFetchRequest(),
+      admission: a.gate(),
     );
     expect(batch.subtrees, isEmpty);
   });
@@ -1962,7 +2293,11 @@ void main() {
       await pairSides(a, b);
 
       expect(
-        await a.engine.handleHello(b.identity.deviceId, b.hello()),
+        await a.engine.handleHello(
+          b.identity.deviceId,
+          b.hello(),
+          admission: a.gate(),
+        ),
         isA<SyncHello>(),
       );
       final peer = await a.peer(b);
@@ -4419,7 +4754,11 @@ void main() {
     expect(report.success, isTrue, reason: report.summary);
 
     expect(
-      await a.engine.handleFetchBlob(b.identity.deviceId, 'a' * 64),
+      await a.engine.handleFetchBlob(
+        b.identity.deviceId,
+        'a' * 64,
+        admission: a.gate(),
+      ),
       isNull,
       reason: 'the blob route must not serve a path the peer named',
     );
@@ -4865,6 +5204,188 @@ void main() {
     },
   );
 
+  group('a row held on this device', () {
+    // One MCP server as the settings face writes it. Both sides can hold the
+    // same id with a different command, which is exactly what a stdio server
+    // is — and what #1029 reported arriving on the wrong machine.
+    Future<void> putServer(_Side side, String id, String command) =>
+        side.businessRepository.upsertEntity(
+          BusinessEntityKind.mcpServer,
+          BusinessEntityValue(
+            id: id,
+            sortOrder: 0,
+            payload: jsonEncode({
+              'id': id,
+              'name': id,
+              'transport': 'stdio',
+              'command': command,
+            }),
+          ),
+        );
+
+    Future<String?> commandOf(_Side side, String id) async {
+      final rows = await side.businessRepository.syncReadEntityRows(
+        BusinessEntityKind.mcpServer.wireName,
+        {id},
+      );
+      if (rows.isEmpty) return null;
+      final payload = jsonDecode(rows.single['payload'] as String) as Map;
+      return payload['command'] as String?;
+    }
+
+    String keyOf(String id) =>
+        syncBusinessKey(BusinessEntityKind.mcpServer.wireName, id);
+
+    Future<void> hold(_Side side, String id) =>
+        side.store.mutateLocalOnlyKeys((keys) => keys.add(keyOf(id)));
+
+    Future<void> release(_Side side, String id) =>
+        side.store.mutateLocalOnlyKeys((keys) => keys.remove(keyOf(id)));
+
+    test('the peer keeps its own copy and neither side moves', () async {
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      await hold(a, 'm1');
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await commandOf(a, 'm1'), 'C:/tools/a.exe');
+      expect(
+        await commandOf(b, 'm1'),
+        '/usr/local/bin/b',
+        reason: "the held row is not the peer's to overwrite",
+      );
+    });
+
+    test("the peer's own edit does not reach the holding device", () async {
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      await hold(a, 'm1');
+
+      // The peer edits its copy and drives the next session: the announcement
+      // it received with *this* hello is what keeps its `iSend` off the wire.
+      // The apply gate would also drop the row, so this cell proves the two
+      // together — the deletion cell is the one only the announcement can pass.
+      await putServer(b, 'm1', '/opt/homebrew/bin/b');
+      final report = await b.engine.syncWithPeer(await b.peer(a));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await commandOf(a, 'm1'), 'C:/tools/a.exe');
+      expect(await commandOf(b, 'm1'), '/opt/homebrew/bin/b');
+    });
+
+    test('deleting the held row leaves the peer copy alone', () async {
+      // The cell the whole announcement exists for: this device deleted a row
+      // it never offered, and the peer must not read the absence as its own
+      // deletion. Without the hello list this is `peerDeletes` on the peer.
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      await hold(a, 'm1');
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      await a.businessRepository.deleteEntity(
+        BusinessEntityKind.mcpServer,
+        'm1',
+      );
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await commandOf(a, 'm1'), isNull);
+      expect(
+        await commandOf(b, 'm1'),
+        '/usr/local/bin/b',
+        reason:
+            'it never agreed to share the row, so its deletion says nothing',
+      );
+    });
+
+    test('a held row keeps the entry it had, not a made-up agreement', () async {
+      // The checkpoint entry of a withheld key has to stay where it was. The
+      // plain `none` arm records the local row as the shared state, which would
+      // claim the peer holds this version — and the first session after the
+      // hold is released would then resolve by "this device wins" instead of by
+      // the table's own last-write-wins.
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      // One unheld session first, so there is an agreement to keep.
+      final first = await a.engine.syncWithPeer(await a.peer(b));
+      expect(first.success, isTrue, reason: first.summary);
+      final agreed = (await a.store.loadCheckpoint(
+        b.identity.deviceId,
+      )).entities['mcp_server_rows']!['m1']!;
+
+      await hold(a, 'm1');
+      await putServer(a, 'm1', 'C:/tools/a-v2.exe');
+      final second = await a.engine.syncWithPeer(await a.peer(b));
+      expect(second.success, isTrue, reason: second.summary);
+      final kept = (await a.store.loadCheckpoint(
+        b.identity.deviceId,
+      )).entities['mcp_server_rows']!['m1']!;
+      expect(kept.digest, agreed.digest);
+      expect(kept.updatedAtUs, agreed.updatedAtUs);
+    });
+
+    test('releasing the hold lets the pair converge', () async {
+      final (a, b) = await pair();
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await putServer(b, 'm1', '/usr/local/bin/b');
+      await hold(a, 'm1');
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      await release(a, 'm1');
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      final left = await commandOf(a, 'm1');
+      expect(left, isNotNull);
+      expect(
+        await commandOf(b, 'm1'),
+        left,
+        reason: 'one last-write-wins verdict, not two copies in the dark',
+      );
+      expect(
+        report.entityRowsLost + report.preferencesLost,
+        anyOf(0, 1),
+        reason: 'losing the older copy is the merge, not an error',
+      );
+    });
+
+    test('a row held before the pairing never arrives', () async {
+      // The common journey: the PC is set up first, marked, and only then is
+      // the phone paired. Nothing about the row may reach the new device.
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      await putServer(a, 'm1', 'C:/tools/a.exe');
+      await hold(a, 'm1');
+      await pairSides(a, b);
+
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await commandOf(b, 'm1'), isNull);
+      expect(await commandOf(a, 'm1'), 'C:/tools/a.exe');
+    });
+
+    test('a 4.7.0 peer (protocol 8) is refused, not half-spoken to', () async {
+      // Withholding is a hello shape change: an older build would read the
+      // absence as a deletion and delete the held row on its own device.
+      final (a, b) = await pair();
+      final refusal = await a.engine.handleHello(
+        b.identity.deviceId,
+        b.hello(protocolVersion: 8),
+        admission: a.gate(),
+      );
+      expect(refusal, isA<SyncHelloRefusal>());
+      expect(
+        (refusal as SyncHelloRefusal).reason,
+        SyncRefusalReason.protocolUnknown,
+      );
+    });
+  });
+
   test(
     'a deferred receive never makes the sender delete its own message',
     () async {
@@ -4904,6 +5425,713 @@ void main() {
       expect(await _messageIds(a, 'conv-a'), contains('conv-a-m1'));
     },
   );
+
+  group('one push\'s byte budget', () {
+    // A budget of a couple of kilobytes, so "too large to push" is a message of
+    // a few thousand characters rather than a fixture of tens of megabytes. The
+    // production values are derived in `sync_limits.dart`.
+    const tinyBudget = 1500;
+
+    Future<(_Side, _Side)> budgetPair({
+      int budget = tinyBudget,
+      int perConversation = kSyncMaxConversationBytes,
+    }) async {
+      final a = _Side(
+        'a',
+        deltaByteBudget: budget,
+        maxConversationBytes: perConversation,
+      );
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      final pin = b.engine.openPairing();
+      await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+      return (a, b);
+    }
+
+    test(
+      'a conversation the budget leaves behind is deferred, not failed',
+      () async {
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(
+          report.conversationsOmittedForSize,
+          1,
+          reason: 'the push left it behind and said so',
+        );
+        expect(
+          report.deferred,
+          0,
+          reason: 'the omission is counted once, not twice',
+        );
+        expect(report.conversationsSent, 0);
+        expect(await _conversationIds(b), isEmpty);
+      },
+    );
+
+    test(
+      'an omitted bothSend conversation keeps the edit it did not send',
+      () async {
+        // The data-loss shape the budget must not create: A's copy sat out the
+        // round, so the peer never received A's row. An entry built from the
+        // *apply* of B's copy claims the opposite, and the next session then
+        // reads A's own row as local-only and deletes it.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+        final first = await a.engine.syncWithPeer(await a.peer(b));
+        expect(first.success, isTrue, reason: first.summary);
+        expect(
+          await _conversationIds(b),
+          contains('conv-a'),
+          reason: 'the small copy fits, so both sides start from an agreement',
+        );
+
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-aonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'x' * 3000,
+          ),
+        );
+        await b.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-bonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'written on b',
+          ),
+        );
+
+        final omitted = await a.engine.syncWithPeer(await a.peer(b));
+        expect(omitted.success, isTrue, reason: omitted.summary);
+        expect(omitted.conversationsOmittedForSize, 1);
+        expect(
+          await _messageIds(a, 'conv-a'),
+          containsAll(<String>['conv-a-aonly', 'conv-a-bonly']),
+          reason: 'B\'s copy was applied; A\'s own row is still here',
+        );
+
+        // The session where the false entry would show: A plans from the
+        // checkpoint, and a "we agree" entry turns it into peerSends — B serves a
+        // copy without the row A never sent, and the merge deletes it.
+        final next = await a.engine.syncWithPeer(await a.peer(b));
+        expect(next.success, isTrue, reason: next.summary);
+        expect(
+          await _messageIds(a, 'conv-a'),
+          contains('conv-a-aonly'),
+          reason: 'a send that did not happen must not be recorded as received',
+        );
+      },
+    );
+
+    test(
+      'an omitted bothSend conversation with no prior entry records none',
+      () async {
+        // The same rule with nothing to fall back to: prior == null must leave
+        // no entry, never one built from the peer's apply.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+        await _seedConversation(b, id: 'conv-a', contents: ['shared on b']);
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-aonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'x' * 3000,
+          ),
+        );
+
+        final omitted = await a.engine.syncWithPeer(await a.peer(b));
+        expect(omitted.success, isTrue, reason: omitted.summary);
+        expect(omitted.conversationsOmittedForSize, 1);
+
+        final next = await a.engine.syncWithPeer(await a.peer(b));
+        expect(next.success, isTrue, reason: next.summary);
+        expect(
+          await _messageIds(a, 'conv-a'),
+          contains('conv-a-aonly'),
+          reason: 'no entry was written, so A still owes its own copy',
+        );
+      },
+    );
+
+    test(
+      'a conversation past the per-conversation cap is left behind alone',
+      () async {
+        // The cap is the bound that keeps one huge conversation from displacing
+        // the rest of the round: the budget here is ten times the cap, and the
+        // conversation still does not ride.
+        final (a, b) = await budgetPair(budget: 20000, perConversation: 2000);
+        await _seedConversation(a, id: 'conv-huge', contents: ['x' * 3000]);
+        await _seedConversation(a, id: 'conv-ok', contents: ['hi']);
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(report.conversationsOmittedForSize, 1);
+        expect(report.conversationsSent, 1);
+        expect(await _conversationIds(b), {'conv-ok'});
+      },
+    );
+
+    test(
+      'a conversation left behind does not hold back the business face',
+      () async {
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
+        await a.businessPreferences.setString('user_name', 'Alice');
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(report.conversationsOmittedForSize, 1);
+        expect(
+          await b.businessRepository.syncReadPreferenceRows({'user_name'}),
+          hasLength(1),
+          reason: 'the two faces share a body, not a budget line',
+        );
+      },
+    );
+
+    test(
+      'a conversation left behind still arrives when the peer pulls it',
+      () async {
+        // The known limitation, pinned: the budget bounds the push body only.
+        // The fetch response is not budgeted, so the peer's own plan delivers what
+        // this device could not push — as long as the peer dials.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
+
+        final pushed = await a.engine.syncWithPeer(await a.peer(b));
+        expect(pushed.conversationsOmittedForSize, 1);
+        expect(await _conversationIds(b), isEmpty);
+
+        final pulled = await b.engine.syncWithPeer(await b.peer(a));
+        expect(pulled.success, isTrue, reason: pulled.summary);
+        expect(await _conversationIds(b), {'conv-big'});
+      },
+    );
+
+    test(
+      'one conversation is one row, omitted and unserved together',
+      () async {
+        // A `bothSend` conversation the push left out *and* the peer could not
+        // serve (it is generating there) is one conversation. Both numbers used
+        // to name it: the omission from the budget and the fetch's miss.
+        final (a, b) = await budgetPair();
+        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+        final first = await a.engine.syncWithPeer(await a.peer(b));
+        expect(first.success, isTrue, reason: first.summary);
+
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-big',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'x' * 4000,
+          ),
+        );
+        await b.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-bonly',
+            conversationId: 'conv-a',
+            role: 'user',
+            content: 'written on b',
+          ),
+        );
+        await _setStreaming(b, 'conv-a', streaming: true);
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(
+          report.conversationsOmittedForSize,
+          1,
+          reason: 'it did not fit the push',
+        );
+        expect(
+          report.deferred,
+          0,
+          reason: 'and the peer could not serve it either — still one row',
+        );
+      },
+    );
+
+    test('an omitted conversation rides the next round once it fits', () async {
+      // The other half of "deferred, not failed", and the only cell where an
+      // omission ends in a transfer: nothing about it is sticky. Too big this
+      // round, it shrinks before the next one, which carries it with a zero
+      // count. (The pair's budget is sized here so both states are unambiguous;
+      // the other cells' conversations stay over it deliberately.)
+      final (a, b) = await budgetPair(budget: 4000);
+      await _seedConversation(a, id: 'conv-a', contents: ['shared']);
+      final first = await a.engine.syncWithPeer(await a.peer(b));
+      expect(first.success, isTrue, reason: first.summary);
+
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-a-big',
+          conversationId: 'conv-a',
+          role: 'user',
+          content: 'x' * 4000,
+        ),
+      );
+      final omitted = await a.engine.syncWithPeer(await a.peer(b));
+      expect(omitted.success, isTrue, reason: omitted.summary);
+      expect(omitted.conversationsOmittedForSize, 1);
+      expect(await _messageIds(b, 'conv-a'), isNot(contains('conv-a-big')));
+
+      await a.repository.deleteMessage('conv-a-big');
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-a-a2',
+          conversationId: 'conv-a',
+          role: 'user',
+          content: 'small',
+        ),
+      );
+      final retried = await a.engine.syncWithPeer(await a.peer(b));
+      expect(retried.success, isTrue, reason: retried.summary);
+      expect(retried.conversationsOmittedForSize, 0);
+      expect(
+        await _messageIds(b, 'conv-a'),
+        contains('conv-a-a2'),
+        reason: 'it fits again, so this round carries it',
+      );
+    });
+  });
+
+  test('a write during the session is not recorded as the peer\'s', () async {
+    // The window is the push beat plus the whole blob pull, and a user types in
+    // it. The apply reads its base inside its own transaction, so that row is
+    // part of the post-merge snapshot — and an entry built from the snapshot
+    // recorded it as peer-held. The next session then served the peer's copy
+    // without it and deleted it here.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-typed',
+            conversationId: conversationId,
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-b',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on b',
+      ),
+    );
+
+    // A is the receiver here (peerSends) and types while B's copy is fetched.
+    final received = await a.engine.syncWithPeer(await a.peer(b));
+    expect(received.success, isTrue, reason: received.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      containsAll(<String>['conv-a-b', 'conv-a-typed']),
+    );
+
+    // The row is here and the entry never claimed it, so the next session
+    // carries it instead of reading its absence from B's copy as a deletion.
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'the peer never received it, so it is not a deletion here',
+    );
+    expect(
+      await _messageIds(b, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'and it travels, one round later',
+    );
+  });
+
+  test('a write during a bothSend session is not recorded either', () async {
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-a-typed',
+            conversationId: conversationId,
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-a', contents: ['a1']);
+    await a.engine.syncWithPeer(await a.peer(b));
+    await a.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-aonly',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on a',
+      ),
+    );
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-a-bonly',
+        conversationId: 'conv-a',
+        role: 'user',
+        content: 'written on b',
+      ),
+    );
+
+    final both = await a.engine.syncWithPeer(await a.peer(b));
+    expect(both.success, isTrue, reason: both.summary);
+
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-a'),
+      containsAll(<String>['conv-a-aonly', 'conv-a-typed']),
+    );
+    expect(
+      await _messageIds(b, 'conv-a'),
+      contains('conv-a-typed'),
+      reason: 'the entry waited a round, then the next push carried it',
+    );
+  });
+
+  test('a message deleted after a bothSend session goes on both sides', () async {
+    // The responder's `bothSend` entry describes the payload the initiator
+    // pushed — its own half is the fetch response, and nothing acknowledges a
+    // response. It used to keep the *previous* agreement, so a row that arrived
+    // in that push had no ledger clock: deleting it afterwards left it on the
+    // responder, which then served it back.
+    final (a, b) = await pair();
+    await _seedConversation(a, id: 'conv-p', contents: ['p0']);
+    await a.engine.syncWithPeer(await a.peer(b)); // S1: the agreement
+
+    await a.repository.putMessage(
+      ChatMessage(
+        id: 'conv-p-a',
+        conversationId: 'conv-p',
+        role: 'user',
+        content: 'written on a',
+      ),
+    );
+    await b.repository.putMessage(
+      ChatMessage(
+        id: 'conv-p-b',
+        conversationId: 'conv-p',
+        role: 'assistant',
+        content: 'written on b',
+      ),
+    );
+    final both = await a.engine.syncWithPeer(await a.peer(b)); // S2: bothSend
+    expect(both.success, isTrue, reason: both.summary);
+    expect(
+      await _messageIds(b, 'conv-p'),
+      containsAll(<String>['conv-p-a', 'conv-p-b']),
+    );
+
+    // The row that arrived in the push must be in the responder's ledger, or
+    // the deletion below has no agreed clock to compare its absence against.
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-p'];
+    expect(entry?.rows.keys, contains('conv-p-a'));
+
+    await a.repository.deleteMessage('conv-p-a');
+    final next = await a.engine.syncWithPeer(await a.peer(b)); // S3: deletion
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(b, 'conv-p'),
+      isNot(contains('conv-p-a')),
+      reason: 'the deletion reaches the responder',
+    );
+
+    final after = await a.engine.syncWithPeer(await a.peer(b)); // S4
+    expect(after.success, isTrue, reason: after.summary);
+    expect(
+      await _messageIds(a, 'conv-p'),
+      isNot(contains('conv-p-a')),
+      reason: 'and does not come back',
+    );
+    expect(await _messageIds(b, 'conv-p'), isNot(contains('conv-p-a')));
+  });
+
+  test('a none heal does not record a row written during the session', () async {
+    // The third writer of a checkpoint entry. A conversation this device holds
+    // and the peer pulled leaves this side's entry at `prior` (a fetch response
+    // is never acknowledged), so a later `none` session heals it — from a live
+    // read, which includes a row written while that session ran. Recording it is
+    // the same loss as the two send arms: the next session serves the peer's
+    // copy without the row and deletes it here.
+    final a = _Side('a');
+    final b = _Side('b');
+    await a.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: 'conv-x-typed',
+            conversationId: 'conv-x',
+            role: 'user',
+            content: 'typed while the session ran',
+          ),
+        );
+      },
+    );
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    await _seedConversation(a, id: 'conv-x', contents: ['x1']);
+    final pulled = await b.engine.syncWithPeer(await b.peer(a));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    expect(await _messageIds(b, 'conv-x'), contains('conv-x-m0'));
+
+    // A new conversation from B gives the next session something to apply, and
+    // the write into conv-x lands while A heals it.
+    await _seedConversation(b, id: 'conv-z', contents: ['z1']);
+    final healed = await b.engine.syncWithPeer(await b.peer(a));
+    expect(healed.success, isTrue, reason: healed.summary);
+    expect(await _messageIds(a, 'conv-x'), contains('conv-x-typed'));
+    expect(await _conversationIds(a), contains('conv-z'));
+
+    // A initiates this one, because the deletion only happens to the side that
+    // *fetches* a copy without the row: the responder serves its own.
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(a, 'conv-x'),
+      contains('conv-x-typed'),
+      reason: 'the heal never claimed it, so its absence is not a deletion',
+    );
+    expect(
+      await _messageIds(b, 'conv-x'),
+      contains('conv-x-typed'),
+      reason: 'and it travels one round later',
+    );
+  });
+
+  test('a rename during a heal is not recorded as the agreement', () async {
+    // The heal's stamp vets message clocks. The entry's own clock is the
+    // conversation row's, which a rename, a pin or a version selection moves on
+    // its own — the digest never sees it. Recorded as the agreement, the entry
+    // claims a write the peer never acknowledged.
+    final a = _Side('a');
+    final b = _Side('b');
+    await b.start(
+      root,
+      midApplyWrite: (conversationId) async {
+        await b.chatService.renameConversation(
+          'conv-c',
+          'renamed while healing',
+        );
+      },
+    );
+    await a.start(root);
+    sides.addAll([a, b]);
+    await pairSides(a, b);
+
+    // B holds conv-c and serves it in a fetch, so B's own entry stays at prior.
+    await _seedConversation(b, id: 'conv-c', contents: ['c1']);
+    await b.chatService.reloadAfterExternalChange();
+    final pulled = await a.engine.syncWithPeer(await a.peer(b));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    final agreement = (await a.store.loadCheckpoint(
+      b.identity.deviceId,
+    )).conversations['conv-c']!;
+
+    // A gives the next session something B applies; the rename lands while B
+    // heals conv-c from its live read.
+    await _seedConversation(a, id: 'conv-z', contents: ['z1']);
+    final healed = await a.engine.syncWithPeer(await a.peer(b));
+    expect(healed.success, isTrue, reason: healed.summary);
+    expect(
+      (await b.repository.syncReadConversationRow('conv-c'))!['title'],
+      'renamed while healing',
+    );
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-c'];
+    expect(
+      entry?.updatedAtUs,
+      anyOf(isNull, agreement.updatedAtUs),
+      reason:
+          'a mid-session rename is not the agreed clock: the entry either '
+          'inherits the agreement or waits a round',
+    );
+
+    // And the consequence the poisoned clock would have: A deletes conv-c, and
+    // B's copy was renamed after the agreement, so the edit beats the delete.
+    // (The announcement carries A's own honest clock, which is what blocks it
+    // today — the entry above is the invariant, this is the behaviour.)
+    await a.repository.deleteConversation('conv-c');
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await b.repository.syncReadConversationRow('conv-c'),
+      isNotNull,
+      reason: 'the rename landed after the agreement: edit beats delete',
+    );
+  });
+
+  test(
+    'an edit during a bothSend session is not recorded as the agreement',
+    () async {
+      // The arm's guard compared ids, and an edit keeps the id: the snapshot
+      // recorded the edit's clock as the agreement, and the peer's later
+      // deletion of that row read "untouched here" and deleted the edit.
+      final a = _Side('a');
+      final b = _Side('b');
+      await a.start(
+        root,
+        midApplyWrite: (conversationId) async {
+          await a.repository.putMessage(
+            ChatMessage(
+              id: 'conv-c-m0',
+              conversationId: 'conv-c',
+              role: 'user',
+              content: 'edited while syncing',
+            ),
+          );
+        },
+      );
+      await b.start(root);
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+
+      await _seedConversation(a, id: 'conv-c', contents: ['c1']);
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      // Both sides change conv-c, so the next session is bothSend; the edit of
+      // m0 lands while A applies B's copy.
+      await a.repository.putMessage(
+        ChatMessage(
+          id: 'conv-c-a1',
+          conversationId: 'conv-c',
+          role: 'assistant',
+          content: 'written on a',
+        ),
+      );
+      await b.repository.putMessage(
+        ChatMessage(
+          id: 'conv-c-b1',
+          conversationId: 'conv-c',
+          role: 'assistant',
+          content: 'written on b',
+        ),
+      );
+      final both = await a.engine.syncWithPeer(await a.peer(b));
+      expect(both.success, isTrue, reason: both.summary);
+      expect(
+        await _messageContent(a, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+      );
+
+      // B deletes m0. A edited it after the last agreement, so the edit beats
+      // the deletion: the row stays here and travels back.
+      await b.repository.deleteMessage('conv-c-m0');
+      final next = await a.engine.syncWithPeer(await a.peer(b));
+      expect(next.success, isTrue, reason: next.summary);
+      expect(
+        await _messageContent(a, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+        reason:
+            'the entry never claimed the edit, so its absence is not a '
+            'deletion',
+      );
+      expect(
+        await _messageContent(b, 'conv-c', 'conv-c-m0'),
+        'edited while syncing',
+        reason: 'and the edit travels, one round later',
+      );
+    },
+  );
+
+  test('a heal is not blocked by a peer clock that runs ahead', () async {
+    // The heal used to compare a message clock against this device's own
+    // instant. A row written by a device whose clock runs ahead — the skew the
+    // report names — or imported with a future timestamp is "newer than the
+    // manifest" forever: the heal never writes an entry, the ledger stays
+    // empty, and every later deletion in that conversation is undone. The
+    // agreement is compared by value instead, and a clock that merely runs
+    // ahead changes neither value.
+    final (a, b) = await pair();
+    final future = DateTime.now().add(const Duration(hours: 1)).toUtc();
+    await b.repository.putMigrationBatch(
+      conversations: [
+        Conversation(
+          id: 'conv-f',
+          title: 'conv-f',
+        ).copyWith(messageIds: ['conv-f-m0']),
+      ],
+      messages: [
+        (
+          message: ChatMessage(
+            id: 'conv-f-m0',
+            conversationId: 'conv-f',
+            role: 'user',
+            content: 'from the future',
+            timestamp: future,
+          ),
+          messageOrder: 0,
+        ),
+      ],
+      toolEventsByMessageId: const {},
+      geminiSignaturesByMessageId: const {},
+    );
+    await b.chatService.reloadAfterExternalChange();
+
+    // S1: A pulls it. B served it in a fetch response, so B's own entry stays
+    // at prior — which is none.
+    final pulled = await a.engine.syncWithPeer(await a.peer(b));
+    expect(pulled.success, isTrue, reason: pulled.summary);
+    expect(await _messageIds(a, 'conv-f'), contains('conv-f-m0'));
+
+    // S2: both manifests agree, so the plan is `none` and the heal is the only
+    // writer that can record what A now holds.
+    final idle = await a.engine.syncWithPeer(await a.peer(b));
+    expect(idle.success, isTrue, reason: idle.summary);
+    final entry = (await b.store.loadCheckpoint(
+      a.identity.deviceId,
+    )).conversations['conv-f'];
+    expect(
+      entry,
+      isNotNull,
+      reason: 'the agreement, not this device\'s wall clock, decides',
+    );
+
+    // S3: A deletes that row. B's ledger knows it now, so the deletion lands
+    // instead of coming back as a row B re-sends.
+    await a.repository.deleteMessage('conv-f-m0');
+    final next = await a.engine.syncWithPeer(await a.peer(b));
+    expect(next.success, isTrue, reason: next.summary);
+    expect(
+      await _messageIds(b, 'conv-f'),
+      isNot(contains('conv-f-m0')),
+      reason: 'the deletion reaches B and stays',
+    );
+  });
 
   test('a peer deletion the peer deferred is retried, not undone', () async {
     final (a, b) = await pair();
@@ -4968,6 +6196,7 @@ void main() {
       final unknownProtocol = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(protocolVersion: kSyncProtocolVersion + 1),
+        admission: a.gate(),
       );
       expect(unknownProtocol, isA<SyncHelloRefusal>());
       expect(
@@ -4980,6 +6209,7 @@ void main() {
       final olderProtocol = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(protocolVersion: kSyncProtocolVersion - 1),
+        admission: a.gate(),
       );
       expect(olderProtocol, isA<SyncHelloRefusal>());
       expect(
@@ -4990,6 +6220,7 @@ void main() {
       final newerSchema = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(schemaVersion: a.dataPlane.schemaVersion + 1),
+        admission: a.gate(),
       );
       expect(newerSchema, isA<SyncHelloRefusal>());
       expect(
@@ -5000,6 +6231,7 @@ void main() {
       final unpaired = await a.engine.handleHello(
         'nobody-in-the-peer-store',
         b.hello(deviceId: 'nobody-in-the-peer-store'),
+        admission: a.gate(),
       );
       expect(unpaired, isA<SyncHelloRefusal>());
       expect(
@@ -5019,6 +6251,7 @@ void main() {
       final mismatch = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(deviceId: c.identity.deviceId),
+        admission: a.gate(),
       );
       expect(mismatch, isA<SyncHelloRefusal>());
       expect(
@@ -5030,6 +6263,7 @@ void main() {
       final accepted = await a.engine.handleHello(
         b.identity.deviceId,
         b.hello(),
+        admission: a.gate(),
       );
       expect(accepted, isA<SyncHello>());
     },
@@ -5616,7 +6850,11 @@ void main() {
       reason: 'the responder serves the pulls its own response invited',
     );
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     expect(
@@ -5636,7 +6874,11 @@ void main() {
     // the shape a mismatched or broken peer produces, and the one that used to be
     // answered from a session whose workspace ledger did not exist yet.
     expect(
-      await a.engine.handleHello(b.identity.deviceId, b.hello()),
+      await a.engine.handleHello(
+        b.identity.deviceId,
+        b.hello(),
+        admission: a.gate(),
+      ),
       isA<SyncHello>(),
     );
 
@@ -5644,6 +6886,7 @@ void main() {
       a.engine.handleFetchSubtrees(
         b.identity.deviceId,
         const SyncFetchRequest(),
+        admission: a.gate(),
       ),
       throwsA(isA<SyncRequestRefusal>()),
     );
@@ -5757,7 +7000,11 @@ void main() {
     // cannot fetch it, and asks for it — the request set that authorizes the
     // write, built from what A itself advertised.
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     final ack = await b.engine.handleApplySubtrees(
@@ -5768,6 +7015,7 @@ void main() {
           'w1': {'a.txt': stamp},
         },
       ),
+      admission: b.gate(),
     );
     expect(ack.workspaceRequests, hasLength(1));
     expect(ack.workspaceRequests.single.workspaceId, 'w1');
@@ -5781,6 +7029,7 @@ void main() {
           relPath,
           size: size,
           body: Stream.value(utf8.encode(body)),
+          admission: b.gate(),
         );
 
     // A pair nobody asked for: refused, and nothing reaches the disk. This is the
@@ -5793,6 +7042,29 @@ void main() {
     expect(await push('a.txt', 3, 'aaa'), isFalse);
     expect(await b.workspaceFileContent('w1', 'a.txt'), isNull);
 
+    // The commit point: the requested version, delivered under a gate whose
+    // budget is gone. The body arrives and is staged; the rename into the
+    // workspace must not happen, and the request set must stay intact.
+    Object? cancelled;
+    try {
+      await b.engine.handlePutWorkspaceFile(
+        a.identity.deviceId,
+        'w1',
+        'a.txt',
+        size: 2,
+        body: Stream.value(utf8.encode('aa')),
+        admission: b.spentGate(),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      await b.workspaceFileContent('w1', 'a.txt'),
+      isNull,
+      reason: 'a cancelled put lands nothing',
+    );
+
     expect(await push('a.txt', 2, 'aa'), isTrue);
     expect(await b.workspaceFileContent('w1', 'a.txt'), 'aa');
     // Delivered once: the pair left the request set, so a replayed body is not a
@@ -5802,6 +7074,7 @@ void main() {
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
+      admission: b.gate(),
     );
     final ledger = (await b.store.loadCheckpoint(
       a.identity.deviceId,
@@ -5833,7 +7106,11 @@ void main() {
     // — so the push beat asks for both. That request set authorizes the writes
     // the upload phase is about to spend.
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     final ack = await b.engine.handleApplySubtrees(
@@ -5844,6 +7121,7 @@ void main() {
           'w1': {'a.txt': stamp, 'b.txt': stamp},
         },
       ),
+      admission: b.gate(),
     );
     expect(ack.workspaceRequests, hasLength(2));
 
@@ -5859,13 +7137,14 @@ void main() {
       'a.txt',
       size: 2,
       body: body.stream,
+      admission: b.gate(),
     );
     clock = clock.add(const Duration(minutes: 3));
     // The cheapest way one of this device's rounds touches the sweeper: a hello
     // from a device it is not paired with is refused, but only after the sweep
     // at its top.
     expect(
-      await b.engine.handleHello('f' * 64, a.hello()),
+      await b.engine.handleHello('f' * 64, a.hello(), admission: b.gate()),
       isA<SyncHelloRefusal>(),
       reason: 'only here to run the sweep, not to open a session',
     );
@@ -5883,6 +7162,7 @@ void main() {
         'b.txt',
         size: 2,
         body: Stream.value(utf8.encode('bb')),
+        admission: b.gate(),
       ),
       isTrue,
       reason: 'the sweep may not take the request set out of a live upload',
@@ -5891,6 +7171,7 @@ void main() {
       b.engine.handleFetchSubtrees(
         a.identity.deviceId,
         const SyncFetchRequest(),
+        admission: b.gate(),
       ),
       completes,
       reason: 'the session the upload ran inside is still there to finalise',
@@ -5984,12 +7265,17 @@ void main() {
     // plans the blob from the manifest A advertised, cannot fetch it, and asks
     // for it — the request set that authorizes the write.
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     final ack = await b.engine.handleApplySubtrees(
       a.identity.deviceId,
       SyncDeltaBatch(const <SyncSubtreePayload>[], assets: [entry]),
+      admission: b.gate(),
     );
     expect(ack.blobRequests, hasLength(1));
     expect(ack.blobRequests.single.contentHash, entry.contentHash);
@@ -6008,6 +7294,7 @@ void main() {
       key: key,
       size: size,
       body: Stream.value(utf8.encode(body)),
+      admission: b.gate(),
     );
 
     // A target nobody asked for: refused, and nothing reaches the disk. The
@@ -6037,6 +7324,29 @@ void main() {
     expect(await push(hash: decoyHash!, body: 'two!'), isFalse);
     expect(await target.exists(), isFalse);
 
+    // The commit point: the exact entry the session asked for, under a gate whose
+    // budget is gone. The body lands in staging and the placement must not run.
+    Object? cancelled;
+    try {
+      await b.engine.handlePutBlob(
+        a.identity.deviceId,
+        entry.contentHash,
+        kind: SyncBlobEntry.kindFile,
+        key: entry.key,
+        size: 4,
+        body: Stream.value(utf8.encode('one!')),
+        admission: b.spentGate(),
+      );
+    } catch (error) {
+      cancelled = error;
+    }
+    expect(cancelled, isA<SyncAdmissionLost>());
+    expect(
+      await target.exists(),
+      isFalse,
+      reason: 'a cancelled blob push places nothing',
+    );
+
     expect(await push(), isTrue);
     expect(await target.readAsString(), 'one!');
     // Delivered once: the entry left the request set, so a replayed body is not
@@ -6046,6 +7356,7 @@ void main() {
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
+      admission: b.gate(),
     );
     final checkpoint = await b.store.loadCheckpoint(a.identity.deviceId);
     expect(
@@ -6115,7 +7426,11 @@ void main() {
     // from and still count the bytes twice.
     final (a, b) = await pair();
     expect(
-      await b.engine.handleHello(a.identity.deviceId, a.hello()),
+      await b.engine.handleHello(
+        a.identity.deviceId,
+        a.hello(),
+        admission: b.gate(),
+      ),
       isA<SyncHello>(),
     );
     const batch = SyncDeltaBatch(<SyncSubtreePayload>[]);
@@ -6123,11 +7438,16 @@ void main() {
     final first = await b.engine.handleApplySubtrees(
       a.identity.deviceId,
       batch,
+      admission: b.gate(),
     );
     expect(first.workspaceRequests, isEmpty);
 
     await expectLater(
-      b.engine.handleApplySubtrees(a.identity.deviceId, batch),
+      b.engine.handleApplySubtrees(
+        a.identity.deviceId,
+        batch,
+        admission: b.gate(),
+      ),
       throwsA(
         isA<SyncRequestRefusal>().having(
           (refusal) => refusal.error,
@@ -6141,6 +7461,7 @@ void main() {
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),
+      admission: b.gate(),
     );
   });
 
@@ -6940,6 +8261,98 @@ void main() {
     );
   });
 
+  test('a ring of three devices does not wait on itself', () async {
+    // The shape that deadlocked the single request chain, and the reason the read
+    // lane exists. Each device's push beat pulls the attachment its peer
+    // advertised, and that pull is a request against the peer's own listener —
+    // which is busy with *its* inbound session. A→B, B→C, C→A, each missing the
+    // one attachment its sender holds: with one lane every link waits for the
+    // next to finish answering, and none can.
+    final a = _Side('a');
+    final b = _Side('b');
+    final c = _Side('c');
+    await a.start(root);
+    await b.start(root);
+    await c.start(root);
+    sides.addAll([a, b, c]);
+    await pairSides(a, b);
+    await pairSides(b, c);
+    await pairSides(c, a);
+
+    /// One conversation whose only attachment exists on [side], so the receiver
+    /// has no copy to fall back on: it must pull, over the sender's listener.
+    Future<void> seed(_Side side, String conversationId) async {
+      final image = File(
+        '${side.dir.path}${Platform.pathSeparator}images'
+        '${Platform.pathSeparator}$conversationId.png',
+      );
+      await image.parent.create(recursive: true);
+      await image.writeAsString(conversationId, flush: true);
+      final message = ChatMessage(
+        id: '$conversationId-m0',
+        conversationId: conversationId,
+        role: 'user',
+        content: '',
+        parts: [
+          ImagePart(
+            uri: 'kelivo-file:///images/$conversationId.png',
+            mime: 'image/png',
+          ),
+        ],
+      );
+      await side.repository.putMigrationBatch(
+        conversations: [
+          Conversation(
+            id: conversationId,
+            title: conversationId,
+          ).copyWith(messageIds: [message.id]),
+        ],
+        messages: [(message: message, messageOrder: 0)],
+        toolEventsByMessageId: const {},
+        geminiSignaturesByMessageId: const {},
+      );
+    }
+
+    await seed(a, 'conv-a');
+    await seed(b, 'conv-b');
+    await seed(c, 'conv-c');
+
+    // All three at once, which is what closes the ring: each device is a
+    // responder to one peer and an initiator to the next while the third beats.
+    final reports = await Future.wait([
+      a.engine.syncWithPeer(await a.peer(b)),
+      b.engine.syncWithPeer(await b.peer(c)),
+      c.engine.syncWithPeer(await c.peer(a)),
+    ]).timeout(const Duration(seconds: 90));
+
+    for (final report in reports) {
+      expect(report.success, isTrue, reason: report.summary);
+    }
+    // Each attachment reached the device that was missing it — the pull that the
+    // ring would have starved.
+    expect(
+      await File(
+        '${b.dir.path}${Platform.pathSeparator}images'
+        '${Platform.pathSeparator}conv-a.png',
+      ).readAsString(),
+      'conv-a',
+    );
+    expect(
+      await File(
+        '${c.dir.path}${Platform.pathSeparator}images'
+        '${Platform.pathSeparator}conv-b.png',
+      ).readAsString(),
+      'conv-b',
+    );
+    expect(
+      await File(
+        '${a.dir.path}${Platform.pathSeparator}images'
+        '${Platform.pathSeparator}conv-c.png',
+      ).readAsString(),
+      'conv-c',
+    );
+  });
+
   test(
     'three devices converge through a middle hop, without re-flooding',
     () async {
@@ -7673,7 +9086,11 @@ void main() {
 
       // B's hello lands while that dial is unanswered: A yields and answers.
       expect(
-        await engine.handleHello(b.identity.deviceId, b.hello()),
+        await engine.handleHello(
+          b.identity.deviceId,
+          b.hello(),
+          admission: a.gate(),
+        ),
         isA<SyncHello>(),
       );
       await silent.close(force: true);

@@ -2842,6 +2842,83 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return '서브에이전트 파견: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => '서브에이전트 완료';
+
+  @override
+  String get subagentResultFailed => '서브에이전트 실패';
+
+  @override
+  String get subagentResultCancelled => '서브에이전트 취소됨';
+
+  @override
+  String get subagentResultInterrupted => '서브에이전트 중단됨';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '서브에이전트 실행 중 ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '서브에이전트 $count개 실행 중';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '서브에이전트가 답변을 기다립니다 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '서브에이전트 $count개 ($running개 실행 중)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '서브에이전트가 승인을 기다립니다 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '서브에이전트';
+
+  @override
+  String get subagentPanelEmpty => '이 대화에는 아직 서브에이전트가 없습니다.';
+
+  @override
+  String get subagentTag => '서브에이전트';
+
+  @override
+  String get subagentPanelRunning => '실행 중';
+
+  @override
+  String get subagentPanelWaitingAnswer => '답변 대기';
+
+  @override
+  String get subagentPanelWaitingApproval => '승인 대기';
+
+  @override
+  String get subagentPanelCompleted => '완료';
+
+  @override
+  String get subagentPanelFailed => '실패';
+
+  @override
+  String get subagentPanelCancelled => '취소됨';
+
+  @override
+  String get subagentPanelInterrupted => '중단됨';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes분 $seconds초';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => '내장 검색';
 
   @override
@@ -3611,6 +3688,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => '사용';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => '이 기기에서만';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      '저장했지만 이 서버를 이 기기에서만 쓰도록 설정하지 못했습니다.';
+
+  @override
   String get mcpServerEditSheetNameLabel => '이름';
 
   @override
@@ -3878,6 +3962,31 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => '임베딩';
+
+  @override
+  String get modelDetailSheetDecisionType => '결정';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '결정 API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '결정 주소';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '비워 두면 provider 주소 뒤에 붙습니다';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      '일부 공급자의 결정 모델은 별도 인터페이스를 사용하므로 기본 주소를 덮어써야 합니다.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '채우기';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '현재';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '바이리안';
 
   @override
   String get modelDetailSheetInputModesLabel => '입력 모드';
@@ -15488,6 +15597,61 @@ class AppLocalizationsKo extends AppLocalizations {
   String get retry => '다시 시도';
 
   @override
+  String get imageJobTitle => '일러스트';
+
+  @override
+  String get imageJobFailed => '일러스트 생성 실패';
+
+  @override
+  String get imageJobInterrupted => '일러스트 중단됨';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '그리기';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '서브에이전트';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '작업 대기';
+
+  @override
+  String get defaultModelPageImageModelTitle => '이미지 모델';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      '답변 안에서 그림을 그리는 모델입니다. 설정하지 않으면 그리기가 꺼집니다.';
+
+  @override
+  String get imageJobPanelCopy => '복사';
+
+  @override
+  String get imageJobPanelPromptLabel => '프롬프트';
+
+  @override
+  String get imageJobPanelModelLabel => '모델';
+
+  @override
+  String get imageJobPanelSizeLabel => '크기';
+
+  @override
+  String get imageJobPanelElapsedLabel => '소요 시간';
+
+  @override
+  String get imageJobPanelUsageLabel => '사용량';
+
+  @override
+  String get imageJobPanelAuto => '자동';
+
+  @override
+  String get imageJobPanelOneImage => '이미지 1장';
+
+  @override
+  String get imageJobNotConfigured => '설정되지 않음 · 선택';
+
+  @override
+  String get imageModelFollowGlobal => '기본 이미지 모델 사용';
+
+  @override
   String get recoveryGuideTitle => '채팅을 복구해 보겠습니다';
 
   @override
@@ -17035,6 +17199,10 @@ class AppLocalizationsKo extends AppLocalizations {
       '기기에 연결하지 못했어요. 주소와 포트, 두 기기가 같은 네트워크에 있는지 확인하세요.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      '다른 기기에서 다른 페어링 요청을 처리 중입니다. 잠시 후 다시 시도하세요.';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '상대 기기가 신원을 제시하지 않아 페어링을 중단했어요.';
 
   @override
@@ -17336,6 +17504,11 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '파일을 동기화하지 않는 작업 공간 $count개';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '이번 전송에 담지 못한 대화 $count개';
   }
 
   @override
@@ -18356,6 +18529,49 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       '그룹 채팅에서 다음 발언자를 선택합니다. 빠르고 저렴한 모델이 가장 적합합니다.';
+
+  @override
+  String get subagentConfigSubtitle => '이 대화의 복제본에서 같은 작업 공간으로 한 가지 작업을 실행합니다.';
+
+  @override
+  String get subagentConfigEnabled => '켜기';
+
+  @override
+  String get subagentConfigDepth => '깊이';
+
+  @override
+  String get subagentConfigDepthDescription => '하위 에이전트가 다시 위임할 수 있는 단계 수';
+
+  @override
+  String get subagentConfigModel => '모델';
+
+  @override
+  String get subagentConfigModelDescription => '하위 에이전트를 실행할 모델';
+
+  @override
+  String get subagentConfigModelInherit => '이 어시스턴트 따르기';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 깊이 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '상위 대화 보기 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '하위 에이전트 권한 위임';
+
+  @override
+  String get subagentEscalationAsk => '묻기';
+
+  @override
+  String get subagentEscalationDeny => '항상 거부';
+
+  @override
+  String get subagentEscalationAllow => '항상 허용';
 
   @override
   String get dshProductName => 'DeepSeek Harness';

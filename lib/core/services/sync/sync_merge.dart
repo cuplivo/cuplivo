@@ -107,8 +107,9 @@ SyncConvAction _planConversation({
 /// A differing digest is always "changed". When the digests agree, only the row
 /// clock can tell: a conversation's digest is computed from its message rows, so
 /// a row-only write is invisible to it. The recycle bin's restore is exactly
-/// that write — the row goes back with `now()`, the messages come back
-/// verbatim — and so is a rename that left every message alone.
+/// that write — the messages come back verbatim and the row keeps the display
+/// clock it was deleted with, so only the sync clock it is re-stamped with says
+/// this device wrote here — and so is a rename that left every message alone.
 ///
 /// With no clock on either side (a business row, whose digest covers the whole
 /// row; or an agreement recorded before the clock travelled) the digest is the
@@ -136,9 +137,9 @@ bool copyWrittenSinceAgreement({
 /// (title, pin, selected version, extras) is otherwise invisible and would
 /// never transfer. [checkpointClock] is the row
 /// clock the two sides last agreed on, and is what keeps the delete branch from
-/// undoing a restore: the bin writes the row back with `now()` and the messages
-/// back byte-identical, so the digest still matches the agreement while the row
-/// says this device wrote here since.
+/// undoing a restore: the bin writes the messages back byte-identical and
+/// re-stamps only the sync clock, so the digest still matches the agreement
+/// while the row says this device wrote here since.
 ///
 /// **The business face passes [mineClock] and [checkpointClock] but not
 /// [peerClock], and that asymmetry is the point.** A business row's digest *is*
@@ -208,16 +209,48 @@ class SyncBusinessPlanItem {
   final String id;
   final SyncConvAction action;
 
-  const SyncBusinessPlanItem(this.kindWire, this.id, this.action);
+  /// This key is held by one of the two devices without being offered, so
+  /// neither side may move it: the action is [SyncConvAction.none] and this
+  /// flag says what that `none` means.
+  ///
+  /// Only ever set with `none` — a withheld key plans no exchange at all, so
+  /// nothing that rewrites a plan's *actions* can carry it into a deletion or a
+  /// send.
+  ///
+  /// The distinction matters to the checkpoint. A plain `none` is an
+  /// *agreement* — both manifests carry the same digest — and the business
+  /// advance records the local row as the shared state. A withheld key has no
+  /// agreement at all; recording one would make the first session after the
+  /// user un-withholds it resolve by "this device's copy wins" instead of by
+  /// the table's own last-write-wins, which is a switch that changes the
+  /// winner rather than only the traffic.
+  final bool withheld;
+
+  const SyncBusinessPlanItem(
+    this.kindWire,
+    this.id,
+    this.action, {
+    this.withheld = false,
+  });
 }
 
 /// Plans every business row in one pass over the union of both manifests and
 /// the checkpoint. Entity kinds and preference keys go through the same table:
 /// they are rows on the same clock.
+///
+/// [localOnly] is the union of both devices' withheld keys — this device's own
+/// set and the peer's hello announcement — and every key in it plans `none`
+/// with [SyncBusinessPlanItem.withheld] set. Both halves belong here for
+/// different reasons. A key *this* device withholds must not leave and must not
+/// come back: the row is the user's, on this machine. A key the *peer*
+/// withholds must not leave either — the peer's copy is its own, and sending
+/// this device's version would overwrite it through the apply — and must not be
+/// read as deleted, which is exactly what the peer's announcement protests.
 List<SyncBusinessPlanItem> planBusinessSync({
   required SyncManifest mine,
   required SyncManifest peers,
   required SyncCheckpoint checkpoint,
+  Set<String> localOnly = const {},
 }) {
   final plans = <SyncBusinessPlanItem>[];
 
@@ -238,23 +271,28 @@ List<SyncBusinessPlanItem> planBusinessSync({
       ...checkpointRows.keys,
     };
     for (final id in ids) {
+      final withheld = localOnly.contains(syncBusinessKey(kind, id));
       plans.add(
         SyncBusinessPlanItem(
           kind,
           id,
-          planRowSync(
-            mineDigest: mineRows[id]?.digest,
-            peerDigest: peerRows[id]?.digest,
-            checkpointDigest: checkpointRows[id]?.digest,
-            // A business row's digest is its content, and a restore writes the
-            // same content back with a fresh clock — so the delete branch cannot
-            // see a restore from the digest alone any more than the conversation
-            // face can. The clocks are already in both manifests and the
-            // checkpoint, so the same rule applies. [peerClock] stays out on
-            // purpose; see [planRowSync].
-            mineClock: mineRows[id]?.updatedAtUs,
-            checkpointClock: checkpointRows[id]?.updatedAtUs,
-          ),
+          withheld
+              ? SyncConvAction.none
+              : planRowSync(
+                  mineDigest: mineRows[id]?.digest,
+                  peerDigest: peerRows[id]?.digest,
+                  checkpointDigest: checkpointRows[id]?.digest,
+                  // A business row's digest is its content, and a restore
+                  // writes the same content back with a fresh clock — so the
+                  // delete branch cannot see a restore from the digest alone
+                  // any more than the conversation face can. The clocks are
+                  // already in both manifests and the checkpoint, so the same
+                  // rule applies. [peerClock] stays out on purpose; see
+                  // [planRowSync].
+                  mineClock: mineRows[id]?.updatedAtUs,
+                  checkpointClock: checkpointRows[id]?.updatedAtUs,
+                ),
+          withheld: withheld,
         ),
       );
     }
@@ -266,18 +304,25 @@ List<SyncBusinessPlanItem> planBusinessSync({
     ...checkpoint.preferences.keys,
   };
   for (final key in keys) {
+    final withheld = localOnly.contains(
+      syncBusinessKey(kSyncPreferenceWire, key),
+    );
     plans.add(
       SyncBusinessPlanItem(
         kSyncPreferenceWire,
         key,
-        planRowSync(
-          mineDigest: mine.preferences[key]?.digest,
-          peerDigest: peers.preferences[key]?.digest,
-          checkpointDigest: checkpoint.preferences[key]?.digest,
-          // Same as the entity loop: a synced preference's digest is its value.
-          mineClock: mine.preferences[key]?.updatedAtUs,
-          checkpointClock: checkpoint.preferences[key]?.updatedAtUs,
-        ),
+        withheld
+            ? SyncConvAction.none
+            : planRowSync(
+                mineDigest: mine.preferences[key]?.digest,
+                peerDigest: peers.preferences[key]?.digest,
+                checkpointDigest: checkpoint.preferences[key]?.digest,
+                // Same as the entity loop: a synced preference's digest is its
+                // value.
+                mineClock: mine.preferences[key]?.updatedAtUs,
+                checkpointClock: checkpoint.preferences[key]?.updatedAtUs,
+              ),
+        withheld: withheld,
       ),
     );
   }
@@ -637,9 +682,94 @@ class ConversationRowMerge {
   const ConversationRowMerge(this.winner, this.incomingWon);
 }
 
-/// LWW for the conversation row: newer `updated_at` wins; ties fall to the
-/// higher deviceId so both peers decide identically. `updated_at` is
-/// required on both rows (the column is non-nullable in the schema).
+/// The `conversation_rows.extras_json` key holding a conversation's mutation
+/// clock.
+///
+/// A conversation carries two times. `updated_at` says when its **content**
+/// last changed — a new message, an edit, a deletion — and it is what the home
+/// list orders and groups by. This key says when a device last wrote the
+/// **row**, which is a superset: pinning, summarising, renaming and changing
+/// the workspace binding all travel without moving the list. Sync reads this
+/// key and never the column; both peers store it inside the extras bag they
+/// already exchange, so the wire shape does not change.
+///
+/// A row written before the key existed falls back to `updated_at` — the clock
+/// that used to be the only one — so no backfill is needed (the plan's G5).
+const String syncClockExtrasKey = 'sync.clock';
+
+Map<String, dynamic>? _extrasObject(Object? raw) {
+  final Object? decoded;
+  if (raw is Map) {
+    decoded = raw;
+  } else if (raw is String && raw.isNotEmpty) {
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return null;
+    }
+  } else {
+    return null;
+  }
+  if (decoded is! Map) return null;
+  return {for (final entry in decoded.entries) '${entry.key}': entry.value};
+}
+
+/// The mutation clock stored beside [extrasJson], or null when the row has
+/// none (it predates the key, or its bag is unreadable).
+///
+/// Only a JSON integer counts. A float, a numeric string or junk is treated as
+/// absent rather than converted, because the manifest's SQL half tests
+/// `json_type(...) = 'integer'` and the two readers must agree on every row —
+/// including the rows nobody meant to write.
+int? syncClockOf(Object? extrasJson) {
+  final value = _extrasObject(extrasJson)?[syncClockExtrasKey];
+  return value is int ? value : null;
+}
+
+/// [extrasJson] as stored, with [syncClock] written into it.
+///
+/// Null when the bag is not a JSON object. The caller then leaves the column
+/// alone: a row whose key cannot be read falls back to `updated_at`, and every
+/// caller here is already moving that.
+String? withSyncClock(Object? extrasJson, int syncClock) {
+  final extras = _extrasObject(extrasJson);
+  if (extras == null) return null;
+  return jsonEncode({...extras, syncClockExtrasKey: syncClock});
+}
+
+/// The clock both peers compare for a conversation row: the key when it is
+/// there, `updated_at` when it is not.
+///
+/// Deliberately not "the later of the two": `updated_at` is the display clock
+/// once this ships, so letting it raise the sync clock would let a write that
+/// only reorders the list claim it changed the row.
+int effectiveConversationClock(Map<String, dynamic> row) =>
+    syncClockOf(row['extras_json']) ?? (row['updated_at'] as num).toInt();
+
+/// The clock one local write must store.
+///
+/// Strictly greater than the clock being replaced and than the display clock
+/// the row will carry: [copyWrittenSinceAgreement] asks "was this written
+/// since", so two writes inside one microsecond would compare equal and the
+/// second one would be invisible to every peer. Stepping from `current + 1`
+/// rather than from `now` also crosses a clock that is ahead of this device's
+/// wall time (a peer with a fast clock, a restored archive), which is the one
+/// case where "now is always newer" does not hold.
+int nextSyncClock({
+  required int nowUs,
+  required int? currentUs,
+  required int updatedAtUs,
+}) {
+  var next = nowUs;
+  if (updatedAtUs >= next) next = updatedAtUs + 1;
+  if (currentUs != null && currentUs >= next) next = currentUs + 1;
+  return next;
+}
+
+/// LWW for the conversation row: the newer [effectiveConversationClock] wins;
+/// ties fall to the higher deviceId so both peers decide identically.
+/// `updated_at` is required on both rows (the column is non-nullable), and is
+/// only the fallback clock for a row that predates [syncClockExtrasKey].
 ///
 /// Row maps use the raw column names and raw SQLite values (microsecond
 /// integers, 0/1 booleans) — the wire format is the storage format, so no
@@ -650,8 +780,8 @@ ConversationRowMerge mergeConversationRow({
   required String myDeviceId,
   required String peerDeviceId,
 }) {
-  final localAt = (local['updated_at'] as num).toInt();
-  final incomingAt = (incoming['updated_at'] as num).toInt();
+  final localAt = effectiveConversationClock(local);
+  final incomingAt = effectiveConversationClock(incoming);
   int cmp = incomingAt.compareTo(localAt);
   if (cmp == 0) {
     cmp = peerDeviceId.compareTo(myDeviceId);
@@ -808,7 +938,7 @@ SyncCheckpointConversation buildCheckpointConversation({
       row['id'] as String: messageRowMutationUs(row),
   };
   return SyncCheckpointConversation(
-    updatedAtUs: (conversationRow['updated_at'] as num).toInt(),
+    updatedAtUs: effectiveConversationClock(conversationRow),
     digest: digest,
     rows: rows,
   );

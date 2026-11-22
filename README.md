@@ -36,15 +36,14 @@ Cuplivo goes beyond chat. Models can search the web, call MCP servers, follow sk
 
 Conversations, settings and files are stored locally. Cuplivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
 
-## ✨ What's new in 4.6
+## ✨ What's new in 4.8
 
-- **Markdown as a picture** — paste, import or drop Markdown and get its preview and the exported image from Kelivo's own renderer: on desktop and mobile, from the same tools entry as translation.
-- **Assistants and group chats, shown apart** — one setting splits the sidebar and Settings › Assistants and group chats into two sections, without touching the drag order they share.
-- **A group chat's composer, in full** — search, reasoning, tools, quick phrases, skills, instruction injection and world book reach a group topic, controlled per member and reported for the whole roster.
-- **Backups Kelivo can read** — the export names its reader: a Kelivo-compatible target Kelivo 1.3.4 can import, with file names that follow the target.
-- **A new upstream baseline** — re-based on Kelivo v1.3.4: the desktop sidebar, a compact desktop layout, image-context management, and upstream's own select-text quoting and translation.
+- **An illustration where the model wrote it** — a separate drawing model is called from inside a normal reply, and the picture is drawn on the line the model wrote rather than appended at the end.
+- **A subagent for a job that stands alone** — the task runs in its own conversation, with the same assistant and workspace, and reports back while the main chat keeps going.
+- **A decision model picks the next speaker** — a group chat's director can be a decision model, a fourth model type beside chat, embedding and image.
+- **LAN sync, larger and stricter** — protocol 10, so update every device before syncing: an MCP server can be held on one device with **This device only**, a conversation too large for one push waits its turn instead of failing every round, and a conversation's documents now travel with it.
 
-The [changelog](CHANGELOG.md) carries 4.5, 4.4, 4.3 and 4.2.
+The [changelog](CHANGELOG.md) carries 4.7 and everything before it.
 
 ## ✨ Since 4.0
 

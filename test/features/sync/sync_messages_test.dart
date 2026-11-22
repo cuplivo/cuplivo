@@ -98,6 +98,19 @@ void main() {
     );
   });
 
+  test('a busy listener is named as busy, not as an unreachable device', () {
+    // The listener's pairing lane is capped, so a fifth `/pair` is answered 503
+    // `pair_busy` — from a device that just proved it is on the network. Saying
+    // "check the address and port" there sends the user to fix the one thing
+    // that is working.
+    final busy = SyncPairOutcome.failure('busy');
+    expect(syncPairErrorMessage(l10n, busy), l10n.lanSyncPairErrorBusy);
+    expect(
+      syncPairErrorMessage(l10n, busy),
+      isNot(l10n.lanSyncPairErrorUnreachable),
+    );
+  });
+
   test('a code typed as it is shown is still the code', () {
     // The dialog renders the code as "123 456".
     expect(normalizePairingCode('123 456'), '123456');

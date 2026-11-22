@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>变体 A — 等子代理跑完再回答（wait-only）</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92; --primary-ink:#2F3B66;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:820px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:54em}
+  .lede b{color:var(--ink);font-weight:600}
+  .lede code,.closing code,.note code,.card-body code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:.92em;background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .title{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 10px}
+  .row{display:flex;justify-content:flex-end;padding:6px 16px}
+  .bubble{max-width:78%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 16px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .card{margin:12px 0 4px;border:1px solid var(--line);border-radius:12px;background:var(--card);
+        overflow:hidden}
+  .card-head{display:flex;align-items:center;gap:6px;padding:9px 12px;font-size:13px}
+  .card-head .label{font-weight:600;display:flex;align-items:center;gap:6px}
+  .card-head .elapsed{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .card-head .grow{flex:1}
+  .quiet-action{font-size:13px;color:var(--primary);font-weight:500}
+  .card-body{padding:0 12px 10px}
+  .task{font-size:13px;line-height:1.6;color:#3A3A42}
+  .cmeta{font-size:12px;color:var(--muted);margin-top:6px}
+  .cmeta b{color:#4A4A52;font-weight:600}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--primary);flex:none;
+       animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+  .composer{padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line-soft);
+            display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:36px;border-radius:18px;border:1px solid var(--line);display:flex;
+         align-items:center;padding:0 12px;font-size:14px;color:rgba(32,32,32,.4);background:var(--card)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;
+        align-items:center;justify-content:center;flex:none}
+  .notes{flex:1 1 300px;min-width:280px;max-width:400px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  .timeline{margin:0 0 14px;border-left:2px solid var(--line);padding-left:12px}
+  .tl{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 7px}
+  .tl b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:560px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第 1 轮 · 变体 A · wait-only</p>
+  <h1>等子代理跑完，再回答</h1>
+  <p class="lede"><code>delegate</code> 在 handler 里 <code>await</code> 子轮次，子代理结束才把结果交回父模型，父模型带着结果接着写。<b>父会话在等待期间是「生成中」：既不能发第二句，Stop 也会连带杀掉子代理。</b></p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">登录页重构</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="row">
+          <div class="bubble">test 里有三个红的，看看能不能修掉。</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">21:07</div>
+            </div>
+          </div>
+
+          <p class="body">先看是哪几个在挂。</p>
+
+          <div class="card">
+            <div class="card-head">
+              <span class="label"><span class="dot"></span>子代理运行中</span>
+              <span class="elapsed">1 分 24 秒</span>
+              <span class="grow"></span>
+              <span class="quiet-action">打开</span>
+            </div>
+            <div class="card-body">
+              <div class="task">修掉 <code>test/auth</code> 里挂掉的三个用例，不要改公开接口。</div>
+              <div class="cmeta">工作区 <b>cuplivo</b> · 继承自本会话</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="input">发消息…（会排队）</div>
+        <div class="send">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#fff"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="timeline">
+        <p class="tl"><b>t+0</b> 父模型调 <code>delegate</code>，工具卡出现，转圈计时</p>
+        <p class="tl"><b>t+1:24</b> 父会话仍是「生成中」：发送键是 Stop，输入只能排队</p>
+        <p class="tl"><b>t+3:40</b> 子轮次结束 → 工具结果回父模型 → <b>再发一次请求</b> → 父模型写出带结论的答复</p>
+      </div>
+
+      <p class="note"><b>机制：</b>工具处理器就是 <code>await</code> 子轮次，父回合停在 <code>_executeClientTool</code>；下一轮 HTTP 要等工具返回才发（<code>tool_loop_runner.dart:128-140</code>）。</p>
+      <p class="note"><b>协议层是安全的：</b>等待期间没有挂起的连接；补发的请求是整段历史重放（<code>request_history_context.dart:274</code> 已去掉 <code>previous_response_id</code>），客户端也没有 idle 上限（<code>dio_http_client.dart:107</code>）。慢的是人眼，不是线。</p>
+      <p class="note"><b>排队而不是禁用：</b>忙碌时输入进 <code>_queuedInputs</code>，这一轮结束后才发（<code>home_view_model.dart:995</code>）；忙碌是<b>按会话</b>算的，切到别的会话照常能聊。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li>一个工具、一个词、一次语义：<code>delegate</code> 返回时，子代理已经跑完。</li>
+      <li>父模型的答复<b>带着结果</b>——用户问「查一下再修掉」时，看到的就是一句完整的话，而不是「已经派了」。</li>
+      <li>父会话 Stop 级联取消子轮次，两处都干净收尾；父侧工具结果写 cancelled，父模型可以接着说。</li>
+      <li>不需要「完成后通知」这套新机制，也就没有「父模型要不要为通知再醒一次」这个没人按按钮的计费问题。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li><b>父会话从头占到尾。</b>任务跑 5 分钟，这个会话 5 分钟内回不了第二句话；用户要么排队，要么换会话。</li>
+      <li><b>Stop 一刀两断。</b>「算了别改了」和「停掉整个任务」共用一个按钮，想换话题就顺手杀了正在干的活。</li>
+      <li><b>以后要做异步，工具面得改第二次。</b>v3 的 ADR-0056 已经否决「一个工具 + <code>wait</code> 布尔」，所以升级不是加个参数，而是第二个工具。</li>
+      <li><b>用户看不见进展。</b>只有一个转圈和秒数；子代理是在读代码还是在跑测试，父会话里看不出来。（建议：卡片补一行子代理当前活动 —— 下一轮再定，不算已决。）</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>分水岭</h2>
+    <p class="note">A 是<b>父模型替用户等</b>。好处是结果落在一句话里、可回看、可复制；代价是这几分钟里那个会话不属于用户。</p>
+  </section>
+
+  <p class="closing"><b>两个变体共用：</b>同一个工具名 <code>delegate</code>、继承父会话的助手与工作区、深度上限默认 1、子会话禁用 <code>ask_user</code> 与审批类工具、幂等键 = 父会话 + 消息 + toolCallId、中断由渲染层派生而不落库。<b>这个变体唯一要你定的：</b>父会话是等，还是不等。</p>
+
+</main>
+</body>
+</html>

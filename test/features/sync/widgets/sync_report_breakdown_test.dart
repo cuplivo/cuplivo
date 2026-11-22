@@ -36,6 +36,18 @@ void main() {
     expect(find.text(l10n.lanSyncUpToDate), findsNothing);
     expect(find.text(l10n.lanSyncReportDeferred(1)), findsOneWidget);
 
+    // A conversation left out of the push is withheld too — and counted once:
+    // the size row names it, and the deferred chip must not draw it again.
+    await pump(
+      const SyncPeerReport(success: true, conversationsOmittedForSize: 1),
+    );
+    expect(find.text(l10n.lanSyncUpToDate), findsNothing);
+    expect(
+      find.text(l10n.lanSyncReportConversationsOmittedForSize(1)),
+      findsOneWidget,
+    );
+    expect(find.text(l10n.lanSyncReportDeferred(1)), findsNothing);
+
     // And for a deletion the local edit beat: the row the peer deleted is still
     // here, so "up to date" would be the same lie in the other direction. The
     // file face's counter (workspaceFilesMissing) is withheld for this reason.

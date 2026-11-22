@@ -686,8 +686,13 @@ WHERE id IN ($placeholders);
   /// Rows [_syncSkipsRow] rejects are absent here, which is what keeps a linked
   /// workspace out of every downstream decision: an id this manifest never
   /// announced can also never be fetched, deleted or written into a checkpoint.
+  ///
+  /// [skipKeys] is the same rule for a *dynamic* decision — the rows this
+  /// device holds without offering (`syncBusinessKey` strings, device-local).
+  /// They are absent for the same reason, and the caller has to announce them
+  /// separately: an absence is otherwise indistinguishable from a deletion.
   Future<List<({String kindWire, String id, int updatedAtUs, String digest})>>
-  syncEntityRefs() async {
+  syncEntityRefs({Set<String> skipKeys = const {}}) async {
     final refs =
         <({String kindWire, String id, int updatedAtUs, String digest})>[];
     for (final kind in _syncKinds) {
@@ -704,6 +709,7 @@ WHERE id IN ($placeholders);
         final payload = row.read<String>('payload');
         final id = row.read<String>(kind.idColumn);
         if (_syncSkipsRow(kind, id, payload)) continue;
+        if (skipKeys.contains(syncBusinessKey(kind.wireName, id))) continue;
         refs.add((
           kindWire: kind.wireName,
           id: id,

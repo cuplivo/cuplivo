@@ -95,7 +95,15 @@ class SyncDataPlane {
   int get schemaVersion => repository.syncSchemaVersion;
 
   /// Conversation, entity and preference state of this device, as a manifest.
-  Future<SyncManifest> buildManifest() async {
+  ///
+  /// [withheldKeys] are the business keys this device holds without offering
+  /// (`SyncStore.readLocalOnlyKeys`): their rows are left out of the manifest,
+  /// so they can neither be requested by a peer nor planned into a send. The
+  /// hello announces them separately, which is what stops a peer reading the
+  /// absence as a deletion.
+  Future<SyncManifest> buildManifest({
+    Set<String> withheldKeys = const {},
+  }) async {
     final refs = await repository.syncConversationRefs();
     // One query per travelling family, composed into each conversation's
     // identity. Which families, and what each contributes, is the registration's
@@ -116,7 +124,9 @@ class SyncDataPlane {
         }
       }
     }
-    final entityRefs = await businessRepository.syncEntityRefs();
+    final entityRefs = await businessRepository.syncEntityRefs(
+      skipKeys: withheldKeys,
+    );
     final preferenceRefs = await businessRepository.syncPreferenceRefs();
     // A skill's manifest digest combines its record payload with its directory
     // hash: the record clock does not track content edits, so the directory
@@ -156,11 +166,18 @@ class SyncDataPlane {
       entities: entities,
       preferences: {
         for (final ref in preferenceRefs)
-          ref.key: SyncManifestEntry(
-            updatedAtUs: ref.updatedAtUs,
-            messageCount: 0,
-            digest: ref.digest,
-          ),
+          // The hold is one rule for every business key, entities and synced
+          // preferences alike: a key this device withholds is not in the
+          // manifest, and the hello says why. Filtering only the entity face
+          // would leave the manifest claiming a preference this device keeps.
+          if (!withheldKeys.contains(
+            syncBusinessKey(kSyncPreferenceWire, ref.key),
+          ))
+            ref.key: SyncManifestEntry(
+              updatedAtUs: ref.updatedAtUs,
+              messageCount: 0,
+              digest: ref.digest,
+            ),
       },
     );
   }
@@ -227,10 +244,15 @@ class SyncDataPlane {
     required String myDeviceId,
     required String peerDeviceId,
     required Map<String, Map<String, int>> checkpointRowsByConversation,
+    bool Function()? cancelled,
   }) async {
     final outcomes = <String, SyncSubtreeApplyOutcome>{};
     final touched = <String>{};
     for (final subtree in subtrees) {
+      // Between conversations, never inside one: each apply is its own
+      // transaction, and a cancellation that landed in the middle of one would
+      // leave a conversation half-written — worse than finishing it.
+      if (cancelled?.call() ?? false) break;
       final conversationId = subtree.conversation['id'] as String;
       final outcome = await repository.syncApplySubtree(
         payload: subtree,
@@ -270,9 +292,16 @@ class SyncDataPlane {
   /// The named rows, ready to travel, together with the identity of every row
   /// actually included: a row deleted between planning and reading is in
   /// neither, so the caller can tell what was truly sent.
+  ///
+  /// [skipKeys] are the keys held on one of the two devices without being
+  /// offered. The plan already leaves them out of the outgoing set, and the
+  /// fetch request can name anything the peer likes, so this is the one gate
+  /// that answers the request itself: what this machine keeps does not leave
+  /// because a peer asked for it by name.
   Future<({SyncBusinessPayload payload, Set<String> keys})> readBusinessRows({
     required Map<String, Set<String>> entityIds,
     required Set<String> preferenceKeys,
+    Set<String> skipKeys = const {},
   }) async {
     final entities = <String, List<Map<String, dynamic>>>{};
     final keys = <String>{};
@@ -280,9 +309,16 @@ class SyncDataPlane {
       if (entry.value.isEmpty) continue;
       final idColumn = _entityIdColumn(entry.key);
       if (idColumn == null) continue;
+      final wanted = skipKeys.isEmpty
+          ? entry.value
+          : {
+              for (final id in entry.value)
+                if (!skipKeys.contains(syncBusinessKey(entry.key, id))) id,
+            };
+      if (wanted.isEmpty) continue;
       final rows = await businessRepository.syncReadEntityRows(
         entry.key,
-        entry.value,
+        wanted,
       );
       if (rows.isEmpty) continue;
       entities[entry.key] = rows;
@@ -291,8 +327,15 @@ class SyncDataPlane {
         if (id is String) keys.add(syncBusinessKey(entry.key, id));
       }
     }
+    final wantedPreferences = skipKeys.isEmpty
+        ? preferenceKeys
+        : {
+            for (final key in preferenceKeys)
+              if (!skipKeys.contains(syncBusinessKey(kSyncPreferenceWire, key)))
+                key,
+          };
     final preferences = await businessRepository.syncReadPreferenceRows(
-      preferenceKeys,
+      wantedPreferences,
     );
     for (final row in preferences) {
       final key = row['key'];
@@ -332,18 +375,28 @@ class SyncDataPlane {
 
   /// Applies an incoming business payload, then refreshes the in-memory view
   /// and the providers that read it — once, and only when something changed.
+  ///
+  /// [skipKeys] filters the payload first: a key one of the two devices holds
+  /// without offering is never written here. The plan already keeps such rows
+  /// out of both directions, so this is the boundary that holds the promise on
+  /// its own — a row kept to this device stays this device's, whatever arrives.
   Future<SyncBusinessApplyOutcome> applyBusiness(
     SyncBusinessPayload payload, {
     required String myDeviceId,
     required String peerDeviceId,
+    Set<String> skipKeys = const {},
   }) async {
     if (businessWritesBlocked) {
       return SyncBusinessApplyOutcome.deferredOutcome;
     }
+    final applicable = withoutWithheldRows(payload, skipKeys);
+    if (applicable.entities.isEmpty && applicable.preferences.isEmpty) {
+      return SyncBusinessApplyOutcome.nothing;
+    }
     Future<SyncBusinessApplyOutcome> write() =>
         businessRepository.syncApplyBusinessRows(
-          entities: payload.entities,
-          preferences: payload.preferences,
+          entities: applicable.entities,
+          preferences: applicable.preferences,
           myDeviceId: myDeviceId,
           peerDeviceId: peerDeviceId,
         );
@@ -659,6 +712,7 @@ class SyncDataPlane {
     required Map<String, Map<String, SyncAgreedFile>> ledger,
     required bool allowDeletes,
     WorkspaceFileFetcher? fetch,
+    bool Function()? cancelled,
   }) async {
     final content = workspaceContent;
     // No content support (conversation-only tests): the ledger is carried
@@ -673,6 +727,7 @@ class SyncDataPlane {
       ledger: ledger,
       allowDeletes: allowDeletes,
       fetch: fetch,
+      cancelled: cancelled,
     );
   }
 
@@ -774,6 +829,42 @@ class SyncDataPlane {
       entities: entities,
       preferences: payload.preferences,
     );
+  }
+
+  /// Removes the rows named by [skipKeys] — the keys held on one of the two
+  /// devices without being offered — from an incoming business payload.
+  ///
+  /// A kind this build does not sync has no id column here, and its rows are
+  /// kept: the repository drops them on its own rules, and guessing at an id
+  /// column would be worse than passing them through.
+  SyncBusinessPayload withoutWithheldRows(
+    SyncBusinessPayload payload,
+    Set<String> skipKeys,
+  ) {
+    if (skipKeys.isEmpty) return payload;
+    final entities = <String, List<Map<String, dynamic>>>{};
+    for (final entry in payload.entities.entries) {
+      final idColumn = _entityIdColumn(entry.key);
+      final kept = [
+        for (final row in entry.value)
+          if (idColumn == null ||
+              row[idColumn] is! String ||
+              !skipKeys.contains(
+                syncBusinessKey(entry.key, row[idColumn] as String),
+              ))
+            row,
+      ];
+      if (kept.isNotEmpty) entities[entry.key] = kept;
+    }
+    final preferences = [
+      for (final row in payload.preferences)
+        if (row['key'] is! String ||
+            !skipKeys.contains(
+              syncBusinessKey(kSyncPreferenceWire, row['key'] as String),
+            ))
+          row,
+    ];
+    return SyncBusinessPayload(entities: entities, preferences: preferences);
   }
 
   /// Registers the file blobs a peer advertised for the revisions its push

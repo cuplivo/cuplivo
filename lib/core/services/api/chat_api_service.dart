@@ -169,6 +169,33 @@ class ChatApiService {
     } catch (_) {}
   }
 
+  /// Registers a cancel token under [requestId] for a request that does not go
+  /// through [sendMessageStream] — a decision round asks its question outside
+  /// the chat stream, and Stop still has to reach it through [cancelRequest].
+  static CancelToken registerCancelToken(String requestId) {
+    final token = CancelToken();
+    final key = requestId.trim();
+    if (key.isEmpty) return token;
+    final previous = _activeCancelTokens.remove(key);
+    try {
+      if (previous != null && !previous.isCancelled) {
+        previous.cancel('replaced');
+      }
+    } catch (_) {}
+    _activeCancelTokens[key] = token;
+    return token;
+  }
+
+  /// Drops [token] if it is still the one registered under [requestId]; a Stop
+  /// that already removed it leaves nothing to do.
+  static void releaseCancelToken(String requestId, CancelToken token) {
+    final key = requestId.trim();
+    if (key.isEmpty) return;
+    if (identical(_activeCancelTokens[key], token)) {
+      _activeCancelTokens.remove(key);
+    }
+  }
+
   static Future<String> _stripImageMarkersFromText(
     String raw, {
     String? literalText,

@@ -2906,6 +2906,83 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Delegate: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Subagent finished';
+
+  @override
+  String get subagentResultFailed => 'Subagent failed';
+
+  @override
+  String get subagentResultCancelled => 'Subagent cancelled';
+
+  @override
+  String get subagentResultInterrupted => 'Subagent interrupted';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Subagent running ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Subagents running: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Subagent waiting for you · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count subagents ($running running)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Subagent waiting for approval · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Subagents';
+
+  @override
+  String get subagentPanelEmpty => 'No subagents in this conversation yet.';
+
+  @override
+  String get subagentTag => 'Subagent';
+
+  @override
+  String get subagentPanelRunning => 'Running';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Waiting for you';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Waiting for approval';
+
+  @override
+  String get subagentPanelCompleted => 'Finished';
+
+  @override
+  String get subagentPanelFailed => 'Failed';
+
+  @override
+  String get subagentPanelCancelled => 'Cancelled';
+
+  @override
+  String get subagentPanelInterrupted => 'Interrupted';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '${minutes}m ${seconds}s';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => 'Built-in Search';
 
   @override
@@ -3698,6 +3775,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => 'Enabled';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'This device only';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Saved, but this server could not be held on this device.';
+
+  @override
   String get mcpServerEditSheetNameLabel => 'Name';
 
   @override
@@ -3974,6 +4058,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Embedding';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Decision';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Decision API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Decision URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Empty: appended to the provider URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Some providers serve decision models on their own endpoint; enter the path to override the default address.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Fill';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Current';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Input Modes';
@@ -15976,6 +16086,61 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
+  String get imageJobTitle => 'Illustration';
+
+  @override
+  String get imageJobFailed => 'Illustration failed';
+
+  @override
+  String get imageJobInterrupted => 'Illustration interrupted';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Drawing';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => 'Subagent';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Wait for task';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Image Model';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'The model that draws pictures inside a reply; leave it unset to turn drawing off.';
+
+  @override
+  String get imageJobPanelCopy => 'Copy';
+
+  @override
+  String get imageJobPanelPromptLabel => 'Prompt';
+
+  @override
+  String get imageJobPanelModelLabel => 'Model';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Size';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Time taken';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Usage';
+
+  @override
+  String get imageJobPanelAuto => 'Auto';
+
+  @override
+  String get imageJobPanelOneImage => '1 image';
+
+  @override
+  String get imageJobNotConfigured => 'Not configured · Choose';
+
+  @override
+  String get imageModelFollowGlobal => 'Use the default image model';
+
+  @override
   String get recoveryGuideTitle => 'Let’s recover your chats';
 
   @override
@@ -17575,6 +17740,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not reach the device. Check the address and port, and that both devices are on the same network.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'The other device is busy with another pairing request. Try again in a moment.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'The other device did not identify itself. Pairing aborted.';
 
@@ -17883,6 +18052,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count workspaces not syncing files';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return '$count conversations did not fit in this push';
   }
 
   @override
@@ -18945,6 +19119,51 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Run one task in a copy of this chat, in the same workspace.';
+
+  @override
+  String get subagentConfigEnabled => 'On';
+
+  @override
+  String get subagentConfigDepth => 'Depth';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'How many levels of subagents may delegate again.';
+
+  @override
+  String get subagentConfigModel => 'Model';
+
+  @override
+  String get subagentConfigModelDescription => 'Which model runs the subagent.';
+
+  @override
+  String get subagentConfigModelInherit => 'Follow this assistant';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · depth $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'View parent chat · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Subagent escalation';
+
+  @override
+  String get subagentEscalationAsk => 'Ask';
+
+  @override
+  String get subagentEscalationDeny => 'Always deny';
+
+  @override
+  String get subagentEscalationAllow => 'Always allow';
 
   @override
   String get dshProductName => 'DeepSeek Harness';

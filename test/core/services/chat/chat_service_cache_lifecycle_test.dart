@@ -56,6 +56,37 @@ void main() {
   }
 
   group('cache lifecycle', () {
+    test('a message that left the cache is still readable by id', () async {
+      // The cache is bounded and drops finished replies. A writer that runs
+      // later — an image job finishing after its reply was finalized — has to
+      // find the row anyway, or its write becomes a silent no-op.
+      final service = createService();
+      await service.init();
+      final conversation = await service.createConversation(title: 'Evicted');
+      final first = await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'x' * (3 * 1024 * 1024),
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'y' * (6 * 1024 * 1024),
+      );
+      await service.loadMessages(conversation.id);
+
+      // 9MB against an 8MB budget: the tail survives, the first message does not.
+      expect(
+        service.getMessages(conversation.id).map((message) => message.id),
+        isNot(contains(first.id)),
+      );
+
+      final stored = await service.getMessageById(first.id);
+
+      expect(stored?.id, first.id);
+      expect(stored?.content.length, first.content.length);
+    });
+
     test(
       'oversized conversation is tail-trimmed without evicting others',
       () async {

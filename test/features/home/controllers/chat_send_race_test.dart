@@ -1979,7 +1979,7 @@ void main() {
     );
   }
 
-  testWidgets('compression reuses one existing queued input per conversation', (
+  testWidgets('a message queued during compression is released after it', (
     tester,
   ) async {
     final controller = await pumpHarness(tester);
@@ -2011,10 +2011,9 @@ void main() {
         await controller.sendMessage(ChatInputData(text: 'queued A')),
         ChatInputSubmissionResult.queued,
       );
-      expect(
-        await controller.sendMessage(ChatInputData(text: 'second A')),
-        ChatInputSubmissionResult.rejected,
-      );
+      // One queued message per conversation is the shape this test needs; the
+      // queue holds several now, and a second one here would add a third request
+      // the assertions below are not written for.
       expect(controller.currentQueuedInput!.input.text, 'queued A');
       final b = await openConversation(controller);
       await service.addMessage(
@@ -2524,6 +2523,55 @@ void main() {
     // Unmount before the temp directory goes away: the controller closes
     // its database asynchronously in dispose, and Windows refuses to
     // unlink it until then.
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('two queued messages are released in the order they arrived', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      final convo = await openConversation(controller);
+      await service.addMessage(
+        conversationId: convo.id,
+        role: 'user',
+        content: 'history ' * 100,
+      );
+      final hold = Completer<String>();
+      var entered = false;
+      await service.contextCompression.start(
+        convo.id,
+        CompressionRequest(
+          options: const CompressContextOptions(
+            mode: CompressContextLimitMode.unlimited,
+          ),
+          model: 'test',
+          generate: (_, _, _, _) async {
+            entered = true;
+            return TextGenerationResult(parts: [TextPart(await hold.future)]);
+          },
+          quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+        ),
+      );
+      await waitFor(() => entered, 'compression started');
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'first queued')),
+        ChatInputSubmissionResult.queued,
+      );
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'second queued')),
+        ChatInputSubmissionResult.queued,
+      );
+      // The chip shows the head; the second waits behind it rather than
+      // replacing it.
+      expect(controller.currentQueuedInput!.input.text, 'first queued');
+      hold.complete('summary');
+      await waitFor(() => streamRequestCount == 1, 'first released');
+      expect(jsonEncode(streamRequests.first), contains('first queued'));
+      await waitFor(() => streamRequestCount == 2, 'second released');
+      expect(jsonEncode(streamRequests.last), contains('second queued'));
+    });
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 

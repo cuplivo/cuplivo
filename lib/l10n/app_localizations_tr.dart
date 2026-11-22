@@ -2925,6 +2925,83 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Alt ajana devret: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Alt ajan tamamladı';
+
+  @override
+  String get subagentResultFailed => 'Alt ajan başarısız';
+
+  @override
+  String get subagentResultCancelled => 'Alt ajan iptal edildi';
+
+  @override
+  String get subagentResultInterrupted => 'Alt ajan kesildi';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Alt ajan çalışıyor ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Çalışan alt ajan: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Alt ajan yanıtınızı bekliyor · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return 'Alt ajan: $count ($running çalışıyor)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Alt ajan onay bekliyor · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Alt ajanlar';
+
+  @override
+  String get subagentPanelEmpty => 'Bu sohbette henüz alt ajan yok.';
+
+  @override
+  String get subagentTag => 'Alt ajan';
+
+  @override
+  String get subagentPanelRunning => 'Çalışıyor';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Yanıt bekliyor';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Onay bekliyor';
+
+  @override
+  String get subagentPanelCompleted => 'Tamamlandı';
+
+  @override
+  String get subagentPanelFailed => 'Başarısız';
+
+  @override
+  String get subagentPanelCancelled => 'İptal edildi';
+
+  @override
+  String get subagentPanelInterrupted => 'Kesildi';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes dk $seconds sn';
+  }
+
+  @override
   String get chatMessageWidgetBuiltinSearch => 'Yerleşik Arama';
 
   @override
@@ -3720,6 +3797,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get mcpServerEditSheetEnabledLabel => 'Etkin';
 
   @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'Yalnızca bu cihaz';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Kaydedildi, ancak bu sunucu yalnızca bu cihazda tutulamadı.';
+
+  @override
   String get mcpServerEditSheetNameLabel => 'Ad';
 
   @override
@@ -3999,6 +4083,32 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Gömme';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Karar';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Karar API\'si';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Karar adresi';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Boşsa sağlayıcı adresinin sonuna eklenir';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Bazı sağlayıcılar karar modellerini ayrı bir adreste sunar; varsayılan adresi geçersiz kılmak için yolu girin.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Doldur';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Geçerli';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Giriş Modları';
@@ -16072,6 +16182,61 @@ class AppLocalizationsTr extends AppLocalizations {
   String get retry => 'Yeniden dene';
 
   @override
+  String get imageJobTitle => 'İllüstrasyon';
+
+  @override
+  String get imageJobFailed => 'İllüstrasyon başarısız oldu';
+
+  @override
+  String get imageJobInterrupted => 'İllüstrasyon kesintiye uğradı';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Çizim';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => 'Alt ajan';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Görev bekle';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Görsel Modeli';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'Yanıt içinde resim çizen model; ayarlanmazsa çizim devre dışı kalır.';
+
+  @override
+  String get imageJobPanelCopy => 'Kopyala';
+
+  @override
+  String get imageJobPanelPromptLabel => 'İstem';
+
+  @override
+  String get imageJobPanelModelLabel => 'Model';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Boyut';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Geçen süre';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Kullanım';
+
+  @override
+  String get imageJobPanelAuto => 'Otomatik';
+
+  @override
+  String get imageJobPanelOneImage => '1 görsel';
+
+  @override
+  String get imageJobNotConfigured => 'Yapılandırılmadı · Seç';
+
+  @override
+  String get imageModelFollowGlobal => 'Varsayılan görsel modelini kullan';
+
+  @override
   String get recoveryGuideTitle => 'Sohbetlerinizi kurtaralım';
 
   @override
@@ -17674,6 +17839,10 @@ class AppLocalizationsTr extends AppLocalizations {
       'Cihaza ulaşılamadı. Adresi ve bağlantı noktasını, iki cihazın aynı ağda olduğunu kontrol edin.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'Diğer cihaz başka bir eşleştirme isteğiyle meşgul. Birazdan tekrar deneyin.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'Diğer cihaz kimliğini göstermedi. Eşleştirme iptal edildi.';
 
@@ -17982,6 +18151,11 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count çalışma alanı dosya eşitlemiyor';
+  }
+
+  @override
+  String lanSyncReportConversationsOmittedForSize(Object count) {
+    return 'Bu gönderime sığmayan sohbet: $count';
   }
 
   @override
@@ -19039,6 +19213,52 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get defaultModelPageDirectorModelSubtitle =>
       'Grup sohbetinde sıradaki konuşmacıyı belirler. Hızlı ve düşük maliyetli bir model en uygun seçimdir.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Bu sohbetin bir kopyasında, aynı çalışma alanında tek bir görevi yürütür.';
+
+  @override
+  String get subagentConfigEnabled => 'Açık';
+
+  @override
+  String get subagentConfigDepth => 'Derinlik';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'Alt ajanların kaç düzey daha devredebileceği';
+
+  @override
+  String get subagentConfigModel => 'Model';
+
+  @override
+  String get subagentConfigModelDescription =>
+      'Alt ajanı hangi model çalıştıracak';
+
+  @override
+  String get subagentConfigModelInherit => 'Bu asistanı izle';
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · derinlik $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'Üst sohbeti gör · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Alt ajan yetkisi';
+
+  @override
+  String get subagentEscalationAsk => 'Sor';
+
+  @override
+  String get subagentEscalationDeny => 'Her zaman reddet';
+
+  @override
+  String get subagentEscalationAllow => 'Her zaman izin ver';
 
   @override
   String get dshProductName => 'DeepSeek Harness';

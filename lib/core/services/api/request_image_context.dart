@@ -40,6 +40,9 @@ bool isUserInputMessage(
   // A group peer's turn travels as `user` but is not the user's own words; its
   // images and attachments belong to the member that sent it.
   if (message[groupPeerSenderKey] != null) return false;
+  // A subagent's conclusion is the app's notice, so the human's own turn keeps
+  // the attachments even when the notice is the most recent user-role turn.
+  if (message[subagentResultKey] != null) return false;
   if (!hasOwners) return true;
   final owner = message[imageContextOwnerKey];
   return owner is String &&
@@ -207,6 +210,11 @@ class RequestImageContext {
     for (final message in messages) {
       for (var ordinal = 0; ordinal < message.parts.length; ordinal++) {
         final part = message.parts[ordinal];
+        // A picture an image job has only *promised* has no bytes yet: the uri
+        // is reserved and the file is not there. Handing it to the context would
+        // invent an image the provider cannot load, so it is skipped here exactly
+        // as the outbound body already skips it. `hasBytes` is that question.
+        if (part is ImagePart && !part.hasBytes) continue;
         if (part is ImagePart || part is FilePart) {
           final uri = part is ImagePart ? part.uri : (part as FilePart).uri;
           final mime = part is ImagePart ? part.mime : (part as FilePart).mime;
@@ -288,7 +296,12 @@ class RequestImageContext {
     final turns = <String, String?>{};
     String? user;
     for (final message in messages) {
-      if (message.role == 'user') user = message.id;
+      // A subagent's notice is a `user` row, but it owns no images: keeping the
+      // previous turn as the owner is what makes an attached picture stay with
+      // the message a person actually sent.
+      if (message.role == 'user' && !hasSubagentResultPart(message.parts)) {
+        user = message.id;
+      }
       turns[message.id] = user;
     }
     return turns;

@@ -80,6 +80,7 @@ import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/animations/status_animation.dart';
 import '../../../core/services/conversation_link.dart';
+import '../../subagent/services/subagent_rules.dart' show SubagentExtrasKeys;
 
 /// The remote surface a [SideDrawer] shows instead of local conversations.
 ///
@@ -5132,6 +5133,23 @@ class _ChatTileState extends State<_ChatTile> {
                         style: TextStyle(
                           fontSize: 11,
                           color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                    if (context.select<ChatService, bool>((service) {
+                      final extras =
+                          service.getConversation(widget.chat.id)?.extras ??
+                          const <String, dynamic>{};
+                      return extras[SubagentExtrasKeys.depth] is int;
+                    })) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        AppLocalizations.of(context)!.subagentTag,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: .55),
                         ),
                       ),
                     ],

@@ -1,6 +1,7 @@
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/services/decision/decision_client.dart';
 
 /// Helper class for extracting model display information.
 ///
@@ -76,6 +77,10 @@ class ModelDisplayInfo {
 /// chat model of its own — the group's is the director's — so it falls back to
 /// the director model and then to the global default.
 ///
+/// A director that is not a chat model is skipped: a decision model answers one
+/// typed question and produces no text, so asking it for a title means a
+/// request that can only fail — and the group keeps its placeholder name.
+///
 /// This is the only place the title-model chain is written: both the
 /// end-of-round path and the sidebar's "regenerate title" go through it.
 ({String? providerKey, String? modelId}) resolveTitleModel(
@@ -89,17 +94,28 @@ class ModelDisplayInfo {
     return (providerKey: titleProvider, modelId: titleModel);
   }
   if (conversation?.isGroupConversation == true) {
-    return (
-      providerKey:
-          settings.directorModelProvider ?? settings.currentModelProvider,
-      modelId: settings.directorModelId ?? settings.currentModelId,
-    );
+    final providerKey =
+        settings.directorModelProvider ?? settings.currentModelProvider;
+    final modelId = settings.directorModelId ?? settings.currentModelId;
+    if (!_isDecisionModel(settings, providerKey, modelId)) {
+      return (providerKey: providerKey, modelId: modelId);
+    }
   }
   return resolveChatModel(
     settings,
     conversation: conversation,
     assistant: assistant,
   );
+}
+
+bool _isDecisionModel(
+  SettingsProvider settings,
+  String? providerKey,
+  String? modelId,
+) {
+  if (providerKey == null || modelId == null) return false;
+  final config = settings.getProviderConfig(providerKey);
+  return DecisionClient.canDecide(config, modelId);
 }
 
 /// Extracts model display information from settings, conversation and assistant.

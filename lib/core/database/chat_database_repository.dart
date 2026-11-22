@@ -1626,12 +1626,9 @@ class ChatDatabaseRepository {
         return (payload: payload, parseError: null);
       }
       return (
-        payload: ImagePart(
-          uri: nextUri,
-          mime: part.mime,
-          assetId: part.assetId,
-          unavailable: nextUnavailable,
-        ).encodePayload(),
+        payload: part
+            .copyWith(uri: nextUri, unavailable: nextUnavailable)
+            .encodePayload(),
         parseError: null,
       );
     }
@@ -4488,26 +4485,46 @@ class ChatDatabaseRepository {
       // exactly as the last build that maintained it left it. The placeholder
       // below is what keeps a stale (`null`) model value from clobbering it; an
       // insert still writes the model's value, which is null either way.
-      final updated =
-          await (_db.update(
-            _db.conversationRows,
-          )..where((row) => row.id.equals(conversation.id))).write(
-            _conversationCompanion(
-              conversation,
-              injectedMemoryHash: const Value.absent(),
-            ),
-          );
-      if (updated == 0) {
+      final stored = await syncReadConversationRow(conversation.id);
+      if (stored == null) {
         await _db
             .into(_db.conversationRows)
-            .insert(_conversationCompanion(conversation));
+            .insert(
+              _conversationCompanion(
+                conversation,
+                clock: _nextConversationClock(
+                  displayAt: conversation.updatedAt,
+                ),
+              ),
+            );
+      } else {
+        await (_db.update(
+          _db.conversationRows,
+        )..where((row) => row.id.equals(conversation.id))).write(
+          _conversationCompanion(
+            conversation,
+            // A save is a metadata write (rename, pin, summary, suggestions,
+            // model override): it moves the sync clock and leaves the display
+            // clock where the row already has it.
+            clock: _nextConversationClock(
+              storedExtrasJson: stored['extras_json'],
+              storedUpdatedAtUs: (stored['updated_at'] as num).toInt(),
+            ),
+            injectedMemoryHash: const Value.absent(),
+          ),
+        );
       }
       await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
     });
   }
 
   /// Reads [conversationId]'s extras, applies [update], and writes the result
-  /// in one transaction. [updatedAt] is bumped only when the map changes.
+  /// in one transaction.
+  ///
+  /// This is a metadata write: it moves the sync clock when the bag changes and
+  /// leaves `updated_at` alone, so changing a workspace folder or a skill no
+  /// longer reorders the home list — the clock that does is the one a message
+  /// moves.
   Future<void> updateConversationExtras(
     String conversationId,
     Map<String, dynamic> Function(Map<String, dynamic> current) update, {
@@ -4529,12 +4546,15 @@ class ChatDatabaseRepository {
       if (jsonEncode(current) == jsonEncode(next)) {
         return;
       }
+      final clock = _nextConversationClock(
+        storedExtrasJson: row.extrasJson,
+        storedUpdatedAtUs: row.updatedAt.microsecondsSinceEpoch,
+      );
       await (_db.update(
         _db.conversationRows,
       )..where((t) => t.id.equals(conversationId))).write(
         ConversationRowsCompanion(
-          extrasJson: Value(jsonEncode(next)),
-          updatedAt: Value(DateTime.now()),
+          extrasJson: Value(_extrasWithSyncClock(next, clock.syncClock)),
         ),
       );
     });
@@ -4553,12 +4573,17 @@ class ChatDatabaseRepository {
       _decodeExtrasJson(row.extrasJson),
       override: serverIds != null,
     );
+    // A metadata write, like [updateConversationExtras]: the sync clock moves,
+    // the display clock does not.
+    final clock = _nextConversationClock(
+      storedExtrasJson: row.extrasJson,
+      storedUpdatedAtUs: row.updatedAt.microsecondsSinceEpoch,
+    );
     await (_db.update(
       _db.conversationRows,
     )..where((row) => row.id.equals(conversationId))).write(
       ConversationRowsCompanion(
-        extrasJson: Value(jsonEncode(extras)),
-        updatedAt: Value(DateTime.now()),
+        extrasJson: Value(_extrasWithSyncClock(extras, clock.syncClock)),
       ),
     );
     await _replaceMcpServers(conversationId, serverIds ?? const []);
@@ -4638,7 +4663,12 @@ class ChatDatabaseRepository {
       await _invalidateEmptyAcknowledgement();
       await _db
           .into(_db.conversationRows)
-          .insert(_conversationCompanion(duplicate));
+          .insert(
+            _conversationCompanion(
+              duplicate,
+              clock: _nextConversationClock(displayAt: duplicatedAt),
+            ),
+          );
       await _replaceMcpServers(targetId, duplicate.mcpServerIds);
       await _copyMessageRowsInto(
         targetConversationId: targetId,
@@ -4909,6 +4939,7 @@ class ChatDatabaseRepository {
                 ],
                 extras: ToolPermissionMode.withoutGrant(source.extras),
               ),
+              clock: _nextConversationClock(displayAt: now),
             ),
           );
       await _replaceMcpServers(targetId, source.mcpServerIds);
@@ -4971,16 +5002,32 @@ class ChatDatabaseRepository {
                 row.carriesMemorySnapshot.equals(true),
           ))
           .go();
-      final updated =
-          await (_db.update(
-            _db.conversationRows,
-          )..where((row) => row.id.equals(conversationId))).write(
-            ConversationRowsCompanion(
-              assistantId: Value(assistantId),
-              updatedAt: Value(updatedAt),
+      // Read after the grant strip above: this write carries the bag it left.
+      final stored = await syncReadConversationRow(conversationId);
+      if (stored == null) return false;
+      final clock = _nextConversationClock(
+        storedExtrasJson: stored['extras_json'],
+        storedUpdatedAtUs: (stored['updated_at'] as num).toInt(),
+        bumpDisplay: true,
+        displayAt: updatedAt,
+      );
+      await (_db.update(
+        _db.conversationRows,
+      )..where((row) => row.id.equals(conversationId))).write(
+        ConversationRowsCompanion(
+          assistantId: Value(assistantId),
+          updatedAt: Value(
+            DateTime.fromMicrosecondsSinceEpoch(clock.updatedAtUs),
+          ),
+          extrasJson: Value(
+            _extrasWithSyncClock(
+              _decodeExtrasJson(stored['extras_json'] as String),
+              clock.syncClock,
             ),
-          );
-      return updated != 0;
+          ),
+        ),
+      );
+      return true;
     });
   }
 
@@ -5366,7 +5413,18 @@ class ChatDatabaseRepository {
       );
       await _db
           .into(_db.conversationRows)
-          .insertOnConflictUpdate(_conversationCompanion(persisted));
+          .insertOnConflictUpdate(
+            _conversationCompanion(
+              persisted,
+              clock: _nextConversationClock(
+                storedExtrasJson: existingRow?.extrasJson,
+                storedUpdatedAtUs:
+                    existingRow?.updatedAt.microsecondsSinceEpoch,
+                bumpDisplay: true,
+                displayAt: persisted.updatedAt,
+              ),
+            ),
+          );
       if (existingRow == null) {
         await _replaceMcpServers(persisted.id, persisted.mcpServerIds);
       }
@@ -5669,9 +5727,20 @@ class ChatDatabaseRepository {
           await _upsertProviderArtifact(message.id, artifact.kind, payload);
         }
       }
-      await (_db.update(_db.conversationRows)
-            ..where((row) => row.id.equals(conversation.id)))
-          .write(_conversationCompanion(conversation));
+      await (_db.update(
+        _db.conversationRows,
+      )..where((row) => row.id.equals(conversation.id))).write(
+        _conversationCompanion(
+          conversation,
+          // A new revision is content: both clocks move.
+          clock: _nextConversationClock(
+            storedExtrasJson: conversationRow.extrasJson,
+            storedUpdatedAtUs: conversationRow.updatedAt.microsecondsSinceEpoch,
+            bumpDisplay: true,
+            displayAt: conversation.updatedAt,
+          ),
+        ),
+      );
       if (draftSubmission != null) {
         await composerDrafts.consumeInTransaction(draftSubmission);
       }
@@ -5734,9 +5803,19 @@ class ChatDatabaseRepository {
         versionSelections: selections,
         updatedAt: DateTime.now(),
       );
-      await (_db.update(_db.conversationRows)
-            ..where((conversation) => conversation.id.equals(conversationId)))
-          .write(_conversationCompanion(conversation));
+      await (_db.update(
+        _db.conversationRows,
+      )..where((conversation) => conversation.id.equals(conversationId))).write(
+        _conversationCompanion(
+          conversation,
+          clock: _nextConversationClock(
+            storedExtrasJson: row.extrasJson,
+            storedUpdatedAtUs: row.updatedAt.microsecondsSinceEpoch,
+            bumpDisplay: true,
+            displayAt: conversation.updatedAt,
+          ),
+        ),
+      );
       return conversation;
     });
   }
@@ -5842,16 +5921,34 @@ class ChatDatabaseRepository {
   }
 
   /// Conversation references for manifest building.
+  ///
+  /// The clock is [effectiveConversationClock]'s SQL half — the key when the row
+  /// carries one, `updated_at` when it does not (a row written before the key
+  /// existed). It has to agree with the Dart half exactly, or the plan and the
+  /// merge compare two different rulers; `sync_conversation_clock_test.dart`
+  /// holds the two readers equal on a fixture, the way
+  /// `sync_family_registry_test.dart` holds the digest's two readers.
+  ///
+  /// `json_type(...) = 'integer'` is not pedantry: `json_extract` raises on a
+  /// malformed bag, and one junk row would abort the manifest query for the
+  /// whole session — no peer would sync until someone edited the database by
+  /// hand. A bag that is not an object, or a value that is not an integer,
+  /// falls back to the column.
   Future<List<({String conversationId, int updatedAtUs})>>
   syncConversationRefs() async {
-    final rows = await _db
-        .customSelect('SELECT id, updated_at FROM conversation_rows;')
-        .get();
+    final rows = await _db.customSelect('''
+SELECT id,
+  CASE WHEN json_valid(extras_json)
+        AND json_type(extras_json, '\$."$syncClockExtrasKey"') = 'integer'
+       THEN json_extract(extras_json, '\$."$syncClockExtrasKey"')
+       ELSE updated_at END AS sync_clock
+FROM conversation_rows;
+''').get();
     return [
       for (final row in rows)
         (
           conversationId: row.read<String>('id'),
-          updatedAtUs: row.read<int>('updated_at'),
+          updatedAtUs: row.read<int>('sync_clock'),
         ),
     ];
   }
@@ -6137,6 +6234,20 @@ class ChatDatabaseRepository {
         );
         conversationRow = Map<String, dynamic>.from(merge.winner);
         conversationRowChanged = merge.incomingWon;
+
+        // The winner is decided by the sync clock, so it can be the row whose
+        // `updated_at` is *older*: a peer that pinned (a write that no longer
+        // moves the display clock) while this device appended a message wins the
+        // row without the newer content clock. Copying its `updated_at` would
+        // move this device's list backwards — a conversation from today dropping
+        // into yesterday — so the display clock only ever rises. Both peers keep
+        // their own, which is what "content clock" means; the sync clocks are
+        // equal because the winner's key is what the checkpoint records.
+        final winnerUpdatedAt = (conversationRow['updated_at'] as num).toInt();
+        final localUpdatedAt = (localConversation['updated_at'] as num).toInt();
+        if (localUpdatedAt > winnerUpdatedAt) {
+          conversationRow['updated_at'] = localUpdatedAt;
+        }
 
         // The extraction watermark is a fact about the conversation, not about
         // this device: the memory entries travel, so a message the peer already
@@ -6948,14 +7059,7 @@ class ChatDatabaseRepository {
               filesRestored: filesRestored,
             );
             if (unavailable != part.unavailable) changed = true;
-            nextParts.add(
-              ImagePart(
-                uri: part.uri,
-                mime: part.mime,
-                assetId: part.assetId,
-                unavailable: unavailable,
-              ),
-            );
+            nextParts.add(part.copyWith(unavailable: unavailable));
           } else if (part is FilePart) {
             final unavailable = await _unavailableForRestoredPart(
               uri: part.uri,
@@ -7606,7 +7710,9 @@ class ChatDatabaseRepository {
       for (final conversation in conversations) {
         batch.insert(
           _db.conversationRows,
-          _conversationCompanion(conversation),
+          // The archive's own clocks, verbatim: a restored row is not "written
+          // here now". This is the one local writer that does not stamp.
+          _conversationCompanion(conversation, clock: null),
           mode: InsertMode.insertOrReplace,
         );
         for (var i = 0; i < conversation.mcpServerIds.length; i++) {
@@ -7911,6 +8017,11 @@ class ChatDatabaseRepository {
           .insertOnConflictUpdate(
             _conversationCompanion(
               conversation.copyWith(messageIds: List<String>.of(messageIds)),
+              clock: await _nextConversationClockFor(
+                conversation.id,
+                bumpDisplay: true,
+                displayAt: conversation.updatedAt,
+              ),
             ),
           );
       await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
@@ -8223,9 +8334,19 @@ class ChatDatabaseRepository {
             : currentConversation.chatSuggestions,
         updatedAt: DateTime.now(),
       );
-      await (_db.update(_db.conversationRows)
-            ..where((row) => row.id.equals(conversationId)))
-          .write(_conversationCompanion(conversation));
+      await (_db.update(
+        _db.conversationRows,
+      )..where((row) => row.id.equals(conversationId))).write(
+        _conversationCompanion(
+          conversation,
+          clock: _nextConversationClock(
+            storedExtrasJson: conversationRow.extrasJson,
+            storedUpdatedAtUs: conversationRow.updatedAt.microsecondsSinceEpoch,
+            bumpDisplay: true,
+            displayAt: conversation.updatedAt,
+          ),
+        ),
+      );
       // Callers (ChatService.deleteMessages) only need message.id for cache
       // invalidation; body text is intentionally omitted.
       return (
@@ -8881,15 +9002,73 @@ class ChatDatabaseRepository {
     );
   }
 
+  /// The two clocks one local write stores on a conversation row.
+  ///
+  /// [syncClock] goes into `extras_json` ([syncClockExtrasKey]); [updatedAtUs]
+  /// is the display clock the row will carry. Both are read from the row **as
+  /// stored**, inside the caller's transaction — never from a cached
+  /// `Conversation`, whose `updatedAt` and extras may predate another writer.
+  ({int syncClock, int updatedAtUs}) _nextConversationClock({
+    Object? storedExtrasJson,
+    int? storedUpdatedAtUs,
+    bool bumpDisplay = false,
+    DateTime? displayAt,
+  }) {
+    final now = DateTime.now();
+    final updatedAtUs = bumpDisplay
+        ? (displayAt ?? now).microsecondsSinceEpoch
+        : storedUpdatedAtUs ?? (displayAt ?? now).microsecondsSinceEpoch;
+    return (
+      syncClock: nextSyncClock(
+        nowUs: now.microsecondsSinceEpoch,
+        currentUs: syncClockOf(storedExtrasJson),
+        updatedAtUs: updatedAtUs,
+      ),
+      updatedAtUs: updatedAtUs,
+    );
+  }
+
+  /// [_nextConversationClock] for a row read here, inside the caller's
+  /// transaction.
+  Future<({int syncClock, int updatedAtUs})> _nextConversationClockFor(
+    String id, {
+    bool bumpDisplay = false,
+    DateTime? displayAt,
+  }) async {
+    final stored = await syncReadConversationRow(id);
+    return _nextConversationClock(
+      storedExtrasJson: stored?['extras_json'],
+      storedUpdatedAtUs: (stored?['updated_at'] as num?)?.toInt(),
+      bumpDisplay: bumpDisplay,
+      displayAt: displayAt,
+    );
+  }
+
+  /// [extras] with the sync clock written into it, as it is stored.
+  static String _extrasWithSyncClock(
+    Map<String, dynamic> extras,
+    int syncClock,
+  ) => withSyncClock(extras, syncClock) ?? jsonEncode(extras);
+
+  /// The row one local write stores.
+  ///
+  /// [clock] is what makes a local write visible to sync, so every writer
+  /// passes one; null is the archive importer's answer ([_writeBackupData]),
+  /// which stores the rows it was given with the clocks they already carry. A
+  /// restored row is not "written here now", and stamping it would make an old
+  /// backup win the row-level last-write-wins against a peer that has moved on.
   ConversationRowsCompanion _conversationCompanion(
     Conversation conversation, {
+    required ({int syncClock, int updatedAtUs})? clock,
     Value<String?>? injectedMemoryHash,
   }) {
     return ConversationRowsCompanion.insert(
       id: conversation.id,
       title: conversation.title,
       createdAt: conversation.createdAt,
-      updatedAt: conversation.updatedAt,
+      updatedAt: clock == null
+          ? conversation.updatedAt
+          : DateTime.fromMicrosecondsSinceEpoch(clock.updatedAtUs),
       isPinned: Value(conversation.isPinned),
       assistantId: Value(conversation.assistantId),
       truncateIndex: Value(conversation.truncateIndex),
@@ -8904,7 +9083,11 @@ class ChatDatabaseRepository {
       lastMemoryExtractedOrder: Value(conversation.lastMemoryExtractedOrder),
       chatModelProvider: Value(conversation.chatModelProvider),
       chatModelId: Value(conversation.chatModelId),
-      extrasJson: Value(jsonEncode(conversation.extras)),
+      extrasJson: Value(
+        clock == null
+            ? jsonEncode(conversation.extras)
+            : _extrasWithSyncClock(conversation.extras, clock.syncClock),
+      ),
     );
   }
 
@@ -9962,20 +10145,38 @@ class ChatDatabaseRepository {
   Future<int> clearConversationModelOverrides({
     required String providerKey,
     String? modelId,
-  }) async {
-    final statement = _db.update(_db.conversationRows)
-      ..where(
-        (t) => modelId == null
-            ? t.chatModelProvider.equals(providerKey)
-            : t.chatModelProvider.equals(providerKey) &
-                  t.chatModelId.equals(modelId),
-      );
-    return statement.write(
-      const ConversationRowsCompanion(
-        chatModelProvider: Value(null),
-        chatModelId: Value(null),
-      ),
-    );
+  }) {
+    return _db.transaction(() async {
+      final rows =
+          await (_db.select(_db.conversationRows)..where(
+                (t) => modelId == null
+                    ? t.chatModelProvider.equals(providerKey)
+                    : t.chatModelProvider.equals(providerKey) &
+                          t.chatModelId.equals(modelId),
+              ))
+              .get();
+      for (final row in rows) {
+        final clock = _nextConversationClock(
+          storedExtrasJson: row.extrasJson,
+          storedUpdatedAtUs: row.updatedAt.microsecondsSinceEpoch,
+        );
+        await (_db.update(
+          _db.conversationRows,
+        )..where((t) => t.id.equals(row.id))).write(
+          ConversationRowsCompanion(
+            chatModelProvider: const Value(null),
+            chatModelId: const Value(null),
+            extrasJson: Value(
+              _extrasWithSyncClock(
+                _decodeExtrasJson(row.extrasJson),
+                clock.syncClock,
+              ),
+            ),
+          ),
+        );
+      }
+      return rows.length;
+    });
   }
 
   String _memoryVisibilitySql(String? assistantId) {

@@ -457,7 +457,7 @@ void main() {
       },
     );
 
-    test('rename invalidates the cached order', () async {
+    test('rename updates the title without reordering the list', () async {
       final service = createService();
       await service.init();
       final older = await service.createConversation(title: 'Older');
@@ -467,7 +467,9 @@ void main() {
       expect(service.getAllConversations().first.id, newer.id);
 
       await service.renameConversation(older.id, 'Older renamed');
-      expect(service.getAllConversations().first.id, older.id);
+      // Tidying is not activity: the rename travels on the row's sync clock,
+      // and the list keeps answering "what did I last talk to".
+      expect(service.getAllConversations().first.id, newer.id);
       expect(service.getConversation(older.id)!.title, 'Older renamed');
     });
   });

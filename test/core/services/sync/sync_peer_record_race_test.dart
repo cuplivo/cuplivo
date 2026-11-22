@@ -69,13 +69,15 @@ class _GatedManifestPlane extends SyncDataPlane {
   }
 
   @override
-  Future<SyncManifest> buildManifest() async {
+  Future<SyncManifest> buildManifest({
+    Set<String> withheldKeys = const {},
+  }) async {
     final parked = gate;
     if (parked != null) {
       entered?.complete();
       await parked.future;
     }
-    return super.buildManifest();
+    return super.buildManifest(withheldKeys: withheldKeys);
   }
 }
 

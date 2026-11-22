@@ -1,5 +1,6 @@
 import '../../../core/services/api/request_image_context.dart';
 import '../../../core/services/api/request_tool_declarations.dart';
+import '../../../core/services/api/tool_call_cancellation.dart';
 import 'package:Cuplivo/core/services/conversation_tool_permissions.dart';
 import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import 'package:Cuplivo/utils/mcp_structured_image.dart';
@@ -36,6 +37,9 @@ import '../../../core/services/workspace/tool_run_registry.dart';
 import '../../../core/services/workspace/workspace_runtime.dart';
 import '../../../core/services/workspace/workspace_tools_service.dart';
 import '../../../core/providers/workspace_provider.dart';
+import '../../image_job/services/image_job_coordinator.dart';
+import '../../subagent/services/subagent_coordinator.dart';
+import '../../subagent/services/subagent_rules.dart' show delegationBlockedFor;
 import 'ask_user_interaction_service.dart';
 import 'built_in_tool_names.dart';
 import 'local_tools_service.dart';
@@ -70,6 +74,8 @@ class ToolHandlerService {
         updateConversationExtras: chat.updateConversationExtras,
         readPermissionState: ConversationToolPermissions.forChat(chat).read,
         permissionChanges: chat,
+        subagentPolicyOf: (id) =>
+            ConversationToolPermissions.subagentPolicy(chat, id),
         touchLastUsed: workspaces.touchLastUsed,
         onSkillRead: onSkillRead,
         onShellCompleted: onShellCompleted,
@@ -80,7 +86,13 @@ class ToolHandlerService {
             workspaces.byId(id)?.isToolEnabled(name) ?? false,
       );
     } catch (_) {
-      return WorkspaceToolsService();
+      // Fail closed on the escalation policy: without the provider tree the
+      // workspace tool cannot ask who delegated it, and asking on a `deny`
+      // delegation's behalf is worse than refusing to run at all.
+      return WorkspaceToolsService(
+        subagentPolicyOf: (_) =>
+            (policy: SubagentEscalation.deny, delegatorHasFullAccess: false),
+      );
     }
   }
 
@@ -258,6 +270,30 @@ class ToolHandlerService {
     }
   }
 
+  /// Whether the conversation may still delegate.
+  ///
+  /// Same rule the coordinator enforces, asked here only so the tool list does
+  /// not offer what would be refused: a child never gets the tool, a group
+  /// conversation has no single assistant to inherit, and a temporary chat would
+  /// leave a real conversation behind when it claims to leave nothing.
+  bool _mayDelegateInConversation(String? conversationId) {
+    if (conversationId == null) return true;
+    try {
+      final conversation = contextProvider.read<ChatService>().getConversation(
+        conversationId,
+      );
+      if (conversation == null) return true;
+      return delegationBlockedFor(
+            extras: conversation.extras,
+            isGroup: conversation.isGroupConversation,
+            isTemporary: _isTemporaryConversation(conversationId),
+          ) ==
+          null;
+    } catch (_) {
+      return true;
+    }
+  }
+
   List<Map<String, dynamic>> buildToolDefinitions(
     SettingsProvider settings,
     Assistant? assistant,
@@ -313,6 +349,7 @@ class ToolHandlerService {
       LocalToolsService.buildToolDefinitions(
         assistant: assistant,
         supportsTools: supportsTools,
+        allowDelegation: _mayDelegateInConversation(conversationId),
       ).where(
         (definition) =>
             (definition['function'] as Map)['name'] !=
@@ -473,20 +510,30 @@ class ToolHandlerService {
       return '${name}_${DateTime.now().microsecondsSinceEpoch}';
     }
 
-    ToolCallPermission permissionFor(String name, String? toolCallId) =>
-        ToolCallPermission(
-          toolName: name,
-          toolCallId: approvalIdFor(name, toolCallId),
-          conversationId: conversationId,
-          assistantId: assistant?.id,
-          approvals: approvalService,
-          stateChanges: permissionChat,
-          readState: () => permissionChat != null && conversationId != null
-              ? ConversationToolPermissions.forChat(
-                  permissionChat,
-                ).read(conversationId)
-              : ToolPermissionState(assistantId: assistant?.id),
-        );
+    ToolCallPermission permissionFor(String name, String? toolCallId) {
+      final policy = permissionChat == null
+          ? null
+          : ConversationToolPermissions.subagentPolicy(
+              permissionChat,
+              conversationId,
+            );
+      return ToolCallPermission(
+        toolName: name,
+        toolCallId: approvalIdFor(name, toolCallId),
+        conversationId: conversationId,
+        assistantId: assistant?.id,
+        approvals: approvalService,
+        stateChanges: permissionChat,
+        subagentEscalation: policy?.policy,
+        delegatorHasFullAccess: policy?.delegatorHasFullAccess ?? false,
+        readState: () => permissionChat != null && conversationId != null
+            ? ConversationToolPermissions.forChat(
+                permissionChat,
+              ).read(conversationId)
+            : ToolPermissionState(assistantId: assistant?.id),
+      );
+    }
+
     Future<Object?> approveAndExecuteMcp(
       String name,
       Map<String, dynamic> args,
@@ -687,6 +734,173 @@ class ToolHandlerService {
                 tool: name,
               );
             }
+          }
+
+          // Drawing: answer with a promise and let a job paint the picture.
+          // The tool itself never blocks, which is the whole point — the reply
+          // keeps streaming while the image model works.
+          if (name == LocalToolNames.generateImage) {
+            final current = assistant == null
+                ? null
+                : assistantProvider.getById(assistant.id);
+            if (current == null ||
+                !current.localToolIds.contains(LocalToolNames.generateImage)) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Image generation is disabled for this assistant.',
+                tool: name,
+              );
+            }
+            final chat = permissionChat;
+            if (conversationId == null || chat == null) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'A picture needs a conversation to live in.',
+                tool: name,
+              );
+            }
+            if (!contextProvider.mounted) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'The conversation went away while drawing.',
+                tool: name,
+              );
+            }
+            // Same lookup as the renderer and the sub-row: the coordinator is
+            // optional, and a missing one must answer with a tool error instead
+            // of throwing out of a tool call.
+            final coordinator = imageJobCoordinatorOf(contextProvider);
+            if (coordinator == null) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Image generation is not available right now.',
+                tool: name,
+              );
+            }
+            final start = await coordinator.begin(
+              conversationId: conversationId,
+              toolCallId: toolCallId ?? '',
+              prompt: (args['prompt'] ?? '').toString(),
+              assistant: current,
+              aspectRatio: (args['aspect_ratio'] ?? args['aspectRatio'])
+                  ?.toString(),
+              referenceImageIds:
+                  (args['reference_image_ids'] as List?)
+                      ?.map((id) => id.toString())
+                      .toList(growable: false) ??
+                  const <String>[],
+            );
+            return jsonEncode(start.toToolResult());
+          }
+
+          // Delegation: answer with a started receipt and let a child
+          // conversation do the work. Like drawing, the point is that the reply
+          // keeps going — the subagent's conclusion arrives later as its own
+          // notice, which is why nothing here waits for it.
+          if (name == LocalToolNames.delegate) {
+            final current = assistant == null
+                ? null
+                : assistantProvider.getById(assistant.id);
+            if (current == null ||
+                !current.localToolIds.contains(LocalToolNames.delegate)) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Delegation is disabled for this assistant.',
+                tool: name,
+              );
+            }
+            final task = (args['task'] ?? '').toString().trim();
+            if (task.isEmpty) {
+              return _toolError(
+                error: 'invalid_arguments',
+                message: 'A delegation needs a task.',
+                tool: name,
+              );
+            }
+            if (conversationId == null) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'A delegation needs a conversation to belong to.',
+                tool: name,
+              );
+            }
+            if (!contextProvider.mounted) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'The conversation went away before delegating.',
+                tool: name,
+              );
+            }
+            final coordinator = subagentCoordinatorOf(contextProvider);
+            if (coordinator == null) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Subagents are not available right now.',
+                tool: name,
+              );
+            }
+            // A workspace that has since been deleted must fail here, not after
+            // the model has told the user it started.
+            bool Function(String workspaceId)? workspaceExists;
+            try {
+              final workspaces = contextProvider.read<WorkspaceProvider>();
+              workspaceExists = (id) => workspaces.byId(id) != null;
+            } catch (_) {
+              workspaceExists = null;
+            }
+            final start = await coordinator.begin(
+              parentConversationId: conversationId,
+              toolCallId: toolCallId ?? '',
+              task: task,
+              label: args['label']?.toString(),
+              assistant: current,
+              workspaceExists: workspaceExists,
+            );
+            if (start is SubagentStarted) {
+              // The child is a continuation of this turn's work, not a
+              // separate errand: stopping the parent stops it too.
+              ToolCallCancellation.current?.onCancel(() {
+                unawaited(
+                  coordinator.cancelChild(start.entry.childConversationId),
+                );
+              });
+            }
+            return jsonEncode(start.toToolResult());
+          }
+
+          // Waiting is the exception, not the shape of the feature: the notice
+          // arrives on its own, so this exists only for a model whose next step
+          // truly needs the answer.
+          if (name == LocalToolNames.awaitJob) {
+            final jobId = (args['job_id'] ?? '').toString().trim();
+            if (jobId.isEmpty) {
+              return _toolError(
+                error: 'invalid_arguments',
+                message: 'await_job needs the job_id delegate returned.',
+                tool: name,
+              );
+            }
+            if (!contextProvider.mounted) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'The conversation went away before waiting.',
+                tool: name,
+              );
+            }
+            final coordinator = subagentCoordinatorOf(contextProvider);
+            if (coordinator == null) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Subagents are not available right now.',
+                tool: name,
+              );
+            }
+            return jsonEncode(
+              await coordinator.awaitJob(
+                jobId,
+                cancelled: ToolCallCancellation.current?.cancelled,
+              ),
+            );
           }
 
           // Local tools

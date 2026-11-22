@@ -2,8 +2,8 @@
 
 These screenshots are the acceptance evidence for PR #1104. They come from the
 `Android E2E` workflow (`.github/workflows/e2e-android.yml`, `/e2e`), run
-[44813047289](https://github.com/cuplivo/cuplivo/actions/runs/44813047289) on
-`feat/cuplivo-dsh` at `3eafd30ca`, driving a **real** DSH 0.2.2-rc.1 host over
+[45041502953](https://github.com/cuplivo/cuplivo/actions/runs/45041502953) on
+`feat/cuplivo-dsh` at `2e8175dd1`, driving a **real** DSH 0.2.2-rc.1 host over
 HTTPS with the repository's `E2E_DSH_URL` / `E2E_DSH_TOKEN` secrets.
 
 The scenario (`integration_test/e2e/dsh_remote_acceptance_test.dart`) runs in
@@ -18,7 +18,7 @@ screenshot per numbered reference in `docs/cuplivo-dsh/ui-spec.md`:
 | `r2_agent_presets.png` | R2 | DSH 设置页：Agent 预设（Host roster 合并插件清单） |
 | `r3_connected_card.png` | R3 | 助手与群聊中的已连接远程卡片 |
 | `r4_local_sidebar.png` | R4 | 本地抽屉把远程列为 owner |
-| `r5_dsh_drawer.png` | R5 | DSH 抽屉：插件 / 自动化任务 / 更多 + 工作区与会话 |
+| `r5_dsh_drawer.png` | R5 | DSH 抽屉：插件 / 搜索服务 / 自动化任务 / 更多 + 工作区与会话（搜索服务为 known-plugin 原生行） |
 | `r6_chat.png` | R6 | 聊天界面与真实流式回答 |
 | `r6_preset_menu.png` | R6 | 输入框上方 Agent 预设选择器（Host 真实 roster） |
 | `r6_preset_chip.png` | R6 | 选中 PTC 模式后的预设 chip 与权限 chip |
@@ -26,7 +26,7 @@ screenshot per numbered reference in `docs/cuplivo-dsh/ui-spec.md`:
 | `r6_tool_turn.png` | R6 | 真实 bash 工具卡片与二轮回答 |
 | `r6_context_ring.png` | R6 | 上下文使用比例圆环（真实 contextPressure） |
 | `r6_attachment.png` | R6 | 附件 chip、上传与引用附件内容的回答 |
-| `r7_right_rail.png` | R7 | 原生右栏（工作区文件 / 新建终端 / 更多工具） |
+| `r7_right_rail.png` | R7 | 原生右栏（工作区文件 / 新建终端 / 代码变更 / 新建 worktree / Issue 与 PR / 更多工具；三张 known-plugin 卡片在 harvest 前原生挂载） |
 | `r8_general_settings.png` | R8 | 通用设置：两个纳入范围的设置 |
 | `r9_models.png` | R9 | 模型 tab（供应商与启用状态） |
 | `r10_add_provider.png` | R10 | 添加供应商（自定义提供商在首行） |

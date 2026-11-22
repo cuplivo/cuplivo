@@ -14,11 +14,12 @@ import 'harness_session_catalog.dart';
 
 /// One extra rail entry contributed by the remote (a plugin rail card).
 ///
-/// Built-in tool cards are constructed by the rail; these arrive from the
-/// harvested official-WebUI rail labels (see `harness_surface_entries.dart`),
-/// so no
-/// plugin name lives in Cuplivo. The card renders with the entry's own label
-/// and a generic icon, carries the `dsh-rail-entry-<id>` key, and its [onTap]
+/// Built-in tool cards are constructed by the rail; these arrive either from
+/// the curated known-plugin table (`harness_plugin_entries.dart`, so a known
+/// plugin's fixed cards render before a harvest) or from the harvested
+/// official-WebUI rail labels (see `harness_surface_entries.dart`). The card
+/// renders with the contributed label, carries the `dsh-rail-card-<id>` key for
+/// curated cards and `dsh-rail-entry-<id>` for harvested ones, and its [onTap]
 /// opens the official WebUI landed on that card — the rail never embeds the
 /// WebUI (see `docs/cuplivo-dsh/v2-reuse-map.md` §4).
 @immutable
@@ -42,8 +43,11 @@ class HarnessRailExtraEntry {
 ///
 /// Official DSH surfaces are Flutter-native here: the Start page's tool cards,
 /// the read-only workspace-file browser and the terminal entry. Plugin
-/// contributions arrive as [extraEntries] and open the chat slice's WebView
-/// pages; the rail itself never embeds the official web UI.
+/// contributions arrive as [pluginCards] (curated cards of known plugins the
+/// Host inventory reports, rendered in the guide's own order) and as
+/// [extraEntries] (labels harvested from the official WebUI); both open the
+/// chat slice's WebView pages, and the rail itself never embeds the official
+/// web UI.
 ///
 /// 浏览器 is deliberately absent: DSH 0.2.2-rc.1 exposes no `browser/*` remote
 /// namespace (the official browser panel is a desktop-only surface), so a
@@ -61,6 +65,7 @@ class HarnessRightRail extends StatelessWidget {
     required this.onShowPage,
     required this.onShowStart,
     this.extraEntries = const <HarnessRailExtraEntry>[],
+    this.pluginCards = const <HarnessRailExtraEntry>[],
     this.terminalPanelBuilder,
     this.onPreviewWorkspaceFile,
   });
@@ -79,6 +84,16 @@ class HarnessRightRail extends StatelessWidget {
   final ValueChanged<HarnessRailPage> onShowPage;
   final VoidCallback onShowStart;
   final List<HarnessRailExtraEntry> extraEntries;
+
+  /// The curated cards of known plugins the Host's inventory reports, in the
+  /// official guide order (`harness_plugin_entries.dart`).
+  ///
+  /// They render among the built-in tool cards, before a harvest arrives, so
+  /// a fresh remote's rail already looks like DSH. With a harvest snapshot the
+  /// caller drops a curated card whose kind the harvest also reports — the
+  /// Host's own card stays authoritative — so the two lists never duplicate a
+  /// card.
+  final List<HarnessRailExtraEntry> pluginCards;
 
   /// Replaces the honest 新建终端 placeholder with the host's real terminal
   /// panel when the terminal slice supplies one.
@@ -156,12 +171,19 @@ class HarnessRightRail extends StatelessWidget {
           _RailTerminalPage(session: session);
     }
     if (page == HarnessRailPage.moreTools) {
-      return _RailMoreToolsPage(extraEntries: extraEntries);
+      return _RailMoreToolsPage(
+        pluginCards: pluginCards,
+        extraEntries: extraEntries,
+      );
     }
     // Start, and any id-based page without a native body: the plugin card's own
     // tap opens the official WebUI page, so landing on Start here is the
     // non-dead fallback.
-    return _RailStartPage(extraEntries: extraEntries, onShowPage: onShowPage);
+    return _RailStartPage(
+      pluginCards: pluginCards,
+      extraEntries: extraEntries,
+      onShowPage: onShowPage,
+    );
   }
 }
 
@@ -244,8 +266,13 @@ class _RailHeader extends StatelessWidget {
 
 /// The Start page: one card per official tool the connected Host serves.
 class _RailStartPage extends StatelessWidget {
-  const _RailStartPage({required this.extraEntries, required this.onShowPage});
+  const _RailStartPage({
+    required this.pluginCards,
+    required this.extraEntries,
+    required this.onShowPage,
+  });
 
+  final List<HarnessRailExtraEntry> pluginCards;
   final List<HarnessRailExtraEntry> extraEntries;
   final ValueChanged<HarnessRailPage> onShowPage;
 
@@ -295,6 +322,20 @@ class _RailStartPage extends StatelessWidget {
           shortcut: l10n.dshRailNewTerminalShortcut,
           onTap: () => onShowPage(HarnessRailPage.terminal),
         ),
+        // The fixed cards of known plugins keep the official guide order: they
+        // sit exactly where DSH draws the plugin's guide entries (after the
+        // built-in 新建终端 card, before 更多工具), so a fresh remote's Start
+        // page matches the official rail before any harvest arrives.
+        for (final card in pluginCards) ...[
+          const SizedBox(height: 10),
+          _RailToolCard(
+            key: ValueKey<String>('dsh-rail-card-${card.id}'),
+            icon: card.icon,
+            title: card.title,
+            subtitle: card.subtitle,
+            onTap: card.onTap,
+          ),
+        ],
         const SizedBox(height: 10),
         _RailToolCard(
           key: const Key('dsh-rail-more-tools'),
@@ -855,14 +896,18 @@ class _RailTerminalPage extends StatelessWidget {
 /// browser and the terminal card above; plugin panels surface here once the
 /// gateway reports them.
 class _RailMoreToolsPage extends StatelessWidget {
-  const _RailMoreToolsPage({required this.extraEntries});
+  const _RailMoreToolsPage({
+    required this.pluginCards,
+    required this.extraEntries,
+  });
 
+  final List<HarnessRailExtraEntry> pluginCards;
   final List<HarnessRailExtraEntry> extraEntries;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    if (extraEntries.isEmpty) {
+    if (pluginCards.isEmpty && extraEntries.isEmpty) {
       return _RailMessage(
         icon: Lucide.LayoutGrid,
         title: l10n.dshRailMoreToolsEmpty,
@@ -872,6 +917,16 @@ class _RailMoreToolsPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
       children: [
+        for (final entry in pluginCards) ...[
+          _RailToolCard(
+            key: ValueKey<String>('dsh-rail-card-${entry.id}'),
+            icon: entry.icon,
+            title: entry.title,
+            subtitle: entry.subtitle,
+            onTap: entry.onTap,
+          ),
+          const SizedBox(height: 10),
+        ],
         for (final entry in extraEntries) ...[
           _RailToolCard(
             key: ValueKey<String>('dsh-rail-entry-${entry.id}'),

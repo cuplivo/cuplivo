@@ -104,6 +104,7 @@ import '../../harness/controllers/dsh_chat_controllers_provider.dart';
 import '../../harness/controllers/dsh_chat_session.dart';
 import '../../harness/pages/chat/harness_conversation_view.dart';
 import '../../harness/pages/home/harness_surface_entries.dart';
+import '../../harness/pages/home/harness_plugin_entries.dart';
 import '../../harness/pages/preview/dsh_file_preview_page.dart';
 import '../../harness/pages/home/harness_home_chrome.dart';
 import '../../harness/pages/home/harness_home_controller.dart';
@@ -118,6 +119,7 @@ import '../../harness/pages/assistant/dsh_assistant_settings_page.dart';
 import '../../harness/widgets/chat/dsh_model_picker.dart';
 import '../../harness/state/dsh_connections_provider.dart';
 import '../../harness/state/dsh_gateway.dart';
+import '../../harness/state/dsh_gateway_models.dart';
 import '../../harness/widgets/dsh_failure_text.dart';
 import '../../harness/widgets/dsh_side_bar.dart';
 import '../../harness/widgets/terminal/dsh_terminal_panel.dart';
@@ -1307,7 +1309,9 @@ class _HomePageState extends State<HomePage>
   /// Opens the surface one R5 entry row stands for.
   ///
   /// Every row is a full official-WebUI page here (the protocol exposes no
-  /// per-panel route): a harvested row lands on its own label, the one built-in
+  /// per-panel route): a harvested row lands on its own label, a curated
+  /// known-plugin row lands on whichever official label its plugin ships (the
+  /// official UI may run in another language than the app), the one built-in
   /// 更多 row lands on DSH's `PanelMoreMenu`, and the pre-harvest 插件 / 自动化任务
   /// built-ins open the WebUI root. Every open also runs the surface harvest, so
   /// the next build replaces the built-ins with the official rows.
@@ -1320,6 +1324,20 @@ class _HomePageState extends State<HomePage>
         title: entry.label,
         script: _harvestThenLanding(
           DshSurfaceHarvest.sidebarLandingScript(entry.label),
+        ),
+      );
+      return;
+    }
+    if (entry.landingLabels.isNotEmpty) {
+      // A curated known-plugin row: the WebUI may render the row under any
+      // language its plugin ships, so the landing script tries them all. When
+      // none matches (the plugin's own sidebar switch hides the row) the page
+      // is left untouched; the harvest that preceded it still refreshes the
+      // drawer.
+      await _openHarnessWebUi(
+        title: entry.label,
+        script: _harvestThenLanding(
+          DshSurfaceHarvest.sidebarLandingAnyScript(entry.landingLabels),
         ),
       );
       return;
@@ -1396,26 +1414,29 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  /// The rail's plugin cards, built from the harvest snapshot.
+  /// The harvested rail rows Cuplivo renders, built-in cards excluded.
   ///
-  /// Built-in cards stay native, so their labels are excluded from the
-  /// harvested list. The cards keep the remote's label verbatim and a generic
-  /// icon, and open the WebUI landed on that rail card (the rail never embeds
-  /// the WebUI, see `docs/cuplivo-dsh/v2-reuse-map.md` §4).
-  List<HarnessRailExtraEntry> _harnessRailExtraEntries(
-    HarnessHomeController harness,
-  ) {
+  /// The built-in cards keep their native labels, so the harvested list drops
+  /// them by the language-neutral page kinds (the exclusion still holds when
+  /// the official UI renders its labels in another locale) and by the 更多工具
+  /// label.
+  List<HarnessSurfaceEntry> _harvestedRailRows() {
     final l10n = AppLocalizations.of(context)!;
-    final rows = dshHarvestedEntries(
-      harness.harvestedRailEntries,
-      // The built-in cards keep their native labels; exclude them by the
-      // language-neutral page kinds so the exclusion still holds when the
-      // official UI renders its labels in another locale.
+    return dshHarvestedEntries(
+      _harnessController?.harvestedRailEntries ?? const <DshSurfaceEntry>[],
       excludedKinds: const <String>{'files', 'terminal'},
       excludedLabels: <String>{l10n.dshRailMoreTools},
     );
+  }
+
+  /// The rail's harvested plugin cards.
+  ///
+  /// The cards keep the remote's label verbatim and a generic icon, and open
+  /// the WebUI landed on that rail card (the rail never embeds the WebUI, see
+  /// `docs/cuplivo-dsh/v2-reuse-map.md` §4).
+  List<HarnessRailExtraEntry> _harnessRailExtraEntries() {
     return <HarnessRailExtraEntry>[
-      for (final row in rows)
+      for (final row in _harvestedRailRows())
         HarnessRailExtraEntry(
           id: row.id,
           title: row.label,
@@ -1429,6 +1450,49 @@ class _HomePageState extends State<HomePage>
             ),
           ),
         ),
+    ];
+  }
+
+  /// The rail's curated plugin cards: the fixed cards of known plugins the Host
+  /// inventory reports (`harness_plugin_entries.dart`).
+  ///
+  /// They render among the built-in cards in the official guide order, so a
+  /// fresh remote's rail already looks like DSH. Once a harvest reports the
+  /// same page kind, that card is dropped here and the Host's own card (with
+  /// its live label) takes over — the harvest stays authoritative. The card
+  /// opens the WebUI landed on the language-neutral page kind.
+  List<HarnessRailExtraEntry> _harnessPluginRailCards({
+    required List<DshPluginEntry> plugins,
+    required String languageCode,
+  }) {
+    final harvestedKinds = <String>{
+      for (final row in _harvestedRailRows())
+        if (row.kind != null) row.kind!,
+    };
+    final cards = dshPluginRailCards(
+      plugins: plugins,
+      languageCode: languageCode,
+    );
+    return <HarnessRailExtraEntry>[
+      for (final card in cards)
+        if (!harvestedKinds.contains(card.kind))
+          HarnessRailExtraEntry(
+            id: card.kind,
+            title: card.title,
+            subtitle: card.description,
+            icon: dshKnownPluginIconData(card.icon),
+            onTap: () => unawaited(
+              _openHarnessWebUi(
+                title: card.title,
+                script: _harvestThenLanding(
+                  DshSurfaceHarvest.railLandingScript(
+                    card.title,
+                    kind: card.kind,
+                  ),
+                ),
+              ),
+            ),
+          ),
     ];
   }
 
@@ -1451,6 +1515,12 @@ class _HomePageState extends State<HomePage>
     final remote = harness.remote;
     final remoteId = remote.id;
     final sessionId = harness.selectedSessionId;
+    // The Host's plugin inventory gates the curated known-plugin rows/cards
+    // (R5's 搜索服务, R7's 代码变更 / 新建 worktree / Issue 与 PR); the harvest
+    // overrides them once the official UI has been rendered.
+    final plugins =
+        connections?.catalogFor(remoteId)?.plugins ?? const <DshPluginEntry>[];
+    final languageCode = Localizations.localeOf(context).languageCode;
     final link =
         connections?.linkStatus(remoteId) ?? const DshLinkStatus.idle();
     final view = sessionId == null
@@ -1488,6 +1558,7 @@ class _HomePageState extends State<HomePage>
               _newHarnessSession(workspaceId: workspaceId),
           onOpenEntry: (entry) => unawaited(_openHarnessEntry(entry)),
           harvestedEntries: harness.harvestedSidebarEntries,
+          plugins: plugins,
           query: query,
         ),
       ),
@@ -1501,7 +1572,11 @@ class _HomePageState extends State<HomePage>
         expanded: harness.railExpanded,
         onShowPage: harness.showRailPage,
         onShowStart: harness.showRailStart,
-        extraEntries: _harnessRailExtraEntries(harness),
+        extraEntries: _harnessRailExtraEntries(),
+        pluginCards: _harnessPluginRailCards(
+          plugins: plugins,
+          languageCode: languageCode,
+        ),
         // The terminal slice supplies the real host terminal; the rail keeps
         // its honest placeholder until a session is open.
         terminalPanelBuilder: (context, session) {

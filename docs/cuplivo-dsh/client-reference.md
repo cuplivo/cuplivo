@@ -1117,10 +1117,12 @@ installing a bridge plugin into DSH (which the product forbids):
 So Cuplivo's honest capability set is:
 
 - **R5's three sidebar entries** (插件 / 自动化任务 / 更多): render the rows in
-  Flutter; 插件 opens the native plugin manager list described above; 自动化任务
-  opens a native schedule list (`schedule/list`, §3.11) if built, else a WebView
-  on the official automation panel; 更多 can be a small Flutter menu of official
-  entries.
+  Flutter; each opens the official WebUI landed on that row (an entry is a
+  panel page, not a native screen); 更多 opens DSH's own `PanelMoreMenu`. The
+  fixed rows of a small set of known plugins (e.g. better-search's 搜索服务)
+  mount natively from the inventory-gated compatibility table when the Host
+  reports the package (`plugin-compat.md` §4.6); every other plugin row arrives
+  through the harvest after one official page load.
 - **Plugin settings tabs** (R2's fourth tab `内容`): Flutter tab strip; each tab
   body is a WebView on the official settings page. Which tabs exist can only be
   discovered by the *official page itself*; two acceptable implementations:
@@ -1129,9 +1131,10 @@ So Cuplivo's honest capability set is:
   `pluginManager/listBundles` + inventory names, landing the WebView on that
   plugin's page by label (§5.7). (b) needs DOM driving and is best-effort.
 - **Right-rail plugin panels** (R7 decorations): the rail's official tool cards
-  are Flutter; plugin contributions appear only if enumerated (same problem).
-  MVP: rail shows the official native cards plus one `插件面板` entry that opens
-  the official page in a WebView; do not fabricate per-plugin entries.
+  are Flutter; the fixed guide cards of the same known-plugin table mount
+  natively in the official guide order, and every other plugin contribution
+  appears only after the harvest enumerates it. Do not fabricate entries for
+  plugins outside the table.
 
 `plugin-manager/changed` and `plugin-manager/install-state|install-log|
 update-state` events invalidate the list; `settings/document-updated` invalidates

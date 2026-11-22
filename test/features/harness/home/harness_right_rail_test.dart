@@ -43,8 +43,8 @@ class _FakeWorkspaceFiles implements HarnessWorkspaceFiles {
 
 const _session = HarnessSessionSummary(sessionId: 'session-1', title: 'One');
 
-/// R7 is native: built-in cards, harvested plugin cards, the terminal hook and
-/// the workspace-file preview hook.
+/// R7 is native: built-in cards, curated known-plugin cards, harvested plugin
+/// cards, the terminal hook and the workspace-file preview hook.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -54,6 +54,7 @@ void main() {
     HarnessSessionSummary? session = _session,
     HarnessWorkspaceFiles? workspaceFiles,
     List<HarnessRailExtraEntry> extraEntries = const <HarnessRailExtraEntry>[],
+    List<HarnessRailExtraEntry> pluginCards = const <HarnessRailExtraEntry>[],
     Widget Function(BuildContext, HarnessSessionSummary?)? terminalPanelBuilder,
     ValueChanged<HarnessWorkspaceFileEntry>? onPreviewWorkspaceFile,
     ValueChanged<HarnessRailPage>? onShowPage,
@@ -89,6 +90,7 @@ void main() {
                   onShowPage: onShowPage ?? (_) {},
                   onShowStart: () {},
                   extraEntries: extraEntries,
+                  pluginCards: pluginCards,
                   terminalPanelBuilder: terminalPanelBuilder,
                   onPreviewWorkspaceFile: onPreviewWorkspaceFile,
                 ),
@@ -182,6 +184,93 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Issue 与 PR'), findsOneWidget);
+    });
+  });
+
+  group('curated plugin cards', () {
+    // The curated table itself is tested in `harness_plugin_entries_test.dart`;
+    // this group covers the rail's rendering contract.
+    List<HarnessRailExtraEntry> pluginCards({VoidCallback? onDiff}) =>
+        <HarnessRailExtraEntry>[
+          HarnessRailExtraEntry(
+            id: 'bw-diff',
+            title: '代码变更',
+            icon: Lucide.GitCompare,
+            onTap: onDiff ?? () {},
+          ),
+          HarnessRailExtraEntry(
+            id: 'bw-worktree',
+            title: '新建 worktree',
+            icon: Lucide.GitBranch,
+            onTap: () {},
+          ),
+          HarnessRailExtraEntry(
+            id: 'bw-forge',
+            title: 'Issue 与 PR',
+            icon: Lucide.GitPullRequest,
+            onTap: () {},
+          ),
+        ];
+
+    testWidgets('render among the built-in cards in the official guide order', (
+      tester,
+    ) async {
+      await pumpRail(tester, pluginCards: pluginCards());
+
+      final keys = <Key>[
+        const Key('dsh-rail-workspace-files'),
+        const Key('dsh-rail-new-terminal'),
+        const ValueKey<String>('dsh-rail-card-bw-diff'),
+        const ValueKey<String>('dsh-rail-card-bw-worktree'),
+        const ValueKey<String>('dsh-rail-card-bw-forge'),
+        const Key('dsh-rail-more-tools'),
+      ];
+      final ys = <double>[
+        for (final key in keys) tester.getTopLeft(find.byKey(key)).dy,
+      ];
+      expect(ys, orderedEquals(<double>[...ys]..sort()));
+      expect(find.text('代码变更'), findsOneWidget);
+      expect(find.text('新建 worktree'), findsOneWidget);
+      expect(find.text('Issue 与 PR'), findsOneWidget);
+    });
+
+    testWidgets('a tap opens the card it was built with', (tester) async {
+      var taps = 0;
+      await pumpRail(tester, pluginCards: pluginCards(onDiff: () => taps++));
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('dsh-rail-card-bw-diff')),
+      );
+      await tester.pump();
+
+      expect(taps, 1);
+    });
+
+    testWidgets('the more-tools page lists the curated cards too', (
+      tester,
+    ) async {
+      await pumpRail(
+        tester,
+        page: HarnessRailPage.moreTools,
+        pluginCards: pluginCards(),
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('dsh-rail-card-bw-diff')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('dsh-rail-card-bw-forge')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('no curated card and no harvest keeps the empty state', (
+      tester,
+    ) async {
+      await pumpRail(tester, page: HarnessRailPage.moreTools);
+
+      expect(find.text('No other tools from this host'), findsOneWidget);
     });
   });
 

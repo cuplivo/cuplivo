@@ -216,5 +216,21 @@ void main() {
       expect(rail, contains('"bw-worktree"'));
       expect(rail, contains('data-sidebar-right-guide-entry'));
     });
+
+    test('a curated row lands on any of the plugin official labels', () {
+      final script = DshSurfaceHarvest.sidebarLandingAnyScript(<String>[
+        '搜索服务',
+        'Search services',
+      ]);
+      expect(script, contains('"搜索服务"'));
+      expect(script, contains('"Search services"'));
+      expect(script, contains('targets.includes'));
+      expect(script, contains('data-slot="sidebar.panellist"'));
+      // A single-label landing is the same recipe with one alias.
+      expect(
+        DshSurfaceHarvest.sidebarLandingScript('搜索服务'),
+        contains('targets.includes'),
+      );
+    });
   });
 }

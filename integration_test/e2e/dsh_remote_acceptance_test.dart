@@ -1110,6 +1110,9 @@ Future<void> _runRealScenario(
     findsNothing,
     reason: 'R7 browser card must not exist in this build',
   );
+  // The fixed cards of the plugins the Host inventory reports mount natively
+  // before any harvest, so the Start page already matches the official rail.
+  _expectCuratedRailCards(tester, rail);
   await pumpFrames(tester, frames: 20);
   e2eStep('before r7_right_rail');
   await capture(tester, binding, 'r7_right_rail');
@@ -1282,6 +1285,9 @@ Future<void> _runRealScenario(
         reason: 'R7 the built-in rail card "$label" stays usable',
       );
     }
+    // The curated known-plugin cards are inventory-gated, not harvest-gated:
+    // they stay in both modes.
+    _expectCuratedRailCards(tester, rail);
   } else {
     for (final entry in extraCards) {
       await _pumpUntilFound(
@@ -1802,6 +1808,56 @@ void _expectDrawerSections(WidgetTester tester, Finder drawerEntries) {
       reason: 'R5 canonical drawer entry dsh-sidebar-entry-$id',
     );
   }
+  // The E2E Host reports @ds-hu/dsh-better-search as enabled, so its curated
+  // 搜索服务 row is mounted natively before any harvest: the canonical key plus
+  // the legacy wrapper the scenario anchors on.
+  final curatedRow = find.descendant(
+    of: drawerEntries,
+    matching: find.byKey(
+      const ValueKey<String>('dsh-sidebar-entry-plugin-better-search'),
+    ),
+  );
+  expect(curatedRow, findsOneWidget, reason: 'R5 curated 搜索服务 row');
+  expect(
+    find.descendant(
+      of: drawerEntries,
+      matching: find.byKey(const Key('dsh-entry-plugin-better-search')),
+    ),
+    findsOneWidget,
+    reason: 'R5 curated row keeps the legacy e2e anchor',
+  );
+  expect(
+    find.descendant(of: drawerEntries, matching: find.text('搜索服务')),
+    findsWidgets,
+    reason: 'R5 the curated row renders the plugin own zh label',
+  );
+  // The row order matches DSH: 插件 (order 0), the known plugin row (order 5),
+  // 自动化任务 (order 10), 更多 last.
+  final orderedRows = <Finder>[
+    find.descendant(
+      of: drawerEntries,
+      matching: find.byKey(const ValueKey<String>('dsh-sidebar-entry-plugins')),
+    ),
+    curatedRow,
+    find.descendant(
+      of: drawerEntries,
+      matching: find.byKey(
+        const ValueKey<String>('dsh-sidebar-entry-automations'),
+      ),
+    ),
+    find.descendant(
+      of: drawerEntries,
+      matching: find.byKey(const ValueKey<String>('dsh-sidebar-entry-more')),
+    ),
+  ];
+  final rowYs = <double>[
+    for (final row in orderedRows) tester.getTopLeft(row).dy,
+  ];
+  expect(
+    rowYs,
+    orderedEquals(<double>[...rowYs]..sort()),
+    reason: 'R5 the official sidebar row order is kept',
+  );
   expect(
     find.descendant(
       of: drawerEntries,
@@ -1818,6 +1874,34 @@ void _expectDrawerSections(WidgetTester tester, Finder drawerEntries) {
     findsWidgets,
     reason: 'R5 new-session row',
   );
+}
+
+/// The curated known-plugin rail cards the E2E Host's plugin inventory gates.
+///
+/// The Host reports `@ds-hu/dsh-bw-diff` / `-worktree` / `-forge` as enabled and
+/// active, so R7 mounts their official guide cards natively before any harvest:
+/// the Start page matches the rail DSH draws (代码变更 / 新建 worktree / Issue 与
+/// PR), in the official guide order.
+void _expectCuratedRailCards(WidgetTester tester, Finder rail) {
+  for (final (kind, label) in <(String, String)>[
+    ('bw-diff', '代码变更'),
+    ('bw-worktree', '新建 worktree'),
+    ('bw-forge', 'Issue 与 PR'),
+  ]) {
+    expect(
+      find.descendant(
+        of: rail,
+        matching: find.byKey(ValueKey<String>('dsh-rail-card-$kind')),
+      ),
+      findsOneWidget,
+      reason: 'R7 curated rail card dsh-rail-card-$kind',
+    );
+    expect(
+      find.descendant(of: rail, matching: find.text(label)),
+      findsWidgets,
+      reason: 'R7 curated rail card renders the plugin own zh label "$label"',
+    );
+  }
 }
 
 /// The rail header's left edge. The mobile rail is always mounted inside the

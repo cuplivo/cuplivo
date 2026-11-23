@@ -134,6 +134,15 @@ Stream<StreamChunk> runClientToolFollowUps({
       totalTokens: totalTokens,
     );
     await append(executed);
+    // A message that arrived while this step ran ends the turn here: the next
+    // segment is a fresh request assembled from history, so the host builds it
+    // rather than this loop appending to a list only the adapter owns.
+    final history = RequestHistoryContext.current;
+    if (history?.takeHandoff?.call() ?? false) {
+      history!.handoffRequested = true;
+      yield* finish();
+      return;
+    }
     yield* _withRequestUsage(
       retryRound?.call(sendFollowUp) ?? sendFollowUp(),
       usageOf,
@@ -189,6 +198,14 @@ Stream<StreamChunk> runProviderToolRounds({
       );
     }
     await append(executed);
+    // Same boundary as the client-tool loop above: a waiting message ends the
+    // turn here and the next segment is assembled fresh.
+    final history = RequestHistoryContext.current;
+    if (history?.takeHandoff?.call() ?? false) {
+      history!.handoffRequested = true;
+      yield* finish();
+      return;
+    }
   }
 }
 

@@ -98,6 +98,7 @@ import '../../../utils/platform_utils.dart';
 import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
 import '../../subagent/services/subagent_rules.dart' show childTitle;
+import '../../subagent/widgets/subagent_mail_notice.dart';
 import '../../subagent/widgets/subagent_panel.dart' show showSubagentPanel;
 import '../../subagent/widgets/subagent_result_divider.dart';
 import '../../home/services/tool_approval_service.dart';
@@ -583,6 +584,8 @@ IconData? _localToolIconFor(String name, Map<String, dynamic> args) {
     LocalToolNames.remindersComplete => Lucide.CheckCircle,
     LocalToolNames.delegate => Lucide.Bot,
     LocalToolNames.awaitJob => Lucide.Hourglass,
+    LocalToolNames.sendMessage => Lucide.MessageCircle,
+    LocalToolNames.interrupt => Lucide.CircleStop,
     _ => null,
   };
 }
@@ -4673,12 +4676,15 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       isUser: isUser,
     );
     SubagentResultPart? subagentResult;
+    SubagentMailPart? subagentMail;
     if (isUser) {
       for (final part in widget.message.parts) {
         if (part is SubagentResultPart) {
           subagentResult = part;
-          break;
+        } else if (part is SubagentMailPart) {
+          subagentMail = part;
         }
+        if (subagentResult != null && subagentMail != null) break;
       }
     }
     final child = subagentResult != null
@@ -4689,6 +4695,8 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
               conversationId: widget.message.conversationId,
             ),
           )
+        : subagentMail != null
+        ? SubagentMailNotice(part: subagentMail, message: widget.message)
         : isUser
         ? _buildUserMessage()
         : widget.message.role == 'tool'

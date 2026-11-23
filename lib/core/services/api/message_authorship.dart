@@ -25,3 +25,11 @@ const String groupPeerSenderKey = '_groupPeerSender';
 /// conclusion landing after that turn must not become "the last user input" and
 /// take them over. Same reason as a group peer, same predicate.
 const String subagentResultKey = '_subagentResult';
+
+/// Set on a `user` message one side of a delegation sends the other while the
+/// work is still running (or after it stopped).
+///
+/// Same reasoning as [subagentResultKey]: it is not something the person reading
+/// the conversation typed, so it carries no revision id and must not become "the
+/// last user input" that carried images and the search query hang off.
+const String subagentMailKey = '_subagentMail';

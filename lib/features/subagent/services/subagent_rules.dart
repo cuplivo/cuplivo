@@ -197,6 +197,24 @@ bool mayDelegate({
   required Map<String, dynamic> extras,
 }) => delegationLevels(delegator: delegator, extras: extras) >= 1;
 
+/// Whether a conversation at [extras] was started by a delegator.
+bool isSubagentConversation(Map<String, dynamic> extras) =>
+    extras[SubagentExtrasKeys.depth] is int;
+
+/// The text a delegator's message carries into its child conversation.
+///
+/// The prefix is the contract the brief states: the child model reads it, so it
+/// has to be the same sentence the brief names, in both directions.
+String mailToChildText(String text) =>
+    'The delegator sent a message: ${text.trim()}';
+
+/// The text a subagent's message carries into its parent conversation.
+String mailToParentText({required String label, required String text}) {
+  final name = label.trim();
+  return '${name.isEmpty ? 'The subagent' : 'Subagent $name'} sent a message: '
+      '${text.trim()}';
+}
+
 /// Why a conversation may not delegate, or null when it may.
 ///
 /// One rule, two callers: the tool list asks it to decide whether to offer the

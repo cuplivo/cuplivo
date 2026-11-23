@@ -363,6 +363,7 @@ Future<List<Map<String, dynamic>>> buildOpenAIChatCompletionMessages(
     outMsg.remove(multimodalInternalRevisionIdKey);
     outMsg.remove(groupPeerSenderKey);
     outMsg.remove(subagentResultKey);
+    outMsg.remove(subagentMailKey);
     outMsg.remove(multimodalInternalClaudeContainerKey);
     outMsg.remove(multimodalInternalClaudeTurnKey);
     outMsg.remove(multimodalInternalClaudeThinkingRecoveryKey);

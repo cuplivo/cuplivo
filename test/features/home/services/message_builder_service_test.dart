@@ -50,6 +50,10 @@ class _FakeChatService extends ChatService {
         .where((message) => message.conversationId == conversationId)
         .toList();
   }
+
+  @override
+  Conversation? getConversation(String id) =>
+      id == 'child-1' ? Conversation(id: 'child-1', title: 'auth') : null;
 }
 
 ChatMessage _message({
@@ -395,6 +399,43 @@ void main() {
       expect(apiMessages.single[MessageBuilderService.internalMediaPathsKey], [
         encodeInternalMediaRef(uri: '/tmp/only.png', mime: 'image/png'),
       ]);
+    });
+
+    test('mail between a delegation’s two sides names its sender', () {
+      final service = MessageBuilderService(
+        chatService: _FakeChatService(const {}),
+        contextProvider: _FakeBuildContext(),
+      );
+      final apiMessages = service.buildApiMessages(
+        messages: [
+          ChatMessage(
+            id: 'm1',
+            role: 'user',
+            conversationId: 'conversation-1',
+            parts: const [
+              SubagentMailPart(
+                from: SubagentMailSender.subagent,
+                senderConversationId: 'child-1',
+              ),
+              TextPart('found the bug'),
+            ],
+          ),
+        ],
+        versionSelections: const {},
+        currentConversation: Conversation(title: 'parent'),
+      );
+
+      // The row stores the body; the model is told who sent it here, once.
+      expect(
+        apiMessages.single['content'],
+        'Subagent auth sent a message: found the bug',
+      );
+      expect(apiMessages.single[subagentMailKey], isTrue);
+      // Not the human's turn: no revision id for a message nobody can edit.
+      expect(
+        apiMessages.single,
+        isNot(contains(MessageBuilderService.internalRevisionIdKey)),
+      );
     });
 
     test('assistant ImagePart gets media paths too', () {

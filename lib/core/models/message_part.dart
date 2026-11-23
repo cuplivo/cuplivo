@@ -15,6 +15,10 @@ import 'package:uuid/uuid.dart';
 ///   into its parent conversation; `label` and `outcome` are what the divider and
 ///   the panel read, so an import or a sync must carry them too; the brief itself
 ///   is the message's `text` part
+/// - `subagent_mail`: `{"fromRole","senderConversationId"}` — the marker on a
+///   message one conversation in a delegation sends to the other while the work
+///   is still going. It travels as `user` because that is what the receiving
+///   model should read, but nobody in that conversation typed it
 /// - unknown kinds: stored in [UnknownPart] and written back unchanged
 /// - malformed known kinds: created only while hydrating database rows and
 ///   stored in [MalformedPart] for lossless write-back
@@ -41,6 +45,8 @@ sealed class MessagePart {
         return ResponseTruncationPart.fromPayload(payload);
       case 'subagent_result':
         return SubagentResultPart.fromPayload(payload);
+      case 'subagent_mail':
+        return SubagentMailPart.fromPayload(payload);
       default:
         return UnknownPart(rawKind: kind, payload: payload);
     }
@@ -186,14 +192,19 @@ final class SubagentResultPart extends MessagePart {
   /// this class does not know renders as a neutral finished state.
   final String? outcome;
 
-  /// The one result message [childConversationId] will ever write.
+  /// The result message one segment of [childConversationId] writes.
   ///
   /// A plain UUID, so nothing has to parse it; deterministic, so a second
-  /// delivery collides with the first instead of adding a row.
-  static String messageIdFor(String childConversationId) => const Uuid().v5(
-    Namespace.url.value,
-    'cuplivo/subagent-result/$childConversationId',
-  );
+  /// delivery of the same segment collides with the first instead of adding a
+  /// row. [runId] names the segment: a delegation that was continued writes one
+  /// result per turn, and the old seed (no run id) is kept only so rows written
+  /// before this shape still answer.
+  static String messageIdFor(String childConversationId, {String? runId}) {
+    final seed = runId == null
+        ? 'cuplivo/subagent-result/$childConversationId'
+        : 'cuplivo/subagent-result/$childConversationId/$runId';
+    return const Uuid().v5(Namespace.url.value, seed);
+  }
 
   @override
   String get kind => 'subagent_result';
@@ -232,6 +243,92 @@ bool hasSubagentResultPart(Iterable<MessagePart> parts) =>
 SubagentResultPart? subagentResultPartOf(Iterable<MessagePart> parts) {
   for (final part in parts) {
     if (part is SubagentResultPart) return part;
+  }
+  return null;
+}
+
+/// Who wrote a mail row, seen from the conversation holding it.
+enum SubagentMailSender {
+  /// The conversation that delegated the work.
+  delegator,
+
+  /// The subagent doing it.
+  subagent,
+}
+
+/// The marker on a message one side of a delegation sends the other mid-work.
+///
+/// It travels as a `user` message because that is the role the receiving model
+/// should read, but no person in that conversation typed it: the row keeps its
+/// identity here for the same reason [SubagentResultPart] does — an import, a
+/// restore or a sync may rewrite ids, and the part travels with the row.
+final class SubagentMailPart extends MessagePart {
+  const SubagentMailPart({
+    required this.from,
+    required this.senderConversationId,
+  });
+
+  factory SubagentMailPart.fromPayload(String payload) {
+    final data = _decodeObjectPayload(payload);
+    final from = switch (data['fromRole']) {
+      'delegator' => SubagentMailSender.delegator,
+      'subagent' => SubagentMailSender.subagent,
+      _ => throw const _MessagePartFormatException('invalid_mail_sender'),
+    };
+    final sender = data['senderConversationId'];
+    if (sender is! String || sender.isEmpty) {
+      throw const _MessagePartFormatException('missing_sender_conversation_id');
+    }
+    return SubagentMailPart(from: from, senderConversationId: sender);
+  }
+
+  final SubagentMailSender from;
+
+  /// The conversation the message came from.
+  final String senderConversationId;
+
+  /// The row one mail delivery writes.
+  ///
+  /// Deterministic on the sender and the tool call that carried it, so a retried
+  /// tool call collides with its own row instead of adding a second copy. A call
+  /// without an id falls back to a random one: there is nothing to be idempotent
+  /// about, and two sends must not collapse into one.
+  static String messageIdFor(String senderConversationId, String toolCallId) {
+    final call = toolCallId.trim();
+    if (call.isEmpty) return const Uuid().v4();
+    return const Uuid().v5(
+      Namespace.url.value,
+      'cuplivo/subagent-mail/$senderConversationId/$call',
+    );
+  }
+
+  @override
+  String get kind => 'subagent_mail';
+
+  @override
+  String encodePayload() => jsonEncode({
+    'fromRole': from.name,
+    'senderConversationId': senderConversationId,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is SubagentMailPart &&
+      other.from == from &&
+      other.senderConversationId == senderConversationId;
+
+  @override
+  int get hashCode => Object.hash(from, senderConversationId);
+}
+
+/// Whether [parts] carry a message one side of a delegation sent the other.
+bool hasSubagentMailPart(Iterable<MessagePart> parts) =>
+    subagentMailPartOf(parts) != null;
+
+/// The mail marker in [parts], or null when this is an ordinary message.
+SubagentMailPart? subagentMailPartOf(Iterable<MessagePart> parts) {
+  for (final part in parts) {
+    if (part is SubagentMailPart) return part;
   }
   return null;
 }

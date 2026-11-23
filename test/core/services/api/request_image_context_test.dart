@@ -508,6 +508,33 @@ void main() {
     },
   );
 
+  test('a delegation mail row does not take over the user’s turn', () {
+    final human = ChatMessage(
+      id: 'human-1',
+      role: 'user',
+      conversationId: 'c',
+      parts: const [TextPart('look')],
+    );
+    final mail = ChatMessage(
+      id: 'mail-1',
+      role: 'user',
+      conversationId: 'c',
+      parts: const [
+        SubagentMailPart(
+          from: SubagentMailSender.subagent,
+          senderConversationId: 'child-1',
+        ),
+        TextPart('found it'),
+      ],
+    );
+
+    final turns = RequestImageContext.userTurnsFor([human, mail]);
+    // The mail row belongs to the human's turn: a picture attached there keeps
+    // its owner (and its protected bytes) instead of being retired.
+    expect(turns[mail.id], 'human-1');
+    expect(turns[human.id], 'human-1');
+  });
+
   test('remote preview size is a reservation and never loads pixels', () async {
     var loads = 0;
     final remote = ChatContextImage(

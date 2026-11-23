@@ -110,6 +110,7 @@ class SyncPeerCard extends StatelessWidget {
                   progress ??
                       const SyncSessionProgress(SyncSessionPhase.connecting),
                 ),
+                fraction: _progressFraction(progress),
               ),
             ),
           const SizedBox(height: 10),
@@ -707,42 +708,63 @@ class _PlatformBadge extends StatelessWidget {
 /// and the row below carries the label at the card's full width. A label in the
 /// header row would fight the peer's name for the line, and win.
 class _SessionProgress extends StatelessWidget {
-  const _SessionProgress({this.label});
+  const _SessionProgress({this.label, this.fraction});
 
   /// The beat to name, or null for the bare spinner.
   final String? label;
 
+  /// How far the beat has got, or null when the phase counts nothing it can
+  /// divide — the bar is then indeterminate, which says "working" without
+  /// inventing a denominator.
+  final double? fraction;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Row(
+    if (label == null) {
+      return SizedBox(
+        width: 14,
+        height: 14,
+        child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 14,
-          height: 14,
-          child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
-        ),
-        if (label != null) ...[
-          const SizedBox(width: 8),
-          // Flexible so a long beat — a full IPv6 address beside a long device
-          // name — gives way to the row instead of overflowing it.
-          Flexible(
-            child: Text(
-              label!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                color: cs.onSurface.withValues(alpha: 0.7),
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
+        // Three device pixels of bar, because it is a readout and not a control:
+        // it answers "is this moving, and how far" at a glance, and the line
+        // below it carries the number a user can actually read.
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: fraction,
+            minHeight: 3,
+            backgroundColor: cs.onSurface.withValues(alpha: 0.08),
           ),
-        ],
+        ),
+        const SizedBox(height: 7),
+        Text(
+          label!,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13,
+            color: cs.onSurface.withValues(alpha: 0.7),
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
       ],
     );
   }
+}
+
+/// How far a beat has got, for the bar. Null while the phase has nothing to
+/// count: a determinate bar with no denominator would be a lie the user can see
+/// move backwards when the next page lands.
+double? _progressFraction(SyncSessionProgress? progress) {
+  if (progress == null || progress.total <= 0) return null;
+  return (progress.done / progress.total).clamp(0.0, 1.0);
 }
 
 /// The device rename form. It owns its controller, like every other dialog

@@ -17821,7 +17821,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.';
+      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -17932,6 +17932,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => 'Comparing data…';
+
+  @override
+  String get lanSyncPhasePreparing => 'Preparing…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return 'Sending $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return 'Receiving $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => 'Sending changes…';
@@ -18071,11 +18084,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count workspaces not syncing files';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '$count conversations did not fit in this push';
   }
 
   @override

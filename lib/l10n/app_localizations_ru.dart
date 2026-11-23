@@ -18113,7 +18113,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      'Папки контроля версий и зависимостей/сборки пропускаются ради экономии времени. Рабочие области с более чем 2000 файлов или 200 МБ свои файлы не синхронизируют. Запись рабочей области синхронизируется всегда — переключатель управляет только её файлами: папка с выключенным переключателем не отправляется, и синхронизация никогда её не удаляет.';
+      'Папки контроля версий и зависимостей/сборки пропускаются ради экономии времени. Рабочие области с более чем 2000 файлов свои файлы не синхронизируют. Запись рабочей области синхронизируется всегда — переключатель управляет только её файлами: папка с выключенным переключателем не отправляется, и синхронизация никогда её не удаляет.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -18225,6 +18225,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => 'Сравнение данных…';
+
+  @override
+  String get lanSyncPhasePreparing => 'Подготовка…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return 'Отправка $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return 'Получение $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => 'Отправка изменений…';
@@ -18364,11 +18377,6 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return 'Рабочих областей без синхронизации файлов: $count';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return 'Не вошло в эту отправку чатов: $count';
   }
 
   @override

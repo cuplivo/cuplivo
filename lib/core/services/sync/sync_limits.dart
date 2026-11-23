@@ -99,11 +99,12 @@ const int kMaxPairRequestsInFlight = 4;
 /// How many files one managed workspace may carry into a sync (ADR-0003 slice
 /// 18): 2,000 files. A workspace past it is not transferred at all, and the
 /// panel says so.
+///
+/// Files, not bytes, and that is the whole bound: there is no byte cap beside it
+/// any more. A workspace's total size is not a reason to refuse it — its files
+/// cross one at a time, each staged and renamed, each with its own progress — so
+/// a byte cap only ever refused a workspace the transfer could have carried.
 const int kMaxWorkspaceFiles = 2000;
-
-/// How many bytes one managed workspace may carry into a sync: 200 MB. Same
-/// rule as the file cap — past it, nothing rides.
-const int kMaxWorkspaceBytes = 200 * 1024 * 1024;
 
 /// How many file entries one peer's table may hold — both the ledger in the
 /// checkpoint and the table a session advertises.
@@ -135,38 +136,29 @@ const int kMaxWorkspaceLedgerEntries = 10 * kMaxWorkspaceFiles;
 /// how a sender ends up building a body the other side refuses.
 const int kSyncMaxBodyBytes = 256 * 1024 * 1024;
 
-/// The share of [kSyncMaxBodyBytes] one push may use: 60%. The rest is
-/// headroom, and it is not slack for the batch's content — the body is
+/// The share of [kSyncMaxBodyBytes] one *page* may use: 5%.
+///
+/// The rest is headroom, and it is not slack for the page's content — a page is
 /// *measured* before it is built (`sync_budget.dart`), so its content cannot
 /// exceed the budget. It is what the send path itself needs and no budget can
-/// see: the batch's row maps, the JSON text, its UTF-8 buffer and the gzip
-/// buffer are all alive before a byte reaches the socket, so a body at the cap
-/// costs the sender several times the cap in memory. Sixty rather than eighty
-/// because this runs on phones.
-///
-/// The measurement's own copy is inside that figure too: admission serialises
-/// one conversation at a time to learn its size, so a conversation at the
-/// per-conversation ceiling adds one encode of its own on top of the batch it
-/// is being admitted into.
+/// see: the page's row maps, the JSON text, its UTF-8 buffer and the gzip buffer
+/// are all alive before a byte reaches the socket, so a page at the cap costs
+/// the sender several times that in memory. Five rather than twenty because this
+/// runs on phones and because a page is the unit a session pauses at.
 ///
 /// Named for what it holds: the *budget*, not the headroom. A name carrying the
 /// other side of the ratio would make "give the send path more headroom" a
-/// change that halves it.
-const int kSyncDeltaBudgetPercent = 60;
+/// change that multiplies it.
+const int kSyncPageBudgetPercent = 5;
 
-/// How many bytes one push may carry, all parts together: conversation
-/// subtrees, business rows, the asset manifest, skill hashes and the workspace
-/// tables. `sync_budget.dart` measures everything but the subtrees and admits
-/// subtrees against the remainder.
-const int kSyncDeltaByteBudget =
-    kSyncMaxBodyBytes * kSyncDeltaBudgetPercent ~/ 100;
-
-/// How large one conversation may be to ride in a push: half the push budget.
+/// How many bytes one page of a transfer may carry: the conversation row, the
+/// rows this page packs, and — on a push's first page — the business rows, the
+/// asset manifest, the skill hashes and the workspace tables.
 ///
-/// Derived, not chosen twice: without this bound one huge conversation fits
-/// under the push budget only by displacing every other conversation from the
-/// round, and with only the push budget a batch of ordinary conversations can
-/// still add up past it. One bound per question — this one answers "is this
-/// conversation too big to send at all", [kSyncDeltaByteBudget] answers "does
-/// this batch still fit".
-const int kSyncMaxConversationBytes = kSyncDeltaByteBudget ~/ 2;
+/// A page is the unit of *any* transfer: a conversation larger than this is sent
+/// in several pages rather than omitted, so no conversation is too large to
+/// cross and no single body approaches [kSyncMaxBodyBytes]. `sync_budget.dart`
+/// measures one page at a time; there is no per-conversation ceiling any more,
+/// because a conversation's size no longer bounds what one body carries — it
+/// bounds how many pages it takes.
+const int kSyncPageBytes = kSyncMaxBodyBytes * kSyncPageBudgetPercent ~/ 100;

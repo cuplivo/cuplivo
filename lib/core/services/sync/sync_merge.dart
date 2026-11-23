@@ -815,12 +815,26 @@ int messageRowMutationUs(Map<String, dynamic> row) {
 /// Union-merge of message rows with LWW per row and checkpoint-based
 /// deletion detection. [checkpointRows] is the peer-observed row set from the
 /// last successful session for this conversation.
+///
+/// [incomingIds] is the set the incoming *transfer* covers, when it is wider
+/// than [incoming]: a conversation arrives in pages, and one page carries a
+/// slice of the sender's rows while the transfer as a whole covers them all.
+/// Without it, every page after the first would read its predecessors' rows as
+/// rows the peer deleted. It defaults to the keys of [incoming], which is what a
+/// whole-conversation transfer means.
+///
+/// [allowDeletes] is false while a transfer is unfinished: a page proves what it
+/// carries, never what the sender no longer holds. The page that ends the
+/// transfer passes the sender's full id set as [incomingIds] and lets the oracle
+/// run.
 MessageMergePlan mergeMessageRows({
   required Map<String, Map<String, dynamic>> local,
   required Map<String, Map<String, dynamic>> incoming,
   required Map<String, int> checkpointRows,
   required String myDeviceId,
   required String peerDeviceId,
+  Set<String>? incomingIds,
+  bool allowDeletes = true,
 }) {
   final upserts = <Map<String, dynamic>>[];
   for (final entry in incoming.entries) {
@@ -837,14 +851,17 @@ MessageMergePlan mergeMessageRows({
   }
 
   final deletes = <String>[];
-  for (final entry in local.entries) {
-    if (incoming.containsKey(entry.key)) continue;
-    final seenAt = checkpointRows[entry.key];
-    if (seenAt == null) continue; // created here since the last sync: keep
-    if (messageRowMutationUs(entry.value) == seenAt) {
-      deletes.add(entry.key); // untouched here, gone there: peer deleted it
+  if (allowDeletes) {
+    final settled = incomingIds ?? incoming.keys;
+    for (final entry in local.entries) {
+      if (settled.contains(entry.key)) continue;
+      final seenAt = checkpointRows[entry.key];
+      if (seenAt == null) continue; // created here since the last sync: keep
+      if (messageRowMutationUs(entry.value) == seenAt) {
+        deletes.add(entry.key); // untouched here, gone there: peer deleted it
+      }
+      // else: edited here — edit beats delete, keep the row.
     }
-    // else: edited here — edit beats delete, keep the row.
   }
   return MessageMergePlan(upserts, deletes);
 }

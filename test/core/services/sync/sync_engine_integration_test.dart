@@ -182,6 +182,7 @@ class _MidApplyWritePlane extends SyncDataPlane {
     required String myDeviceId,
     required String peerDeviceId,
     required Map<String, Map<String, int>> checkpointRowsByConversation,
+    bool composeDigest = true,
     bool Function()? cancelled,
   }) async {
     if (!_fired && subtrees.isNotEmpty) {
@@ -193,6 +194,7 @@ class _MidApplyWritePlane extends SyncDataPlane {
       myDeviceId: myDeviceId,
       peerDeviceId: peerDeviceId,
       checkpointRowsByConversation: checkpointRowsByConversation,
+      composeDigest: composeDigest,
       cancelled: cancelled,
     );
   }
@@ -409,8 +411,7 @@ class _Side {
     this.workspaceMaxFiles = kMaxWorkspaceFiles,
     this.workspaceMaxLedgerEntries = kMaxWorkspaceLedgerEntries,
     this.yieldedSessionTtl = SyncEngine.kYieldedSessionTtl,
-    this.deltaByteBudget = kSyncDeltaByteBudget,
-    this.maxConversationBytes = kSyncMaxConversationBytes,
+    this.pageBytes = kSyncPageBytes,
     this.now,
   });
 
@@ -451,11 +452,10 @@ class _Side {
   /// session's clock move *time*, which is what the rule is defined by.
   final Duration sessionIdleTtl = SyncEngine.kSessionIdleTtl;
 
-  /// This side's push budget and per-conversation cap — the production values,
+  /// This side's page budget — the production value,
   /// shrunk by the budget tests so a conversation of a few kilobytes is "too
   /// large to push" instead of a fixture of tens of megabytes.
-  final int deltaByteBudget;
-  final int maxConversationBytes;
+  final int pageBytes;
 
   /// This side's wall clock, when a test needs to move time instead of waiting
   /// for it. Null means the production `DateTime.now`.
@@ -755,8 +755,7 @@ class _Side {
       onResponderSession: (peer, report) => responderReport = report,
       yieldedSessionTtl: yieldedSessionTtl,
       sessionIdleTtl: sessionIdleTtl,
-      deltaByteBudget: deltaByteBudget,
-      maxConversationBytes: maxConversationBytes,
+      pageBytes: pageBytes,
       now: now,
       clockUs: () => DateTime.now().microsecondsSinceEpoch + clockOffsetUs,
     );
@@ -5426,280 +5425,138 @@ void main() {
     },
   );
 
-  group('one push\'s byte budget', () {
-    // A budget of a couple of kilobytes, so "too large to push" is a message of
-    // a few thousand characters rather than a fixture of tens of megabytes. The
-    // production values are derived in `sync_limits.dart`.
-    const tinyBudget = 1500;
+  group("a conversation is sent in pages", () {
+    // A page of a couple of kilobytes, so "more than one page" is a few thousand
+    // characters of message rather than a fixture of tens of megabytes. The
+    // production value is derived in `sync_limits.dart`.
+    const tinyPage = 1500;
 
-    Future<(_Side, _Side)> budgetPair({
-      int budget = tinyBudget,
-      int perConversation = kSyncMaxConversationBytes,
-    }) async {
-      final a = _Side(
-        'a',
-        deltaByteBudget: budget,
-        maxConversationBytes: perConversation,
-      );
-      final b = _Side('b');
+    Future<(_Side, _Side)> pagePair({int page = tinyPage}) async {
+      final a = _Side("a", pageBytes: page);
+      final b = _Side("b");
       await a.start(root);
       await b.start(root);
       sides.addAll([a, b]);
       final pin = b.engine.openPairing();
-      await a.engine.pairWith(host: '127.0.0.1', port: b.port, pin: pin);
+      await a.engine.pairWith(host: "127.0.0.1", port: b.port, pin: pin);
       return (a, b);
     }
 
-    test(
-      'a conversation the budget leaves behind is deferred, not failed',
-      () async {
-        final (a, b) = await budgetPair();
-        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
-
-        final report = await a.engine.syncWithPeer(await a.peer(b));
-        expect(report.success, isTrue, reason: report.summary);
-        expect(
-          report.conversationsOmittedForSize,
-          1,
-          reason: 'the push left it behind and said so',
-        );
-        expect(
-          report.deferred,
-          0,
-          reason: 'the omission is counted once, not twice',
-        );
-        expect(report.conversationsSent, 0);
-        expect(await _conversationIds(b), isEmpty);
-      },
-    );
-
-    test(
-      'an omitted bothSend conversation keeps the edit it did not send',
-      () async {
-        // The data-loss shape the budget must not create: A's copy sat out the
-        // round, so the peer never received A's row. An entry built from the
-        // *apply* of B's copy claims the opposite, and the next session then
-        // reads A's own row as local-only and deletes it.
-        final (a, b) = await budgetPair();
-        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
-        final first = await a.engine.syncWithPeer(await a.peer(b));
-        expect(first.success, isTrue, reason: first.summary);
-        expect(
-          await _conversationIds(b),
-          contains('conv-a'),
-          reason: 'the small copy fits, so both sides start from an agreement',
-        );
-
-        await a.repository.putMessage(
-          ChatMessage(
-            id: 'conv-a-aonly',
-            conversationId: 'conv-a',
-            role: 'user',
-            content: 'x' * 3000,
-          ),
-        );
-        await b.repository.putMessage(
-          ChatMessage(
-            id: 'conv-a-bonly',
-            conversationId: 'conv-a',
-            role: 'user',
-            content: 'written on b',
-          ),
-        );
-
-        final omitted = await a.engine.syncWithPeer(await a.peer(b));
-        expect(omitted.success, isTrue, reason: omitted.summary);
-        expect(omitted.conversationsOmittedForSize, 1);
-        expect(
-          await _messageIds(a, 'conv-a'),
-          containsAll(<String>['conv-a-aonly', 'conv-a-bonly']),
-          reason: 'B\'s copy was applied; A\'s own row is still here',
-        );
-
-        // The session where the false entry would show: A plans from the
-        // checkpoint, and a "we agree" entry turns it into peerSends — B serves a
-        // copy without the row A never sent, and the merge deletes it.
-        final next = await a.engine.syncWithPeer(await a.peer(b));
-        expect(next.success, isTrue, reason: next.summary);
-        expect(
-          await _messageIds(a, 'conv-a'),
-          contains('conv-a-aonly'),
-          reason: 'a send that did not happen must not be recorded as received',
-        );
-      },
-    );
-
-    test(
-      'an omitted bothSend conversation with no prior entry records none',
-      () async {
-        // The same rule with nothing to fall back to: prior == null must leave
-        // no entry, never one built from the peer's apply.
-        final (a, b) = await budgetPair();
-        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
-        await _seedConversation(b, id: 'conv-a', contents: ['shared on b']);
-        await a.repository.putMessage(
-          ChatMessage(
-            id: 'conv-a-aonly',
-            conversationId: 'conv-a',
-            role: 'user',
-            content: 'x' * 3000,
-          ),
-        );
-
-        final omitted = await a.engine.syncWithPeer(await a.peer(b));
-        expect(omitted.success, isTrue, reason: omitted.summary);
-        expect(omitted.conversationsOmittedForSize, 1);
-
-        final next = await a.engine.syncWithPeer(await a.peer(b));
-        expect(next.success, isTrue, reason: next.summary);
-        expect(
-          await _messageIds(a, 'conv-a'),
-          contains('conv-a-aonly'),
-          reason: 'no entry was written, so A still owes its own copy',
-        );
-      },
-    );
-
-    test(
-      'a conversation past the per-conversation cap is left behind alone',
-      () async {
-        // The cap is the bound that keeps one huge conversation from displacing
-        // the rest of the round: the budget here is ten times the cap, and the
-        // conversation still does not ride.
-        final (a, b) = await budgetPair(budget: 20000, perConversation: 2000);
-        await _seedConversation(a, id: 'conv-huge', contents: ['x' * 3000]);
-        await _seedConversation(a, id: 'conv-ok', contents: ['hi']);
-
-        final report = await a.engine.syncWithPeer(await a.peer(b));
-        expect(report.success, isTrue, reason: report.summary);
-        expect(report.conversationsOmittedForSize, 1);
-        expect(report.conversationsSent, 1);
-        expect(await _conversationIds(b), {'conv-ok'});
-      },
-    );
-
-    test(
-      'a conversation left behind does not hold back the business face',
-      () async {
-        final (a, b) = await budgetPair();
-        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
-        await a.businessPreferences.setString('user_name', 'Alice');
-
-        final report = await a.engine.syncWithPeer(await a.peer(b));
-        expect(report.success, isTrue, reason: report.summary);
-        expect(report.conversationsOmittedForSize, 1);
-        expect(
-          await b.businessRepository.syncReadPreferenceRows({'user_name'}),
-          hasLength(1),
-          reason: 'the two faces share a body, not a budget line',
-        );
-      },
-    );
-
-    test(
-      'a conversation left behind still arrives when the peer pulls it',
-      () async {
-        // The known limitation, pinned: the budget bounds the push body only.
-        // The fetch response is not budgeted, so the peer's own plan delivers what
-        // this device could not push — as long as the peer dials.
-        final (a, b) = await budgetPair();
-        await _seedConversation(a, id: 'conv-big', contents: ['x' * 4000]);
-
-        final pushed = await a.engine.syncWithPeer(await a.peer(b));
-        expect(pushed.conversationsOmittedForSize, 1);
-        expect(await _conversationIds(b), isEmpty);
-
-        final pulled = await b.engine.syncWithPeer(await b.peer(a));
-        expect(pulled.success, isTrue, reason: pulled.summary);
-        expect(await _conversationIds(b), {'conv-big'});
-      },
-    );
-
-    test(
-      'one conversation is one row, omitted and unserved together',
-      () async {
-        // A `bothSend` conversation the push left out *and* the peer could not
-        // serve (it is generating there) is one conversation. Both numbers used
-        // to name it: the omission from the budget and the fetch's miss.
-        final (a, b) = await budgetPair();
-        await _seedConversation(a, id: 'conv-a', contents: ['shared']);
-        final first = await a.engine.syncWithPeer(await a.peer(b));
-        expect(first.success, isTrue, reason: first.summary);
-
-        await a.repository.putMessage(
-          ChatMessage(
-            id: 'conv-a-big',
-            conversationId: 'conv-a',
-            role: 'user',
-            content: 'x' * 4000,
-          ),
-        );
-        await b.repository.putMessage(
-          ChatMessage(
-            id: 'conv-a-bonly',
-            conversationId: 'conv-a',
-            role: 'user',
-            content: 'written on b',
-          ),
-        );
-        await _setStreaming(b, 'conv-a', streaming: true);
-
-        final report = await a.engine.syncWithPeer(await a.peer(b));
-        expect(report.success, isTrue, reason: report.summary);
-        expect(
-          report.conversationsOmittedForSize,
-          1,
-          reason: 'it did not fit the push',
-        );
-        expect(
-          report.deferred,
-          0,
-          reason: 'and the peer could not serve it either — still one row',
-        );
-      },
-    );
-
-    test('an omitted conversation rides the next round once it fits', () async {
-      // The other half of "deferred, not failed", and the only cell where an
-      // omission ends in a transfer: nothing about it is sticky. Too big this
-      // round, it shrinks before the next one, which carries it with a zero
-      // count. (The pair's budget is sized here so both states are unambiguous;
-      // the other cells' conversations stay over it deliberately.)
-      final (a, b) = await budgetPair(budget: 4000);
-      await _seedConversation(a, id: 'conv-a', contents: ['shared']);
-      final first = await a.engine.syncWithPeer(await a.peer(b));
-      expect(first.success, isTrue, reason: first.summary);
-
-      await a.repository.putMessage(
-        ChatMessage(
-          id: 'conv-a-big',
-          conversationId: 'conv-a',
-          role: 'user',
-          content: 'x' * 4000,
-        ),
+    test("a conversation larger than one page arrives whole", () async {
+      // The wall this replaces: a conversation past the per-conversation ceiling
+      // was omitted every round and arrived only if the peer happened to pull it.
+      // Six rows past a page that holds two are the same statement at test scale.
+      final (a, b) = await pagePair();
+      await _seedConversation(
+        a,
+        id: "conv-big",
+        contents: [for (var i = 0; i < 6; i++) "row $i ${"x" * 900}"],
       );
-      final omitted = await a.engine.syncWithPeer(await a.peer(b));
-      expect(omitted.success, isTrue, reason: omitted.summary);
-      expect(omitted.conversationsOmittedForSize, 1);
-      expect(await _messageIds(b, 'conv-a'), isNot(contains('conv-a-big')));
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(report.conversationsSent, 1);
+      expect(report.deferred, 0, reason: "a page is not a deferral");
+      expect(await _messageIds(b, "conv-big"), hasLength(6));
+    });
 
-      await a.repository.deleteMessage('conv-a-big');
-      await a.repository.putMessage(
-        ChatMessage(
-          id: 'conv-a-a2',
-          conversationId: 'conv-a',
-          role: 'user',
-          content: 'small',
-        ),
-      );
-      final retried = await a.engine.syncWithPeer(await a.peer(b));
-      expect(retried.success, isTrue, reason: retried.summary);
-      expect(retried.conversationsOmittedForSize, 0);
+    test("an intermediate page deletes nothing", () async {
+      // The one place a page can be mistaken for a deletion: page two does not
+      // carry page one's rows, and the oracle would read them as rows the sender
+      // no longer has.
+      final (a, b) = await pagePair();
+      await _seedConversation(a, id: "conv-a", contents: ["first"]);
+      await a.engine.syncWithPeer(await a.peer(b));
+      expect(await _messageIds(b, "conv-a"), {"conv-a-m0"});
+
+      for (var i = 1; i <= 5; i++) {
+        await a.repository.putMessage(
+          ChatMessage(
+            id: "conv-a-late$i",
+            conversationId: "conv-a",
+            role: "user",
+            content: "late $i ${"y" * 900}",
+          ),
+        );
+      }
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
       expect(
-        await _messageIds(b, 'conv-a'),
-        contains('conv-a-a2'),
-        reason: 'it fits again, so this round carries it',
+        await _messageIds(b, "conv-a"),
+        containsAll(<String>["conv-a-m0", "conv-a-late5"]),
+        reason: "every page's rows survive the pages after them",
       );
+    });
+
+    test(
+      "a bothSend split across pages keeps the row it did not carry",
+      () async {
+        final (a, b) = await pagePair();
+        await _seedConversation(a, id: "conv-a", contents: ["shared"]);
+        await a.engine.syncWithPeer(await a.peer(b));
+
+        await a.repository.putMessage(
+          ChatMessage(
+            id: "conv-a-aonly",
+            conversationId: "conv-a",
+            role: "user",
+            content: "x" * 4000,
+          ),
+        );
+        await b.repository.putMessage(
+          ChatMessage(
+            id: "conv-a-bonly",
+            conversationId: "conv-a",
+            role: "user",
+            content: "written on b",
+          ),
+        );
+
+        final report = await a.engine.syncWithPeer(await a.peer(b));
+        expect(report.success, isTrue, reason: report.summary);
+        expect(
+          await _messageIds(a, "conv-a"),
+          containsAll(<String>["conv-a-aonly", "conv-a-bonly"]),
+          reason: "B's copy was applied; A's own row is still here",
+        );
+
+        final next = await a.engine.syncWithPeer(await a.peer(b));
+        expect(next.success, isTrue, reason: next.summary);
+        expect(
+          await _messageIds(a, "conv-a"),
+          contains("conv-a-aonly"),
+          reason: "a page that did not cross must not be recorded as received",
+        );
+        expect(await _messageIds(b, "conv-a"), contains("conv-a-aonly"));
+      },
+    );
+
+    test("a page the peer deferred leaves the transfer resumable", () async {
+      final (a, b) = await pagePair();
+      await _seedConversation(a, id: "conv-a", contents: ["shared"]);
+      await a.engine.syncWithPeer(await a.peer(b));
+
+      await a.repository.putMessage(
+        ChatMessage(
+          id: "conv-a-late",
+          conversationId: "conv-a",
+          role: "user",
+          content: "z" * 4000,
+        ),
+      );
+      await _setStreaming(b, "conv-a", streaming: true);
+      final deferred = await a.engine.syncWithPeer(await a.peer(b));
+      expect(deferred.success, isTrue, reason: deferred.summary);
+      expect(deferred.deferred, 1);
+      expect(
+        await _messageIds(a, "conv-a"),
+        contains("conv-a-late"),
+        reason: "a deferred page must not delete what it never delivered",
+      );
+
+      await _setStreaming(b, "conv-a", streaming: false);
+      final next = await a.engine.syncWithPeer(await a.peer(b));
+      expect(next.success, isTrue, reason: next.summary);
+      expect(await _messageIds(b, "conv-a"), contains("conv-a-late"));
     });
   });
 
@@ -7418,12 +7275,12 @@ void main() {
     );
   });
 
-  test('a session takes one push beat, not two', () async {
-    // Every session is one push followed by one fetch. The fetch beat already
-    // refuses its half of that (`push_required`); the push beat writes the whole
-    // outcome the fetch then reads, while the counters a landing books into keep
-    // accumulating — so a replay would replace the outcome the report is built
-    // from and still count the bytes twice.
+  test('a session takes its pages, and a fetch needs one push first', () async {
+    // A session used to be one push; a conversation crosses in pages now, so a
+    // push beat is one *page* and several are ordinary. Two things survive that
+    // change: the fetch beat still requires a push to have opened the session,
+    // and a page applies by clock, so one that arrives twice is idempotent
+    // rather than a replay that would double-count.
     final (a, b) = await pair();
     expect(
       await b.engine.handleHello(
@@ -7433,8 +7290,24 @@ void main() {
       ),
       isA<SyncHello>(),
     );
-    const batch = SyncDeltaBatch(<SyncSubtreePayload>[]);
+    // Nothing has been pushed yet, so there is no session for the fetch to
+    // answer.
+    await expectLater(
+      b.engine.handleFetchSubtrees(
+        a.identity.deviceId,
+        const SyncFetchRequest(),
+        admission: b.gate(),
+      ),
+      throwsA(
+        isA<SyncRequestRefusal>().having(
+          (refusal) => refusal.error,
+          'error',
+          'push_required',
+        ),
+      ),
+    );
 
+    const batch = SyncDeltaBatch(<SyncSubtreePayload>[]);
     final first = await b.engine.handleApplySubtrees(
       a.identity.deviceId,
       batch,
@@ -7442,22 +7315,15 @@ void main() {
     );
     expect(first.workspaceRequests, isEmpty);
 
-    await expectLater(
-      b.engine.handleApplySubtrees(
-        a.identity.deviceId,
-        batch,
-        admission: b.gate(),
-      ),
-      throwsA(
-        isA<SyncRequestRefusal>().having(
-          (refusal) => refusal.error,
-          'error',
-          'push_already_taken',
-        ),
-      ),
+    // The session's next page is another push beat, not a refused replay.
+    final second = await b.engine.handleApplySubtrees(
+      a.identity.deviceId,
+      batch,
+      admission: b.gate(),
     );
-    // The fetch beat still belongs to the session the first push opened: a
-    // refused replay does not end it.
+    expect(second.workspaceRequests, isEmpty);
+
+    // The fetch beat still belongs to the session those pushes opened.
     await b.engine.handleFetchSubtrees(
       a.identity.deviceId,
       const SyncFetchRequest(),

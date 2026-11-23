@@ -131,7 +131,7 @@ class SyncWorkspaceSummary {
   final int fileCount;
   final int totalBytes;
 
-  /// Over the file or byte cap: this workspace's content is not synced at all,
+  /// Over the file cap: this workspace's content is not synced at all,
   /// and its figures are lower bounds.
   final bool truncated;
 

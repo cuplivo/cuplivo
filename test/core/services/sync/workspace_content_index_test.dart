@@ -111,13 +111,16 @@ void main() {
     );
   });
 
-  test('stops the moment the byte cap is passed', () async {
+  test('size is not a cap: only the file count bounds the walk', () async {
+    // There used to be a byte cap here as well, and it refused a workspace the
+    // transfer could have carried — files cross one at a time, staged and
+    // renamed, so their total is a duration rather than a limit.
     await put('a.txt', 'aaaa');
     await put('b.txt', 'bbbb');
 
-    final index = indexWorkspaceContentSync(root.path, maxBytes: 5);
+    final index = indexWorkspaceContentSync(root.path, maxFiles: 5);
 
-    expect(index.truncated, isTrue);
+    expect(index.truncated, isFalse);
     expect(index.files.length, 2);
     expect(index.totalBytes, 8);
   });

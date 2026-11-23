@@ -668,8 +668,12 @@ class MessageGenerationService {
                 !ContextOperation.isSummary(m) &&
                 // A subagent's notice is a `user` message, but it is not the
                 // human's turn: the images that own the protected budget belong
-                // to the message the user actually sent.
-                !hasSubagentResultPart(m.parts),
+                // to the message the user actually sent. Mail between the two
+                // sides of a delegation is the same — without this the mail row
+                // would own the protected budget and every earlier picture
+                // would be evictable.
+                !hasSubagentResultPart(m.parts) &&
+                !hasSubagentMailPart(m.parts),
           )
           .lastOrNull
           ?.id,

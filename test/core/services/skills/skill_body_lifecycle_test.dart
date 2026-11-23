@@ -102,20 +102,31 @@ void main() {
       expect(await sync.hashOf('demo'), isNot(before));
     });
 
-    test(
-      'an edit in place keeps the shape and still moves the clock',
-      () async {
-        // The other half of the fingerprint: same paths, same size, new bytes.
-        // Neither the paths nor the sizes can see this, which is why every file
-        // carries its own stamp.
-        final sync = SkillDirectorySync(root);
-        await writeBody(root, {'SKILL.md': '# v1\n'});
-        final before = (await sync.hashOf('demo'))!;
-        await writeBody(root, {'SKILL.md': '# v2\n'});
+    test('an edit in place keeps the shape and still moves the clock', () async {
+      // The other half of the fingerprint: same paths, same size, new bytes.
+      // Neither the paths nor the sizes can see this, which is why every file
+      // carries its own stamp.
+      //
+      // The stamp is the filesystem's and advances in the filesystem's own
+      // granularity, so two writes a fraction of a millisecond apart can share
+      // one — and then the fingerprint says "nothing changed", correctly, by
+      // the rule the plane publishes (pinned by the contract case below). The
+      // test therefore moves the stamp on purpose instead of racing it, as the
+      // workspace file plane's tests do when they write an explicit `mtimeMs`.
+      final sync = SkillDirectorySync(root);
+      await writeBody(root, {'SKILL.md': '# v1\n'});
+      final before = (await sync.hashOf('demo'))!;
+      await writeBody(root, {'SKILL.md': '# v2\n'});
+      await File(
+        p.join(root.path, 'demo', 'SKILL.md'),
+      ).setLastModified(DateTime.utc(2030, 1, 1));
 
-        expect(await sync.hashOf('demo'), isNot(before));
-      },
-    );
+      expect(
+        await sync.hashOf('demo'),
+        isNot(before),
+        reason: 'a same-size edit is visible through its own stamp',
+      );
+    });
 
     test('a same-size edit is seen even when another file is newer', () async {
       // The stamp is per file. With one newest-mtime for the whole body, a file
@@ -134,9 +145,47 @@ void main() {
       final before = (await sync.hashOf('demo'))!;
 
       await writeBody(root, {'SKILL.md': '# v2\n'});
+      // Later than the v1 write and still earlier than `notes.md`, so the body's
+      // newest stamp stays the untouched file — what a single-maximum
+      // fingerprint would key on. Only a per-file stamp can see this edit.
+      await File(
+        p.join(root.path, 'demo', 'SKILL.md'),
+      ).setLastModified(DateTime.utc(2029, 1, 1));
 
-      expect(await sync.hashOf('demo'), isNot(before));
+      expect(
+        await sync.hashOf('demo'),
+        isNot(before),
+        reason: 'the stamp is per file, so a newer neighbour cannot hide it',
+      );
     });
+
+    test(
+      'an edit that leaves the stamp alone is invisible, by contract',
+      () async {
+        // The limit the fingerprint publishes: it is (path, size, stamp), so an
+        // edit keeping all three identical cannot be seen without reading every
+        // body on every call — the cost the memo exists to avoid. It is pinned
+        // rather than merely documented, so a later change that adds, say, a
+        // content digest to the fingerprint fails here instead of quietly
+        // costing a full read of every body.
+        final sync = SkillDirectorySync(root);
+        await writeBody(root, {'SKILL.md': '# v1\n'});
+        final body = File(p.join(root.path, 'demo', 'SKILL.md'));
+        final stamp = body.statSync().modified;
+        final before = (await sync.hashOf('demo'))!;
+
+        await writeBody(root, {'SKILL.md': '# v2\n'});
+        await body.setLastModified(stamp);
+
+        expect(
+          await sync.hashOf('demo'),
+          before,
+          reason:
+              'same path, same size, same stamp: the memo answers with the '
+              'previous hash',
+        );
+      },
+    );
   });
 
   group('one policy names the scratch the plane leaves', () {

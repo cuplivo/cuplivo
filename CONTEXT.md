@@ -311,8 +311,8 @@ contradicts one of them is a bug, not a preference.
   row-level filter as the id check, so a row whose halves disagree is not listed either (the panel
   refuses it on load, which is also what stops an update minting a second row under an id of the
   peer's choosing). One unreadable payload costs its own workspace, never the whole list.
-- **Caps are hard gates and the switch cannot lift them (上限)**: a workspace over **2,000 files or
-  200 MB** has **no content synced at all** — the whole block, never half a table — and the panel
+- **Caps are hard gates and the switch cannot lift them (上限)**: a workspace over **2,000 files**
+  has **no content synced at all** — the whole block, never half a table — and the panel
   says so (`2,001+ 文件`, and its size is a lower bound). The ledger has a global 20,000-entry cap
   *derived from* the per-workspace cap (`10 × 2,000`, both in `sync_limits.dart`, the relationship
   asserted in `sync_limits_test.dart`) and drops whole workspaces over it; those fall back to
@@ -614,19 +614,34 @@ contradicts one of them is a bug, not a preference.
   a session needs, and it is cheap enough to ask every ten seconds. It is what replaced the bare
   TCP connect that used to decide the online dot: that probe could answer while every session
   failed, because "the port is open" is not "this peer will talk to me".
-- **A push has a byte budget (一次推送的字节预算)**: one push is one JSON document, and the
-  receiver counts it after decompression, refusing 413 past `kSyncMaxBodyBytes`. A refused push
-  fails the whole round and the next round rebuilds the same body, so an over-cap push is a pair
-  that stops converging. Before the batch is built, `sync_budget.dart` measures the parts that
-  travel whatever the conversation list is — business rows, the asset manifest, the skill hashes,
-  the workspace tables — and admits conversations in plan order against what is left
-  (`kSyncDeltaByteBudget`, with half of it as one conversation's ceiling). A conversation that
-  does not fit is **deferred, not failed**: it stays out of the push, its checkpoint does not
-  move, and the next session retries it while everything else still travels. The report names the
-  count (`conversationsOmittedForSize`): most of them are the plan's tail and ride the next session
-  on their own, and only one past the single-conversation ceiling needs the peer to pull it.
-  Not fragmented: a conversation too large for any push still arrives when the peer *pulls* it,
-  which is the fetch response's unbounded path (ADR-0003's known limitation).
+- **A transfer is a sequence of pages (一次传输按页进行)**: one page is one JSON document, and the
+  receiver counts it after decompression, refusing 413 past `kSyncMaxBodyBytes`. A conversation is
+  not the unit — a page is: the conversation row plus a run of messages and their parts, filled to
+  `kSyncPageBytes` and *measured*, never guessed. A conversation larger than a page crosses in as
+  many pages as it needs, so there is no single-conversation ceiling and nothing is left behind;
+  the old "did not fit this round" state, its report field and its string are gone. The first page
+  of a session carries the fixed parts (business rows, the asset manifest, the skill hashes, the
+  workspace tables) and the rest carry only their own rows.
+- **A page is not a transfer (一页不等于一次传输)**: rows a page carries are written as they arrive,
+  but nothing about the conversation is agreed until the page whose `more` is false lands. That page
+  names **every message id the sender holds** (`ids`), and the receiver's deletion oracle reads that
+  set rather than the page — otherwise each page would read its predecessors' rows as deletions. The
+  checkpoint entry says the same thing: while a transfer is unfinished it keeps the last agreement's
+  digest and grows `rows` with what the peer acknowledged, plus a `cursor` naming which side owes the
+  rest, and `composeConversationPlan` forces that direction (`iSend` half-sent, `peerSends`
+  half-received). A conversation is resumed from the cursor, not from the beginning.
+- **A message's text is not in its row (正文不在消息行里)**: `message_rows` is metadata and
+  `message_part_rows.payload` is the prose, so a page's size cannot be decided from its rows — the
+  page is filled to a row budget, its parts are read for exactly those rows, and the page is trimmed
+  to `kSyncPageBytes` with that cost in hand. The parts of a page's own rows are one contiguous id
+  interval; the rows a cursor stepped over are not, and are read by id (reading them by interval
+  loses the whole page's parts, silently).
+- **One push beat per page, one tail per session (每页一次 push，会话一次收尾)**: the responder
+  applies each page as it arrives, but the session-level work — skill hashes, the business apply,
+  the workspace walk and ledger — belongs to the beat that carries that payload (the first page).
+  A later page must not overwrite those with emptiness: the workspace ledger it would replace is
+  the one the checkpoint saves. Blob pulls are per beat (each page advertises its own references)
+  and their outcomes merge into the session's.
 - **One plan, two faces**: conversations and business rows (entities + preferences) are decided
   by the same table — present on one side, newer clock, tie to the higher deviceId — and travel
   in the same batch, so one session moves a conversation and the assistant it references.

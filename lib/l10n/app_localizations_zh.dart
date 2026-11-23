@@ -16863,7 +16863,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 个文件的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -16972,6 +16972,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhasePreparing => '正在准备…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '正在发送 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '正在接收 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '正在发送变更…';
@@ -17110,11 +17123,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count 个工作区未同步文件';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '$count 个对话没能放进本轮推送';
   }
 
   @override
@@ -34999,7 +35007,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 个文件的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -35108,6 +35116,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhasePreparing => '正在准备…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '正在发送 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '正在接收 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '正在发送变更…';
@@ -35246,11 +35267,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count 个工作区未同步文件';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '$count 个对话没能放进本轮推送';
   }
 
   @override
@@ -53146,7 +53162,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 與相依/建置目錄以節省時間。超過 2,000 個檔案或 200 MB 的工作區不同步內容。工作區記錄始終同步，開關只控制檔案：關閉後該資料夾不會被傳送，也不會被同步刪除。';
+      '不同步 .git 與相依/建置目錄以節省時間。超過 2,000 個檔案的工作區不同步內容。工作區記錄始終同步，開關只控制檔案：關閉後該資料夾不會被傳送，也不會被同步刪除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -53255,6 +53271,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncPhaseExchanging => '正在比對資料…';
+
+  @override
+  String get lanSyncPhasePreparing => '正在準備…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '正在傳送 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '正在接收 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '正在傳送變更…';
@@ -53393,11 +53422,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count 個工作區未同步檔案';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '$count 個對話沒能放進本輪推送';
   }
 
   @override

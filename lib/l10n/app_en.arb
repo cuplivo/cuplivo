@@ -23077,7 +23077,7 @@
   "@lanSyncWorkspaces": {
     "description": "Section header listing the workspace folders whose files sync to the other devices."
   },
-  "lanSyncWorkspaceTip": "Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don't sync their files. A workspace's record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.",
+  "lanSyncWorkspaceTip": "Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files don't sync their files. A workspace's record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.",
   "@lanSyncWorkspaceTip": {
     "description": "Help text for that section, explaining which folders are skipped, the size limits, and that the switch only governs files while the folder's record always syncs."
   },
@@ -23200,6 +23200,18 @@
   "lanSyncPhaseExchanging": "Comparing data…",
   "@lanSyncPhaseExchanging": {
     "description": "Progress line during a sync while both devices compare what they hold."
+  },
+  "lanSyncPhasePreparing": "Preparing…",
+  "@lanSyncPhasePreparing": {
+    "description": "Progress line during a sync while this device reads its own rows and packs them into pages; no traffic is on the wire yet."
+  },
+  "lanSyncPhaseSendingOf": "Sending {done}/{total} · {bytes}",
+  "@lanSyncPhaseSendingOf": {
+    "description": "Progress line while pages are pushed to the other device: done and total count conversations finished and planned, bytes is how much has been sent."
+  },
+  "lanSyncPhaseReceivingOf": "Receiving {done}/{total} · {bytes}",
+  "@lanSyncPhaseReceivingOf": {
+    "description": "Progress line while the other device's changes are fetched: done and total count conversations finished and requested, bytes is how much has arrived."
   },
   "lanSyncPhaseSending": "Sending changes…",
   "@lanSyncPhaseSending": {
@@ -23328,10 +23340,6 @@
   "lanSyncReportWorkspacesOmitted": "{count} workspaces not syncing files",
   "@lanSyncReportWorkspacesOmitted": {
     "description": "Sync report count of workspaces whose files were not synced at all; count is that number."
-  },
-  "lanSyncReportConversationsOmittedForSize": "{count} conversations did not fit in this push",
-  "@lanSyncReportConversationsOmittedForSize": {
-    "description": "Sync report count of conversations this device left out of a push because the round's byte budget had no room for them. Most are ordinary conversations that ride in the next session; only a conversation larger than the single-conversation limit has to be pulled by the other device instead. Nothing was deleted. count is that number of conversations."
   },
   "lanSyncReportWorkspacesKept": "{count} workspace folders kept on disk (switched off, or holding unsynced files)",
   "@lanSyncReportWorkspacesKept": {

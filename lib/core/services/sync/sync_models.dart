@@ -99,7 +99,15 @@ import 'sync_limits.dart';
 /// that moves no family's content.) A v7 peer would read the pair as a digest
 /// string (`toString`), match nothing, and silently stop honouring announced
 /// deletions, so this is refused at hello like every other shape change.
-const int kSyncProtocolVersion = 10;
+///
+/// v11 pages a conversation instead of omitting it. A subtree now says whether
+/// more pages of the same conversation follow, and its last page names every
+/// message id the sender holds — the list the receiver's deletion oracle reads,
+/// because the rows its own pages did not carry must not be read as deletions. A
+/// v10 peer would read one page as the whole conversation and delete every row
+/// the other pages carried, which is why this is a refusal and not a field a
+/// reader may ignore.
+const int kSyncProtocolVersion = 11;
 
 /// Wall-clock divergence (milliseconds) beyond which a session report carries
 /// a clock-skew warning. Kerberos-style tolerance: below it, LWW comparisons
@@ -789,7 +797,7 @@ class SyncPeerReport {
   final int workspaceFoldersKept;
 
   /// Workspaces this device shared no content for this session: turned off, or
-  /// over the file/byte caps. Counted because silence about a workspace the
+  /// over the file cap. Counted because silence about a workspace the
   /// user believes is syncing is the one failure mode this face must never
   /// have.
   final int workspacesOmitted;
@@ -814,16 +822,6 @@ class SyncPeerReport {
   /// continuation needs, not something the user produced or could act on, and
   /// the card names compression history and settings.
   final int conversationsWithDocumentsReplaced;
-
-  /// Conversations the push budget left behind this round: too large to ride,
-  /// so their checkpoints did not move and the next session retries them.
-  ///
-  /// Persisted with the rest of the card because that is what the panel reads
-  /// (`sync_report_breakdown.dart`), and named for the user because the number
-  /// is the only trace of a conversation that did not travel: most are the
-  /// plan's tail and ride the next session by themselves, while one past the
-  /// single-conversation ceiling arrives only when the peer pulls it.
-  final int conversationsOmittedForSize;
 
   /// Signed clock divergence against this peer in milliseconds, present only
   /// when it exceeded [kClockSkewWarnMs] (positive: this device ran ahead).
@@ -862,7 +860,6 @@ class SyncPeerReport {
     this.entityRowsLost = 0,
     this.preferencesLost = 0,
     this.conversationsWithDocumentsReplaced = 0,
-    this.conversationsOmittedForSize = 0,
     this.clockSkewMs,
     this.refusal,
     this.failure,
@@ -891,7 +888,6 @@ class SyncPeerReport {
     'workspaceFilesMissing': workspaceFilesMissing,
     'workspaceFoldersKept': workspaceFoldersKept,
     'workspacesOmitted': workspacesOmitted,
-    'conversationsOmittedForSize': conversationsOmittedForSize,
     'entityRowsLost': entityRowsLost,
     'preferencesLost': preferencesLost,
     'conversationsWithDocumentsReplaced': conversationsWithDocumentsReplaced,
@@ -925,8 +921,6 @@ class SyncPeerReport {
         (json['workspaceFilesMissing'] as num?)?.toInt() ?? 0,
     workspaceFoldersKept: (json['workspaceFoldersKept'] as num?)?.toInt() ?? 0,
     workspacesOmitted: (json['workspacesOmitted'] as num?)?.toInt() ?? 0,
-    conversationsOmittedForSize:
-        (json['conversationsOmittedForSize'] as num?)?.toInt() ?? 0,
     entityRowsLost: (json['entityRowsLost'] as num?)?.toInt() ?? 0,
     preferencesLost: (json['preferencesLost'] as num?)?.toInt() ?? 0,
     conversationsWithDocumentsReplaced:
@@ -953,9 +947,35 @@ class SyncSubtreePayload {
   /// [conversation] — but [rowsOf] answers for it too.
   final Map<String, List<Map<String, dynamic>>> families;
 
+  /// Whether another page of this same conversation follows this one.
+  ///
+  /// A conversation is sent in as many pages as its size needs, and a page is
+  /// **not** a transfer: rows it carries are written as they arrive, but nothing
+  /// about the conversation is agreed until the page whose [more] is false
+  /// arrives. The receiver's deletion oracle is what that protects — the rows a
+  /// later page carries are, from this page's point of view, rows the peer
+  /// deleted.
+  final bool more;
+
+  /// Every message id the sender holds for this conversation. Carried on the
+  /// last page only; empty while [more].
+  ///
+  /// It is the incoming set the deletion oracle reads, and it is separate from
+  /// [families] because the pages are: a row sent on page 2 is absent from page
+  /// 3's rows but present here. Without it every multi-page transfer would read
+  /// its own earlier pages as deletions.
+  ///
+  /// It also closes the one hole a keyset cursor has: a row written while the
+  /// transfer ran can sort *before* the cursor and be skipped by every page. The
+  /// sender appends exactly those rows to its last page, so "every id this device
+  /// holds" is also "every id this transfer carried".
+  final List<String> ids;
+
   const SyncSubtreePayload({
     required this.conversation,
     this.families = const {},
+    this.more = false,
+    this.ids = const [],
   });
 
   /// The rows of [family] as they travel here, or empty when the payload does
@@ -970,6 +990,11 @@ class SyncSubtreePayload {
         'conversation': conversation
       else
         family.wireKey!: [for (final row in rowsOf(family)) row],
+    if (more) 'more': true,
+    // Written whenever the page is the last one, empty list included: an absent
+    // key and "the sender holds nothing" are different statements, and only the
+    // second may justify a deletion.
+    if (!more) 'ids': ids,
   };
 
   static SyncSubtreePayload fromJson(Map<String, dynamic> json) =>
@@ -983,6 +1008,10 @@ class SyncSubtreePayload {
                   (row as Map).cast<String, dynamic>(),
               ],
         },
+        more: json['more'] == true,
+        ids: [
+          for (final id in (json['ids'] as List? ?? const [])) id.toString(),
+        ],
       );
 }
 
@@ -1577,13 +1606,30 @@ class SyncCheckpointConversation {
   final String digest;
   final Map<String, int> rows;
 
+  /// Where an unfinished transfer of this conversation stands, or null when the
+  /// last exchange agreed on the whole conversation.
+  ///
+  /// Its presence *is* the statement "these [rows] are proven, the [digest] is
+  /// not": while a conversation is being paged, [digest] and [updatedAtUs] keep
+  /// the last agreement and [rows] grows with every page the peer took. A reader
+  /// must not treat such an entry as an agreement — `SyncEngine` forces the
+  /// direction the cursor names, and composes the entry only when the last page
+  /// was acknowledged.
+  final SyncTransferCursor? cursor;
+
   const SyncCheckpointConversation({
     required this.updatedAtUs,
     required this.digest,
     required this.rows,
+    this.cursor,
   });
 
-  Map<String, dynamic> toJson() => {'u': updatedAtUs, 'd': digest, 'r': rows};
+  Map<String, dynamic> toJson() => {
+    'u': updatedAtUs,
+    'd': digest,
+    'r': rows,
+    if (cursor != null) 'c': cursor!.toJson(),
+  };
 
   static SyncCheckpointConversation fromJson(Map<String, dynamic> json) =>
       SyncCheckpointConversation(
@@ -1594,6 +1640,52 @@ class SyncCheckpointConversation {
               in ((json['r'] as Map).cast<String, dynamic>()).entries)
             entry.key: (entry.value as num).toInt(),
         },
+        cursor: json['c'] is Map
+            ? SyncTransferCursor.fromJson(
+                (json['c'] as Map).cast<String, dynamic>(),
+              )
+            : null,
+      );
+}
+
+/// Where an unfinished transfer of one conversation stands.
+///
+/// A transfer is a sequence of pages, and a checkpoint entry describes an
+/// *agreement*. Between the two there is a third state — pages have crossed and
+/// the two sides do not yet hold the same thing — and it needs a name, because
+/// "we sent some of it" is not "they have it". That distinction is the one
+/// `SyncApplyAck` exists for: a page the peer acknowledged is proven, a
+/// conversation is not.
+///
+/// The direction is what makes the state readable by the side that did not write
+/// it. A half-sent conversation must be finished by *this* device (iSend), a
+/// half-received one must be finished by the peer (peerSends); without the flag
+/// both sides plan `bothSend`, and the receiver pushing its partial copy is the
+/// one thing that must never happen — the sender's deletion oracle would read
+/// the rows that copy lacks as rows the receiver deleted.
+class SyncTransferCursor {
+  /// True when this device owes the rows: the conversation is half-sent.
+  final bool sending;
+
+  /// The sender's position: the last message id the peer is confirmed to hold,
+  /// or null when nothing of this conversation has been taken yet.
+  ///
+  /// The receiver keeps its position in the request it makes rather than here:
+  /// what it has is its own rows, and asking from the last id it applied is the
+  /// same statement made by the only side that can prove it.
+  final String? after;
+
+  const SyncTransferCursor({required this.sending, this.after});
+
+  Map<String, dynamic> toJson() => {
+    's': sending ? 1 : 0,
+    if (after != null) 'a': after,
+  };
+
+  static SyncTransferCursor fromJson(Map<String, dynamic> json) =>
+      SyncTransferCursor(
+        sending: (json['s'] as num?)?.toInt() == 1,
+        after: json['a'] as String?,
       );
 }
 

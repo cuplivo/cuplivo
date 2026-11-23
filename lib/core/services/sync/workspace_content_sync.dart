@@ -153,7 +153,6 @@ class WorkspaceContentSync {
     required this.resolveRoot,
     this.recycle,
     this.maxFiles = kMaxWorkspaceFiles,
-    this.maxBytes = kMaxWorkspaceBytes,
     this.maxLedgerEntries = kMaxWorkspaceLedgerEntries,
   });
 
@@ -170,10 +169,12 @@ class WorkspaceContentSync {
   /// sites fall back to the plain delete.
   final RecycleService? recycle;
 
-  /// The per-workspace caps, as parameters only so a test can prove the abort
-  /// without creating two thousand files. Production never passes them.
+  /// The per-workspace file cap, as a parameter only so a test can prove the
+  /// abort without creating two thousand files. Production never passes it.
+  ///
+  /// There is no byte cap beside it: files cross one at a time, staged and
+  /// renamed, so a large workspace costs a long transfer rather than a refusal.
   final int maxFiles;
-  final int maxBytes;
 
   /// The advertised-table and ledger cap, a parameter for the same reason: the
   /// drop only happens past twenty thousand file entries, and what a test has to
@@ -229,11 +230,7 @@ class WorkspaceContentSync {
               totalBytes: 0,
               incomplete: true,
             )
-          : await indexWorkspaceContent(
-              root.path,
-              maxFiles: maxFiles,
-              maxBytes: maxBytes,
-            );
+          : await indexWorkspaceContent(root.path, maxFiles: maxFiles);
       snapshots.add(
         WorkspaceContentSnapshot(
           id: id,

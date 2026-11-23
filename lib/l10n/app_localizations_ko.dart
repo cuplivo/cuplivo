@@ -17256,7 +17256,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '시간을 아끼려고 버전 관리와 의존성/빌드 폴더는 건너뛰어요. 파일이 2,000개를 넘거나 200 MB가 넘는 작업 공간은 파일을 동기화하지 않아요. 작업 공간 기록은 항상 동기화되며 스위치는 파일만 제어해요. 스위치가 꺼진 폴더는 전송되지 않고 동기화로 삭제되지도 않아요.';
+      '시간을 아끼려고 버전 관리와 의존성/빌드 폴더는 건너뛰어요. 파일이 2,000개를 넘는 작업 공간은 파일을 동기화하지 않아요. 작업 공간 기록은 항상 동기화되며 스위치는 파일만 제어해요. 스위치가 꺼진 폴더는 전송되지 않고 동기화로 삭제되지도 않아요.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -17365,6 +17365,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => '데이터 비교 중…';
+
+  @override
+  String get lanSyncPhasePreparing => '준비 중…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '보내는 중 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '받는 중 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '변경 사항 보내는 중…';
@@ -17504,11 +17517,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '파일을 동기화하지 않는 작업 공간 $count개';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '이번 전송에 담지 못한 대화 $count개';
   }
 
   @override

@@ -1155,7 +1155,7 @@ per-row and per-face instead of per-kind.
   shared" (switched off, over a cap, not this peer's); an empty table means "shared, and it has no
   files". For the deletion rule those are opposite statements, so the wire shape keeps them
   distinct (a present-but-empty table survives decoding) and nothing collapses them.
-- **Caps are hard gates and the switch cannot lift them.** Over 2,000 files or 200 MB, a workspace
+- **Caps are hard gates and the switch cannot lift them.** Over 2,000 files, a workspace
   contributes **no** content — the whole block, never half a table, because a half table reads some
   files as "never agreed" (re-send, safe) and others as "agreed" (the entry a deletion could be read
   from). The switch is device-local (`sync/workspaces.json` holds the *disabled* set, so a new
@@ -1591,7 +1591,7 @@ slice is the fix, and it changes the wire (`kSyncProtocolVersion` 5 → 6).
   pairing request has carried the same list since slice 9, and a session had no way to say it.
 - *Rejected: carrying the bytes in the fetch request.* The obvious one-message fix, and it makes every
   `.dart_tool`-sized workspace a base64 blob inside a JSON control body. The `PUT` streams, which is
-  what the caps (2000 files / 200 MB) are sized for.
+  what the file cap (2000 files) is sized for.
 - *Rejected: a relay, or requiring both peers to be dialable.* Nothing in the protocol needs a third
   party to move a file that the peer holding it can already push.
 - *Rejected: keeping v5 compatibility ("no requests ⇒ old behaviour").* The old behaviour is exactly
@@ -1989,7 +1989,7 @@ applies the rule" is not read as stronger than it is:
   edits that leave both size and mtime identical are invisible to the file table. A rename reads as
   a delete plus a create, so a renamed large file is re-sent whole; permission bits, symlinks and
   empty directories do not travel.
-- Workspace caps are not escapable and are the panel's own business: over 2,000 files or 200 MB a
+- Workspace caps are not escapable and are the panel's own business: over 2,000 files a
   workspace syncs no content at all (its row and its size are shown as a lower bound), and the
   twenty-thousand-entry ledger cap drops whole workspaces back to conservative re-sending rather
   than to deleting. A workspace whose index could not be read contributes nothing that round — no
@@ -2465,7 +2465,13 @@ to point one lane over.
   deadline *cancels* rather than merely returning.
 * Slice 19's and slice 24's descriptions of the request loop are superseded by the lane table above.
 
-## A push has a byte budget
+## A push has a byte budget (superseded)
+
+**Superseded by ADR-0020.** A conversation crosses in pages now: `kSyncDeltaByteBudget`,
+`kSyncMaxConversationBytes`, `admitConversations` and `conversationsOmittedForSize` no longer
+exist, and there is no per-conversation ceiling. What follows is the record of why the old
+mechanism was shaped the way it was, kept because the reasoning still explains the shape of the
+page budget that replaced it. The rules in force live in ADR-0020 and `CONTEXT.md`.
 
 One push is one JSON document (`SyncDeltaBatch`), and the receiving side counts it **after
 decompression** against `kSyncMaxBodyBytes` (`sync_server.dart`). Past that cap it answers 413 and

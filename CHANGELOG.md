@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **LAN sync sends a conversation in pages instead of leaving it behind**: a conversation larger than one request now crosses in as many pages as it needs, so the single-conversation ceiling is gone — and with it the "did not fit this round" row, because nothing is left behind any more. The transfer pauses at a page, remembers where it stopped in the peer checkpoint, and resumes there (LAN sync protocol 11: update every device before syncing)
+- **The sync card says what it is doing**: reading and packing has its own phase instead of hiding under "comparing data", sending and receiving name a count and the bytes already moved, and a thin bar appears only when the phase has something to count
+- **A workspace is bounded by its file count, not its size**: the 200 MB cap is gone. A workspace's files cross one at a time, staged and renamed, so a large workspace is a long transfer rather than a refusal
+
+### Fixed
+
+- **A page that is not the last one can no longer look like a deletion**: the receiver only reads absence as a peer deletion against the sender's full row set, which the last page carries, so the rows a later page holds are never erased by an earlier one
+
 ## [4.8.0] - 2026-11-22
 
 ### Added

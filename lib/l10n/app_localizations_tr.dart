@@ -17901,7 +17901,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      'Zaman kazanmak için sürüm denetimi ile bağımlılık/derleme klasörleri atlanır. 2.000 dosyadan veya 200 MB\'tan büyük çalışma alanları dosyalarını eşitlemez. Çalışma alanı kaydı her zaman eşitlenir — anahtar yalnızca dosyalarını yönetir: anahtarı kapalı bir klasör hiç gönderilmez ve eşitleme onu hiç kaldırmaz.';
+      'Zaman kazanmak için sürüm denetimi ile bağımlılık/derleme klasörleri atlanır. 2.000 dosyadan büyük çalışma alanları dosyalarını eşitlemez. Çalışma alanı kaydı her zaman eşitlenir — anahtar yalnızca dosyalarını yönetir: anahtarı kapalı bir klasör hiç gönderilmez ve eşitleme onu hiç kaldırmaz.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -18012,6 +18012,19 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => 'Veriler karşılaştırılıyor…';
+
+  @override
+  String get lanSyncPhasePreparing => 'Hazırlanıyor…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return 'Gönderiliyor $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return 'Alınıyor $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => 'Değişiklikler gönderiliyor…';
@@ -18151,11 +18164,6 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '$count çalışma alanı dosya eşitlemiyor';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return 'Bu gönderime sığmayan sohbet: $count';
   }
 
   @override

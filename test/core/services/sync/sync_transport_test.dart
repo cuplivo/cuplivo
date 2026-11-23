@@ -72,6 +72,37 @@ void main() {
     });
   });
 
+  group('redactEndpointText', () {
+    test('scrubs the endpoint form wherever it appears in a line', () {
+      final text = 'sync: dialling back tcat:$address:9527 failed';
+      final redacted = redactEndpointText(text);
+      expect(redacted, isNot(contains(address)));
+      expect(redacted, contains('tcat:remote'));
+    });
+
+    test('scrubs the address when a URI names it as the host', () {
+      // `HttpException.toString()` appends `uri = <request uri>`, and a sync
+      // request over a tunnel is `https://<address>:9527/sync/...`.
+      final text =
+          'HttpException: Connection closed before full header was received, '
+          'uri = https://$address:9527/sync/hello';
+      final redacted = redactEndpointText(text);
+      expect(redacted, isNot(contains(address)));
+      expect(redacted, contains('https://<redacted>:9527'));
+    });
+
+    test('leaves network text and its own output unchanged', () {
+      const lan = 'sync: 192.168.1.5:41000 timed out after 5s';
+      expect(redactEndpointText(lan), lan);
+      expect(redactEndpointText('tcat:remote'), 'tcat:remote');
+
+      final once = redactEndpointText(
+        'tcat:$address and https://$address:9527',
+      );
+      expect(redactEndpointText(once), once);
+    });
+  });
+
   group('looksLikeTailcatAddress', () {
     test('accepts base64url-shaped address text', () {
       expect(looksLikeTailcatAddress(address), isTrue);

@@ -101,14 +101,22 @@ class _TailcatRemotePanelState extends State<TailcatRemotePanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    final provider = context.read<SyncProvider>();
     setState(() => _resetting = true);
     try {
-      await context.read<SyncProvider>().resetRemoteKeys();
+      await provider.resetRemoteKeys();
       if (!mounted) return;
       _showSnack(l10n.remoteSyncResetDone, NotificationType.success);
-    } catch (error) {
+    } catch (_) {
+      // The provider reports the scrubbed reason; the raw exception never
+      // reaches this snackbar because it can name the remote address.
       if (!mounted) return;
-      _showSnack(l10n.remoteSyncResetFailed('$error'), NotificationType.error);
+      _showSnack(
+        l10n.remoteSyncResetFailed(
+          provider.remoteStartError ?? 'remote sync could not reset',
+        ),
+        NotificationType.error,
+      );
     } finally {
       if (mounted) setState(() => _resetting = false);
     }

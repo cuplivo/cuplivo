@@ -166,7 +166,10 @@ class TailcatRemoteService {
         text = text.replaceAll(secret, '<redacted>');
       }
     }
-    return text;
+    // The address may also appear inside the address text of a larger error
+    // (or in the URI form `https://<address>:9527`); the identity's own fields
+    // cover the first two forms, this covers the shapes the sync code adds.
+    return redactEndpointText(text);
   }
 
   /// Stops the server, its listener and every outbound tunnel. Idempotent.
@@ -180,7 +183,9 @@ class TailcatRemoteService {
     try {
       await server?.close(drain: false);
     } catch (error) {
-      debugPrint('sync: tailcat server close failed: $error');
+      debugPrint(
+        'sync: tailcat server close failed: ${_scrubError(error, null)}',
+      );
     }
     await transport.close();
   }
@@ -189,15 +194,42 @@ class TailcatRemoteService {
   ///
   /// The caller is responsible for what that means to peers (their remote
   /// endpoints no longer reach this device): the service only owns the keys.
+  ///
+  /// A reset is the documented revocation path (ADR-0020), so it fails loudly
+  /// instead of falling back to the old identity: if the key file cannot be
+  /// removed, or the minted address is not different, the old address is still
+  /// live and reporting success would tell the user a leaked capability was
+  /// revoked when it was not. [startError] carries the scrubbed reason for the
+  /// panel; the thrown error is what the provider turns into a failure.
   Future<void> resetKeys({required int localSyncPort}) async {
+    final previousAddress = _address;
     await stop();
     final file = _identityFile;
+    var removed = false;
     try {
       if (await file.exists()) await file.delete();
+      removed = !await file.exists();
     } catch (error) {
-      debugPrint('sync: unable to delete tailcat identity: $error');
+      debugPrint(
+        'sync: unable to delete tailcat identity: '
+        '${_scrubError(error, null)}',
+      );
+    }
+    if (!removed) {
+      _startError = 'could not remove the remote identity';
+      throw StateError(_startError!);
     }
     await start(localSyncPort: localSyncPort);
+    final address = _address;
+    if (address == null || address == previousAddress) {
+      _startError = address == null
+          ? 'remote sync could not start'
+          : 'remote address did not change';
+      // Fail closed: a listener that came back on the old identity must not
+      // keep answering while the user believes the address was replaced.
+      await stop();
+      throw StateError(_startError!);
+    }
   }
 
   Future<void> _serve(TailcatServerSocket listener) async {
@@ -208,7 +240,9 @@ class TailcatRemoteService {
     } catch (error) {
       // A listener error is the listener ending (server close) or a rejected
       // connection; neither is a reason to tear down the service.
-      debugPrint('sync: tailcat accept loop ended: $error');
+      debugPrint(
+        'sync: tailcat accept loop ended: ${_scrubError(error, null)}',
+      );
     }
   }
 
@@ -228,7 +262,8 @@ class TailcatRemoteService {
       local = await _connectLocalSyncListener(port);
     } catch (error) {
       debugPrint(
-        'sync: tailcat relay could not reach the LAN listener: $error',
+        'sync: tailcat relay could not reach the LAN listener: '
+        '${_scrubError(error, null)}',
       );
       inbound.destroy();
       return;
@@ -452,7 +487,10 @@ class TailcatClientTransport implements SyncTransport {
       try {
         await client.close(drain: false);
       } catch (error) {
-        debugPrint('sync: tailcat client close failed: $error');
+        debugPrint(
+          'sync: tailcat client close failed: '
+          '${redactEndpointText('$error')}',
+        );
       }
     }
   }

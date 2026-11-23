@@ -68,6 +68,31 @@ int endpointPortForHost(String host, int fallback) =>
 String redactEndpointHost(String host) =>
     isTailcatEndpointHost(host) ? '${kTailcatHostPrefix}remote' : host;
 
+/// A stored endpoint host as it may appear in free text.
+final RegExp _tailcatHostTextRe = RegExp(
+  '$kTailcatHostPrefix[A-Za-z0-9_\\-+=.~]{16,2048}',
+);
+
+/// The same address once it is the host of a sync URL
+/// (`https://<address>:9527/...`), which is how an `HttpException` names it.
+final RegExp _tailcatUriTextRe = RegExp(
+  'https://[A-Za-z0-9_\\-+=.~]{16,2048}:$kTailcatRemotePort',
+);
+
+/// Scrubs every tailcat address in [text], for a log line or a message that
+/// must not carry the device's capability.
+///
+/// The endpoint form carries the `tcat:` marker, so it is matched directly; an
+/// exception that names the sync URL carries the bare address as its host, and
+/// that form is matched with its scheme and protocol port. Addresses in any
+/// other shape are the caller's to keep out; this covers the two forms the sync
+/// code produces itself.
+String redactEndpointText(String text) {
+  return text
+      .replaceAll(_tailcatUriTextRe, 'https://<redacted>:$kTailcatRemotePort')
+      .replaceAll(_tailcatHostTextRe, '${kTailcatHostPrefix}remote');
+}
+
 /// The URI endpoint a stored peer endpoint corresponds to.
 typedef SyncUriEndpoint = ({String host, int port});
 

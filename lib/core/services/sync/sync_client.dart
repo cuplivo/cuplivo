@@ -131,9 +131,14 @@ class SyncClient {
   /// A remote session therefore proves the peer's identity in the same
   /// handshake as a LAN one — the socket underneath is just bytes from a
   /// tunnel instead of a NIC.
+  ///
+  /// [expectedDeviceId] is the identity the tunneled certificate must have. The
+  /// callback refuses it, and [_secureTunnelSocket] checks it again after the
+  /// handshake; the LAN path keeps using the callback alone.
   HttpClient _newClient({
     required bool remote,
     required bool Function(X509Certificate certificate) certificateHandler,
+    String? expectedDeviceId,
   }) {
     final client = SyncClient.directClient(identity.buildContext());
     if (!remote) {
@@ -149,7 +154,11 @@ class SyncClient {
           proxyHost,
           proxyPort,
         );
-        final secure = _secureTunnelSocket(task, certificateHandler);
+        final secure = _secureTunnelSocket(
+          task,
+          certificateHandler,
+          expectedDeviceId,
+        );
         return ConnectionTask.fromSocket(secure, task.cancel);
       }
       ..connectionTimeout = kSyncRemoteDialConnectTimeout;
@@ -170,29 +179,51 @@ class SyncClient {
       // while every sync dial path classifies reachability by the socket
       // type. Translating at the seam keeps the tunnel's failures in the one
       // taxonomy the callers already understand.
-      throw SocketException('remote tunnel: $error');
+      throw SocketException('remote tunnel: ${redactEndpointText('$error')}');
     } on TimeoutException catch (error) {
-      throw TimeoutException('remote tunnel: $error');
+      throw TimeoutException('remote tunnel: ${redactEndpointText('$error')}');
     }
   }
 
   /// Completes the TLS handshake the `HttpClient` skipped, over the tunnel's
   /// plain socket.
   ///
-  /// No `host` is passed: the peer's certificate is self-signed, so hostname
-  /// verification can never pass and the pin is the only identity check that
-  /// runs; omitting the host also keeps the surrogate URI host (a tailcat
-  /// address, not a DNS name) out of the SNI extension.
+  /// No `host` is passed, so the name the handshake verifies is the socket's
+  /// own address — the loopback relay (`127.0.0.1`), never a DNS name and never
+  /// the surrogate URI host (a tailcat address), which is not in the SNI
+  /// extension either.
+  ///
+  /// The context carries no trusted roots on purpose. A self-signed peer
+  /// certificate can never validate against it, so [SecureSocket.secure] always
+  /// asks [certificateHandler] and the pin is the deciding check. The default
+  /// context would trust the platform store: a certificate chaining to an
+  /// installed root (a corporate/MDM or user root, with an IP SAN for the
+  /// loopback address) would then complete the handshake without the callback
+  /// running at all. [expectedDeviceId] is checked once more after the
+  /// handshake so the pin does not depend on that context choice alone.
   Future<Socket> _secureTunnelSocket(
     ConnectionTask<Socket> task,
     bool Function(X509Certificate certificate) certificateHandler,
+    String? expectedDeviceId,
   ) async {
     final socket = await task.socket;
     try {
-      return await SecureSocket.secure(
+      final secure = await SecureSocket.secure(
         socket,
+        context: SecurityContext(withTrustedRoots: false),
         onBadCertificate: certificateHandler,
       );
+      if (expectedDeviceId != null) {
+        final peer = secure.peerCertificate;
+        if (peer == null ||
+            crypto.sha256.convert(peer.der).toString() != expectedDeviceId) {
+          throw const TlsException(
+            'the tunneled peer presented a certificate that is not the pinned '
+            'device',
+          );
+        }
+      }
+      return secure;
     } catch (_) {
       socket.destroy();
       rethrow;
@@ -228,6 +259,7 @@ class SyncClient {
     final client =
         _newClient(
             remote: target.remote,
+            expectedDeviceId: target.remote ? expectedDeviceId : null,
             certificateHandler: (cert) {
               presented = cert;
               if (expectedDeviceId != null) {
@@ -344,10 +376,13 @@ class SyncClient {
     bool remote = false,
   }) {
     // Pinning the listener's certificate is the whole server-side
-    // authentication: nothing else can answer as this peer.
+    // authentication: nothing else can answer as this peer. A tunneled client
+    // names the expected identity so the pin is checked again after the
+    // handshake, independently of which context built the TLS layer.
     final client =
         _newClient(
             remote: remote,
+            expectedDeviceId: remote ? peer.deviceId : null,
             certificateHandler: (cert) =>
                 crypto.sha256.convert(cert.der).toString() == peer.deviceId,
           )

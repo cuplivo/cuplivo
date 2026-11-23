@@ -1030,8 +1030,8 @@ class SyncEngine implements SyncServerHandler {
         // refusal happens inside the handshake, before any request byte, so
         // nothing leaked towards the endpoint that answered.
         debugPrint(
-          'sync: ${peer.deviceId} answered as another device at $host:$port: '
-          '$error',
+          'sync: ${peer.deviceId} answered as another device at '
+          '${redactEndpointHost(host)}:$port: ${redactEndpointText('$error')}',
         );
         return null;
       } on TimeoutException catch (error) {
@@ -1652,7 +1652,10 @@ class SyncEngine implements SyncServerHandler {
       // The machine summary stays for the logs; the card and the persisted
       // record get the classified reason instead, so no exception text (with
       // the peer's address) is ever rendered.
-      debugPrint('sync: session with ${peer.deviceId} failed: $error\n$stack');
+      debugPrint(
+        'sync: session with ${peer.deviceId} failed: '
+        '${redactEndpointText('$error')}\n$stack',
+      );
       return await _finish(
         SyncSessionReport(
           success: false,
@@ -2140,7 +2143,7 @@ class SyncEngine implements SyncServerHandler {
       } catch (error) {
         debugPrint(
           'sync: dialling back ${redactEndpointHost(host)}:'
-          '$candidatePort failed: $error',
+          '$candidatePort failed: ${redactEndpointText('$error')}',
         );
         opened.close();
       }
@@ -3571,7 +3574,10 @@ class SyncEngine implements SyncServerHandler {
           _recordLanded(entry, landed, outcome);
         }
       } catch (error) {
-        debugPrint('sync blob ${entry.contentHash} failed: $error');
+        debugPrint(
+          'sync blob ${entry.contentHash} failed: '
+          '${redactEndpointText('$error')}',
+        );
         outcome.failed[entry.target] = entry;
       } finally {
         if (temp != null) {
@@ -3675,7 +3681,7 @@ class SyncEngine implements SyncServerHandler {
       } catch (error) {
         debugPrint(
           'sync workspace: pushing ${request.workspaceId}/${request.relPath} '
-          'failed: $error',
+          'failed: ${redactEndpointText('$error')}',
         );
       }
     }
@@ -3719,7 +3725,10 @@ class SyncEngine implements SyncServerHandler {
         bytes += size;
         debugPrint('sync blob: pushed ${entry.key} ($size B) to the peer');
       } catch (error) {
-        debugPrint('sync blob: pushing ${entry.key} failed: $error');
+        debugPrint(
+          'sync blob: pushing ${entry.key} failed: '
+          '${redactEndpointText('$error')}',
+        );
       }
     }
     return (blobs: blobs, bytes: bytes);
@@ -3986,7 +3995,7 @@ class SyncEngine implements SyncServerHandler {
     } catch (error) {
       debugPrint(
         'sync workspace: receiving the pushed $workspaceId/$relPath failed: '
-        '$error',
+        '${redactEndpointText('$error')}',
       );
       return false;
     } finally {
@@ -4156,7 +4165,10 @@ class SyncEngine implements SyncServerHandler {
     } on SyncAdmissionLost {
       rethrow;
     } catch (error) {
-      debugPrint('sync blob: receiving the pushed $kind "$key" failed: $error');
+      debugPrint(
+        'sync blob: receiving the pushed $kind "$key" failed: '
+        '${redactEndpointText('$error')}',
+      );
       return false;
     } finally {
       try {
@@ -4808,7 +4820,8 @@ void _reportDroppedEndpoints(String deviceId, List<Object> dropped) {
   if (dropped.isEmpty) return;
   debugPrint(
     'sync: $deviceId advertised ${dropped.length} address(es) beyond the '
-    '$kMaxPeerEndpoints remembered (${dropped.join(', ')})',
+    '$kMaxPeerEndpoints remembered '
+    '(${dropped.map((entry) => redactEndpointText('$entry')).join(', ')})',
   );
 }
 

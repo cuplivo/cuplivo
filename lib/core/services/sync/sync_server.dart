@@ -11,6 +11,7 @@ import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_store.dart';
+import 'sync_transport.dart';
 
 /// Handler surface the sync engine implements behind [SyncServer]. The server
 /// is transport only: mTLS, routing, JSON/gzip codecs, certificate pinning.
@@ -539,11 +540,13 @@ class SyncServer {
       // exception the peer has no use for.
       _safeRespond(request, refusal.statusCode, {'error': refusal.error});
     } catch (error, stack) {
-      _safeRespond(request, HttpStatus.internalServerError, {
-        'error': '$error',
-      });
+      // A handler exception can name the request URL, and a sync URL carries
+      // the peer's tailcat address when the request came through a tunnel.
+      // Scrub the capability before it reaches either the response or the log.
+      final reason = redactEndpointText('$error');
+      _safeRespond(request, HttpStatus.internalServerError, {'error': reason});
       // ignore: avoid_print
-      print('sync server: $error\n$stack');
+      print('sync server: $reason\n$stack');
     }
   }
 

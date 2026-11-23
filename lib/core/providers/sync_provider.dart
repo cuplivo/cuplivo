@@ -1000,11 +1000,28 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     } on SyncClientException catch (error) {
       return mapPairError(error);
     } on SocketException catch (error) {
-      return SyncPairOutcome.failure('unreachable', error.message);
+      return SyncPairOutcome.failure(
+        'unreachable',
+        redactEndpointText(error.message),
+      );
+    } on HttpException catch (error) {
+      // A tunnel that closed mid-request surfaces as an `HttpException` whose
+      // `toString()` appends `uri = https://<tailcat-address>:9527/...`; the
+      // dialog renders these details, so the address must not survive into it.
+      return SyncPairOutcome.failure(
+        'unreachable',
+        redactEndpointText(error.message),
+      );
     } on TimeoutException catch (error) {
-      return SyncPairOutcome.failure('unreachable', error.message);
+      return SyncPairOutcome.failure(
+        'unreachable',
+        redactEndpointText(error.message ?? ''),
+      );
     } catch (error) {
-      return SyncPairOutcome.failure('unknown', '$error');
+      // The dialog shows this detail. A type name is enough to tell a bug
+      // report what failed; the exception text is not rendered because it may
+      // name the peer's remote address (ADR-0020 keeps it out of the UI).
+      return SyncPairOutcome.failure('unknown', error.runtimeType.toString());
     }
   }
 
@@ -1014,20 +1031,36 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// still good, and the record is what a re-pair updates — but the `tcat:`
   /// endpoints are dropped: they name an address that no longer exists, and a
   /// dial would only spend its budget proving that on every round.
+  ///
+  /// Throws when the rotation did not happen: this is the documented
+  /// revocation path, so a silent no-op would leave a leaked address live while
+  /// the panel reported success. The endpoints are dropped only after the
+  /// service confirmed the new address, and they stay untouched on failure —
+  /// the relation was not reset.
   Future<void> resetRemoteKeys() async {
     final remote = _remote;
     final store = _store;
     final boundPort = port;
-    if (remote == null || store == null || boundPort == null) return;
+    if (remote == null || store == null || boundPort == null) {
+      remoteStartError = 'remote sync is not running';
+      _notify();
+      throw StateError(remoteStartError!);
+    }
     await ensureRemoteStarted();
     try {
       await remote.resetKeys(localSyncPort: boundPort);
-      remoteStarted = remote.isRunning;
-      remoteStartError = remote.isRunning ? null : remote.startError;
+      if (!remote.isRunning || remote.address == null) {
+        throw StateError(remote.startError ?? 'remote sync could not start');
+      }
+      remoteStarted = true;
+      remoteStartError = null;
       remoteConfigured = true;
     } catch (_) {
-      remoteStarted = false;
+      remoteStarted = remote.isRunning;
       remoteStartError = remote.startError ?? 'remote sync could not start';
+      _syncRemoteAdvertisedHost();
+      _notify();
+      rethrow;
     }
     _syncRemoteAdvertisedHost();
     for (final peer in peers) {

@@ -41,6 +41,13 @@ class LocalToolNames {
   /// Waits for a delegation the model chose to block on.
   static const String awaitJob = 'await_job';
 
+  /// Sends a message to the other side of a delegation: a delegator steering its
+  /// child, or a child reporting a finding before it finishes.
+  static const String sendMessage = 'send_message';
+
+  /// Asks a subagent to stop what it is doing, without ending the conversation.
+  static const String interrupt = 'interrupt';
+
   static const List<String> all = [
     timeInfo,
     clipboard,
@@ -61,6 +68,8 @@ class LocalToolNames {
     generateImage,
     delegate,
     awaitJob,
+    sendMessage,
+    interrupt,
   ];
 
   static const List<String> requiresUserApproval = [
@@ -479,6 +488,10 @@ class LocalToolsService {
         return delegateDefinition;
       case LocalToolNames.awaitJob:
         return awaitJobDefinition;
+      case LocalToolNames.sendMessage:
+        return sendMessageDefinition(subagent: false);
+      case LocalToolNames.interrupt:
+        return interruptDefinition;
       case LocalToolNames.screenTime:
         return _screenTimeDefinition();
       case LocalToolNames.calendarQuery:
@@ -506,6 +519,7 @@ class LocalToolsService {
     required Assistant? assistant,
     required bool supportsTools,
     bool allowDelegation = true,
+    bool isSubagent = false,
   }) {
     if (!supportsTools || assistant == null) {
       return const <Map<String, dynamic>>[];
@@ -522,6 +536,12 @@ class LocalToolsService {
     // half the toolbox while the dialog reports "on".
     final delegation = enabled.contains(LocalToolNames.delegate);
     for (final id in LocalToolNames.all) {
+      // The two mail tools are added after the loop: which schema a conversation
+      // sees depends on whether it is the delegator or the child, and a tool
+      // list is built for exactly one of them.
+      if (id == LocalToolNames.sendMessage || id == LocalToolNames.interrupt) {
+        continue;
+      }
       final on = id == LocalToolNames.awaitJob
           ? delegation
           : enabled.contains(id);
@@ -547,6 +567,16 @@ class LocalToolsService {
         );
       } else {
         tools.add(definitionFor(id));
+      }
+    }
+    if (delegation) {
+      if (isSubagent) {
+        // A child reaches its delegator and nobody else; it never gets the
+        // delegation pair itself, so a chain cannot grow below the limit.
+        tools.add(sendMessageDefinition(subagent: true));
+      } else if (allowDelegation) {
+        tools.add(sendMessageDefinition(subagent: false));
+        tools.add(interruptDefinition);
       }
     }
     return tools;
@@ -937,6 +967,98 @@ class LocalToolsService {
             'type': 'string',
             'description':
                 'The `job_id` that `delegate` returned for this task.',
+          },
+        },
+        'required': ['job_id'],
+      },
+    },
+  };
+
+  /// Sends a message to the other side of a delegation.
+  ///
+  /// Two schemas, one name: a delegator names the job it is steering, while a
+  /// child has exactly one conversation to answer and does not need to name it.
+  /// Each side reads only what it can actually do, so the model never spends a
+  /// call on a parameter it does not have.
+  static Map<String, dynamic> sendMessageDefinition({required bool subagent}) {
+    if (subagent) {
+      return <String, dynamic>{
+        'type': 'function',
+        'function': {
+          'name': LocalToolNames.sendMessage,
+          'description':
+              'Send a message to the conversation that delegated your task: a '
+              'finding that changes what it should do next, or a question you '
+              'cannot answer yourself. This returns when the message is '
+              'delivered, NOT with an answer — do not wait for one, keep '
+              'working with what you have. Sending a message does not end your '
+              'turn; your final reply is still delivered as the result.',
+          'parameters': <String, dynamic>{
+            'type': 'object',
+            'properties': <String, dynamic>{
+              'text': {
+                'type': 'string',
+                'description':
+                    'The message, self-contained: what you found, what you '
+                    'need, and what you will do next.',
+              },
+            },
+            'required': <String>['text'],
+          },
+        },
+      };
+    }
+    return <String, dynamic>{
+      'type': 'function',
+      'function': {
+        'name': LocalToolNames.sendMessage,
+        'description':
+            'Send a message to a subagent you started with `delegate`: to '
+            'correct it, answer a question it asked, or give it a new task '
+            'after it finished. This returns when the message is delivered, '
+            'NOT with the subagent\'s reply — its answer arrives later as a '
+            'notice and you will be asked to continue. A subagent that has '
+            'finished or was stopped by `interrupt` starts a new turn with '
+            'your message; one that is still working reads it before its next '
+            'step. A subagent the user stopped cannot be continued.',
+        'parameters': <String, dynamic>{
+          'type': 'object',
+          'properties': <String, dynamic>{
+            'job_id': {
+              'type': 'string',
+              'description':
+                  'The `job_id` that `delegate` returned for this job.',
+            },
+            'text': {
+              'type': 'string',
+              'description':
+                  'The message, self-contained: what to change, or what to do '
+                  'next.',
+            },
+          },
+          'required': <String>['job_id', 'text'],
+        },
+      },
+    };
+  }
+
+  /// The stop half of the delegation pair.
+  static const Map<String, dynamic> interruptDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.interrupt,
+      'description':
+          'Ask a subagent you started with `delegate` to stop what it is '
+          'doing. This returns immediately, NOT when it has stopped. What it '
+          'concluded so far arrives as a notice marked stopped; you can then '
+          '`send_message` to continue it with a correction, or leave it.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'job_id': {
+            'type': 'string',
+            'description':
+                'The `job_id` that `delegate` returned for this job.',
           },
         },
         'required': ['job_id'],

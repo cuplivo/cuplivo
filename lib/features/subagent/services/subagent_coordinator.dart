@@ -75,6 +75,11 @@ enum SubagentPhase {
   waitingForInput,
   completed,
   failed,
+
+  /// The delegator's model asked it to stop (`interrupt`). Unlike [cancelled],
+  /// which is the user's own Stop, this one is a pause: the conversation keeps
+  /// its history and a later `send_message` starts it again.
+  stopped,
   cancelled,
   interrupted,
 }
@@ -113,6 +118,15 @@ final class SubagentEntry {
   /// non-zero count means somebody is already waiting to report this outcome, so
   /// the terminal write must not wake the parent a second time.
   int waiters = 0;
+
+  /// Whether the delegator's model asked for the stop ([SubagentCoordinator
+  /// .interruptChild]) rather than the user pressing Stop. A run row cannot tell
+  /// the two apart — both end `cancelled` — so the request is remembered here.
+  bool stoppedByModel = false;
+
+  /// The run whose outcome was already reported. A continued delegation waits
+  /// for a run other than this one before it starts watching again.
+  String? settledRunId;
 
   bool get isLive =>
       phase == SubagentPhase.running || phase == SubagentPhase.waitingForInput;
@@ -171,6 +185,9 @@ final class SubagentHost {
     this.waitReasonFor,
     this.openConversation,
     this.cancelTurn,
+    this.enqueueMail,
+    this.isTurnRunning,
+    this.hasPendingMail,
   });
 
   final SubagentTurnStarter turnStarter;
@@ -200,6 +217,32 @@ final class SubagentHost {
 
   /// Stops the generation running in a child conversation.
   final Future<void> Function(String conversationId)? cancelTurn;
+
+  /// Hands one mail row to the conversation that must read it.
+  ///
+  /// The coordinator has already written the row; the host puts it in that
+  /// conversation's inbox, and starts a turn from it when the conversation is
+  /// idle. Delivery order and wake rules belong to the queue, not here — a
+  /// second place deciding "may this start a turn" is how two messages end up
+  /// crossing.
+  final void Function({
+    required String conversationId,
+    required ChatMessage message,
+  })?
+  enqueueMail;
+
+  /// Whether a turn is running in a conversation right now.
+  ///
+  /// A turn is a chain of runs: a message that arrives at a step boundary ends
+  /// the segment it interrupted and starts a new one, so "the run I was watching
+  /// is terminal" does not mean "the child is done". Asked every tick.
+  final bool Function(String conversationId)? isTurnRunning;
+
+  /// Whether a conversation has a mail row waiting for its turn to start.
+  ///
+  /// A turn can end with another message already queued for the child; the
+  /// watcher must not report the delegation finished between those two turns.
+  final bool Function(String conversationId)? hasPendingMail;
 }
 
 /// The coordinator above [context], or null when this subtree has none.
@@ -302,6 +345,194 @@ class SubagentCoordinator extends ChangeNotifier {
     if (entry == null || !entry.isLive) return;
     await cancel(childConversationId);
   }
+
+  /// Sends a delegator's message into a child it started.
+  ///
+  /// The row is written here, before the host is told about it: a delivery that
+  /// the queue has not reached yet must already be visible in the child's
+  /// transcript (and in a sync), or a restart would drop what the user can see.
+  Future<Map<String, dynamic>> sendToChild({
+    required String parentConversationId,
+    required String jobId,
+    required String text,
+    required Assistant assistant,
+    String? toolCallId,
+  }) async {
+    final body = text.trim();
+    if (body.isEmpty) {
+      return _refused('invalid_arguments', 'A message needs some text.');
+    }
+    final childId = jobId.trim();
+    final child = _chat.getConversation(childId);
+    if (child == null ||
+        child.extras[SubagentExtrasKeys.parent] != parentConversationId) {
+      return _refused(
+        'not_found',
+        'That job is not a subagent of this conversation.',
+      );
+    }
+    var entry = _byChild[childId];
+    if (entry != null && entry.phase == SubagentPhase.cancelled) {
+      return _refused(
+        'not_continuable',
+        'The user stopped this subagent; it cannot be continued.',
+      );
+    }
+    final enqueue = _host?.enqueueMail;
+    if (enqueue == null) {
+      return _refused('unavailable', 'Subagents are not available right now.');
+    }
+    final row = _mailRow(
+      conversationId: childId,
+      from: SubagentMailSender.delegator,
+      senderConversationId: parentConversationId,
+      // The body only: the attribution is added when the request is built, so
+      // the transcript and the exports show a sentence a person can read in
+      // their own language instead of an English model-facing prefix.
+      text: body,
+      toolCallId: toolCallId,
+    );
+    await _chat.addMessageDirectly(childId, row);
+    final wasLive = entry?.isLive ?? false;
+    if (entry == null) {
+      // After a restart the registry is empty but the conversation is not: adopt
+      // it, so the answer this message causes is still reported to the parent.
+      // The run already in the table belongs to an earlier turn, so mark it as
+      // settled before watching — otherwise the watcher would report that turn
+      // as this message's answer.
+      final previous = await _chat.chatRepositoryOrNull?.latestGenerationRun(
+        childId,
+      );
+      entry = SubagentEntry(
+        key: null,
+        parentConversationId: parentConversationId,
+        childConversationId: childId,
+        title: child.title,
+        startedAt: _clock(),
+        assistant: assistant,
+      )..settledRunId = previous?.id;
+      _byChild[childId] = entry;
+      notifyListeners();
+    } else if (!wasLive) {
+      // A finished or stopped delegation is not closed for good: the delegator's
+      // model may continue it. The watcher skips the settled run and follows the
+      // run this message starts, which is why the id stays behind.
+      entry.phase = SubagentPhase.running;
+      entry.failureReason = null;
+      entry.waitReason = null;
+      entry.stoppedByModel = false;
+      entry.brief = null;
+      entry.elapsed = null;
+      notifyListeners();
+    }
+    final running = _host?.isTurnRunning?.call(childId) ?? false;
+    if (!wasLive) unawaited(_watch(entry));
+    enqueue(conversationId: childId, message: row);
+    return <String, dynamic>{
+      'status': 'delivered',
+      'message_id': row.id,
+      'delivery': running ? 'next_step' : 'turn_started',
+    };
+  }
+
+  /// Sends a subagent's message into the conversation that delegated to it.
+  Future<Map<String, dynamic>> sendToParent({
+    required String childConversationId,
+    required String text,
+    String? toolCallId,
+  }) async {
+    final body = text.trim();
+    if (body.isEmpty) {
+      return _refused('invalid_arguments', 'A message needs some text.');
+    }
+    final child = _chat.getConversation(childConversationId);
+    final parentId = child?.extras[SubagentExtrasKeys.parent] as String?;
+    if (child == null || parentId == null) {
+      return _refused(
+        'no_parent',
+        'This conversation was not started by a delegator.',
+      );
+    }
+    final enqueue = _host?.enqueueMail;
+    if (enqueue == null) {
+      return _refused('unavailable', 'Subagents are not available right now.');
+    }
+    final row = _mailRow(
+      conversationId: parentId,
+      from: SubagentMailSender.subagent,
+      senderConversationId: childConversationId,
+      // Body only, for the same reason as the other direction: the model-facing
+      // attribution is added when the request is assembled.
+      text: body,
+      toolCallId: toolCallId,
+    );
+    await _chat.addMessageDirectly(parentId, row);
+    enqueue(conversationId: parentId, message: row);
+    return <String, dynamic>{
+      'status': 'delivered',
+      'message_id': row.id,
+      'delivery': (_host?.isTurnRunning?.call(parentId) ?? false)
+          ? 'next_step'
+          : 'turn_started',
+    };
+  }
+
+  /// Asks a child to stop, without treating it as the user's own Stop.
+  ///
+  /// Returns before anything has stopped, exactly as the tool description says:
+  /// the run ends asynchronously and the watcher turns that into a `stopped`
+  /// result. A later `send_message` may continue the conversation.
+  Future<Map<String, dynamic>> interruptChild({
+    required String parentConversationId,
+    required String jobId,
+  }) async {
+    final childId = jobId.trim();
+    final child = _chat.getConversation(childId);
+    // The same parentage check `send_message` makes: a delegator may stop its
+    // own job, not another conversation's.
+    if (child == null ||
+        child.extras[SubagentExtrasKeys.parent] != parentConversationId) {
+      return _refused(
+        'not_found',
+        'That job is not a subagent of this conversation.',
+      );
+    }
+    final entry = _byChild[childId];
+    if (entry == null || !entry.isLive) {
+      return <String, dynamic>{
+        'status': 'accepted',
+        'job_id': childId,
+        'note': 'not running',
+      };
+    }
+    entry.stoppedByModel = true;
+    await _host?.cancelTurn?.call(childId);
+    return <String, dynamic>{'status': 'accepted', 'job_id': childId};
+  }
+
+  static Map<String, dynamic> _refused(String reason, String message) =>
+      <String, dynamic>{
+        'status': 'rejected',
+        'reason': reason,
+        'message': message,
+      };
+
+  ChatMessage _mailRow({
+    required String conversationId,
+    required SubagentMailSender from,
+    required String senderConversationId,
+    required String text,
+    String? toolCallId,
+  }) => ChatMessage(
+    id: SubagentMailPart.messageIdFor(senderConversationId, toolCallId ?? ''),
+    role: 'user',
+    conversationId: conversationId,
+    parts: <MessagePart>[
+      SubagentMailPart(from: from, senderConversationId: senderConversationId),
+      TextPart(text),
+    ],
+    timestamp: _clock(),
+  );
 
   /// Delegates [task] to a fresh child conversation and returns at once.
   ///
@@ -500,6 +731,16 @@ class SubagentCoordinator extends ChangeNotifier {
     } finally {
       entry.waiters--;
     }
+    if (entry.phase == SubagentPhase.stopped) {
+      return <String, dynamic>{
+        'status': 'stopped',
+        'conversation_id': entry.childConversationId,
+        'payload': <String, dynamic>{
+          'conversation_id': entry.childConversationId,
+          'text': entry.brief ?? '',
+        },
+      };
+    }
     if (entry.phase == SubagentPhase.completed) {
       return <String, dynamic>{
         'status': 'completed',
@@ -524,20 +765,54 @@ class SubagentCoordinator extends ChangeNotifier {
   }
 
   Future<void> _watch(SubagentEntry entry) async {
-    final runId = entry.runId;
     final repository = _chat.chatRepositoryOrNull;
-    if (runId == null || repository == null) return;
+    if (repository == null) return;
+    final childId = entry.childConversationId;
+    DateTime? missingSince;
+    DateTime? settledSince;
     while (!_disposed) {
       await Future<void>.delayed(pollInterval);
       if (_disposed) return;
-      final run = await repository.getGenerationRun(runId);
+      var run = await repository.latestGenerationRun(childId);
+      if (run == null && entry.runId != null) {
+        // The conversation was just adopted and its run row is the one we were
+        // told about; ask for that one before deciding it is gone.
+        run = await repository.getGenerationRun(entry.runId!);
+      }
       if (_disposed) return;
       if (run == null) {
         // The row outlives the process, so a missing one means the child's
-        // conversation was deleted underneath us.
-        await _finish(entry, SubagentPhase.interrupted, 'run_missing');
-        return;
+        // conversation was deleted underneath us. The grace window covers the
+        // gap between "a turn is about to start" and its run row existing.
+        missingSince ??= DateTime.now();
+        if (DateTime.now().difference(missingSince) >
+            const Duration(seconds: 10)) {
+          await _finish(entry, SubagentPhase.interrupted, 'run_missing');
+          return;
+        }
+        continue;
       }
+      missingSince = null;
+      if (entry.settledRunId == run.id) {
+        // The run this delegation already reported. A continuation is followed
+        // by a different run. While its message is still waiting for a turn to
+        // start, waiting is the answer — the app may be backgrounded, or the
+        // context blocked on a compression review — and closing the delegation
+        // then would report a failure for a turn that runs later, unwatched.
+        if (_host?.hasPendingMail?.call(childId) ?? false) {
+          settledSince = null;
+          continue;
+        }
+        settledSince ??= DateTime.now();
+        if (DateTime.now().difference(settledSince) >
+            const Duration(seconds: 20)) {
+          await _finish(entry, SubagentPhase.failed, 'turn_not_started');
+          return;
+        }
+        continue;
+      }
+      settledSince = null;
+      entry.runId = run.id;
       if (!run.state.isTerminal) {
         // The run is still open, but "open" and "working" are different things:
         // a child parked on an approval or an `ask_user` card will never finish
@@ -549,7 +824,7 @@ class SubagentCoordinator extends ChangeNotifier {
         // and `waitingTool` names the state even when the probe cannot see the
         // request. The probe has to be asked unconditionally — nothing in the app
         // currently *writes* `waitingTool`; it is only a declared transition.
-        final reason = _host?.waitReasonFor?.call(entry.childConversationId);
+        final reason = _host?.waitReasonFor?.call(childId);
         _noteWaiting(
           entry,
           parked: reason != null || run.state == GenerationRunState.waitingTool,
@@ -557,6 +832,12 @@ class SubagentCoordinator extends ChangeNotifier {
         );
         continue;
       }
+      // A terminal run is one segment, not necessarily the whole turn: a message
+      // that arrived at a step boundary ended it and started the next one. Report
+      // only once neither a turn nor another message is outstanding.
+      final busy = _host?.isTurnRunning?.call(childId) ?? false;
+      final pending = _host?.hasPendingMail?.call(childId) ?? false;
+      if (busy || pending) continue;
       await _finish(
         entry,
         _phaseOf(run.state),
@@ -589,6 +870,11 @@ class SubagentCoordinator extends ChangeNotifier {
     String? targetMessageId,
   }) async {
     if (!entry.isLive) return;
+    // A run row cannot say who pressed Stop. The model's own `interrupt` is a
+    // pause the conversation can be continued from; the user's Stop is final.
+    final effective = phase == SubagentPhase.cancelled && entry.stoppedByModel
+        ? SubagentPhase.stopped
+        : phase;
     entry.failureReason = reason;
     entry.elapsed = _clock().difference(entry.startedAt);
 
@@ -610,13 +896,13 @@ class SubagentCoordinator extends ChangeNotifier {
       entry.brief =
           await _briefFor(
             entry,
-            phase,
+            effective,
             reason,
             targetMessageId: targetMessageId,
           ).catchError(
             (Object _) => resultBrief(
               label: entry.title,
-              outcome: _outcomeWord(phase, reason),
+              outcome: _outcomeWord(effective, reason),
               text: '',
               childConversationId: entry.childConversationId,
             ),
@@ -626,11 +912,12 @@ class SubagentCoordinator extends ChangeNotifier {
       // be seen. Trusting the stale read would leave the delegation with no row
       // and no continuation — a result that happened and left no trace.
       if (!waited || entry.waiters == 0) {
-        notice = _noticeFor(entry, phase, entry.brief!);
+        notice = _noticeFor(entry, effective, entry.brief!);
       }
     } finally {
       // A failed computation must not leave the entry looking alive forever.
-      entry.phase = phase;
+      entry.phase = effective;
+      entry.settledRunId = entry.runId;
       notifyListeners();
     }
 
@@ -648,7 +935,8 @@ class SubagentCoordinator extends ChangeNotifier {
     await _chat.addMessageDirectly(entry.parentConversationId, notice);
     // What the queue decides is only whether the parent is *continued* now.
     final followUp =
-        phase == SubagentPhase.completed || phase == SubagentPhase.failed;
+        effective == SubagentPhase.completed ||
+        effective == SubagentPhase.failed;
     final enqueue = _host?.enqueueResult;
     if (enqueue != null) {
       enqueue(
@@ -684,7 +972,10 @@ class SubagentCoordinator extends ChangeNotifier {
     SubagentPhase phase,
     String brief,
   ) => ChatMessage(
-    id: SubagentResultPart.messageIdFor(entry.childConversationId),
+    id: SubagentResultPart.messageIdFor(
+      entry.childConversationId,
+      runId: entry.runId,
+    ),
     role: 'user',
     conversationId: entry.parentConversationId,
     parts: <MessagePart>[
@@ -740,6 +1031,7 @@ class SubagentCoordinator extends ChangeNotifier {
     return switch (phase) {
       SubagentPhase.completed => 'completed',
       SubagentPhase.failed => detail.isEmpty ? 'failed' : 'failed: $detail',
+      SubagentPhase.stopped => 'stopped',
       SubagentPhase.cancelled => 'cancelled',
       SubagentPhase.interrupted =>
         detail.isEmpty ? 'interrupted' : 'interrupted: $detail',

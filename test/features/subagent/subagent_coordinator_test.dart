@@ -290,6 +290,9 @@ void main() {
           message.conversationId == 'parent'
               ? chat.created.single.id
               : 'unreachable',
+          // One result row per segment: the row is keyed by the run that
+          // produced it, so a continued delegation writes a second one.
+          runId: 'run-1',
         ),
       );
       final part = message.parts.whereType<SubagentResultPart>().single;
@@ -589,6 +592,238 @@ void main() {
       coordinator.dispose();
     });
   });
+
+  group('delegate: mail and the model’s stop', () {
+    SubagentHost mailHost(_Wakes wakes, {void Function(String)? onCancel}) =>
+        SubagentHost(
+          turnStarter:
+              ({
+                required conversationId,
+                required assistant,
+                required task,
+              }) async => const SubagentTurnStart.started(runId: 'run-1'),
+          enqueueResult:
+              ({
+                required parentConversationId,
+                required notice,
+                required assistant,
+                required followUp,
+              }) {
+                wakes.woken.add(parentConversationId);
+                wakes.enqueued.add(notice);
+                wakes.followUps.add(followUp);
+              },
+          enqueueMail: ({required conversationId, required message}) {
+            wakes.woken.add(conversationId);
+            wakes.enqueued.add(message);
+          },
+          cancelTurn: (conversationId) async => onCancel?.call(conversationId),
+        );
+
+    Future<SubagentStarted> startChild(SubagentCoordinator coordinator) async {
+      final start = await coordinator.begin(
+        parentConversationId: 'parent',
+        toolCallId: 'call-1',
+        task: 'refactor auth',
+        label: 'auth',
+        assistant: _assistant(),
+      );
+      return start as SubagentStarted;
+    }
+
+    test(
+      'a delegator’s message lands in the child and is queued there',
+      () async {
+        final chat = _FakeChat(<String, Conversation>{
+          'parent': Conversation(id: 'parent', title: 'Chat'),
+        });
+        final wakes = _Wakes();
+        final coordinator = SubagentCoordinator(
+          chat,
+          clock: _clock(),
+          pollInterval: const Duration(milliseconds: 1),
+        )..attachHost(mailHost(wakes));
+        final start = await startChild(coordinator);
+        final childId = start.entry.childConversationId;
+
+        final result = await coordinator.sendToChild(
+          parentConversationId: 'parent',
+          jobId: childId,
+          text: 'use YAML',
+          assistant: _assistant(),
+          toolCallId: 'call-2',
+        );
+
+        expect(result['status'], 'delivered');
+        // The host in this test cannot see a running turn, so the answer says the
+        // message starts one. The branch itself is the host's word, not a state
+        // this coordinator invents.
+        expect(result['delivery'], 'turn_started');
+        final row = chat.written.single;
+        expect(row.conversationId, childId);
+        expect(row.role, 'user');
+        expect(
+          row.parts.whereType<SubagentMailPart>().single.from,
+          SubagentMailSender.delegator,
+        );
+        // The row stores the body. The model-facing "The delegator sent a
+        // message:" sentence is added when the request is built, so the
+        // transcript and the exports do not carry an English prefix.
+        expect(row.content, 'use YAML');
+        expect(wakes.enqueued.single.id, row.id);
+        coordinator.dispose();
+      },
+    );
+
+    test('a job that is not this conversation’s child is refused', () async {
+      final chat = _FakeChat(<String, Conversation>{
+        'parent': Conversation(id: 'parent', title: 'Chat'),
+        'stranger': Conversation(
+          id: 'stranger',
+          title: 'Elsewhere',
+          extras: const <String, dynamic>{SubagentExtrasKeys.parent: 'other'},
+        ),
+      });
+      final coordinator = SubagentCoordinator(chat, clock: _clock())
+        ..attachHost(mailHost(_Wakes()));
+
+      final result = await coordinator.sendToChild(
+        parentConversationId: 'parent',
+        jobId: 'stranger',
+        text: 'hello',
+        assistant: _assistant(),
+        toolCallId: 'call-2',
+      );
+
+      expect(result['status'], 'rejected');
+      expect(result['reason'], 'not_found');
+      expect(chat.written, isEmpty);
+      coordinator.dispose();
+    });
+
+    test(
+      'a child writes into its delegator, marked as the subagent’s',
+      () async {
+        final chat = _FakeChat(<String, Conversation>{
+          'parent': Conversation(id: 'parent', title: 'Chat'),
+        });
+        final wakes = _Wakes();
+        final coordinator = SubagentCoordinator(chat, clock: _clock())
+          ..attachHost(mailHost(wakes));
+        final start = await startChild(coordinator);
+        chat.written.clear();
+
+        final result = await coordinator.sendToParent(
+          childConversationId: start.entry.childConversationId,
+          text: 'the token is in .env',
+          toolCallId: 'call-3',
+        );
+
+        expect(result['status'], 'delivered');
+        final row = chat.written.single;
+        expect(row.conversationId, 'parent');
+        expect(
+          row.parts.whereType<SubagentMailPart>().single.from,
+          SubagentMailSender.subagent,
+        );
+        // Body only, like the other direction.
+        expect(row.content, 'the token is in .env');
+        expect(wakes.woken.single, 'parent');
+        coordinator.dispose();
+      },
+    );
+
+    test(
+      'the model’s stop reads as stopped and does not wake the parent',
+      () async {
+        final chat = _FakeChat(<String, Conversation>{
+          'parent': Conversation(id: 'parent', title: 'Chat'),
+        });
+        final wakes = _Wakes();
+        final cancelled = <String>[];
+        final coordinator = SubagentCoordinator(
+          chat,
+          clock: _clock(),
+          pollInterval: const Duration(milliseconds: 1),
+        )..attachHost(mailHost(wakes, onCancel: cancelled.add));
+        final start = await startChild(coordinator);
+        final childId = start.entry.childConversationId;
+
+        final accepted = await coordinator.interruptChild(
+          parentConversationId: 'parent',
+          jobId: childId,
+        );
+        expect(accepted['status'], 'accepted');
+        expect(cancelled, <String>[childId]);
+
+        // The run row cannot say who stopped it; the coordinator's flag can.
+        chat.repo.run = _run(state: GenerationRunState.cancelled);
+        await _settle();
+
+        final notice = wakes.enqueued.single;
+        expect(
+          notice.parts.whereType<SubagentResultPart>().single.outcome,
+          'stopped',
+        );
+        expect(wakes.followUps.single, isFalse);
+        expect(start.entry.phase, SubagentPhase.stopped);
+        coordinator.dispose();
+      },
+    );
+
+    test('the user’s stop stays final', () async {
+      final chat = _FakeChat(<String, Conversation>{
+        'parent': Conversation(id: 'parent', title: 'Chat'),
+      });
+      final coordinator = SubagentCoordinator(
+        chat,
+        clock: _clock(),
+        pollInterval: const Duration(milliseconds: 1),
+      )..attachHost(mailHost(_Wakes()));
+      final start = await startChild(coordinator);
+
+      chat.repo.run = _run(state: GenerationRunState.cancelled);
+      await _settle();
+
+      final result = await coordinator.sendToChild(
+        parentConversationId: 'parent',
+        jobId: start.entry.childConversationId,
+        text: 'one more thing',
+        assistant: _assistant(),
+        toolCallId: 'call-4',
+      );
+      expect(result['status'], 'rejected');
+      expect(result['reason'], 'not_continuable');
+      coordinator.dispose();
+    });
+
+    test('a finished child is continued instead of refused', () async {
+      final chat = _FakeChat(<String, Conversation>{
+        'parent': Conversation(id: 'parent', title: 'Chat'),
+      });
+      final coordinator = SubagentCoordinator(
+        chat,
+        clock: _clock(),
+        pollInterval: const Duration(milliseconds: 1),
+      )..attachHost(mailHost(_Wakes()));
+      final start = await startChild(coordinator);
+
+      chat.repo.run = _run(state: GenerationRunState.completed);
+      await _settle();
+      expect(start.entry.phase, SubagentPhase.completed);
+
+      final result = await coordinator.sendToChild(
+        parentConversationId: 'parent',
+        jobId: start.entry.childConversationId,
+        text: 'and the tests',
+        assistant: _assistant(),
+        toolCallId: 'call-5',
+      );
+      expect(result['status'], 'delivered');
+      expect(start.entry.phase, SubagentPhase.running);
+      coordinator.dispose();
+    });
+  });
 }
 
 DateTime Function() _clock() {
@@ -674,6 +909,10 @@ class _FakeRepository extends Fake implements ChatDatabaseRepository {
 
   @override
   Future<GenerationRun?> getGenerationRun(String id) async => run;
+
+  @override
+  Future<GenerationRun?> latestGenerationRun(String conversationId) async =>
+      run;
 
   @override
   Future<ChatMessage?> getMessage(String id) async => ChatMessage(

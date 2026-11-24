@@ -6537,8 +6537,29 @@ FROM conversation_rows;
             !upsertedIds.contains(entry.key) &&
             (entry.value['message_order'] as num).toInt() != order[entry.key],
       );
+      // The shift exists to make room: it moves every row above the final range
+      // so an incoming row can take a free slot. When every untouched row already
+      // sits on its final slot and no incoming row takes a slot another row holds,
+      // there is nothing to make room for and nothing to move — the ordinary
+      // append, which is what a page-per-beat transfer does on every page.
+      // Deciding this on the slots rather than on "did anything arrive" is what
+      // keeps a paged apply from re-pointing the whole conversation per page.
+      // Taken from the rows as stored, not as merged: an incoming row carries
+      // the slot it *wants*, so reading the merged map would report every row as
+      // already standing where it is about to be written — which is true only
+      // when nothing moves.
+      final currentSlots = <int, String>{
+        for (final entry in localMessages.entries)
+          if (finalRows.containsKey(entry.key))
+            (entry.value['message_order'] as num).toInt(): entry.key,
+      };
       final needsReorder =
-          plan.upserts.isNotEmpty || deletes.isNotEmpty || orderDrifted;
+          deletes.isNotEmpty ||
+          orderDrifted ||
+          upsertedIds.any((id) {
+            final holder = currentSlots[order[id]];
+            return holder != null && holder != id;
+          });
 
       if (needsReorder) {
         // Phase 1: move every existing row above the final range. The shift

@@ -159,6 +159,9 @@ void main() {
     home.drawerController.jumpTo(1.0);
     await pumpFrames(tester);
     expect(find.byType(SideDrawer), findsOneWidget);
+    // The sidebar's assistant section starts collapsed behind the current
+    // assistant's header row; the reference frame shows the expanded list.
+    await _expandAssistantPicker(tester, l10n);
     final harnessRow = find.descendant(
       of: find.byType(SideDrawer),
       matching: find.text(l10n.assistantHarnessDefaultName),
@@ -291,6 +294,32 @@ Future<void> _openCreateMenu(
     maxFrames: 150,
   );
   expect(find.byType(HarnessSettingsPage), findsOneWidget);
+}
+
+/// Expands the sidebar's assistant section so the harness row is on screen.
+Future<void> _expandAssistantPicker(
+  WidgetTester tester,
+  AppLocalizations l10n,
+) async {
+  final chevron = find.descendant(
+    of: find.byType(SideDrawer),
+    matching: find.byIcon(Lucide.ChevronDown),
+  );
+  if (chevron.evaluate().isNotEmpty) {
+    await tester.tap(chevron.first);
+    await pumpFrames(tester, frames: 20);
+  }
+  await pumpUntil(
+    tester,
+    () => find
+        .descendant(
+          of: find.byType(SideDrawer),
+          matching: find.text(l10n.assistantHarnessDefaultName),
+        )
+        .evaluate()
+        .isNotEmpty,
+    maxFrames: 100,
+  );
 }
 
 Future<void> _tapAppBarBack(WidgetTester tester) async {

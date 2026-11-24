@@ -2803,6 +2803,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subagentMailLabel => '子代理消息';
 
   @override
+  String get subagentMailOpenConversation => '打开对话';
+
+  @override
+  String get subagentMailCopy => '复制';
+
+  @override
+  String get subagentMailCopied => '已复制';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return '子代理运行中（$elapsed）$label';
   }
@@ -20940,6 +20949,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get subagentMailLabel => '子代理消息';
+
+  @override
+  String get subagentMailOpenConversation => '打开对话';
+
+  @override
+  String get subagentMailCopy => '复制';
+
+  @override
+  String get subagentMailCopied => '已复制';
 
   @override
   String subagentStripRunning(String elapsed, String label) {
@@ -39084,6 +39102,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subagentMailLabel => '子代理訊息';
+
+  @override
+  String get subagentMailOpenConversation => '打開對話';
+
+  @override
+  String get subagentMailCopy => '複製';
+
+  @override
+  String get subagentMailCopied => '已複製';
 
   @override
   String subagentStripRunning(String elapsed, String label) {

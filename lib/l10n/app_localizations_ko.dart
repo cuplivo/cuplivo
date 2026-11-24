@@ -2862,6 +2862,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get subagentMailLabel => '서브에이전트 메시지';
 
   @override
+  String get subagentMailOpenConversation => '대화 열기';
+
+  @override
+  String get subagentMailCopy => '복사';
+
+  @override
+  String get subagentMailCopied => '복사됨';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return '서브에이전트 실행 중 ($elapsed) $label';
   }

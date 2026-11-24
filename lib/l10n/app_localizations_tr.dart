@@ -2945,6 +2945,15 @@ class AppLocalizationsTr extends AppLocalizations {
   String get subagentMailLabel => 'Alt ajan mesajı';
 
   @override
+  String get subagentMailOpenConversation => 'Sohbeti aç';
+
+  @override
+  String get subagentMailCopy => 'Kopyala';
+
+  @override
+  String get subagentMailCopied => 'Kopyalandı';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Alt ajan çalışıyor ($elapsed) $label';
   }

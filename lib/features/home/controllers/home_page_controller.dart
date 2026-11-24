@@ -785,6 +785,12 @@ class HomePageController extends ChangeNotifier {
           ),
         ),
     waitReasonFor: _waitReasonForChild,
+    enqueueMail: ({required conversationId, required message}) => _viewModel
+        .enqueueMail(conversationId: conversationId, message: message),
+    isTurnRunning: (conversationId) =>
+        _viewModel.isConversationBusy(conversationId),
+    hasPendingMail: (conversationId) =>
+        _viewModel.hasPendingMail(conversationId),
     openConversation: (conversationId) {
       unawaited(switchConversationAnimated(conversationId));
     },

@@ -10,10 +10,14 @@ import '../../../core/models/chat_owner.dart';
 import '../../../core/models/group_chat.dart';
 import '../../../core/providers/chat_owners_provider.dart';
 import '../../../core/providers/group_chat_provider.dart';
+import '../../../core/providers/harness_connection_provider.dart';
 import '../../../shared/widgets/action_sheet.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../group_chat/group_navigation.dart';
 import '../../group_chat/widgets/group_member_list.dart';
+import '../../harness/harness_navigation.dart';
+import '../../harness/widgets/deepseek_harness_icon.dart';
+import '../../home/widgets/assistant_avatar.dart';
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'assistant_settings_edit_page.dart';
@@ -45,6 +49,10 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
   /// only create affordance would otherwise be.
   final GlobalKey _createMenuAnchor = GlobalKey();
 
+  /// One lazy re-proof of the harness rows' links per frame at most: the status
+  /// dots must appear without opening each harness page.
+  bool _harnessProbeScheduled = false;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -54,6 +62,13 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
       for (final assistant in context.watch<AssistantProvider>().assistants)
         assistant.id: assistant,
     };
+    // Harness rows show the live connection answer, the same one their settings
+    // page shows. A list without a harness assistant never reads the provider.
+    final hasHarness = assistants.values.any((a) => a.isDeepSeekHarness);
+    final harnessConnections = hasHarness
+        ? context.watch<HarnessConnectionProvider>()
+        : null;
+    if (hasHarness) _scheduleHarnessProbes();
     final groups = {
       for (final group in context.watch<GroupChatProvider>().groups)
         group.id: group,
@@ -100,7 +115,10 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
       final group = owner.isGroup ? groups[owner.id] : null;
       return group != null
           ? _GroupCard(group: group, assistants: assistants)
-          : _AssistantCard(item: assistants[owner.id]!);
+          : _AssistantCard(
+              item: assistants[owner.id]!,
+              connections: harnessConnections,
+            );
     }
 
     return Scaffold(
@@ -156,7 +174,10 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
                     items: assistantRows,
                     itemKeyOf: (assistant) =>
                         ChatOwner.assistant(assistant.id).key,
-                    itemBuilder: (assistant) => _AssistantCard(item: assistant),
+                    itemBuilder: (assistant) => _AssistantCard(
+                      item: assistant,
+                      connections: harnessConnections,
+                    ),
                     onReorder: (oldIndex, newIndex) => owners.reorderWithin(
                       keys: assistantKeys,
                       oldIndex: oldIndex,
@@ -214,8 +235,39 @@ class _ChatOwnerSettingsPageState extends State<ChatOwnerSettingsPage> {
           label: l10n.groupChatCreate,
           onTap: () => _createGroup(context),
         ),
+        ActionSheetItem(
+          key: const Key('harness-create-item'),
+          svgAsset: DeepSeekHarnessIcon.asset,
+          label: l10n.assistantHarnessDefaultName,
+          onTap: () => _createHarnessAssistant(context),
+        ),
       ],
     );
+  }
+
+  /// Creates the pointer first and lets its settings page prove a link: there
+  /// is nothing to configure before the connection exists.
+  Future<void> _createHarnessAssistant(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final assistantProvider = context.read<AssistantProvider>();
+    final id = await assistantProvider.addHarnessAssistant(
+      name: l10n.assistantHarnessDefaultName,
+    );
+    if (!context.mounted) return;
+    await openHarnessSettings(context, id);
+  }
+
+  void _scheduleHarnessProbes() {
+    if (_harnessProbeScheduled) return;
+    _harnessProbeScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _harnessProbeScheduled = false;
+      if (!mounted) return;
+      final harnesses = context.read<AssistantProvider>().assistants.where(
+        (assistant) => assistant.isDeepSeekHarness,
+      );
+      context.read<HarnessConnectionProvider>().ensureChecked(harnesses);
+    });
   }
 
   Future<void> _createAssistant(BuildContext context) async {
@@ -348,146 +400,182 @@ Widget _ownerDragProxy(Widget child, int index, Animation<double> animation) {
 }
 
 class _AssistantCard extends StatelessWidget {
-  const _AssistantCard({required this.item});
+  const _AssistantCard({required this.item, this.connections});
   final Assistant item;
+
+  /// Live link state, only passed when the list contains harness assistants.
+  final HarnessConnectionProvider? connections;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final connected =
+        item.isDeepSeekHarness && (connections?.isConnected(item.id) ?? false);
 
     final baseBg = context.appColors.surfaceCard;
-    final content = _TactileCard(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AssistantSettingsEditPage(assistantId: item.id),
-          ),
-        );
-      },
-      builder: (pressed, overlay) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(overlay, baseBg),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                alpha: isDark ? 0.12 : 0.08,
-              ),
-              width: 0.8,
+    final content = KeyedSubtree(
+      key: item.isDeepSeekHarness ? const Key('harness-assistant-card') : null,
+      child: _TactileCard(
+        onTap: () {
+          if (item.isDeepSeekHarness) {
+            openHarnessSettings(context, item.id);
+            return;
+          }
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => AssistantSettingsEditPage(assistantId: item.id),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _AssistantAvatar(item: item, size: 44),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: AppFontWeights.emphasis,
+          );
+        },
+        builder: (pressed, overlay) {
+          return Container(
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(overlay, baseBg),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.12 : 0.08,
+                ),
+                width: 0.8,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    crossAxisAlignment: item.isDeepSeekHarness
+                        ? CrossAxisAlignment.center
+                        : CrossAxisAlignment.start,
+                    children: [
+                      _AssistantAvatar(item: item, size: 44),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: AppFontWeights.emphasis,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            (item.systemPrompt.trim().isEmpty
-                                ? l10n.assistantSettingsNoPromptPlaceholder
-                                : item.systemPrompt),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: cs.onSurface.withValues(alpha: 0.7),
-                              height: 1.25,
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(
+                              item.isDeepSeekHarness
+                                  ? l10n.assistantHarnessRemoteSubtitle
+                                  : (item.systemPrompt.trim().isEmpty
+                                        ? l10n.assistantSettingsNoPromptPlaceholder
+                                        : item.systemPrompt),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: cs.onSurface.withValues(alpha: 0.7),
+                                height: 1.25,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      if (connected) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          key: const Key('harness-connected-dot'),
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: context.appColors.success,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
 
     return Slidable(
       key: ValueKey('slidable-assistant-${item.id}'),
       endActionPane: ActionPane(
         motion: const StretchMotion(),
-        extentRatio: 0.6,
+        extentRatio: item.isDeepSeekHarness ? 0.3 : 0.6,
         children: [
-          CustomSlidableAction(
-            autoClose: true,
-            backgroundColor: Colors.transparent,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            onPressed: (_) async {
-              await copyAssistantWithScope(context, item.id);
-            },
-            child: Container(
-              width: double.infinity,
-              height: double.infinity,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? cs.primary.withValues(alpha: 0.16)
-                    : cs.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: cs.primary.withValues(alpha: 0.35)),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: SizedBox.expand(
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Lucide.Copy, color: cs.primary, size: 18),
-                        const SizedBox(width: 6),
-                        Text(
-                          l10n.assistantSettingsCopyButton,
-                          style: TextStyle(
-                            color: cs.primary,
-                            fontWeight: AppFontWeights.emphasis,
+          // A remote WebUI pointer cannot be duplicated into a second chat
+          // assistant, so harness rows only offer delete.
+          if (!item.isDeepSeekHarness)
+            CustomSlidableAction(
+              autoClose: true,
+              backgroundColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              onPressed: (_) async {
+                await copyAssistantWithScope(context, item.id);
+              },
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? cs.primary.withValues(alpha: 0.16)
+                      : cs.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: cs.primary.withValues(alpha: 0.35)),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: SizedBox.expand(
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Lucide.Copy, color: cs.primary, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.assistantSettingsCopyButton,
+                            style: TextStyle(
+                              color: cs.primary,
+                              fontWeight: AppFontWeights.emphasis,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
           CustomSlidableAction(
             autoClose: true,
             backgroundColor: Colors.transparent,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             onPressed: (_) async {
               final assistantProvider = context.read<AssistantProvider>();
-              final count = assistantProvider.assistants.length;
-              if (count <= 1) {
+              // Same rule as the provider: only a local assistant is protected
+              // as the last chat owner; a harness delete is always allowed.
+              if (!item.isDeepSeekHarness &&
+                  assistantProvider.chatAssistants.length <= 1) {
                 showAppSnackBar(
                   context,
                   message: l10n.assistantSettingsAtLeastOneAssistantRequired,
@@ -866,6 +954,11 @@ class _AssistantAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    // The whale mark is a product identity, not an avatar choice: share the
+    // one implementation with the sidebar and the app bar.
+    if (item.isDeepSeekHarness) {
+      return AssistantAvatar(assistant: item, size: size);
+    }
     final av = (item.avatar ?? '').trim();
     if (av.isNotEmpty) {
       if (av.startsWith('http')) {

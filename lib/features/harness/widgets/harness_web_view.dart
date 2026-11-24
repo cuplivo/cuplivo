@@ -173,6 +173,19 @@ class _HarnessWebViewState extends State<HarnessWebView> {
                 initialSettings: _settings,
                 webViewEnvironment: _webViewEnvironment,
                 onWebViewCreated: (controller) => _controller = controller,
+                onConsoleMessage: (controller, message) {
+                  debugPrint(
+                    '[harness-webview] console ${message.messageLevel} '
+                    '${message.message}',
+                  );
+                },
+                onReceivedServerTrustAuthRequest:
+                    (controller, challenge) async {
+                      debugPrint('[harness-webview] ssl challenge $challenge');
+                      return ServerTrustAuthResponse(
+                        action: ServerTrustAuthResponseAction.CANCEL,
+                      );
+                    },
                 onLoadStart: _onLoadStart,
                 onProgressChanged: _onProgressChanged,
                 onLoadStop: _onLoadStop,

@@ -11,6 +11,7 @@ import 'package:Cuplivo/features/home/widgets/side_drawer.dart';
 import 'package:Cuplivo/features/settings/pages/settings_page.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -170,7 +171,10 @@ void main() {
       );
       await capture(tester, binding, 'harness_02_settings_connected');
     } else {
-      await pumpFrames(tester);
+      // Hermetic open-time probe fails against the seeded placeholder link;
+      // let it finish so the capture is the page, not the failure toast.
+      await pumpFrames(tester, frames: 60);
+      await _waitForNotificationsToClear(tester);
       await capture(tester, binding, 'harness_02_settings_hermetic');
     }
 
@@ -267,6 +271,7 @@ void main() {
 
     // The return bar is a page exit, not a chat entry: the Cuplivo chat page is
     // exactly where it was, drawer closed.
+    await _waitForNotificationsToClear(tester);
     await tester.tap(find.byKey(const Key('harness-return-button')));
     await pumpUntil(
       tester,
@@ -367,6 +372,7 @@ Future<void> _expandAssistantPicker(
   WidgetTester tester,
   AppLocalizations l10n,
 ) async {
+  await _waitForNotificationsToClear(tester);
   final chevron = find.descendant(
     of: find.byType(SideDrawer),
     matching: find.byIcon(Lucide.ChevronDown),
@@ -388,10 +394,21 @@ Future<void> _expandAssistantPicker(
   );
 }
 
+/// App notifications slide in over the app bar and swallow the taps they
+/// overlap; a failed probe raises one that lives three seconds.
+Future<void> _waitForNotificationsToClear(WidgetTester tester) async {
+  await pumpUntil(
+    tester,
+    () => find.byType(NotificationWidget).evaluate().isEmpty,
+    maxFrames: 80,
+  );
+}
+
 Future<void> _tapAppBarBack(WidgetTester tester) async {
   // A pop transition keeps the outgoing route mounted, so looking for "the"
   // AppBar can match two pages. Let the previous transition finish first.
   await _waitForSingleAppBar(tester);
+  await _waitForNotificationsToClear(tester);
   final back = find.descendant(
     of: find.byType(AppBar),
     matching: find.byIcon(Lucide.ArrowLeft),

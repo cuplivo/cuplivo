@@ -88,7 +88,7 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
   }
 
   Future<void> _invite(GroupChat group, List<Assistant> members) async {
-    final assistants = context.read<AssistantProvider>().assistants;
+    final assistants = context.read<AssistantProvider>().chatAssistants;
     final existing = members.map((member) => member.id).toSet();
     final candidates = [
       for (final assistant in assistants)

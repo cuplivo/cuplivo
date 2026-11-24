@@ -24,6 +24,14 @@ enum MemoryWriteScope {
 /// that conversation already has, and falls back to asking when it cannot.
 enum SubagentEscalation { ask, deny, allow }
 
+/// What an assistant is.
+///
+/// A [local] assistant is a chat configuration this app runs. A
+/// [deepSeekHarness] assistant is a pointer to a remote DeepSeek Harness
+/// instance: the app embeds that instance's own WebUI instead of using the
+/// assistant as a chat model, so the chat settings do not apply to it.
+enum AssistantKind { local, deepSeekHarness }
+
 class Assistant {
   static const int defaultRecentChatsSummaryMessageCount = 5;
   static const int defaultMemoryOrganizeEveryNTurns = 1;
@@ -44,6 +52,15 @@ class Assistant {
 
   final String id;
   final String name;
+  final AssistantKind kind;
+
+  /// The DeepSeek Harness WebUI launch link, token included, for a
+  /// [AssistantKind.deepSeekHarness] assistant. `null` until the user connects
+  /// one; ignored for a local assistant.
+  final String? harnessUrl;
+
+  bool get isDeepSeekHarness => kind == AssistantKind.deepSeekHarness;
+
   final String? avatar; // path/url/base64, null for initial-letter avatar
   final bool
   useAssistantAvatar; // replace model icon in chat with assistant avatar
@@ -145,6 +162,8 @@ class Assistant {
   const Assistant({
     required this.id,
     required this.name,
+    this.kind = AssistantKind.local,
+    this.harnessUrl,
     this.avatar,
     this.useAssistantAvatar = false,
     this.useAssistantName = false,
@@ -203,9 +222,30 @@ class Assistant {
     this.proactiveCareDecisionHistoryMessageLimit,
   });
 
+  /// A remote DeepSeek Harness, before (or after) it is connected.
+  ///
+  /// It owns a name and an optional WebUI launch link and nothing else: no
+  /// model, no prompt, no tools — the remote instance brings its own.
+  factory Assistant.harness({
+    required String id,
+    required String name,
+    String? harnessUrl,
+  }) => Assistant(
+    id: id,
+    name: name,
+    kind: AssistantKind.deepSeekHarness,
+    harnessUrl: harnessUrl,
+    temperature: null,
+    topP: null,
+    limitContextMessages: false,
+  );
+
   Assistant copyWith({
     String? id,
     String? name,
+    AssistantKind? kind,
+    String? harnessUrl,
+    bool clearHarnessUrl = false,
     String? avatar,
     bool? useAssistantAvatar,
     bool? useAssistantName,
@@ -279,6 +319,8 @@ class Assistant {
     return Assistant(
       id: id ?? this.id,
       name: name ?? this.name,
+      kind: kind ?? this.kind,
+      harnessUrl: clearHarnessUrl ? null : (harnessUrl ?? this.harnessUrl),
       avatar: clearAvatar ? null : (avatar ?? this.avatar),
       useAssistantAvatar: useAssistantAvatar ?? this.useAssistantAvatar,
       useAssistantName: useAssistantName ?? this.useAssistantName,
@@ -384,6 +426,8 @@ class Assistant {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
+    'kind': kind.name,
+    'harnessUrl': harnessUrl,
     'avatar': avatar,
     'useAssistantAvatar': useAssistantAvatar,
     'useAssistantName': useAssistantName,
@@ -450,6 +494,12 @@ class Assistant {
     return null;
   }
 
+  static String? _nonEmptyHarnessUrl(Object? value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
   static double _readGradientBackgroundPhase(Object? value) =>
       value is num && value.isFinite && value >= 0
       ? value.toDouble()
@@ -458,6 +508,12 @@ class Assistant {
   static Assistant fromJson(Map<String, dynamic> json) => Assistant(
     id: json['id'] as String,
     name: (json['name'] as String?) ?? '',
+    kind:
+        AssistantKind.values
+            .where((value) => value.name == json['kind'])
+            .firstOrNull ??
+        AssistantKind.local,
+    harnessUrl: _nonEmptyHarnessUrl(json['harnessUrl']),
     avatar: json['avatar'] as String?,
     useAssistantAvatar: json['useAssistantAvatar'] as bool? ?? false,
     useAssistantName: json['useAssistantName'] as bool? ?? false,

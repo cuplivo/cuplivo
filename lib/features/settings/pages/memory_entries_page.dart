@@ -232,7 +232,7 @@ class _MemoryEntriesContentState extends State<MemoryEntriesContent> {
                   value: null,
                   label: l10n.memoryUiAssistantAll,
                 ),
-                for (final a in ap.assistants)
+                for (final a in ap.chatAssistants)
                   DesktopSelectOption(value: a.id, label: a.name),
               ],
               onSelected: (v) => setState(() => _assistantFilterId = v),
@@ -304,7 +304,7 @@ class _MemoryEntriesContentState extends State<MemoryEntriesContent> {
                       value: null,
                       label: l10n.memoryUiAssistantAll,
                     ),
-                    for (final a in ap.assistants)
+                    for (final a in ap.chatAssistants)
                       MemoryPickerOption(value: a.id, label: a.name),
                   ],
                 );

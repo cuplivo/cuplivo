@@ -1585,7 +1585,7 @@ class HomePageController extends ChangeNotifier {
         final assistants = _context.read<AssistantProvider>();
         await ProactiveCareAlarmService.rescheduleAll(
           conversations: _chatService.getAllConversations(),
-          assistants: assistants.assistants,
+          assistants: assistants.chatAssistants,
           assistantStoreLoaded: assistants.isLoaded,
         );
         // iOS: the arrival notification is the only carrier a suspended app
@@ -1598,7 +1598,7 @@ class HomePageController extends ChangeNotifier {
           ProactiveCareAlarmService.ensureIosArrivalPermission(
             rearm: () => ProactiveCareAlarmService.rescheduleAll(
               conversations: _chatService.getAllConversations(),
-              assistants: assistantProvider.assistants,
+              assistants: assistantProvider.chatAssistants,
               assistantStoreLoaded: assistantProvider.isLoaded,
             ),
           ),

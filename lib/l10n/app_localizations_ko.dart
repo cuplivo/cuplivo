@@ -2859,6 +2859,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get subagentResultInterrupted => '서브에이전트 중단됨';
 
   @override
+  String get subagentMailLabel => '서브에이전트 메시지';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return '서브에이전트 실행 중 ($elapsed) $label';
   }

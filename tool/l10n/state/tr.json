@@ -5561,5 +5561,6 @@
   "subagentEscalation": "c078899b39b7213cf8367a6cf268ae7f3915deb645c920b11a297845e00b1279",
   "subagentEscalationAsk": "4142dcc147513b11b21d9c2d9d2af9b007b843484e5c57eea8086d1387f9183a",
   "subagentEscalationDeny": "4b521a9a23a25ced5759bccc7ef2425087c1507a9f3b69c6c87e81e83f925735",
-  "subagentEscalationAllow": "65b76837130c24f03be2b850ca9d446cb1393ea8f674767d1344eef36847da3b"
+  "subagentEscalationAllow": "65b76837130c24f03be2b850ca9d446cb1393ea8f674767d1344eef36847da3b",
+  "subagentMailLabel": "d96f01bfe2bd3cfadcde51b19486e409a10bd239f4a629e642aad14b653edf40"
 }

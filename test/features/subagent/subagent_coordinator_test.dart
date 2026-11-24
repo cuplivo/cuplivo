@@ -734,7 +734,7 @@ void main() {
     );
 
     test(
-      'the model’s stop reads as stopped and does not wake the parent',
+      'the model’s stop writes no row and does not wake the parent',
       () async {
         final chat = _FakeChat(<String, Conversation>{
           'parent': Conversation(id: 'parent', title: 'Chat'),
@@ -760,12 +760,10 @@ void main() {
         chat.repo.run = _run(state: GenerationRunState.cancelled);
         await _settle();
 
-        final notice = wakes.enqueued.single;
-        expect(
-          notice.parts.whereType<SubagentResultPart>().single.outcome,
-          'stopped',
-        );
-        expect(wakes.followUps.single, isFalse);
+        // The model asked for the stop and got `accepted`; a divider would tell
+        // it what it just did, and there is no conclusion to hand over.
+        expect(wakes.enqueued, isEmpty);
+        expect(chat.written, isEmpty);
         expect(start.entry.phase, SubagentPhase.stopped);
         coordinator.dispose();
       },

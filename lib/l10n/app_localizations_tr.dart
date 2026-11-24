@@ -2942,6 +2942,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get subagentResultInterrupted => 'Alt ajan kesildi';
 
   @override
+  String get subagentMailLabel => 'Alt ajan mesajı';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Alt ajan çalışıyor ($elapsed) $label';
   }

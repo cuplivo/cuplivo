@@ -2800,6 +2800,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subagentResultInterrupted => '子代理已中断';
 
   @override
+  String get subagentMailLabel => '子代理消息';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return '子代理运行中（$elapsed）$label';
   }
@@ -20934,6 +20937,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get subagentResultInterrupted => '子代理已中断';
+
+  @override
+  String get subagentMailLabel => '子代理消息';
 
   @override
   String subagentStripRunning(String elapsed, String label) {
@@ -39075,6 +39081,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subagentResultInterrupted => '子代理已中斷';
+
+  @override
+  String get subagentMailLabel => '子代理訊息';
 
   @override
   String subagentStripRunning(String elapsed, String label) {

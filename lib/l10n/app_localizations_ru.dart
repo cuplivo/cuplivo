@@ -2969,6 +2969,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get subagentResultInterrupted => 'Субагент прерван';
 
   @override
+  String get subagentMailLabel => 'Сообщение субагента';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Субагент работает ($elapsed) $label';
   }

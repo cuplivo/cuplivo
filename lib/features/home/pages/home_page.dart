@@ -1042,6 +1042,14 @@ class _HomePageState extends State<HomePage>
     if (!owner.isGroup) {
       final assistant = context.read<AssistantProvider>().getById(owner.id);
       if (assistant != null && assistant.isDeepSeekHarness) {
+        // The remote page is an opaque route, and the sidebar below it stops
+        // animating the moment the page covers it. Let the sidebar finish
+        // closing first: otherwise it is left half-open under the page and
+        // slides away again the moment the user comes back.
+        if (_drawerController.isAttached && !_drawerController.isClosed) {
+          await _drawerController.close();
+          if (!mounted) return;
+        }
         await openHarnessForAssistant(context, assistant);
         return;
       }

@@ -1286,9 +1286,6 @@ class SyncRequestRefusal implements Exception {
     : statusCode = HttpStatus.conflict,
       error = 'sync_session_missing';
 
-  /// A second push beat on a session that already took one.
-  ///
-
   final int statusCode;
   final String error;
 

@@ -1447,8 +1447,9 @@ status on an existing route).
   session never beaten. `SyncEngine` gained a `now` clock, so the regression — a session beaten at
   2:29 that must survive a sweep at 2:30 — is a test that runs in milliseconds instead of the 2m18s
   probe that found it.
-- **A fetch beat requires the push it belongs to, and the ledger is never defaulted.** Every session
-  is one push then one fetch, and the responder's workspace ledger — the record of what both sides now
+- **A fetch beat requires the push it belongs to, and the ledger is never defaulted.** A session opens
+  with a push (one per page since ADR-0020) and the fetch beat belongs to its first, and the responder's
+  workspace ledger — the record of what both sides now
   hold — is produced by the push. The fetch beat was answered regardless, and its checkpoint write
   defaulted that ledger (`session.workspaceOutcome?.ledger ?? const {}`), so a beat that arrived
   without its push persisted an **empty** ledger: the next session reads "we never agreed about these
@@ -1717,8 +1718,10 @@ version gate is what makes that safe (see the last bullet).
   one-push-one-fetch rule. A replayed `/sync/subtrees` replaced the session's whole outcome — the state
   the fetch beat and the report are built from — while the counters a landing books into kept
   accumulating, over-reducing the report's misses and losing the first beat's landings.
-  `SyncRequestRefusal.pushAlreadyTaken()` (409) refuses it before the beat begins; the fetch beat still
-  belongs to the first push.
+  *Superseded by ADR-0020:* a session now takes one push **per page**, and the guard that refused the
+  second push (`SyncRequestRefusal.pushAlreadyTaken`) is gone with the rule it enforced. What survives
+  is the part that was never about counting pushes: the fetch beat still belongs to the session's
+  first push (`push_required`).
 - **The route-hash comparison was correct and its proof was wrong.** Slice 24 recorded it as an early
   refusal with “no final-state proof — the digest check refuses the same bytes later”. It does not: the
   digest is compared against the *route's* hash, so without this comparison a body hashing to some

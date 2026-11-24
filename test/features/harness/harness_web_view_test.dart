@@ -101,11 +101,25 @@ void main() {
 
     tearDown(() {
       UrlLauncherPlatform.instance = previousLauncher;
-      debugDefaultTargetPlatformOverride = null;
     });
 
-    Future<void> pumpOnLinux(WidgetTester tester) async {
+    /// Runs [body] with the ambient platform pinned to Linux. The widget
+    /// binding asserts that foundation debug variables are unchanged at the end
+    /// of the test body, so the override is restored in a `finally` rather than
+    /// in a tearDown, which runs after that check.
+    Future<void> runOnLinux(
+      WidgetTester tester,
+      Future<void> Function() body,
+    ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        await body();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    }
+
+    Future<void> pumpHarness(WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -120,35 +134,44 @@ void main() {
     testWidgets('shows the unsupported state instead of a native WebView', (
       tester,
     ) async {
-      await pumpOnLinux(tester);
+      await runOnLinux(tester, () async {
+        await pumpHarness(tester);
 
-      expect(find.byKey(const Key('harness-web-view')), findsOneWidget);
-      expect(
-        find.byKey(const Key('harness-web-view-unsupported')),
-        findsOneWidget,
-      );
-      expect(
-        find.text(english.assistantHarnessUnsupportedPlatform),
-        findsOneWidget,
-      );
-      expect(find.text(english.assistantHarnessOpenInBrowser), findsOneWidget);
+        expect(find.byKey(const Key('harness-web-view')), findsOneWidget);
+        expect(
+          find.byKey(const Key('harness-web-view-unsupported')),
+          findsOneWidget,
+        );
+        expect(
+          find.text(english.assistantHarnessUnsupportedPlatform),
+          findsOneWidget,
+        );
+        expect(
+          find.text(english.assistantHarnessOpenInBrowser),
+          findsOneWidget,
+        );
 
-      // The error state and the native view must not exist on this platform.
-      expect(find.byKey(const Key('harness-web-view-error')), findsNothing);
-      expect(find.byKey(const Key('harness-web-view-retry')), findsNothing);
-      expect(find.byType(InAppWebView), findsNothing);
+        // The error state and the native view must not exist on this platform.
+        expect(find.byKey(const Key('harness-web-view-error')), findsNothing);
+        expect(find.byKey(const Key('harness-web-view-retry')), findsNothing);
+        expect(find.byType(InAppWebView), findsNothing);
+      });
     });
 
     testWidgets('opening the link uses an external application', (
       tester,
     ) async {
-      await pumpOnLinux(tester);
+      await runOnLinux(tester, () async {
+        await pumpHarness(tester);
 
-      await tester.tap(find.byKey(const Key('harness-web-view-open-browser')));
-      await tester.pump();
+        await tester.tap(
+          find.byKey(const Key('harness-web-view-open-browser')),
+        );
+        await tester.pump();
 
-      expect(launcher.launchedUrl, _launchUrl);
-      expect(launcher.launchedMode, PreferredLaunchMode.externalApplication);
+        expect(launcher.launchedUrl, _launchUrl);
+        expect(launcher.launchedMode, PreferredLaunchMode.externalApplication);
+      });
     });
   });
 }

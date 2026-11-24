@@ -19259,4 +19259,67 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => 'Her zaman izin ver';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => 'Uzak DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'DeepSeek Harness WebUI erişim bağlantısını girin';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'DeepSeek Harness aynı LAN\'dayken veya internet üzerinden erişilebildiğinde kullanın.';
+
+  @override
+  String get assistantHarnessConfirm => 'Onayla';
+
+  @override
+  String get assistantHarnessConnected => 'Bağlandı';
+
+  @override
+  String get assistantHarnessChecking => 'Bağlanıyor…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      'Bağlantı başarısız. Bağlantı adresini ve ağınızı kontrol edip yeniden deneyin.';
+
+  @override
+  String get assistantHarnessInvalidUrl =>
+      'Geçerli bir WebUI erişim bağlantısı girin.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      'Bağlantıda token eksik. dsh web\'in yazdırdığı tam erişim bağlantısını yapıştırın.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness bu bağlantıyı reddetti. Token\'ın hâlâ geçerli olup olmadığını kontrol edin.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      'Bu bağlantıya ulaşılamadı. Adresi ve ağınızı kontrol edin.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness, API\'sine yanıt vermedi.';
+
+  @override
+  String get assistantHarnessLoadFailed => 'DeepSeek Harness yüklenemedi.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      'Bu platformda gömülü WebView desteklenmiyor.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => 'Tarayıcıda Aç';
+
+  @override
+  String get assistantHarnessRetry => 'Yeniden dene';
 }

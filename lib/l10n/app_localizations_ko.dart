@@ -18572,4 +18572,66 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => '항상 허용';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '원격 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'DeepSeek Harness WebUI 접속 링크를 입력하세요';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'DeepSeek Harness가 같은 LAN에 있거나 인터넷에서 접근할 수 있을 때 사용하세요.';
+
+  @override
+  String get assistantHarnessConfirm => '확인';
+
+  @override
+  String get assistantHarnessConnected => '연결됨';
+
+  @override
+  String get assistantHarnessChecking => '연결 중…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      '연결에 실패했습니다. 링크와 네트워크를 확인한 후 다시 시도하세요.';
+
+  @override
+  String get assistantHarnessInvalidUrl => '유효한 WebUI 접속 링크를 입력하세요.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '링크에 토큰이 없습니다. dsh web이 출력한 전체 접속 링크를 붙여넣으세요.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness가 이 링크를 거부했습니다. 토큰이 아직 유효한지 확인하세요.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      '해당 링크에 접속할 수 없습니다. 주소와 네트워크를 확인하세요.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness의 API가 응답하지 않았습니다.';
+
+  @override
+  String get assistantHarnessLoadFailed => 'DeepSeek Harness를 불러오지 못했습니다.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      '이 플랫폼에서는 내장 WebView를 지원하지 않습니다.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '브라우저에서 열기';
+
+  @override
+  String get assistantHarnessRetry => '다시 시도';
 }

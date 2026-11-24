@@ -18138,6 +18138,64 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => '始终允许';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '远程连接的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '请输入 DeepSeek Harness 的 WebUI 访问链接';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '适用于与 DeepSeek Harness 处于同一局域网，或 DeepSeek Harness 暴露在公网上。';
+
+  @override
+  String get assistantHarnessConfirm => '确认';
+
+  @override
+  String get assistantHarnessConnected => '已连接';
+
+  @override
+  String get assistantHarnessChecking => '连接中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '连接失败，请检查链接和网络后重试。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '请输入有效的 WebUI 访问链接。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '链接缺少 token，请粘贴 dsh web 打印的完整访问链接。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒绝了该链接，请确认 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '无法访问该链接，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的接口没有响应。';
+
+  @override
+  String get assistantHarnessLoadFailed => '无法加载 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '当前平台不支持内嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在浏览器中打开';
+
+  @override
+  String get assistantHarnessRetry => '重试';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -36274,6 +36332,64 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get subagentEscalationAllow => '始终允许';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '远程连接的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '请输入 DeepSeek Harness 的 WebUI 访问链接';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '适用于与 DeepSeek Harness 处于同一局域网，或 DeepSeek Harness 暴露在公网上。';
+
+  @override
+  String get assistantHarnessConfirm => '确认';
+
+  @override
+  String get assistantHarnessConnected => '已连接';
+
+  @override
+  String get assistantHarnessChecking => '连接中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '连接失败，请检查链接和网络后重试。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '请输入有效的 WebUI 访问链接。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '链接缺少 token，请粘贴 dsh web 打印的完整访问链接。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒绝了该链接，请确认 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '无法访问该链接，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的接口没有响应。';
+
+  @override
+  String get assistantHarnessLoadFailed => '无法加载 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '当前平台不支持内嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在浏览器中打开';
+
+  @override
+  String get assistantHarnessRetry => '重试';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -54432,4 +54548,62 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subagentEscalationAllow => '始終允許';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '遠端連線的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '請輸入 DeepSeek Harness 的 WebUI 存取連結';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '適用於與 DeepSeek Harness 處於同一區域網路，或 DeepSeek Harness 暴露在公網上的情況。';
+
+  @override
+  String get assistantHarnessConfirm => '確認';
+
+  @override
+  String get assistantHarnessConnected => '已連線';
+
+  @override
+  String get assistantHarnessChecking => '連線中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '連線失敗，請檢查連結和網路後重試。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '請輸入有效的 WebUI 存取連結。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '連結缺少 token，請貼上 dsh web 輸出的完整存取連結。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒絕了該連結，請確認 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '無法存取該連結，請檢查位址和網路。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的介面沒有回應。';
+
+  @override
+  String get assistantHarnessLoadFailed => '無法載入 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '目前平台不支援內嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在瀏覽器中開啟';
+
+  @override
+  String get assistantHarnessRetry => '重試';
 }

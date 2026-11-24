@@ -1213,120 +1213,146 @@ class SyncEngine implements SyncServerHandler {
         total: sendable.length,
       );
 
-      for (final id in sendable) {
-        if (round.cancelled) return null;
-        if (await dataPlane.isStreaming(id)) {
-          skippedSends.add(id);
-          continue;
-        }
-        // A conversation the previous session left half-sent resumes where that
-        // session stopped proving, not where it stopped reading: the cursor is
-        // the last page the peer acknowledged.
-        final prior = previous.conversations[id];
-        final cursor = prior?.cursor;
-        var after = cursor != null && cursor.sending ? cursor.after : null;
-        final progress = _TransferProgress();
-        sent[id] = progress;
-        while (true) {
+      try {
+        for (final id in sendable) {
           if (round.cancelled) return null;
-          final envelope = firstPush ? firstPageEnvelope : 0;
-          // What this page's rows may occupy: the page, minus the fixed part the
-          // same body carries and minus the manifest allowance below.
-          final rowBudget = pageRowBudget(
-            pageBytes: pageBytes,
-            envelopeBytes: envelope + assetReserve,
-          );
-          final page = await dataPlane.readSubtreePage(
-            id,
-            after: after,
-            rowBudget: rowBudget,
-            pageBytes: rowBudget,
-            sentIds: progress.rows.keys.toSet(),
-          );
-          if (page == null) {
+          if (await dataPlane.isStreaming(id)) {
             skippedSends.add(id);
-            sent.remove(id);
-            break;
+            continue;
           }
-          final payload = page.payload;
-          final assets = await dataPlane.buildBlobManifest(
-            subtrees: [payload],
-            business: firstPush
-                ? outgoingBusiness
-                : const SyncBusinessPayload(),
-          );
-          final batch = SyncDeltaBatch(
-            [payload],
-            business: firstPush
-                ? outgoingBusiness
-                : const SyncBusinessPayload(),
-            assets: assets,
-            skillHashes: firstPush ? pushedSkillHashes : const {},
-            workspaceFiles: firstPush ? advertised.tables : const {},
-          );
-          // The guard the arithmetic in `sync_budget_test.dart` cannot give:
-          // this measures the very batch `pushDelta` sends, so an edit that
-          // packs one set and sends another fails here — where the sender can
-          // still say so — instead of as a 413 on the peer. Debug and test
-          // builds only; release strips it.
-          assert(() {
-            // The page's *rows* are what the budget bounds. The manifest is the
-            // part this pass cannot price before reading them, so it gets the
-            // reserve as a sub-budget and this is the guard that the reserve is
-            // enough; `overflow` is the part of one unsplittable row that could
-            // not fit, which must not fail a round release would have sent.
-            final assetBytes = wireBytesOf([
-              for (final entry in assets) entry.toJson(),
-            ]);
-            if (assetBytes > assetReserve) {
-              throw StateError(
-                'asset manifest $assetBytes B exceeds the $assetReserve B '
-                'reserve',
-              );
+          // A conversation the previous session left half-sent resumes where that
+          // session stopped proving, not where it stopped reading: the cursor is
+          // the last page the peer acknowledged.
+          final prior = previous.conversations[id];
+          final cursor = prior?.cursor;
+          var after = cursor != null && cursor.sending ? cursor.after : null;
+          final progress = _TransferProgress();
+          // A resumed transfer starts from what the last one proved: those rows
+          // were sent and acknowledged, so they belong to this transfer's payload.
+          // Seeding them keeps the completion entry honest, and keeps them out of
+          // the "late rows" set — which would otherwise re-read and re-encode
+          // every row before the cursor on the last page.
+          if (after != null) progress.rows.addAll(prior!.rows);
+          sent[id] = progress;
+          while (true) {
+            if (round.cancelled) return null;
+            final envelope = firstPush ? firstPageEnvelope : 0;
+            // What this page's rows may occupy: the page, minus the fixed part the
+            // same body carries and minus the manifest allowance below.
+            final rowBudget = pageRowBudget(
+              pageBytes: pageBytes,
+              envelopeBytes: envelope + assetReserve,
+            );
+            final page = await dataPlane.readSubtreePage(
+              id,
+              after: after,
+              rowBudget: rowBudget,
+              pageBytes: rowBudget,
+              sentIds: progress.rows.keys.toSet(),
+            );
+            if (page == null) {
+              skippedSends.add(id);
+              sent.remove(id);
+              break;
             }
-            final movable = conversationWireBytes(payload);
-            final limit = rowBudget + page.overflow;
-            if (movable > limit) {
-              throw StateError('page rows $movable B exceed the $limit B page');
+            final payload = page.payload;
+            final assets = await dataPlane.buildBlobManifest(
+              subtrees: [payload],
+              business: firstPush
+                  ? outgoingBusiness
+                  : const SyncBusinessPayload(),
+            );
+            final batch = SyncDeltaBatch(
+              [payload],
+              business: firstPush
+                  ? outgoingBusiness
+                  : const SyncBusinessPayload(),
+              assets: assets,
+              skillHashes: firstPush ? pushedSkillHashes : const {},
+              workspaceFiles: firstPush ? advertised.tables : const {},
+            );
+            // The guard the arithmetic in `sync_budget_test.dart` cannot give:
+            // this measures the very batch `pushDelta` sends, so an edit that
+            // packs one set and sends another fails here — where the sender can
+            // still say so — instead of as a 413 on the peer. Debug and test
+            // builds only; release strips it.
+            assert(() {
+              // The page's *rows* are what the budget bounds. The manifest is the
+              // part this pass cannot price before reading them, so it gets the
+              // reserve as a sub-budget and this is the guard that the reserve is
+              // enough; `overflow` is the part of one unsplittable row that could
+              // not fit, which must not fail a round release would have sent.
+              final assetBytes = wireBytesOf([
+                for (final entry in assets) entry.toJson(),
+              ]);
+              if (assetBytes > assetReserve) {
+                throw StateError(
+                  'asset manifest $assetBytes B exceeds the $assetReserve B '
+                  'reserve',
+                );
+              }
+              final movable = conversationWireBytes(payload);
+              final limit = rowBudget + page.overflow;
+              if (movable > limit) {
+                throw StateError(
+                  'page rows $movable B exceed the $limit B page',
+                );
+              }
+              return true;
+            }());
+            _rememberPublished(assets);
+            final ack = await session.pushDelta(batch);
+            for (final request in ack.workspaceRequests) {
+              workspaceRequests['${request.workspaceId}\u0000${request.relPath}'] =
+                  request;
             }
-            return true;
-          }());
-          _rememberPublished(assets);
-          final ack = await session.pushDelta(batch);
-          for (final request in ack.workspaceRequests) {
-            workspaceRequests['${request.workspaceId}\u0000${request.relPath}'] =
-                request;
+            for (final entry in ack.blobRequests) {
+              blobRequests['${entry.kind}\u0000${entry.key}\u0000'
+                      '${entry.contentHash}'] =
+                  entry;
+            }
+            if (ack.deferred.contains(id)) {
+              // Accepted and not applied — a generation is writing there. The
+              // cursor stays at the last page the peer did take, which is exactly
+              // where the next session resumes.
+              peerDeferred = {...peerDeferred, id};
+              break;
+            }
+            progress.addPage(payload, after: page.nextAfter);
+            after = page.nextAfter;
+            bytesSent += conversationWireBytes(payload);
+            if (firstPush) {
+              peerBusinessDeferred = ack.businessDeferred;
+              peerDeferredSkills = ack.deferredSkills;
+              peerAcceptedBusiness = ack.businessAccepted;
+              firstPush = false;
+            }
+            _setProgress(
+              peer.deviceId,
+              SyncSessionPhase.sending,
+              done: sent.values.where((entry) => entry.complete).length,
+              total: sendable.length,
+              bytes: bytesSent,
+            );
+            if (progress.complete) break;
           }
-          for (final entry in ack.blobRequests) {
-            blobRequests['${entry.kind}\u0000${entry.key}\u0000'
-                    '${entry.contentHash}'] =
-                entry;
-          }
-          if (ack.deferred.contains(id)) {
-            // Accepted and not applied — a generation is writing there. The
-            // cursor stays at the last page the peer did take, which is exactly
-            // where the next session resumes.
-            peerDeferred = {...peerDeferred, id};
-            break;
-          }
-          progress.addPage(payload, after: page.nextAfter);
-          after = page.nextAfter;
-          bytesSent += conversationWireBytes(payload);
-          if (firstPush) {
-            peerBusinessDeferred = ack.businessDeferred;
-            peerDeferredSkills = ack.deferredSkills;
-            peerAcceptedBusiness = ack.businessAccepted;
-            firstPush = false;
-          }
-          _setProgress(
-            peer.deviceId,
-            SyncSessionPhase.sending,
-            done: sent.values.where((entry) => entry.complete).length,
-            total: sendable.length,
-            bytes: bytesSent,
-          );
-          if (progress.complete) break;
         }
+      } on Object {
+        // A page that was acknowledged is a page the peer holds. Without this
+        // write, every way of ending a session other than "cleanly" would
+        // discard that proof and restart the conversation from page one, so a
+        // conversation larger than one uninterrupted session could never finish.
+        // A round that yielded to the peer's own session proves nothing and is
+        // left alone.
+        if (!round.cancelled) {
+          await _persistPartialSend(
+            peerDeviceId: peer.deviceId,
+            epoch: myEpoch,
+            previous: previous,
+            sent: sent,
+          );
+        }
+        rethrow;
       }
 
       // The push beat always runs, even with nothing to push. It is where the
@@ -1991,15 +2017,20 @@ class SyncEngine implements SyncServerHandler {
     final mySkillHashes = firstBeat
         ? await dataPlane.skillDirHashes()
         : const <String, String>{};
-    final adoptions = _planSkillAdoptions(
-      plan: session.skillPlan,
-      mine: session.myManifest,
-      peers: session.initiatorHello.manifest,
-      peerSkillHashes: batch.skillHashes,
-      mySkillHashes: mySkillHashes,
-      myDeviceId: identity.deviceId,
-      peerDeviceId: peerDeviceId,
-    );
+    // Skills travel on the session's first beat only. A later page carries no
+    // hashes to judge them against, and a plan made from nothing would defer
+    // every skill the first beat had already installed.
+    final adoptions = firstBeat
+        ? _planSkillAdoptions(
+            plan: session.skillPlan,
+            mine: session.myManifest,
+            peers: session.initiatorHello.manifest,
+            peerSkillHashes: batch.skillHashes,
+            mySkillHashes: mySkillHashes,
+            myDeviceId: identity.deviceId,
+            peerDeviceId: peerDeviceId,
+          )
+        : _SkillAdoptionPlan();
     final neededAssets = await dataPlane.neededFileBlobs(batch.assets);
     final wanted = _foldBlobWanted([
       ...neededAssets,
@@ -3015,6 +3046,50 @@ class SyncEngine implements SyncServerHandler {
   /// of a row nobody touched. The peer's copy is the right witness — it is read
   /// after the responder applied this session's push, so a row that crossed is
   /// in it at the clock it crossed with.
+  /// Records what a session proved before it was cut short.
+  ///
+  /// A page is acknowledged, so the peer holds it; the entry that says so is
+  /// otherwise written only when a session reaches its end. Everything that is
+  /// not half-sent keeps its previous entry: this is not a checkpoint advance,
+  /// it is a note that says "these pages crossed".
+  Future<void> _persistPartialSend({
+    required String peerDeviceId,
+    required int epoch,
+    required SyncCheckpoint previous,
+    required Map<String, _TransferProgress> sent,
+  }) async {
+    if (sent.values.every((progress) => progress.complete)) return;
+    final next = <String, SyncCheckpointConversation>{
+      ...previous.conversations,
+    };
+    for (final entry in sent.entries) {
+      final progress = entry.value;
+      if (progress.complete) continue;
+      final prior = previous.conversations[entry.key];
+      next[entry.key] = SyncCheckpointConversation(
+        updatedAtUs: prior?.updatedAtUs ?? 0,
+        digest: prior?.digest ?? '',
+        rows: {...?prior?.rows, ...progress.rows},
+        cursor: SyncTransferCursor(sending: true, after: progress.after),
+      );
+    }
+    await store.saveCheckpointUnlessReplaced(
+      peerDeviceId,
+      epochAtHello: epoch,
+      checkpoint: SyncCheckpoint(
+        next,
+        entities: previous.entities,
+        preferences: previous.preferences,
+        pendingBlobs: previous.pendingBlobs,
+        skillHashes: previous.skillHashes,
+        workspaceFiles: previous.workspaceFiles,
+        unappliedConversations: previous.unappliedConversations,
+        unappliedBusiness: previous.unappliedBusiness,
+        peerEpoch: previous.peerEpoch,
+      ),
+    );
+  }
+
   static bool _snapshotOutrunsPeerCopy(
     SyncSubtreeApplyOutcome outcome,
     _TransferProgress? received,

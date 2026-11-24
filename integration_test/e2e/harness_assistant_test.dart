@@ -73,13 +73,81 @@ void main() {
       reason: 'a freshly created harness has no saved link yet',
     );
 
+    // Type a link that cannot be a live credential: it exercises local
+    // validation, the probe failure path, and "a failed link is never saved"
+    // without putting the real launch token on a screen being recorded.
+    const rejectedUrl = 'https://dsh-e2e.example.com/?token=not-a-real-token';
+    await tester.enterText(
+      find.byKey(const Key('harness-url-field')),
+      rejectedUrl,
+    );
+    await pumpFrames(tester);
+    await tester.tap(find.byKey(const Key('harness-confirm-button')));
+    await pumpUntil(
+      tester,
+      () => find.text(l10n.assistantHarnessChecking).evaluate().isNotEmpty,
+      maxFrames: 10,
+    );
+    await pumpUntil(
+      tester,
+      () =>
+          find.text(l10n.assistantHarnessChecking).evaluate().isEmpty &&
+          find.text(l10n.assistantHarnessConfirm).evaluate().isNotEmpty,
+      maxFrames: 450,
+    );
+    expect(
+      find.byKey(const Key('harness-connected-status')),
+      findsNothing,
+      reason: 'a link that does not answer must not read 已连接',
+    );
+    final keptLink = tester
+        .widgetList<EditableText>(find.byType(EditableText))
+        .map((field) => field.controller.text)
+        .any((text) => text == rejectedUrl);
+    expect(
+      keptLink,
+      isTrue,
+      reason: 'a failed link stays in the field so it can be corrected',
+    );
+
+    // Store the link the assistant is supposed to remember. The live token
+    // lives in preferences only; the page never renders it back, which is why
+    // this is the only way to prove the real connection on screen.
+    final settingsContext = tester.element(find.byType(HarnessSettingsPage));
+    final assistants = Provider.of<AssistantProvider>(
+      settingsContext,
+      listen: false,
+    );
+    final harness = assistants.assistants.firstWhere(
+      (assistant) => assistant.isDeepSeekHarness,
+    );
+    await assistants.updateAssistant(
+      harness.copyWith(
+        harnessUrl: live
+            ? '$baseUrl/?token=$token'
+            : 'https://dsh-e2e.example.com',
+      ),
+    );
+
+    // Re-open the page: its open-time re-probe is what turns a stored link
+    // into the 已连接 row.
+    await _tapAppBarBack(tester);
+    await pumpUntil(
+      tester,
+      () => find.byType(ChatOwnerSettingsPage).evaluate().isNotEmpty,
+      maxFrames: 150,
+    );
+    await _settleRoute(tester);
+    final harnessCard = find.byKey(const Key('harness-assistant-card'));
+    expect(harnessCard, findsOneWidget);
+    await tester.tap(harnessCard);
+    await pumpUntil(
+      tester,
+      () => find.byType(HarnessSettingsPage).evaluate().isNotEmpty,
+      maxFrames: 150,
+    );
+    await _settleRoute(tester);
     if (live) {
-      await tester.enterText(
-        find.byKey(const Key('harness-url-field')),
-        '$baseUrl/?token=$token',
-      );
-      await pumpFrames(tester);
-      await tester.tap(find.byKey(const Key('harness-confirm-button')));
       await pumpUntil(
         tester,
         () => find
@@ -90,8 +158,7 @@ void main() {
       );
       expect(find.byKey(const Key('harness-connected-status')), findsOneWidget);
       expect(find.text(l10n.assistantHarnessConnected), findsWidgets);
-      // The success path clears the field: the credential must not sit on a
-      // surface that is about to be captured.
+      // The launch token must not be rendered anywhere on this page.
       final onScreen = tester
           .widgetList<EditableText>(find.byType(EditableText))
           .map((field) => field.controller.text)
@@ -99,20 +166,10 @@ void main() {
       expect(
         onScreen,
         isEmpty,
-        reason: 'the launch token must not stay on screen',
+        reason: 'the launch token must never reach a rendered field',
       );
       await capture(tester, binding, 'harness_02_settings_connected');
     } else {
-      // Hermetic run: there is no server to prove the link against, so seed the
-      // stored link through the provider it belongs to and keep the UI path.
-      final context = tester.element(find.byType(HarnessSettingsPage));
-      final assistants = Provider.of<AssistantProvider>(context, listen: false);
-      final harness = assistants.assistants.firstWhere(
-        (assistant) => assistant.isDeepSeekHarness,
-      );
-      await assistants.updateAssistant(
-        harness.copyWith(harnessUrl: 'https://dsh-e2e.example.com'),
-      );
       await pumpFrames(tester);
       await capture(tester, binding, 'harness_02_settings_hermetic');
     }

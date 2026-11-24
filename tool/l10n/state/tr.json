@@ -5577,5 +5577,8 @@
   "subagentEscalationAsk": "4142dcc147513b11b21d9c2d9d2af9b007b843484e5c57eea8086d1387f9183a",
   "subagentEscalationDeny": "4b521a9a23a25ced5759bccc7ef2425087c1507a9f3b69c6c87e81e83f925735",
   "subagentEscalationAllow": "65b76837130c24f03be2b850ca9d446cb1393ea8f674767d1344eef36847da3b",
-  "subagentMailLabel": "d96f01bfe2bd3cfadcde51b19486e409a10bd239f4a629e642aad14b653edf40"
+  "subagentMailLabel": "d96f01bfe2bd3cfadcde51b19486e409a10bd239f4a629e642aad14b653edf40",
+  "subagentMailOpenConversation": "d56ad5e0af4d4569433dad8d396a7cc459adbdc58b687e105083713f4fa11ec7",
+  "subagentMailCopy": "8017cabd4afb5aa56d680b2b2ea70f350ba458f1cc9c3a65e194655a99f1d763",
+  "subagentMailCopied": "6893a2ca1f8f5f56aed40a8858114f8a3051b248237d98dacd89ad33f4bad912"
 }

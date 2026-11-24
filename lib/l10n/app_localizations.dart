@@ -5434,6 +5434,24 @@ abstract class AppLocalizations {
   /// **'Subagent message'**
   String get subagentMailLabel;
 
+  /// Button in a subagent message dialog; opens the conversation the message came from.
+  ///
+  /// In en, this message translates to:
+  /// **'Open conversation'**
+  String get subagentMailOpenConversation;
+
+  /// Button in a subagent message dialog; copies the message text.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get subagentMailCopy;
+
+  /// Confirmation shown after a subagent message is copied to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get subagentMailCopied;
+
   /// Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name.
   ///
   /// In en, this message translates to:

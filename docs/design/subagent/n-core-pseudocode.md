@@ -328,7 +328,7 @@ preparing / requesting / streaming / waiting_tool 原子地改成 interrupted
 ### 11.1 词表：一个键、一处解析
 
 - 词表：`subagent.target` 从占位值 `'general'` 变成真词表：`'general' | 'assistant:<id>'`。模型发什么就落什么，`buildChildSpec(target:)` 一次写入。
-- 解析只有 `subagent_target.dart` 一处：`parseSubagentTarget`（工具参数）。**名单外一律拒绝**（`unknown_target`），不回落、不猜；缺键或写成认不出的值当 `general`——那是这一片之前每条子会话的含义。extras 里的值目前没有运行时读者（子会话的助手就是目标，界面从 `assistantId` 显示它），所以没有为它造第二个解码口。
+- 解析只有 `subagent_target.dart` 一处：`parseSubagentTarget`（工具参数）。**名单外一律拒绝**（`unknown_target`），不回落、不猜；只有键**缺省**才当 `general`（那是这一片之前每条委派请求的样子，`tool_handler_service.dart` 的 `rawTarget == null` 分支）。extras 里的值目前没有运行时读者（子会话的助手就是目标，界面从 `assistantId` 显示它），所以没有为它造第二个解码口。
 - `SubagentEntry` 保留 `assistant`（调用方，唤醒与续写用它）并新增 `target` / `targetName`；`SubagentStarted.toToolResult()` 原样带回 `target`。
 
 ### 11.2 谁能被指名：默认无人
@@ -370,7 +370,7 @@ preparing / requesting / streaming / waiting_tool 原子地改成 interrupted
 
 ### 11.6 评审改掉了什么
 
-- **描述行的值不再挤死标签**：`_iosNavRow` 的尾部值改成 loose flex（外层 `Flexible`、值本身再 `Flexible` + 省略号）。之前值按自然宽度测量，长描述把「描述」压到 3.5 px 并在宽字形下溢出卡片；短值（`不限`、`0.70`）布局不变。回归测试 `assistant_settings_edit_basic_description_test.dart` 在 360 dp、29 个 CJK 字形下断言标签宽度 > 60 px。
+- **描述行的值改成一个状态词，且只在写过时出现**：写了 → 「已填写」，没写 → 没有值（和其它可选行一样）。值位不再放预览 —— 24 字预览在 360 dp 下会把「描述」压到 3.5 px 并在宽字形下溢出卡片。曾试过把 `_iosNavRow` 的尾部组改成 loose flex：溢出没有了，但**所有**手机设置行的值都不再右对齐（标签被钉在半行宽，值停在行中间，360 dp 实测右缘差 125.8 px），已还原；行尾仍是非伸缩子节点，放不下的内容属于另一种行的形状，不该由共享行去改。回归测试 `assistant_settings_edit_basic_description_test.dart` 同时钉住「标签可读」与「值右对齐」，后者已用注入验证会红。
 - **工具描述不再自相矛盾**：`delegate` 的 description 原来说「同助手、同工具、同工作区」，与 `target` 直接冲突。现在说「默认是你的分身；`target` 存在时由那个助手运行，用它的提示、模型与工具」，工作区仍写「本工作区」。
 - **桌面描述框不再每敲一字落库**：改成 400 ms 静默 + 失焦立即提交 + 离场冲刷（捕获文本后在 microtask 里写）。此前每个字符都会 `_persist()` 整个助手列表并给该助手的每个会话重排主动关怀。
 - **删掉了没有读者的 `subagentTargetOf`**：extras 里的值目前没人读（子会话的助手就是目标，界面读 `assistantId`），不为它留第二个解码口；`parseSubagentTarget` 仍是唯一解析。

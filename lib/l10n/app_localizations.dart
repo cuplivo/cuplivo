@@ -1996,6 +1996,12 @@ abstract class AppLocalizations {
   /// **'e.g. Write SQL from a request and explain the query plan'**
   String get assistantEditDescriptionHint;
 
+  /// Value of the description row when one is written; the row does not preview the text because any useful preview would push the label off a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get assistantEditDescriptionSet;
+
   /// Label for the per-assistant chat background image setting.
   ///
   /// In en, this message translates to:

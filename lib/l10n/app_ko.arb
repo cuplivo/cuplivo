@@ -314,6 +314,7 @@
   "assistantEditDescriptionTitle": "설명",
   "assistantEditDescriptionTip": "그룹 채팅과 하위 에이전트 조정 시에만 참고됩니다. 이 기능을 쓰지 않으면 비워 두세요.",
   "assistantEditDescriptionHint": "예: 요구 사항을 SQL로 작성하고 실행 계획 설명",
+  "assistantEditDescriptionSet": "작성됨",
   "assistantEditChatBackgroundTitle": "채팅 배경",
   "assistantEditChatBackgroundDescription": "이 어시스턴트의 채팅 배경 이미지 설정",
   "assistantEditChooseImageButton": "이미지 선택",

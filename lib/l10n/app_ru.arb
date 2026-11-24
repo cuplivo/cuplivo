@@ -314,6 +314,7 @@
   "assistantEditDescriptionTitle": "Описание",
   "assistantEditDescriptionTip": "Читается только при планировании групповых чатов и делегировании. Оставьте пустым, если этим не пользуетесь.",
   "assistantEditDescriptionHint": "напр. Писать SQL по запросу и объяснять план запроса",
+  "assistantEditDescriptionSet": "Заполнено",
   "assistantEditChatBackgroundTitle": "Фон чата",
   "assistantEditChatBackgroundDescription": "Задать фоновое изображение для этого ассистента",
   "assistantEditChooseImageButton": "Выбрать изображение",

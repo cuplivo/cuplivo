@@ -14,6 +14,7 @@ import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/workspace_provider.dart';
 import 'package:Cuplivo/features/assistant/pages/assistant_settings_edit_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -187,15 +188,31 @@ void main() {
       description: _longDescription,
     );
 
-    // 3.5 px is what the row gave the label before the value became flexible:
-    // room for nothing but the ellipsis, with the value's tail clipped away.
+    // The row shows a state, not a preview: a 24-character preview used to
+    // squeeze this label to 3.5 px and, with wide glyphs, overflow the card.
     expect(
       labelWidth,
       greaterThan(60),
       reason: 'the label must keep enough width to be readable',
     );
-    // Nothing overflowed while laying that row out.
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('its value sits flush right like every other settings row', (
+    tester,
+  ) async {
+    await openAndMeasure(tester, description: _longDescription);
+
+    // A shared row that made its trailing group flexible would pin the label to
+    // half the row and leave the value floating mid-row; this asserts the value
+    // still ends where the card's padding starts.
+    final value = find.text('Set');
+    expect(value, findsOneWidget);
+    final card = find
+        .ancestor(of: value, matching: find.byType(SectionCard))
+        .first;
+    final gap = tester.getRect(card).right - tester.getRect(value).right;
+    expect(gap, lessThan(40), reason: 'the value must be right-aligned');
   });
 
   testWidgets('an empty description lays the row out exactly as before', (
@@ -203,6 +220,8 @@ void main() {
   ) async {
     final labelWidth = await openAndMeasure(tester, description: '');
     expect(labelWidth, greaterThan(60));
+    // Nothing written, no value: the grammar the other optional rows use.
+    expect(find.text('Set'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

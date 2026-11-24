@@ -51,7 +51,6 @@ import '../../../desktop/setting/memory_dialogs.dart';
 import '../../../desktop/widgets/desktop_select_dropdown.dart';
 import '../../home/services/local_tool_toggle.dart';
 import '../../home/services/local_tools_service.dart';
-import '../../../utils/single_line_text.dart';
 import '../../../core/models/health_data_type.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
@@ -1375,37 +1374,34 @@ Widget _iosNavRow(
           ),
         ),
         if (tip != null) TipIcon(message: tip),
-        // The trailing group is flexible as a whole: at a narrow width the
-        // value gives way (and ellipsises) instead of the label collapsing to
-        // nothing. Short values lay out exactly as before, because a loose
-        // flex takes its natural width when there is room.
-        Flexible(
-          child: GestureDetector(
-            onTap: onTap,
-            behavior: HitTestBehavior.opaque,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (detailText != null)
-                  Flexible(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: Text(
-                        detailText,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: cs.onSurface.withValues(alpha: 0.6),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+        // The trailing group stays a non-flex child: the label's Expanded
+        // absorbs the surplus, which is what keeps the value and the chevron
+        // flush right. Bounding what goes in here is the value's own job — a
+        // row whose value is too wide to fit belongs to a different shape, not
+        // to a shared helper that would re-lay out every other row.
+        GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (detailText != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Text(
+                    detailText,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: cs.onSurface.withValues(alpha: 0.6),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                if (accessory != null) accessory,
-                if (interactive)
-                  Icon(Lucide.ChevronRight, size: 16, color: cs.onSurface),
-              ],
-            ),
+                ),
+              if (accessory != null) accessory,
+              if (interactive)
+                Icon(Lucide.ChevronRight, size: 16, color: cs.onSurface),
+            ],
           ),
         ),
       ],
@@ -1877,7 +1873,8 @@ class _DesktopAssistantBasicPaneState
   void didUpdateWidget(covariant _DesktopAssistantBasicPane oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.assistantId != widget.assistantId) {
-      _commitDescription();
+      // The text in the field is the old assistant's.
+      _commitDescriptionFor(oldWidget.assistantId);
       final a = context.read<AssistantProvider>().getById(widget.assistantId)!;
       _nameCtrl.text = a.name;
       _maxTokensCtrl.text = a.maxTokens?.toString() ?? '';
@@ -1892,12 +1889,19 @@ class _DesktopAssistantBasicPaneState
   /// `onChanged` would run both hundreds of times. The sibling fields in this
   /// pane commit on submit or focus loss; a multi-line field cannot use submit,
   /// so it commits on focus loss and, while typing, after a short quiet period.
-  void _commitDescription() {
+  void _commitDescription() => _commitDescriptionFor(widget.assistantId);
+
+  /// Commits the text in the field against [assistantId].
+  ///
+  /// The id is a parameter rather than always the widget's: when the pane is
+  /// handed a different assistant, the text still belongs to the previous one,
+  /// and writing it to the new id would move A's description onto B.
+  void _commitDescriptionFor(String assistantId) {
     _descriptionCommit?.cancel();
     _descriptionCommit = null;
     final provider = _assistants;
     if (provider == null) return;
-    final latest = provider.getById(widget.assistantId);
+    final latest = provider.getById(assistantId);
     if (latest == null) return;
     final text = _descriptionCtrl.text;
     if (text == latest.description) return;

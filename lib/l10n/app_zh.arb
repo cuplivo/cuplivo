@@ -249,6 +249,7 @@
   "assistantEditDescriptionTitle": "描述",
   "assistantEditDescriptionTip": "只作为群聊、子代理调度时参考，不使用这两个功能就无需填写。",
   "assistantEditDescriptionHint": "例如：把需求写成 SQL 并解释执行计划",
+  "assistantEditDescriptionSet": "已填写",
   "assistantEditChatBackgroundTitle": "聊天背景",
   "assistantEditChatBackgroundDescription": "设置助手聊天页面的背景图片",
   "assistantEditChooseImageButton": "选择背景图片",

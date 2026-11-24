@@ -1076,6 +1076,9 @@ class AppLocalizationsRu extends AppLocalizations {
       'напр. Писать SQL по запросу и объяснять план запроса';
 
   @override
+  String get assistantEditDescriptionSet => 'Заполнено';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Фон чата';
 
   @override

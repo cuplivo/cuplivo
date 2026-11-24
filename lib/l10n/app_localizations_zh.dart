@@ -1001,6 +1001,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditDescriptionHint => '例如：把需求写成 SQL 并解释执行计划';
 
   @override
+  String get assistantEditDescriptionSet => '已填写';
+
+  @override
   String get assistantEditChatBackgroundTitle => '聊天背景';
 
   @override
@@ -19187,6 +19190,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditDescriptionHint => '例如：把需求写成 SQL 并解释执行计划';
+
+  @override
+  String get assistantEditDescriptionSet => '已填写';
 
   @override
   String get assistantEditChatBackgroundTitle => '聊天背景';
@@ -37380,6 +37386,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditDescriptionHint => '例如：把需求寫成 SQL 並解釋執行計畫';
+
+  @override
+  String get assistantEditDescriptionSet => '已填寫';
 
   @override
   String get assistantEditChatBackgroundTitle => '聊天背景';

@@ -1057,6 +1057,9 @@ class AppLocalizationsTr extends AppLocalizations {
       'ör. İsteği SQL\'e dönüştür ve sorgu planını açıkla';
 
   @override
+  String get assistantEditDescriptionSet => 'Ayarlı';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Sohbet Arka Planı';
 
   @override

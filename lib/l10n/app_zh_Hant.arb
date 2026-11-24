@@ -314,6 +314,7 @@
   "assistantEditDescriptionTitle": "描述",
   "assistantEditDescriptionTip": "只作為群聊、子代理調度時參考，不使用這兩個功能就無需填寫。",
   "assistantEditDescriptionHint": "例如：把需求寫成 SQL 並解釋執行計畫",
+  "assistantEditDescriptionSet": "已填寫",
   "assistantEditChatBackgroundTitle": "聊天背景",
   "assistantEditChatBackgroundDescription": "設定助理聊天頁面的背景圖片",
   "assistantEditChooseImageButton": "選擇背景圖片",

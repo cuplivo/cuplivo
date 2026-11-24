@@ -1052,6 +1052,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'e.g. Write SQL from a request and explain the query plan';
 
   @override
+  String get assistantEditDescriptionSet => 'Set';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Chat Background';
 
   @override

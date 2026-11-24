@@ -1027,6 +1027,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get assistantEditDescriptionHint => '예: 요구 사항을 SQL로 작성하고 실행 계획 설명';
 
   @override
+  String get assistantEditDescriptionSet => '작성됨';
+
+  @override
   String get assistantEditChatBackgroundTitle => '채팅 배경';
 
   @override

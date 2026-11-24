@@ -314,6 +314,7 @@
   "assistantEditDescriptionTitle": "Açıklama",
   "assistantEditDescriptionTip": "Yalnızca grup sohbetlerinde ve alt ajan yönlendirmesinde okunur. Bu özellikleri kullanmıyorsanız boş bırakın.",
   "assistantEditDescriptionHint": "ör. İsteği SQL'e dönüştür ve sorgu planını açıkla",
+  "assistantEditDescriptionSet": "Ayarlı",
   "assistantEditChatBackgroundTitle": "Sohbet Arka Planı",
   "assistantEditChatBackgroundDescription": "Bu asistan için bir arka plan görseli ayarlayın",
   "assistantEditChooseImageButton": "Görsel Seç",

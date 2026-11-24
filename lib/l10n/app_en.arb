@@ -473,6 +473,10 @@
   "@assistantEditDescriptionHint": {
     "description": "Placeholder inside the description field; teaches what to write (what it does, not who it is)."
   },
+  "assistantEditDescriptionSet": "Set",
+  "@assistantEditDescriptionSet": {
+    "description": "Value of the description row when one is written; the row does not preview the text because any useful preview would push the label off a phone."
+  },
   "assistantEditChatBackgroundTitle": "Chat Background",
   "assistantEditChatBackgroundDescription": "Set a background image for this assistant",
   "assistantEditChooseImageButton": "Choose Image",

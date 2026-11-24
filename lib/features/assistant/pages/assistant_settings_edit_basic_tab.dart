@@ -225,10 +225,12 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
               _iosDivider(context),
               AssistantDefaultWorkspaceRow(assistantId: widget.assistantId),
               _iosDivider(context),
-              // Read by the two places that ask a model to pick an assistant:
-              // delegation targets and the group chat director. One row here,
-              // the whole sentence behind it — a description does not fit on a
-              // settings row and is not worth a control of its own.
+              // The value slot holds a state, not a preview. A description is a
+              // sentence with newlines; any preview wide enough to be useful is
+              // also wide enough to push this row's label off the screen, and
+              // the sheet behind the row shows the whole thing anyway. An empty
+              // description shows nothing — the same grammar every other
+              // optional row uses.
               _iosNavRow(
                 context,
                 icon: Lucide.SquarePen,
@@ -236,7 +238,7 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
                 tip: l10n.assistantEditDescriptionTip,
                 detailText: a.description.trim().isEmpty
                     ? null
-                    : oneLineText(a.description, max: 24),
+                    : l10n.assistantEditDescriptionSet,
                 onTap: () => _showDescriptionSheet(context, a),
               ),
               _iosDivider(context),

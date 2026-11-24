@@ -363,6 +363,17 @@ class ChatActions {
   /// Called when conversation loading state changes.
   void Function(String conversationId, bool loading)? onLoadingChanged;
 
+  /// Asked at every step boundary whether this conversation has a message that
+  /// should end the current turn there.
+  ///
+  /// Looking only: the message is taken when the next turn starts, so a failed
+  /// delivery leaves it waiting for the next boundary or the end of the turn.
+  bool Function(String conversationId)? takeHandoff;
+
+  /// Starts the turn a handoff ended the previous one for. True when a turn is
+  /// now running, in which case loading is not cleared between the two.
+  Future<bool> Function(String conversationId)? onHandoffRequested;
+
   /// Called when stream content is updated (for throttled updates).
   void Function(String messageId, String content, int totalTokens)?
   onContentUpdated;
@@ -2216,6 +2227,7 @@ class ChatActions {
     bool scheduledNotify = true,
     bool scheduledPreview = true,
     String? expectedContextState,
+    bool handoff = false,
   }) async {
     final claimToken = ++_sendInFlightClaimSerial;
     if (isSendInFlight(conversation.id) ||
@@ -2240,6 +2252,7 @@ class ChatActions {
         scheduled: scheduled,
         scheduledNotify: scheduledNotify,
         scheduledPreview: scheduledPreview,
+        handoff: handoff,
       );
     } finally {
       _generationPreparations.remove(preparation);
@@ -2269,6 +2282,7 @@ class ChatActions {
     bool scheduledNotify = true,
     bool scheduledPreview = true,
     String? expectedContextState,
+    bool handoff = false,
   }) async {
     // Avoid using BuildContext across async gaps (this class holds a BuildContext).
     final settings = contextProvider.read<SettingsProvider>();
@@ -2301,7 +2315,11 @@ class ChatActions {
           conversation.assistantId,
         );
 
-    await cancelStreaming(conversation);
+    // A handoff starts the next segment from inside the finalize path the
+    // previous one is closing in, where there is nothing left to cancel: the
+    // stream is already done, and cancelling here would tear down the turn that
+    // is starting.
+    if (!handoff) await cancelStreaming(conversation);
 
     final isTemporaryConversation = chatService.isTemporaryConversation(
       conversation.id,
@@ -3037,6 +3055,7 @@ class ChatActions {
       targetMessageId: state.messageId,
       isCancelled: cancelled,
       nativeCompression: useNative,
+      takeHandoff: () => takeHandoff?.call(id) ?? false,
       onUsage: (body, usage) {
         final anchor = NativeCompactionUsage.record(body, nativeScope, usage);
         if (anchor != null) _nativeUsage[id] = anchor;
@@ -3938,6 +3957,10 @@ class ChatActions {
         ),
       );
     }
+    // Read before the checkpoint below disposes the history context: the flag
+    // that says this turn ended at a step boundary lives on it.
+    final handoffRequested =
+        _historyContexts[messageId]?.handoffRequested ?? false;
     try {
       await _finalizeStreamingCheckpoint(
         finalizedMessage,
@@ -3977,7 +4000,14 @@ class ChatActions {
         onMessagesChanged?.call();
       }
       streamController.removeStreamingNotifier(messageId);
-      _setConversationLoading(conversationId, false);
+      // A message that ended the turn at a step boundary starts the next segment
+      // in the same breath. Loading is not cleared between them: an idle frame
+      // would let the queue drain and put another turn between the two halves.
+      final handedOff =
+          handoffRequested &&
+          await (onHandoffRequested?.call(conversationId) ??
+              Future<bool>.value(false));
+      if (!handedOff) _setConversationLoading(conversationId, false);
       // Terminal widgets are usually taller than the streaming ones; pin
       // once more after isGenerating becomes false so layout-phase follow
       // does not miss that height change.

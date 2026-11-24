@@ -1232,7 +1232,7 @@ class SyncEngine implements SyncServerHandler {
           // Seeding them keeps the completion entry honest, and keeps them out of
           // the "late rows" set — which would otherwise re-read and re-encode
           // every row before the cursor on the last page.
-          if (after != null) progress.rows.addAll(prior!.rows);
+          if (after != null) progress.seed(prior!.rows);
           sent[id] = progress;
           while (true) {
             if (round.cancelled) return null;
@@ -2089,10 +2089,14 @@ class SyncEngine implements SyncServerHandler {
       // row the transfer carried — not only the last page's.
       for (final subtree in batch.subtrees) {
         final id = subtree.conversation['id'] as String;
-        (session.receivedTransfers[id] ??= _TransferProgress()).addPage(
-          subtree,
-          after: null,
-        );
+        final progress = session.receivedTransfers[id] ??= _TransferProgress();
+        final prior = session.checkpoint.conversations[id];
+        // A cursor on the entry is the earlier session's proof; without its
+        // rows this transfer would record only what arrived after it.
+        if (!progress.seeded && prior?.cursor != null) {
+          progress.seed(prior!.rows);
+        }
+        progress.addPage(subtree, after: null);
       }
 
       outcomes = await dataPlane.applySubtrees(
@@ -2909,7 +2913,17 @@ class SyncEngine implements SyncServerHandler {
             // a row written while the session was in flight was never sent, and
             // recording it as peer-seen makes the next merge read the peer's
             // silence as a deletion.
-            next[id] = _entryFor(sent.toPayload());
+            final entry = _entryFor(sent.toPayload());
+            final resumedDigest = sent.seeded
+                ? (await dataPlane.checkpointFromLocal(id))?.digest
+                : null;
+            next[id] = resumedDigest == null
+                ? entry
+                : SyncCheckpointConversation(
+                    updatedAtUs: entry.updatedAtUs,
+                    digest: resumedDigest,
+                    rows: entry.rows,
+                  );
           }
         case SyncConvAction.peerSends || SyncConvAction.bothSend:
           // An entry describes a payload that crossed, never the local state a
@@ -2967,7 +2981,28 @@ class SyncEngine implements SyncServerHandler {
               if (prior != null) next[id] = prior;
               break;
             }
-            next[id] = _entryFor(received.toPayload());
+            final entry = _entryFor(received.toPayload());
+            // A transfer an earlier session started names rows this payload
+            // does not describe: the pages before the cursor carried them, and
+            // neither their families nor their clocks are here. The entry is
+            // then the state this device holds now — after the merge, so both
+            // sides compose the same digest — restricted to the ids the
+            // transfer named, so a row written here mid-session stays out of it.
+            final resumed = received.seeded || received.sawPartialIds;
+            final local = resumed
+                ? await dataPlane.checkpointFromLocal(id)
+                : null;
+            next[id] = local == null
+                ? entry
+                : SyncCheckpointConversation(
+                    updatedAtUs: local.updatedAtUs,
+                    digest: local.digest,
+                    rows: {
+                      for (final rowId in received.declaredIds)
+                        if (local.rows[rowId] != null)
+                          rowId: local.rows[rowId]!,
+                    },
+                  );
             break;
           }
           // `bothSend` on the initiator: only a transfer that actually completed
@@ -4872,6 +4907,26 @@ class _TransferProgress {
   /// Whether the page that ended the transfer has been taken.
   bool complete = false;
 
+  /// Whether this transfer continues one an earlier session started, whose
+  /// pages carried rows and families this session never sees again.
+  bool seeded = false;
+
+  /// Every id the transfer named, from the page that ends it, and whether that
+  /// page carried fewer rows than it named — the mark of a transfer whose
+  /// earlier pages hold rows this one cannot describe.
+  Set<String> declaredIds = const {};
+  bool sawPartialIds = false;
+
+  /// Starts from the rows an earlier session's pages proved. Both sides do
+  /// this, because the entry a completed transfer writes has to describe the
+  /// whole transfer — a payload that names only the pages after the cursor is
+  /// a digest neither side can match, and a row set the deletion oracle reads
+  /// as rows the peer never had.
+  void seed(Map<String, int> earlier) {
+    rows.addAll(earlier);
+    seeded = true;
+  }
+
   void addPage(SyncSubtreePayload payload, {required String? after}) {
     conversation ??= payload.conversation;
     for (final entry in payload.families.entries) {
@@ -4893,6 +4948,12 @@ class _TransferProgress {
     }
     for (final row in payload.rowsOf(_messageFamily)) {
       rows[row['id'] as String] = messageRowMutationUs(row);
+    }
+    if (payload.ids.isNotEmpty) {
+      declaredIds = {...rows.keys, ...payload.ids};
+      if (payload.ids.length > payload.rowsOf(_messageFamily).length) {
+        sawPartialIds = true;
+      }
     }
     if (payload.more) {
       this.after = after ?? this.after;
@@ -5143,6 +5204,22 @@ class _BlobPullOutcome {
   void absorb(_BlobPullOutcome other) {
     landedByUri.addAll(other.landedByUri);
     landedSkillIds.addAll(other.landedSkillIds);
+    // What landed on any page stops being owed, however it failed earlier:
+    // the union alone would leave it pending for ever.
+    final landed = <String>{
+      ...other.landedByUri.keys,
+      for (final entry in other.landedByUri.values) ...[
+        entry.target,
+        entry.key,
+      ],
+      ...other.landedSkillIds,
+    };
+    failed.removeWhere(
+      (target, entry) =>
+          landed.contains(target) ||
+          landed.contains(entry.target) ||
+          landed.contains(entry.key),
+    );
     failed.addAll(other.failed);
     bytes += other.bytes;
   }

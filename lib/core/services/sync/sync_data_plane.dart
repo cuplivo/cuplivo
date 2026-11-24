@@ -431,11 +431,14 @@ class SyncDataPlane {
     }
 
     final payload = payloadFor(last);
+    // The cursor names the last id of the *ascending* run this page carried.
+    // A late row sorts below the resume point by definition, so taking the
+    // last entry's id would hand back a cursor behind where this page
+    // started — and the next page would re-read and re-send the prefix.
+    final cursorLast = prefix.isEmpty ? after : prefix.last['id'] as String;
     return (
       payload: payload,
-      nextAfter: entries.isEmpty || last
-          ? null
-          : entries.last.row['id'] as String,
+      nextAfter: last ? null : cursorLast,
       overflow: overflow,
     );
   }

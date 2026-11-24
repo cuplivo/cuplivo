@@ -158,6 +158,59 @@ class _VanishingBlobPlane extends SyncDataPlane {
   }
 }
 
+/// Counts the applies of one conversation, so a test can cut a transfer on the
+/// page after the first and resume from the cursor that survives.
+class _ApplyCounter {
+  bool armed = false;
+  int calls = 0;
+}
+
+/// A data plane whose apply dies on the Nth page of one conversation — the
+/// responder's half of "the session ended between two pages".
+class _FailApplyPlane extends SyncDataPlane {
+  _FailApplyPlane({
+    required super.repository,
+    required super.chatService,
+    required super.businessRepository,
+    super.businessPreferences,
+    super.skillDirectories,
+    super.workspaceContent,
+    required super.blobPathResolver,
+    required this.counter,
+    required this.conversationId,
+  });
+
+  final _ApplyCounter counter;
+  final String conversationId;
+
+  @override
+  Future<Map<String, SyncSubtreeApplyOutcome>> applySubtrees(
+    List<SyncSubtreePayload> subtrees, {
+    required String myDeviceId,
+    required String peerDeviceId,
+    required Map<String, Map<String, int>> checkpointRowsByConversation,
+    bool composeDigest = true,
+    bool Function()? cancelled,
+  }) async {
+    if (counter.armed &&
+        subtrees.isNotEmpty &&
+        subtrees.first.conversation['id'] == conversationId) {
+      counter.calls += 1;
+      if (counter.calls == 2) {
+        throw StateError('the responder died on the page after the first');
+      }
+    }
+    return super.applySubtrees(
+      subtrees,
+      myDeviceId: myDeviceId,
+      peerDeviceId: peerDeviceId,
+      checkpointRowsByConversation: checkpointRowsByConversation,
+      composeDigest: composeDigest,
+      cancelled: cancelled,
+    );
+  }
+}
+
 /// A data plane that writes into the conversation being merged, at the moment
 /// the merge is entered: the window between the incoming payload's blob pull
 /// and the apply, where a real user edit lands.
@@ -608,6 +661,8 @@ class _Side {
     Future<void> Function(String conversationId)? midPushWrite,
     Future<void> Function(String conversationId)? midApplyWrite,
     Future<void> Function()? vanishBlob,
+    _ApplyCounter? failApply,
+    String? failApplyConversation,
     List<SyncBlobEntry>? craftedBlobs,
     List<Map<String, dynamic>> Function()? craftedRows,
     bool countCheckpointReads = false,
@@ -711,6 +766,18 @@ class _Side {
             workspaceContent: workspaceContent,
             blobPathResolver: resolveBlob,
             craft: craftedRows,
+          )
+        : failApply != null
+        ? _FailApplyPlane(
+            repository: repository,
+            chatService: chatService,
+            businessRepository: businessRepository,
+            businessPreferences: businessPreferences,
+            skillDirectories: skillDirectories,
+            workspaceContent: workspaceContent,
+            blobPathResolver: resolveBlob,
+            counter: failApply,
+            conversationId: failApplyConversation!,
           )
         : countCheckpointReads
         ? _CountingCheckpointPlane(
@@ -5613,6 +5680,100 @@ void main() {
       final after = await a.engine.syncWithPeer(await a.peer(b));
       expect(after.success, isTrue, reason: after.summary);
       expect(await _messageIds(b, "conv-a"), contains("conv-a-late"));
+    });
+
+    test("a transfer an earlier session started finishes, and the pair agrees", () {
+      return () async {
+        // The ADR's cross-session resume, end to end: the responder dies on the
+        // page after the first, so session one records one acknowledged page;
+        // session two finishes from that cursor; session three must find nothing
+        // to do. If either side composed its entry from the pages that arrived
+        // after the cursor, the entries would disagree and session three would
+        // re-send the whole conversation for ever.
+        final a = _Side("a", pageBytes: tinyPage);
+        final b = _Side("b", pageBytes: tinyPage);
+        final counter = _ApplyCounter();
+        await a.start(root);
+        await b.start(
+          root,
+          failApply: counter,
+          failApplyConversation: "conv-a",
+        );
+        sides.addAll([a, b]);
+        await pairSides(a, b);
+
+        await _seedConversation(a, id: "conv-a", contents: ["shared"]);
+        final first = await a.engine.syncWithPeer(await a.peer(b));
+        expect(first.success, isTrue, reason: first.summary);
+
+        for (var index = 0; index < 4; index++) {
+          await a.repository.putMessage(
+            ChatMessage(
+              id: "conv-a-page-$index",
+              conversationId: "conv-a",
+              role: index.isEven ? "user" : "assistant",
+              content: "p$index ${"z" * 800}",
+            ),
+          );
+        }
+
+        counter
+          ..armed = true
+          ..calls = 0;
+        final cut = await a.engine.syncWithPeer(await a.peer(b));
+        expect(cut.success, isFalse, reason: cut.summary);
+
+        final half = (await a.store.loadCheckpoint(
+          b.identity.deviceId,
+        )).conversations["conv-a"];
+        expect(
+          half?.cursor,
+          isNotNull,
+          reason: "one page crossed, the rest did not",
+        );
+        expect(
+          half!.cursor!.after,
+          isNotNull,
+          reason: "page one was acknowledged, so the resume point is past it",
+        );
+
+        counter.armed = false;
+        final resumed = await a.engine.syncWithPeer(await a.peer(b));
+        expect(resumed.success, isTrue, reason: resumed.summary);
+
+        final aEntry = (await a.store.loadCheckpoint(
+          b.identity.deviceId,
+        )).conversations["conv-a"]!;
+        final bEntry = (await b.store.loadCheckpoint(
+          a.identity.deviceId,
+        )).conversations["conv-a"]!;
+        expect(aEntry.cursor, isNull);
+        expect(bEntry.cursor, isNull);
+        expect(
+          aEntry.digest,
+          bEntry.digest,
+          reason: "one agreement, recorded by both sides",
+        );
+        expect(
+          aEntry.rows.keys.toSet(),
+          bEntry.rows.keys.toSet(),
+          reason:
+              "the receiver has to record the pages the earlier session took",
+        );
+
+        final settled = await a.engine.syncWithPeer(await a.peer(b));
+        expect(settled.success, isTrue, reason: settled.summary);
+        expect(
+          settled.conversationsSent,
+          0,
+          reason: "nothing to send once the pair agrees",
+        );
+        expect(
+          settled.conversationsReceived,
+          0,
+          reason: "nothing to fetch once the pair agrees",
+        );
+      }();
     });
   });
 

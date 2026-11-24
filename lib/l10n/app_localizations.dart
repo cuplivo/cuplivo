@@ -30150,12 +30150,6 @@ abstract class AppLocalizations {
   /// **'Reply'**
   String get chatMessageWidgetReplySelection;
 
-  /// Action in the chat selection bar that exports the selected messages as a PDF document.
-  ///
-  /// In en, this message translates to:
-  /// **'PDF'**
-  String get chatSelectionExportPdf;
-
   /// Role label printed for the user's own messages in an exported transcript.
   ///
   /// In en, this message translates to:
@@ -30365,6 +30359,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get pdfExportResultDone;
+
+  /// Primary button on the panel that offers a finished PDF; it opens the system save picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Save PDF'**
+  String get pdfExportResultSave;
 
   /// Menu item in the conversation sidebar that copies a link to the conversation.
   ///

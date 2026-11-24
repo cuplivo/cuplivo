@@ -22302,10 +22302,6 @@
   "@chatMessageWidgetReplySelection": {
     "description": "Item in the text-selection context menu that replies to the selected text with it quoted."
   },
-  "chatSelectionExportPdf": "PDF",
-  "@chatSelectionExportPdf": {
-    "description": "Action in the chat selection bar that exports the selected messages as a PDF document."
-  },
   "messageExportSheetUser": "User",
   "@messageExportSheetUser": {
     "description": "Role label printed for the user's own messages in an exported transcript."
@@ -22445,6 +22441,10 @@
   "pdfExportResultDone": "Done",
   "@pdfExportResultDone": {
     "description": "Button that closes the PDF export result dialog."
+  },
+  "pdfExportResultSave": "Save PDF",
+  "@pdfExportResultSave": {
+    "description": "Primary button on the panel that offers a finished PDF; it opens the system save picker."
   },
   "sideDrawerMenuCopyLink": "Copy Link",
   "@sideDrawerMenuCopyLink": {

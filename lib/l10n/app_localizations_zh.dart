@@ -16255,9 +16255,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatMessageWidgetReplySelection => '回复';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '用户';
 
   @override
@@ -16371,6 +16368,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '保存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '复制链接';
@@ -34391,9 +34391,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatMessageWidgetReplySelection => '回复';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '用户';
 
   @override
@@ -34507,6 +34504,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '保存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '复制链接';
@@ -52538,9 +52538,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatMessageWidgetReplySelection => '回覆';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '使用者';
 
   @override
@@ -52654,6 +52651,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '儲存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '複製連結';

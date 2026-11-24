@@ -16,6 +16,7 @@ import 'package:Cuplivo/features/workspace/widgets/preview/file_preview.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/features/workspace/workspace_layout.dart';
+import 'package:Cuplivo/shared/utils/file_name.dart';
 import 'package:Cuplivo/shared/utils/format_bytes.dart';
 import 'package:Cuplivo/shared/utils/save_file_picker.dart';
 import 'package:Cuplivo/shared/widgets/action_sheet.dart';
@@ -539,7 +540,10 @@ class FileBrowserState extends State<FileBrowser> {
     Directory dir, {
     required String name,
   }) async {
-    final zipName = _safeFileName(name.isEmpty ? widget.rootLabel : name);
+    final zipName = safeFileName(
+      name.isEmpty ? widget.rootLabel : name,
+      fallback: 'folder',
+    );
     final tempDir = await Directory.systemTemp.createTemp('kelivo_export_');
     final temp = File(p.join(tempDir.path, '$zipName.zip'));
     try {
@@ -1817,15 +1821,6 @@ String _relativeMtime(
   if (diff.inDays < 1) return l10n.workspaceFilesHoursAgo(diff.inHours);
   if (diff.inDays < 7) return l10n.workspaceFilesDaysAgo(diff.inDays);
   return loc.formatMediumDate(local);
-}
-
-String _safeFileName(String name) {
-  final cleaned = name
-      .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-  if (cleaned.isEmpty) return 'folder';
-  return cleaned.length > 80 ? cleaned.substring(0, 80) : cleaned;
 }
 
 Rect _shareAnchor(BuildContext context) {

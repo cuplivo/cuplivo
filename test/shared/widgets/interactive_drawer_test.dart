@@ -34,6 +34,28 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('the controller reports whether a drawer is mounted', (
+    tester,
+  ) async {
+    final controller = InteractiveDrawerController();
+    addTearDown(controller.dispose);
+    expect(controller.isAttached, isFalse);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InteractiveDrawer(
+          controller: controller,
+          drawer: const Text('Topics'),
+          child: const Text('Conversation'),
+        ),
+      ),
+    );
+    expect(controller.isAttached, isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(controller.isAttached, isFalse);
+  });
+
   testWidgets(
     'drawer motion retains paint and local semantics while content stays live',
     (tester) async {

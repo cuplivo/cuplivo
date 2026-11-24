@@ -51,8 +51,11 @@ void main() {
   final l10n = lookupAppLocalizations(const Locale('en'));
 
   testWidgets('harness acceptance scenario', (tester) async {
-    final baseUrl = String.fromEnvironment('E2E_DSH_URL');
-    final token = String.fromEnvironment('E2E_DSH_TOKEN');
+    // The const matters: fromEnvironment is only folded into the compiled
+    // program in a const context. A non-const call returns the default at run
+    // time, which silently turns a live run hermetic.
+    const baseUrl = String.fromEnvironment('E2E_DSH_URL');
+    const token = String.fromEnvironment('E2E_DSH_TOKEN');
     if (baseUrl.isNotEmpty != token.isNotEmpty) {
       fail(
         'E2E_DSH_URL and E2E_DSH_TOKEN must be provided together; exactly one '
@@ -61,7 +64,7 @@ void main() {
     }
     final live = baseUrl.isNotEmpty;
 
-    _mark('scenario started');
+    _mark('scenario started (live=$live)');
     await bootSeededApp(tester, binding);
     _mark('booted');
 
@@ -317,6 +320,13 @@ void main() {
     }
     final homeAfter = tester.widget<HomeMobileScaffold>(
       find.byType(HomeMobileScaffold),
+    );
+    // The remote page closes the sidebar before it opens, so by the time it is
+    // popped the sidebar is already gone; only the route transition is left.
+    await pumpUntil(
+      tester,
+      () => homeAfter.drawerController.isClosed,
+      maxFrames: 100,
     );
     expect(homeAfter.drawerController.isClosed, isTrue);
     expect(find.byType(MessageListView), findsWidgets);

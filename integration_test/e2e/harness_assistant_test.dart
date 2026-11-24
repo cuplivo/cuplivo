@@ -124,6 +124,7 @@ void main() {
       () => find.byType(ChatOwnerSettingsPage).evaluate().isNotEmpty,
       maxFrames: 150,
     );
+    await _settleRoute(tester);
     expect(find.text(l10n.assistantHarnessRemoteSubtitle), findsOneWidget);
     if (live) {
       await pumpUntil(
@@ -147,12 +148,14 @@ void main() {
       () => find.byType(SettingsPage).evaluate().isNotEmpty,
       maxFrames: 150,
     );
+    await _settleRoute(tester);
     await _tapAppBarBack(tester);
     await pumpUntil(
       tester,
       () => find.byType(HomeMobileScaffold).evaluate().isNotEmpty,
       maxFrames: 150,
     );
+    await _settleRoute(tester);
     final home = tester.widget<HomeMobileScaffold>(
       find.byType(HomeMobileScaffold),
     );
@@ -176,6 +179,7 @@ void main() {
       () => find.byType(HarnessWebPage).evaluate().isNotEmpty,
       maxFrames: 200,
     );
+    await _settleRoute(tester);
     expect(find.byType(HarnessWebPage), findsOneWidget);
     expect(find.byKey(const Key('harness-return-button')), findsOneWidget);
     expect(find.byKey(const Key('harness-web-view')), findsOneWidget);
@@ -218,6 +222,7 @@ void main() {
     );
     expect(homeAfter.drawerController.isClosed, isTrue);
     expect(find.byType(MessageListView), findsWidgets);
+    await _settleRoute(tester);
     await capture(tester, binding, 'harness_06_back_to_chat');
 
     // --- Live endpoint contract: one whole prompt round trip ------------------
@@ -264,6 +269,7 @@ Future<void> _openCreateMenu(
     () => find.byType(SettingsPage).evaluate().isNotEmpty,
     maxFrames: 150,
   );
+  await _settleRoute(tester);
   expect(find.byType(SettingsPage), findsOneWidget);
 
   await tester.tap(find.text(l10n.settingsPageChatOwners).first);
@@ -272,6 +278,7 @@ Future<void> _openCreateMenu(
     () => find.byType(ChatOwnerSettingsPage).evaluate().isNotEmpty,
     maxFrames: 150,
   );
+  await _settleRoute(tester);
   expect(find.byType(ChatOwnerSettingsPage), findsOneWidget);
 
   final plus = find.descendant(
@@ -285,6 +292,7 @@ Future<void> _openCreateMenu(
     () => find.byKey(const Key('harness-create-item')).evaluate().isNotEmpty,
     maxFrames: 100,
   );
+  await _settleRoute(tester);
   await capture(tester, binding, 'harness_01_create_menu');
 
   await tester.tap(find.byKey(const Key('harness-create-item')));
@@ -293,6 +301,7 @@ Future<void> _openCreateMenu(
     () => find.byType(HarnessSettingsPage).evaluate().isNotEmpty,
     maxFrames: 150,
   );
+  await _settleRoute(tester);
   expect(find.byType(HarnessSettingsPage), findsOneWidget);
 }
 
@@ -323,14 +332,30 @@ Future<void> _expandAssistantPicker(
 }
 
 Future<void> _tapAppBarBack(WidgetTester tester) async {
+  // A pop transition keeps the outgoing route mounted, so looking for "the"
+  // AppBar can match two pages. Let the previous transition finish first.
+  await _waitForSingleAppBar(tester);
   final back = find.descendant(
     of: find.byType(AppBar),
     matching: find.byIcon(Lucide.ArrowLeft),
   );
   expect(back, findsOneWidget);
   await tester.tap(back);
-  await pumpFrames(tester);
+  await pumpFrames(tester, frames: 25);
 }
+
+Future<void> _waitForSingleAppBar(WidgetTester tester) async {
+  await pumpUntil(
+    tester,
+    () => find.byType(AppBar).evaluate().length <= 1,
+    maxFrames: 60,
+  );
+}
+
+/// Lets a push/pop transition finish (MaterialPageRoute takes 300 ms) so the
+/// next tap lands on a settled page and captures are not mid-slide.
+Future<void> _settleRoute(WidgetTester tester) =>
+    pumpFrames(tester, frames: 25);
 
 /// Runs the real-endpoint half of the contract: redeem the launch token for the
 /// operator session, create a session, send one prompt and read the answer back.

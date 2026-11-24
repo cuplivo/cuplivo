@@ -19164,4 +19164,66 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => 'Always allow';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => 'Remote DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'Enter the DeepSeek Harness WebUI access link';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'Use when DeepSeek Harness is on the same LAN or reachable over the internet.';
+
+  @override
+  String get assistantHarnessConfirm => 'Confirm';
+
+  @override
+  String get assistantHarnessConnected => 'Connected';
+
+  @override
+  String get assistantHarnessChecking => 'Connecting…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      'Connection failed. Check the link and your network, then try again.';
+
+  @override
+  String get assistantHarnessInvalidUrl => 'Enter a valid WebUI access link.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      'The link is missing its token. Paste the full access link printed by dsh web.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness rejected this link. Check that its token is still valid.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      'Could not reach that link. Check the address and network.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness did not answer its API.';
+
+  @override
+  String get assistantHarnessLoadFailed => 'Could not load DeepSeek Harness.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      'Embedded WebView is not supported on this platform.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => 'Open in browser';
+
+  @override
+  String get assistantHarnessRetry => 'Retry';
 }

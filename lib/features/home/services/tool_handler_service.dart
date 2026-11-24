@@ -40,7 +40,7 @@ import '../../../core/providers/workspace_provider.dart';
 import '../../image_job/services/image_job_coordinator.dart';
 import '../../subagent/services/subagent_coordinator.dart';
 import '../../subagent/services/subagent_rules.dart'
-    show delegableAssistants, delegationBlockedFor;
+    show delegableAssistants, delegationBlockedFor, isSubagentConversation;
 import '../../subagent/services/subagent_target.dart';
 import 'ask_user_interaction_service.dart';
 import 'built_in_tool_names.dart';
@@ -314,6 +314,24 @@ class ToolHandlerService {
     }
   }
 
+  /// Whether the conversation being generated was started by a delegator.
+  ///
+  /// A child gets `send_message` with the child schema and never the delegation
+  /// pair; the extra lookup is one cached read, and asking it here keeps the
+  /// tool list a function of the conversation rather than of a global.
+  bool _isSubagentConversation(String? conversationId) {
+    if (conversationId == null) return false;
+    try {
+      final conversation = contextProvider.read<ChatService>().getConversation(
+        conversationId,
+      );
+      return conversation != null &&
+          isSubagentConversation(conversation.extras);
+    } catch (_) {
+      return false;
+    }
+  }
+
   List<Map<String, dynamic>> buildToolDefinitions(
     SettingsProvider settings,
     Assistant? assistant,
@@ -373,6 +391,7 @@ class ToolHandlerService {
         delegateTargets: assistant == null
             ? const <Assistant>[]
             : _delegableTargets(assistant),
+        isSubagent: _isSubagentConversation(conversationId),
       ).where(
         (definition) =>
             (definition['function'] as Map)['name'] !=
@@ -964,6 +983,117 @@ class ToolHandlerService {
               await coordinator.awaitJob(
                 jobId,
                 cancelled: ToolCallCancellation.current?.cancelled,
+              ),
+            );
+          }
+
+          // Mail between the two sides of a delegation. The same tool name has
+          // one schema per side: a delegator names the job it steers, a child
+          // has one conversation to answer.
+          if (name == LocalToolNames.sendMessage) {
+            final text = (args['text'] ?? '').toString().trim();
+            if (text.isEmpty) {
+              return _toolError(
+                error: 'invalid_arguments',
+                message: 'A message needs some text.',
+                tool: name,
+              );
+            }
+            if (conversationId == null || !contextProvider.mounted) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'A message needs a conversation to belong to.',
+                tool: name,
+              );
+            }
+            final coordinator = subagentCoordinatorOf(contextProvider);
+            if (coordinator == null) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Subagents are not available right now.',
+                tool: name,
+              );
+            }
+            final conversation = contextProvider
+                .read<ChatService>()
+                .getConversation(conversationId);
+            if (conversation != null &&
+                isSubagentConversation(conversation.extras)) {
+              return jsonEncode(
+                await coordinator.sendToParent(
+                  childConversationId: conversationId,
+                  text: text,
+                  toolCallId: toolCallId,
+                ),
+              );
+            }
+            final jobId = (args['job_id'] ?? '').toString().trim();
+            if (jobId.isEmpty) {
+              return _toolError(
+                error: 'invalid_arguments',
+                message: 'send_message needs the job_id delegate returned.',
+                tool: name,
+              );
+            }
+            final current = assistant == null
+                ? null
+                : assistantProvider.getById(assistant.id);
+            if (current == null ||
+                !current.localToolIds.contains(LocalToolNames.delegate)) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Delegation is disabled for this assistant.',
+                tool: name,
+              );
+            }
+            return jsonEncode(
+              await coordinator.sendToChild(
+                parentConversationId: conversationId,
+                jobId: jobId,
+                text: text,
+                assistant: current,
+                toolCallId: toolCallId,
+              ),
+            );
+          }
+
+          // Asking a child to stop. Returns before it has stopped: the run ends
+          // asynchronously and reaches the parent as a `stopped` notice.
+          if (name == LocalToolNames.interrupt) {
+            final jobId = (args['job_id'] ?? '').toString().trim();
+            if (jobId.isEmpty) {
+              return _toolError(
+                error: 'invalid_arguments',
+                message: 'interrupt needs the job_id delegate returned.',
+                tool: name,
+              );
+            }
+            if (conversationId == null) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'interrupt needs a conversation to belong to.',
+                tool: name,
+              );
+            }
+            if (!contextProvider.mounted) {
+              return _toolError(
+                error: 'no_conversation',
+                message: 'The conversation went away before interrupting.',
+                tool: name,
+              );
+            }
+            final coordinator = subagentCoordinatorOf(contextProvider);
+            if (coordinator == null) {
+              return _toolError(
+                error: 'tool_disabled',
+                message: 'Subagents are not available right now.',
+                tool: name,
+              );
+            }
+            return jsonEncode(
+              await coordinator.interruptChild(
+                parentConversationId: conversationId,
+                jobId: jobId,
               ),
             );
           }

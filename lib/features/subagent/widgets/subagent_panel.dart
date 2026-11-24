@@ -76,6 +76,8 @@ final class _PanelRow {
             : Duration(milliseconds: part.elapsedMs!),
         phase: switch (part.outcome) {
           'failed' => SubagentPhase.failed,
+          // The delegator's model asked it to stop; it can be continued.
+          'stopped' => SubagentPhase.stopped,
           'cancelled' => SubagentPhase.cancelled,
           'interrupted' => SubagentPhase.interrupted,
           _ => SubagentPhase.completed,
@@ -220,12 +222,22 @@ class _SubagentPanelState extends State<_SubagentPanel> {
       rows.add(_PanelRow.fromEntry(entry));
     }
     final chat = context.read<ChatService?>();
+    // One delegation can write several result rows now (one per turn). The panel
+    // shows the delegation, so the newest row is the one that describes it; the
+    // old rows are the earlier turns of the same child.
+    final persisted = <String, _PanelRow>{};
     for (final message
         in chat?.getMessages(widget.conversationId) ?? const <ChatMessage>[]) {
       for (final part in subagentResultsIn(<ChatMessage>[message])) {
-        if (!known.add(part.childConversationId)) continue;
-        rows.add(_PanelRow.fromPart(part, message.timestamp));
+        persisted[part.childConversationId] = _PanelRow.fromPart(
+          part,
+          message.timestamp,
+        );
       }
+    }
+    for (final row in persisted.values) {
+      if (!known.add(row.childConversationId)) continue;
+      rows.add(row);
     }
     rows.sort((a, b) => b.startedAt.compareTo(a.startedAt));
     return rows;
@@ -312,6 +324,9 @@ class _SubagentRow extends StatelessWidget {
       SubagentPhase.running => l10n.subagentPanelRunning,
       SubagentPhase.completed => l10n.subagentPanelCompleted,
       SubagentPhase.failed => l10n.subagentPanelFailed,
+      // The delegator's model asked it to stop; it can be continued, but the
+      // panel has no word of its own for that yet.
+      SubagentPhase.stopped => l10n.subagentPanelCancelled,
       SubagentPhase.cancelled => l10n.subagentPanelCancelled,
       SubagentPhase.interrupted => l10n.subagentPanelInterrupted,
       // Handled above, kept for the exhaustive switch.

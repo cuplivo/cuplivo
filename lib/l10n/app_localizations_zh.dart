@@ -2820,6 +2820,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subagentMailLabel => '子代理消息';
 
   @override
+  String get subagentMailDelegatorLabel => '委派方消息';
+
+  @override
   String get subagentMailOpenConversation => '打开对话';
 
   @override
@@ -21021,6 +21024,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get subagentMailLabel => '子代理消息';
+
+  @override
+  String get subagentMailDelegatorLabel => '委派方消息';
 
   @override
   String get subagentMailOpenConversation => '打开对话';
@@ -39229,6 +39235,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subagentMailLabel => '子代理訊息';
+
+  @override
+  String get subagentMailDelegatorLabel => '委派方訊息';
 
   @override
   String get subagentMailOpenConversation => '打開對話';

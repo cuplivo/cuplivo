@@ -709,6 +709,8 @@ void main() {
                 required conversationId,
                 required assistant,
                 required task,
+                Assistant? delegator,
+                SubagentTarget? target,
               }) async => const SubagentTurnStart.started(runId: 'run-1'),
           enqueueResult:
               ({

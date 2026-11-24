@@ -2991,6 +2991,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get subagentMailLabel => 'Сообщение субагента';
 
   @override
+  String get subagentMailDelegatorLabel => 'Сообщение делегатора';
+
+  @override
   String get subagentMailOpenConversation => 'Открыть чат';
 
   @override

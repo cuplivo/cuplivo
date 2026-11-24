@@ -13,13 +13,20 @@ import '../services/subagent_coordinator.dart';
 
 /// The one line a mail row shows, in the timeline and in every export.
 ///
-/// Shared so a screenshot, a Markdown export and a PDF cannot drift from the
-/// timeline: the label is the only thing this row says.
-String subagentMailLabelText(AppLocalizations l10n, String senderTitle) {
+/// The label names the sender's side, so it reads the same in both
+/// conversations: a row in the parent comes from the subagent, a row in the
+/// child comes from the delegator. Shared so a screenshot, a Markdown export and
+/// a PDF cannot drift from the timeline.
+String subagentMailLabelText(
+  AppLocalizations l10n,
+  SubagentMailPart part,
+  String senderTitle,
+) {
   final title = senderTitle.trim();
-  return title.isEmpty
-      ? l10n.subagentMailLabel
-      : '${l10n.subagentMailLabel} · $title';
+  final label = part.from == SubagentMailSender.delegator
+      ? l10n.subagentMailDelegatorLabel
+      : l10n.subagentMailLabel;
+  return title.isEmpty ? label : '$label · $title';
 }
 
 /// One message between the two sides of a delegation, drawn as what it is.
@@ -53,7 +60,7 @@ class SubagentMailNotice extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final title = _senderTitle(context);
-    final label = subagentMailLabelText(l10n, title);
+    final label = subagentMailLabelText(l10n, part, title);
     final hasBody = message.content.trim().isNotEmpty;
 
     return InkWell(
@@ -134,7 +141,7 @@ class SubagentMailNotice extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final content = _MailDialog(
       part: part,
-      label: subagentMailLabelText(l10n, title),
+      label: subagentMailLabelText(l10n, part, title),
       body: message.content.trim(),
       conversationId: message.conversationId,
     );

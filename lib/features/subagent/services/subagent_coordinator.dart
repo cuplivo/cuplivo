@@ -148,6 +148,11 @@ final class SubagentEntry {
   /// for a run other than this one before it starts watching again.
   String? settledRunId;
 
+  /// Identifies the watcher that may report this entry. Starting a new one (a
+  /// continuation arriving just as the previous watcher settles) bumps this, so
+  /// the old loop exits instead of two watchers reporting one turn.
+  int watchGeneration = 0;
+
   bool get isLive =>
       phase == SubagentPhase.running || phase == SubagentPhase.waitingForInput;
 
@@ -450,7 +455,11 @@ class SubagentCoordinator extends ChangeNotifier {
       notifyListeners();
     }
     final running = _host?.isTurnRunning?.call(childId) ?? false;
-    if (!wasLive) unawaited(_watch(entry));
+    // Always watch the conversation, not only when the entry looked idle: the
+    // previous watcher may be settling the old run right now, and its loop exits
+    // as soon as the phase leaves live. The watcher this bumps is the one that
+    // follows the turn this message starts.
+    unawaited(_watch(entry));
     enqueue(conversationId: childId, message: row);
     return <String, dynamic>{
       'status': 'delivered',
@@ -825,12 +834,13 @@ class SubagentCoordinator extends ChangeNotifier {
   Future<void> _watch(SubagentEntry entry) async {
     final repository = _chat.chatRepositoryOrNull;
     if (repository == null) return;
+    final generation = ++entry.watchGeneration;
     final childId = entry.childConversationId;
     DateTime? missingSince;
     DateTime? settledSince;
     while (!_disposed) {
       await Future<void>.delayed(pollInterval);
-      if (_disposed) return;
+      if (_disposed || entry.watchGeneration != generation) return;
       var run = await repository.latestGenerationRun(childId);
       if (run == null && entry.runId != null) {
         // The conversation was just adopted and its run row is the one we were
@@ -981,6 +991,9 @@ class SubagentCoordinator extends ChangeNotifier {
       // A failed computation must not leave the entry looking alive forever.
       entry.phase = effective;
       entry.settledRunId = entry.runId;
+      // The flag belongs to this settle only: a later, unrelated Stop on the
+      // same entry must be read as the user's, not as the model's.
+      entry.stoppedByModel = false;
       notifyListeners();
     }
 

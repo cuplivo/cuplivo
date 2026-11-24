@@ -25,6 +25,8 @@ import '../../../core/providers/settings_provider.dart';
 import '../../intelligent_ui/host/ui_export_capture.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../subagent/widgets/subagent_mail_notice.dart'
+    show subagentMailLabelText;
 import '../../subagent/widgets/subagent_result_divider.dart';
 import '../utils/export_document.dart';
 
@@ -187,8 +189,12 @@ Future<PdfExportResult?> exportChatMessagesPdf(
     readImageBytes: readExportImageBytes,
     // A delegation's result is a divider in the timeline, so it is one here too:
     // printing it as the user's own message is the one thing an export must not
-    // do with a row the user never wrote.
+    // do with a row the user never wrote. Mail is the same kind of row.
     subagentResultLabelOf: (part) => SubagentResultDivider.labelOf(l10n, part),
+    subagentMailLabelOf: (part) => subagentMailLabelText(
+      l10n,
+      chat.getConversation(part.senderConversationId)?.title ?? '',
+    ),
   );
   if (!context.mounted) return null;
   final fonts = await (resolver ?? PdfFontResolver(googleFonts: googleFonts))

@@ -146,6 +146,7 @@ Future<ExportDocument> buildExportDocument({
   List<ContextOperation> operations = const <ContextOperation>[],
   String Function(ContextOperation op, {required bool hidden})? contextLabelOf,
   String Function(SubagentResultPart part)? subagentResultLabelOf,
+  String Function(SubagentMailPart part)? subagentMailLabelOf,
 }) async {
   final exported = <ExportMessage>[];
   // Dividers that arrived before any message was written: they are prepended to
@@ -158,6 +159,18 @@ Future<ExportDocument> buildExportDocument({
       // folded into the neighbouring message so the export does not print a
       // speaker header for a line that has no speaker.
       final label = subagentResultLabelOf(notice);
+      if (exported.isEmpty) {
+        pendingNodes.add(label);
+      } else {
+        exported.last.blocks.add(ExportContextNode(label));
+      }
+      continue;
+    }
+    final mail = subagentMailPartOf(message.parts);
+    if (mail != null && subagentMailLabelOf != null) {
+      // Mail between the two sides is the same kind of row: a divider, never the
+      // user's own words.
+      final label = subagentMailLabelOf(mail);
       if (exported.isEmpty) {
         pendingNodes.add(label);
       } else {

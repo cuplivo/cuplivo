@@ -420,4 +420,11 @@ master 已经合并生图 job（`3c7e9b2b9`）。它带来的不是"又一个功
 - `interrupt` 增加与 `send_message` 相同的父子校验（处理器传 `parentConversationId`）。
 - 删除 review 留下的 `probes/` 目录。
 
+**结果行与留言行的最终形态（第二轮 clarity）**：
+
+- 结果行只在**模型没有通过工具调用拿到结果**时出现：`await_job` 由 `waiters` 抑制；模型 `interrupt` 成功也不写行、不唤醒——它只回 `accepted`，不回传内容，打断就是说到哪算哪，想要结论用 `await_job`，想让子代理尽快收口用 `send_message`。
+- 用户停止子代理：写分隔线，不唤醒父对话（用户刚按了 Stop，再生成一轮与意图相反；线已在历史里，下次发言时模型读得到）。父对话自己的 Stop 级联同样不唤醒。
+- 留言行不再是独立卡片：与结果行共用同一条 28px 分隔线（`subagentMailLabel` + 发送方标题），正文跟在下面；点分隔线打开 dialog（桌面）/ sheet（移动）看完整消息。导出与 PNG 走已有的分隔线分支，因此不再出现"导出里认不出留言"的问题。
+- 新增 l10n 键 `subagentMailLabel`（6 个 ARB + 指纹 + `gen-l10n`，`translate.py check` 通过）。
+
 

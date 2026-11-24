@@ -1452,6 +1452,10 @@
   "@subagentResultInterrupted": {
     "description": "Divider label for a subagent whose run the app stopped (for example a restart)."
   },
+  "subagentMailLabel": "Subagent message",
+  "@subagentMailLabel": {
+    "description": "Divider label for a message the other side of a subagent delegation sent; the sender's conversation title follows it."
+  },
   "subagentStripRunning": "Subagent running ({elapsed}) {label}",
   "@subagentStripRunning": {
     "placeholders": {

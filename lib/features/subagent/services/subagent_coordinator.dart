@@ -941,6 +941,11 @@ class SubagentCoordinator extends ChangeNotifier {
     // into the conversation twice: a divider the user has to skip past, and a
     // second copy of the report in the next request's context.
     final waited = entry.waiters > 0;
+    // The model's own stop is not news to the model: it asked for the stop and
+    // got `accepted` back, and a stopped delegation has no conclusion to hand
+    // over — it stopped where it was. A row here would tell the parent what it
+    // just did.
+    final stopped = effective == SubagentPhase.stopped;
 
     // Compute the conclusion before flipping the phase. `awaitJob` waits for the
     // phase to stop being live and then reads `brief`, so a flip first would
@@ -969,7 +974,7 @@ class SubagentCoordinator extends ChangeNotifier {
       // read (a Stop, an explicit timeout) is gone, and its tool result will never
       // be seen. Trusting the stale read would leave the delegation with no row
       // and no continuation — a result that happened and left no trace.
-      if (!waited || entry.waiters == 0) {
+      if (!stopped && (!waited || entry.waiters == 0)) {
         notice = _noticeFor(entry, effective, entry.brief!);
       }
     } finally {

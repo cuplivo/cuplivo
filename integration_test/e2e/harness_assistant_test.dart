@@ -64,13 +64,10 @@ void main() {
     }
     final live = baseUrl.isNotEmpty;
 
-    _mark('scenario started (live=$live)');
     await bootSeededApp(tester, binding);
-    _mark('booted');
 
     // --- Settings: create the harness assistant and connect it ---------------
     await _openCreateMenu(tester, binding, l10n);
-    _mark('connection page opened');
 
     expect(find.text(l10n.assistantHarnessWebUiUrlLabel), findsOneWidget);
     expect(find.text(l10n.assistantHarnessWebUiUrlHelper), findsOneWidget);
@@ -145,7 +142,6 @@ void main() {
       maxFrames: 150,
     );
     await _settleRoute(tester);
-    _mark('back on the list after seeding the link');
     final harnessCard = find.byKey(const Key('harness-assistant-card'));
     expect(harnessCard, findsOneWidget);
     await tester.tap(harnessCard);
@@ -156,7 +152,6 @@ void main() {
     );
     await _settleRoute(tester);
     if (live) {
-      _mark('reopened page, waiting for the open-time probe');
       await pumpUntil(
         tester,
         () => find
@@ -165,7 +160,6 @@ void main() {
             .isNotEmpty,
         maxFrames: 450,
       );
-      _mark('connected row is visible');
       expect(find.byKey(const Key('harness-connected-status')), findsOneWidget);
       expect(find.text(l10n.assistantHarnessConnected), findsWidgets);
       // The launch token must not be rendered anywhere on this page.
@@ -187,7 +181,6 @@ void main() {
       await _capture(tester, binding, 'harness_02_settings_hermetic');
     }
 
-    _mark('returning to the list');
     // --- Assistants list: the harness row and its connected dot --------------
     await _tapAppBarBack(tester);
     await pumpUntil(
@@ -212,7 +205,6 @@ void main() {
     }
     await _capture(tester, binding, 'harness_03_assistant_list');
 
-    _mark('list captured, going to the sidebar');
     // --- Native sidebar: the harness row next to the assistants --------------
     await _tapAppBarBack(tester);
     await pumpUntil(
@@ -245,16 +237,13 @@ void main() {
     await _capture(tester, binding, 'harness_04_native_sidebar');
 
     // --- The embedded WebUI and its return bar -------------------------------
-    _mark('sidebar captured, opening the embedded WebUI');
     await tester.tap(harnessRow);
     await pumpUntil(
       tester,
       () => find.byType(HarnessWebPage).evaluate().isNotEmpty,
       maxFrames: 200,
     );
-    _mark('embedded WebUI route found, settling it');
     await _settleRoute(tester);
-    _mark('embedded WebUI page arrived');
     expect(find.byType(HarnessWebPage), findsOneWidget);
     expect(find.byKey(const Key('harness-return-button')), findsOneWidget);
     expect(find.byKey(const Key('harness-web-view')), findsOneWidget);
@@ -286,21 +275,18 @@ void main() {
           .byKey(const Key('harness-web-view-loading'))
           .evaluate()
           .isNotEmpty;
-      _mark('load settled: failed=$failedLoad loading=$stillLoading');
     }
     // The embedded WebUI is the remote product's own SPA. Android's
     // integration_test screenshot path cannot be relied on while a platform
     // view is on screen, so this frame is evidenced by the device video
     // instead of a captured image (see docs/e2e-android.md).
     await _waitForNotificationsToClear(tester);
-    _mark('notifications clear, leaving the embedded WebUI');
     await tester.tap(find.byKey(const Key('harness-return-button')));
     await pumpUntil(
       tester,
       () => find.byType(HarnessWebPage).evaluate().isEmpty,
       maxFrames: 150,
     );
-    _mark('back on the chat page');
     expect(find.byType(HarnessWebPage), findsNothing);
     if (live) {
       expect(
@@ -333,11 +319,9 @@ void main() {
     await _settleRoute(tester);
     await _capture(tester, binding, 'harness_06_back_to_chat');
 
-    _mark('back on the chat, starting the API round trip');
     // --- Live endpoint contract: one whole prompt round trip ------------------
     if (live) {
       final answer = await _promptTheEndpoint(baseUrl: baseUrl, token: token);
-      _mark('API answer read back');
       expect(
         answer.trim(),
         isNotEmpty,
@@ -353,26 +337,21 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 8)));
 }
 
-final _e2eClock = Stopwatch()..start();
-
-void _mark(String step) =>
-    debugPrint('[e2e +${_e2eClock.elapsedMilliseconds}ms] $step');
-
-/// Captures with a watchdog: the Android screenshot channel can stall on a
-/// platform view, and a stall must fail the scenario instead of burning the
-/// whole drive timeout (which also loses every capture not yet reported).
+/// Captures one review screenshot.
+///
+/// The Android screenshot channel can stall while a platform view is on
+/// screen; a bound here turns that stall into a scenario failure instead of a
+/// silent drive timeout, which also loses every capture not yet reported.
 Future<void> _capture(
   WidgetTester tester,
   IntegrationTestWidgetsFlutterBinding binding,
   String name,
 ) async {
-  _mark('capture $name start');
   await capture(tester, binding, name).timeout(
     const Duration(seconds: 90),
     onTimeout: () =>
         throw TestFailure('screenshot "$name" did not complete in 90s'),
   );
-  _mark('capture $name done');
 }
 
 /// Home drawer → Settings → Assistants and groups → "+" → DeepSeek Harness.
@@ -425,7 +404,6 @@ Future<void> _openCreateMenu(
     maxFrames: 100,
   );
   await _settleRoute(tester);
-  _mark('create menu open');
   await _capture(tester, binding, 'harness_01_create_menu');
 
   await tester.tap(find.byKey(const Key('harness-create-item')));
@@ -508,17 +486,13 @@ Future<String> _promptTheEndpoint({
   required String baseUrl,
   required String token,
 }) async {
-  _mark('operator: redeeming the launch link');
   final endpoint = await _DshOperator.connect(baseUrl: baseUrl, token: token);
-  _mark('operator: connected');
   try {
     final sessionId = await endpoint.createSession();
-    _mark('operator: session created');
     await endpoint.prompt(
       sessionId: sessionId,
       text: 'Reply with the single word OK.',
     );
-    _mark('operator: prompt accepted, waiting for the answer');
     return await endpoint.waitForAnswer(sessionId);
   } finally {
     endpoint.close();

@@ -40,6 +40,15 @@ bool harnessWebViewSupported(TargetPlatform platform, {required bool isWeb}) {
 String harnessWindowsProfilePath(String appDataDirectory) =>
     p.join(appDataDirectory, 'harness', 'webview2');
 
+/// TEMPORARY E2E diagnostics: the launch link carries a live token, so the
+/// query string is never printed.
+String _loggedUrl(WebUri? uri) {
+  if (uri == null) return 'null';
+  final value = uri.toString();
+  final cut = value.indexOf('?');
+  return cut < 0 ? value : '${value.substring(0, cut)}?<redacted>';
+}
+
 /// The remote DeepSeek Harness WebUI, embedded in the app.
 ///
 /// [url] is the tokenized launch link printed by `dsh web`. The native WebView
@@ -252,6 +261,7 @@ class _HarnessWebViewState extends State<HarnessWebView> {
   }
 
   void _onLoadStart(InAppWebViewController controller, WebUri? url) {
+    debugPrint('[harness-webview] loadStart ${_loggedUrl(url)}');
     if (!mounted) return;
     setState(() {
       _failed = false;
@@ -271,6 +281,7 @@ class _HarnessWebViewState extends State<HarnessWebView> {
   }
 
   void _onLoadStop(InAppWebViewController controller, WebUri? url) {
+    debugPrint('[harness-webview] loadStop ${_loggedUrl(url)}');
     if (!mounted || _failed) return;
     setState(() {
       _loading = false;
@@ -283,6 +294,11 @@ class _HarnessWebViewState extends State<HarnessWebView> {
     WebResourceRequest request,
     WebResourceError error,
   ) {
+    debugPrint(
+      '[harness-webview] error main=${request.isForMainFrame} '
+      'type=${error.type} description=${error.description} '
+      'url=${_loggedUrl(request.url)}',
+    );
     // Only the main document failing is a load error; a missing image or an
     // unreachable subresource must not replace the page the user is reading.
     if (!mounted || request.isForMainFrame != true) return;
@@ -297,12 +313,17 @@ class _HarnessWebViewState extends State<HarnessWebView> {
     WebResourceRequest request,
     WebResourceResponse response,
   ) {
+    debugPrint(
+      '[harness-webview] httpError main=${request.isForMainFrame} '
+      'status=${response.statusCode} url=${_loggedUrl(request.url)}',
+    );
     if (!mounted || request.isForMainFrame != true) return;
     if ((response.statusCode ?? 0) < 400) return;
     _failLoad();
   }
 
   void _failLoad() {
+    debugPrint('[harness-webview] showing the load-failure state');
     setState(() {
       _failed = true;
       _loading = false;

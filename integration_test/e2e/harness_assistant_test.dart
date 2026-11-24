@@ -61,10 +61,13 @@ void main() {
     }
     final live = baseUrl.isNotEmpty;
 
+    _mark('scenario started');
     await bootSeededApp(tester, binding);
+    _mark('booted');
 
     // --- Settings: create the harness assistant and connect it ---------------
     await _openCreateMenu(tester, binding, l10n);
+    _mark('connection page opened');
 
     expect(find.text(l10n.assistantHarnessWebUiUrlLabel), findsOneWidget);
     expect(find.text(l10n.assistantHarnessWebUiUrlHelper), findsOneWidget);
@@ -139,6 +142,7 @@ void main() {
       maxFrames: 150,
     );
     await _settleRoute(tester);
+    _mark('back on the list after seeding the link');
     final harnessCard = find.byKey(const Key('harness-assistant-card'));
     expect(harnessCard, findsOneWidget);
     await tester.tap(harnessCard);
@@ -149,6 +153,7 @@ void main() {
     );
     await _settleRoute(tester);
     if (live) {
+      _mark('reopened page, waiting for the open-time probe');
       await pumpUntil(
         tester,
         () => find
@@ -157,6 +162,7 @@ void main() {
             .isNotEmpty,
         maxFrames: 450,
       );
+      _mark('connected row is visible');
       expect(find.byKey(const Key('harness-connected-status')), findsOneWidget);
       expect(find.text(l10n.assistantHarnessConnected), findsWidgets);
       // The launch token must not be rendered anywhere on this page.
@@ -169,15 +175,16 @@ void main() {
         isEmpty,
         reason: 'the launch token must never reach a rendered field',
       );
-      await capture(tester, binding, 'harness_02_settings_connected');
+      await _capture(tester, binding, 'harness_02_settings_connected');
     } else {
       // Hermetic open-time probe fails against the seeded placeholder link;
       // let it finish so the capture is the page, not the failure toast.
       await pumpFrames(tester, frames: 60);
       await _waitForNotificationsToClear(tester);
-      await capture(tester, binding, 'harness_02_settings_hermetic');
+      await _capture(tester, binding, 'harness_02_settings_hermetic');
     }
 
+    _mark('returning to the list');
     // --- Assistants list: the harness row and its connected dot --------------
     await _tapAppBarBack(tester);
     await pumpUntil(
@@ -200,8 +207,9 @@ void main() {
     } else {
       expect(find.byKey(const Key('harness-connected-dot')), findsNothing);
     }
-    await capture(tester, binding, 'harness_03_assistant_list');
+    await _capture(tester, binding, 'harness_03_assistant_list');
 
+    _mark('list captured, going to the sidebar');
     // --- Native sidebar: the harness row next to the assistants --------------
     await _tapAppBarBack(tester);
     await pumpUntil(
@@ -231,9 +239,10 @@ void main() {
       matching: find.text(l10n.assistantHarnessDefaultName),
     );
     expect(harnessRow, findsOneWidget);
-    await capture(tester, binding, 'harness_04_native_sidebar');
+    await _capture(tester, binding, 'harness_04_native_sidebar');
 
     // --- The embedded WebUI and its return bar -------------------------------
+    _mark('sidebar captured, opening the embedded WebUI');
     await tester.tap(harnessRow);
     await pumpUntil(
       tester,
@@ -241,6 +250,7 @@ void main() {
       maxFrames: 200,
     );
     await _settleRoute(tester);
+    _mark('embedded WebUI page arrived');
     expect(find.byType(HarnessWebPage), findsOneWidget);
     expect(find.byKey(const Key('harness-return-button')), findsOneWidget);
     expect(find.byKey(const Key('harness-web-view')), findsOneWidget);
@@ -266,9 +276,11 @@ void main() {
         findsNothing,
       );
     }
+    _mark('live error-state wait finished');
     await pumpFrames(tester);
-    await capture(tester, binding, 'harness_05_web_ui');
+    await _capture(tester, binding, 'harness_05_web_ui');
 
+    _mark('WebUI captured, returning to the chat');
     // The return bar is a page exit, not a chat entry: the Cuplivo chat page is
     // exactly where it was, drawer closed.
     await _waitForNotificationsToClear(tester);
@@ -285,11 +297,13 @@ void main() {
     expect(homeAfter.drawerController.isClosed, isTrue);
     expect(find.byType(MessageListView), findsWidgets);
     await _settleRoute(tester);
-    await capture(tester, binding, 'harness_06_back_to_chat');
+    await _capture(tester, binding, 'harness_06_back_to_chat');
 
+    _mark('back on the chat, starting the API round trip');
     // --- Live endpoint contract: one whole prompt round trip ------------------
     if (live) {
       final answer = await _promptTheEndpoint(baseUrl: baseUrl, token: token);
+      _mark('API answer read back');
       expect(
         answer.trim(),
         isNotEmpty,
@@ -303,6 +317,28 @@ void main() {
 
     expect(tester.takeException(), isNull);
   }, timeout: const Timeout(Duration(minutes: 8)));
+}
+
+final _e2eClock = Stopwatch()..start();
+
+void _mark(String step) =>
+    debugPrint('[e2e +${_e2eClock.elapsedMilliseconds}ms] $step');
+
+/// Captures with a watchdog: the Android screenshot channel can stall on a
+/// platform view, and a stall must fail the scenario instead of burning the
+/// whole drive timeout (which also loses every capture not yet reported).
+Future<void> _capture(
+  WidgetTester tester,
+  IntegrationTestWidgetsFlutterBinding binding,
+  String name,
+) async {
+  _mark('capture $name start');
+  await capture(tester, binding, name).timeout(
+    const Duration(seconds: 90),
+    onTimeout: () =>
+        throw TestFailure('screenshot "$name" did not complete in 90s'),
+  );
+  _mark('capture $name done');
 }
 
 /// Home drawer → Settings → Assistants and groups → "+" → DeepSeek Harness.
@@ -355,7 +391,8 @@ Future<void> _openCreateMenu(
     maxFrames: 100,
   );
   await _settleRoute(tester);
-  await capture(tester, binding, 'harness_01_create_menu');
+  _mark('create menu open');
+  await _capture(tester, binding, 'harness_01_create_menu');
 
   await tester.tap(find.byKey(const Key('harness-create-item')));
   await pumpUntil(
@@ -437,13 +474,17 @@ Future<String> _promptTheEndpoint({
   required String baseUrl,
   required String token,
 }) async {
+  _mark('operator: redeeming the launch link');
   final endpoint = await _DshOperator.connect(baseUrl: baseUrl, token: token);
+  _mark('operator: connected');
   try {
     final sessionId = await endpoint.createSession();
+    _mark('operator: session created');
     await endpoint.prompt(
       sessionId: sessionId,
       text: 'Reply with the single word OK.',
     );
+    _mark('operator: prompt accepted, waiting for the answer');
     return await endpoint.waitForAnswer(sessionId);
   } finally {
     endpoint.close();

@@ -5398,11 +5398,17 @@ abstract class AppLocalizations {
   /// **'Subagent interrupted'**
   String get subagentResultInterrupted;
 
-  /// Divider label for a message the other side of a subagent delegation sent; the sender's conversation title follows it.
+  /// Divider label for a message the subagent sent in its parent conversation; the sender's conversation title follows it.
   ///
   /// In en, this message translates to:
   /// **'Subagent message'**
   String get subagentMailLabel;
+
+  /// Divider label for a message the delegator sent into a subagent conversation; the sender's conversation title follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegator message'**
+  String get subagentMailDelegatorLabel;
 
   /// Button in a subagent message dialog; opens the conversation the message came from.
   ///

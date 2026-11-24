@@ -881,6 +881,7 @@
   "subagentResultCancelled": "子代理已取消",
   "subagentResultInterrupted": "子代理已中斷",
   "subagentMailLabel": "子代理訊息",
+  "subagentMailDelegatorLabel": "委派方訊息",
   "subagentMailOpenConversation": "打開對話",
   "subagentMailCopy": "複製",
   "subagentMailCopied": "已複製",

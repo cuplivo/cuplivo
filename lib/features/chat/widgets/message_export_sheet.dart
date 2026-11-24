@@ -962,7 +962,7 @@ Future<void> exportChatMessagesMarkdown(
       final mail = subagentMailPartOf(msg.parts);
       if (mail != null) {
         buf.writeln(
-          '### ${subagentMailLabelText(l10n, chat.getConversation(mail.senderConversationId)?.title ?? '')}',
+          '### ${subagentMailLabelText(l10n, mail, chat.getConversation(mail.senderConversationId)?.title ?? '')}',
         );
         buf.writeln('\n---\n');
         continue;
@@ -1109,7 +1109,7 @@ Future<void> exportChatMessagesTxt(
       final mail = subagentMailPartOf(msg.parts);
       if (mail != null) {
         buf.writeln(
-          '[${subagentMailLabelText(l10n, chat.getConversation(mail.senderConversationId)?.title ?? '')}]',
+          '[${subagentMailLabelText(l10n, mail, chat.getConversation(mail.senderConversationId)?.title ?? '')}]',
         );
         buf.writeln('\n---\n');
         continue;
@@ -2758,6 +2758,7 @@ class _ExportedMessageCard extends StatelessWidget {
       return dividerCard(
         subagentMailLabelText(
           l10n,
+          mail,
           context
                   .read<ChatService?>()
                   ?.getConversation(mail.senderConversationId)
@@ -2963,6 +2964,7 @@ class _ExportedChatImage extends StatelessWidget {
                   _ExportedDivider(
                     label: subagentMailLabelText(
                       AppLocalizations.of(context)!,
+                      mail,
                       context
                               .read<ChatService?>()
                               ?.getConversation(mail.senderConversationId)

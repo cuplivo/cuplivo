@@ -193,6 +193,7 @@ Future<PdfExportResult?> exportChatMessagesPdf(
     subagentResultLabelOf: (part) => SubagentResultDivider.labelOf(l10n, part),
     subagentMailLabelOf: (part) => subagentMailLabelText(
       l10n,
+      part,
       chat.getConversation(part.senderConversationId)?.title ?? '',
     ),
   );

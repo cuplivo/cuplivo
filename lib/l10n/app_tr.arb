@@ -881,6 +881,7 @@
   "subagentResultCancelled": "Alt ajan iptal edildi",
   "subagentResultInterrupted": "Alt ajan kesildi",
   "subagentMailLabel": "Alt ajan mesajı",
+  "subagentMailDelegatorLabel": "Görev veren mesajı",
   "subagentMailOpenConversation": "Sohbeti aç",
   "subagentMailCopy": "Kopyala",
   "subagentMailCopied": "Kopyalandı",

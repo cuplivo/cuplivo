@@ -2945,6 +2945,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get subagentMailLabel => 'Alt ajan mesajı';
 
   @override
+  String get subagentMailDelegatorLabel => 'Görev veren mesajı';
+
+  @override
   String get subagentMailOpenConversation => 'Sohbeti aç';
 
   @override

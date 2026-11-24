@@ -993,8 +993,9 @@ class ToolHandlerService {
             );
           }
 
-          // Asking a child to stop. Returns before it has stopped: the run ends
-          // asynchronously and reaches the parent as a `stopped` notice.
+          // Asking a child to stop. Returns before it has stopped, and the stop
+          // stays silent: a stop the model asked for is not news to it, so no
+          // result row is written for it.
           if (name == LocalToolNames.interrupt) {
             final jobId = (args['job_id'] ?? '').toString().trim();
             if (jobId.isEmpty) {

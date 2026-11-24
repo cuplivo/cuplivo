@@ -1049,9 +1049,10 @@ class LocalToolsService {
       'name': LocalToolNames.interrupt,
       'description':
           'Ask a subagent you started with `delegate` to stop what it is '
-          'doing. This returns immediately, NOT when it has stopped. What it '
-          'concluded so far arrives as a notice marked stopped; you can then '
-          '`send_message` to continue it with a correction, or leave it.',
+          'doing. This returns immediately, NOT when it has stopped, and the '
+          'stop is silent: nothing arrives later. If you need what it had '
+          'concluded, call `await_job` first, or `send_message` to continue it '
+          'with a correction.',
       'parameters': {
         'type': 'object',
         'properties': {

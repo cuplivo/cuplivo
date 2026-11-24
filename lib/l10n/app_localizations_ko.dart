@@ -2862,6 +2862,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get subagentMailLabel => '서브에이전트 메시지';
 
   @override
+  String get subagentMailDelegatorLabel => '위임자 메시지';
+
+  @override
   String get subagentMailOpenConversation => '대화 열기';
 
   @override

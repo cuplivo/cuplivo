@@ -51,6 +51,7 @@ import '../../../desktop/setting/memory_dialogs.dart';
 import '../../../desktop/widgets/desktop_select_dropdown.dart';
 import '../../home/services/local_tool_toggle.dart';
 import '../../home/services/local_tools_service.dart';
+import '../../../utils/single_line_text.dart';
 import '../../../core/models/health_data_type.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
@@ -1374,29 +1375,37 @@ Widget _iosNavRow(
           ),
         ),
         if (tip != null) TipIcon(message: tip),
-        GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (detailText != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Text(
-                    detailText,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: cs.onSurface.withValues(alpha: 0.6),
+        // The trailing group is flexible as a whole: at a narrow width the
+        // value gives way (and ellipsises) instead of the label collapsing to
+        // nothing. Short values lay out exactly as before, because a loose
+        // flex takes its natural width when there is room.
+        Flexible(
+          child: GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (detailText != null)
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Text(
+                        detailText,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.6),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              if (accessory != null) accessory,
-              if (interactive)
-                Icon(Lucide.ChevronRight, size: 16, color: cs.onSurface),
-            ],
+                if (accessory != null) accessory,
+                if (interactive)
+                  Icon(Lucide.ChevronRight, size: 16, color: cs.onSurface),
+              ],
+            ),
           ),
         ),
       ],
@@ -1839,9 +1848,15 @@ class _DesktopAssistantBasicPaneState
     extends State<_DesktopAssistantBasicPane> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _maxTokensCtrl;
+  late final TextEditingController _descriptionCtrl;
   bool _hoverChatModel = false;
   bool _hoverBgChooser = false;
   final GlobalKey _avatarKey = GlobalKey();
+
+  /// Set once the provider is in scope, so [dispose] can flush the field
+  /// without reading an inherited widget after unmounting.
+  AssistantProvider? _assistants;
+  Timer? _descriptionCommit;
 
   @override
   void initState() {
@@ -1849,22 +1864,76 @@ class _DesktopAssistantBasicPaneState
     final a = context.read<AssistantProvider>().getById(widget.assistantId)!;
     _nameCtrl = TextEditingController(text: a.name);
     _maxTokensCtrl = TextEditingController(text: a.maxTokens?.toString() ?? '');
+    _descriptionCtrl = TextEditingController(text: a.description);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _assistants = context.read<AssistantProvider>();
   }
 
   @override
   void didUpdateWidget(covariant _DesktopAssistantBasicPane oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.assistantId != widget.assistantId) {
+      _commitDescription();
       final a = context.read<AssistantProvider>().getById(widget.assistantId)!;
       _nameCtrl.text = a.name;
       _maxTokensCtrl.text = a.maxTokens?.toString() ?? '';
+      _descriptionCtrl.text = a.description;
     }
+  }
+
+  /// Writes the description once, not once per keystroke.
+  ///
+  /// Every write re-encodes the whole assistant list and re-arms proactive care
+  /// for each of that assistant's conversations, so typing a sentence through
+  /// `onChanged` would run both hundreds of times. The sibling fields in this
+  /// pane commit on submit or focus loss; a multi-line field cannot use submit,
+  /// so it commits on focus loss and, while typing, after a short quiet period.
+  void _commitDescription() {
+    _descriptionCommit?.cancel();
+    _descriptionCommit = null;
+    final provider = _assistants;
+    if (provider == null) return;
+    final latest = provider.getById(widget.assistantId);
+    if (latest == null) return;
+    final text = _descriptionCtrl.text;
+    if (text == latest.description) return;
+    unawaited(provider.updateAssistant(latest.copyWith(description: text)));
+  }
+
+  void _scheduleDescriptionCommit() {
+    _descriptionCommit?.cancel();
+    _descriptionCommit = Timer(
+      const Duration(milliseconds: 400),
+      _commitDescription,
+    );
   }
 
   @override
   void dispose() {
+    // Leaving the pane with text typed inside the debounce window must not drop
+    // it. The write is scheduled on the next microtask with the text captured,
+    // so it happens after this state and its controller are gone.
+    final pending = _descriptionCommit?.isActive ?? false;
+    _descriptionCommit?.cancel();
+    if (pending) {
+      final provider = _assistants;
+      final latest = provider?.getById(widget.assistantId);
+      final text = _descriptionCtrl.text;
+      if (provider != null && latest != null && text != latest.description) {
+        unawaited(
+          Future<void>.microtask(
+            () => provider.updateAssistant(latest.copyWith(description: text)),
+          ),
+        );
+      }
+    }
     _nameCtrl.dispose();
     _maxTokensCtrl.dispose();
+    _descriptionCtrl.dispose();
     super.dispose();
   }
 
@@ -2372,6 +2441,61 @@ class _DesktopAssistantBasicPaneState
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: AssistantDefaultWorkspaceRow(
                 assistantId: widget.assistantId,
+              ),
+            ),
+            sectionDivider(),
+            // What other models read when they have to pick an assistant:
+            // group chat scheduling and delegation. It is a setting, not an
+            // identity, so it sits with the other "about this assistant" rows
+            // rather than under the name.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  labelWithHelp(
+                    l10n.assistantEditDescriptionTitle,
+                    l10n.assistantEditDescriptionTip,
+                  ),
+                  const SizedBox(height: 8),
+                  Focus(
+                    onFocusChange: (hasFocus) {
+                      if (!hasFocus) _commitDescription();
+                    },
+                    child: TextField(
+                      controller: _descriptionCtrl,
+                      minLines: 3,
+                      maxLines: 4,
+                      maxLength: Assistant.maxDescriptionLength,
+                      keyboardType: TextInputType.multiline,
+                      style: const TextStyle(fontSize: 13.5, height: 1.45),
+                      decoration: InputDecoration(
+                        hintText: l10n.assistantEditDescriptionHint,
+                        filled: true,
+                        fillColor: context.appColors.surfaceFill,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: cs.outlineVariant.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: cs.outlineVariant.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: cs.primary.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                      onChanged: (_) => _scheduleDescriptionCommit(),
+                    ),
+                  ),
+                ],
               ),
             ),
             sectionDivider(),

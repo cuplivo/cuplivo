@@ -10,6 +10,7 @@ import '../../../core/services/decision/decision_client.dart';
 import '../../../core/services/decision/decision_outcome.dart';
 import '../../../core/services/decision/decision_question.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
+import '../../../utils/single_line_text.dart';
 import 'group_transcript.dart';
 
 /// What the director decided for one step of a round.
@@ -207,6 +208,12 @@ class GroupDirector {
         {
           'assistant_id': member.id,
           'name': member.name.trim().isEmpty ? member.id : member.name.trim(),
+          // What this assistant is for, when the user wrote it. It is the only
+          // thing the selector has beyond a name, and an empty one is left out
+          // entirely so a request is unchanged for everybody who never filled
+          // it in.
+          if (oneLineText(member.description, max: 200).isNotEmpty)
+            'description': oneLineText(member.description, max: 200),
           if (spokeThisRound.contains(member.id)) 'already_replied': true,
         },
     ];
@@ -358,7 +365,12 @@ class GroupDirector {
             'group': group.name,
             'members': [
               for (final member in members)
-                {'id': member.id, 'name': _displayName(member)},
+                {
+                  'id': member.id,
+                  'name': _displayName(member),
+                  if (oneLineText(member.description, max: 200).isNotEmpty)
+                    'description': oneLineText(member.description, max: 200),
+                },
             ],
             'transcript': GroupTranscript.forDirector(
               transcript,

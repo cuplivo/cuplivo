@@ -225,6 +225,21 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
               _iosDivider(context),
               AssistantDefaultWorkspaceRow(assistantId: widget.assistantId),
               _iosDivider(context),
+              // Read by the two places that ask a model to pick an assistant:
+              // delegation targets and the group chat director. One row here,
+              // the whole sentence behind it — a description does not fit on a
+              // settings row and is not worth a control of its own.
+              _iosNavRow(
+                context,
+                icon: Lucide.SquarePen,
+                label: l10n.assistantEditDescriptionTitle,
+                tip: l10n.assistantEditDescriptionTip,
+                detailText: a.description.trim().isEmpty
+                    ? null
+                    : oneLineText(a.description, max: 24),
+                onTap: () => _showDescriptionSheet(context, a),
+              ),
+              _iosDivider(context),
               // Use assistant avatar
               _iosSwitchRow(
                 context,
@@ -567,6 +582,141 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
         );
       },
     );
+  }
+
+  /// The description, in the sheet Max tokens uses: close / title / save, a
+  /// box big enough for a sentence, and the one line that says who reads it.
+  ///
+  /// Multi-line on purpose: the row can only show a clipped value, and a
+  /// description squeezed into one line is one the user cannot check before
+  /// saving.
+  Future<void> _showDescriptionSheet(BuildContext context, Assistant a) async {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final controller = TextEditingController(text: a.description);
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.overlaySurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _TactileIconButton(
+                      icon: Lucide.X,
+                      color: cs.onSurface,
+                      size: 20,
+                      onTap: () => Navigator.of(ctx).pop(),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          l10n.assistantEditDescriptionTitle,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: AppFontWeights.semibold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    _TactileRow(
+                      onTap: () {
+                        context.read<AssistantProvider>().updateAssistant(
+                          a.copyWith(description: controller.text),
+                        );
+                        Navigator.of(ctx).pop();
+                      },
+                      pressedScale: 0.95,
+                      builder: (pressed) {
+                        final color = pressed
+                            ? cs.primary.withValues(alpha: 0.7)
+                            : cs.primary;
+                        return Text(
+                          l10n.assistantSettingsAddSheetSave,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 16,
+                            fontWeight: AppFontWeights.semibold,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  minLines: 3,
+                  maxLines: 5,
+                  maxLength: Assistant.maxDescriptionLength,
+                  keyboardType: TextInputType.multiline,
+                  style: const TextStyle(fontSize: 14.5, height: 1.45),
+                  decoration: InputDecoration(
+                    hintText: l10n.assistantEditDescriptionHint,
+                    filled: true,
+                    fillColor: ctx.appColors.surfaceFill,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: cs.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: cs.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: cs.primary.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ),
+                Text(
+                  l10n.assistantEditDescriptionTip,
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    controller.dispose();
   }
 
   Future<void> _pickBackground(BuildContext context, Assistant a) async {

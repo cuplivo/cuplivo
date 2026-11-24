@@ -469,6 +469,7 @@ class _ToolsContent extends StatelessWidget {
             rows.add(
               (context) => ImageModelSubRow(
                 label: subagentSummary(
+                  context,
                   AppLocalizations.of(context)!,
                   assistant,
                 ),

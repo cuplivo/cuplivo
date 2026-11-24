@@ -1046,6 +1046,17 @@ class AppLocalizationsTr extends AppLocalizations {
   String get assistantEditMaxTokensHint => 'Sınırsız';
 
   @override
+  String get assistantEditDescriptionTitle => 'Açıklama';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      'Yalnızca grup sohbetlerinde ve alt ajan yönlendirmesinde okunur. Bu özellikleri kullanmıyorsanız boş bırakın.';
+
+  @override
+  String get assistantEditDescriptionHint =>
+      'ör. İsteği SQL\'e dönüştür ve sorgu planını açıkla';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Sohbet Arka Planı';
 
   @override
@@ -2927,6 +2938,11 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String chatMessageWidgetDelegate(String label) {
     return 'Alt ajana devret: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '$assistant ile devret: $label';
   }
 
   @override
@@ -19237,6 +19253,48 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get subagentConfigModelInherit => 'Bu asistanı izle';
+
+  @override
+  String get subagentConfigTargets => 'Devretme hedefleri';
+
+  @override
+  String get subagentConfigTargetsDescription =>
+      'Alt ajan olarak çalışabilecek asistanlar';
+
+  @override
+  String get subagentConfigTargetsSelf => 'Bu asistan';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return 'Bu asistan + $count';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection =>
+      'Kendi asistanınıza devretmek her zaman mümkündür';
+
+  @override
+  String get subagentConfigTargetsSelfCaption =>
+      'Aynı asistan, aynı model, aynı araçlar';
+
+  @override
+  String get subagentConfigTargetsAlways => 'Her zaman';
+
+  @override
+  String get subagentConfigTargetsOthersSection => 'Adıyla da seçilebilir';
+
+  @override
+  String get subagentConfigTargetsFooter =>
+      'Kimse seçilmezse görevler yalnızca size gelir.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · hedef $targets · derinlik $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {

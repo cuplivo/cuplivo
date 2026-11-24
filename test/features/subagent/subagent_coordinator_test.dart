@@ -9,6 +9,7 @@ import 'package:Cuplivo/core/models/workspace_binding.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/features/subagent/services/subagent_coordinator.dart';
 import 'package:Cuplivo/features/subagent/services/subagent_rules.dart';
+import 'package:Cuplivo/features/subagent/services/subagent_target.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -204,6 +205,111 @@ void main() {
       expect(turn.started, hasLength(1));
       coordinator.dispose();
     });
+
+    test(
+      'a named target runs as that assistant, in the parent workspace',
+      () async {
+        final chat = _FakeChat(<String, Conversation>{
+          'parent': Conversation(
+            id: 'parent',
+            title: 'Chat',
+            assistantId: 'assistant-1',
+            extras: const <String, dynamic>{
+              WorkspaceBinding.keyId: 'ws-1',
+              WorkspaceBinding.keyCwd: '/work/app',
+            },
+          ),
+        });
+        final coordinator = SubagentCoordinator(chat, clock: _clock())
+          ..attachHost(_host(chat));
+        final delegator = Assistant(id: 'assistant-1', name: 'A');
+        final target = Assistant(id: 'assistant-2', name: 'SQL 专家');
+
+        final start = await coordinator.begin(
+          parentConversationId: 'parent',
+          toolCallId: 'call-1',
+          task: 'explain the slow query',
+          label: 'slow query',
+          assistant: delegator,
+          targetAssistant: target,
+          target: SubagentTarget.assistant('assistant-2'),
+        );
+
+        expect(start, isA<SubagentStarted>());
+        final created = chat.created.single;
+        // The child is the target assistant: its prompt, model and tools. The
+        // workspace is still the delegating conversation's, never the target's
+        // default one.
+        expect(created.assistantId, 'assistant-2');
+        expect(created.extras[WorkspaceBinding.keyId], 'ws-1');
+        expect(created.extras[WorkspaceBinding.keyCwd], '/work/app');
+        expect(
+          created.extras[SubagentExtrasKeys.target],
+          'assistant:assistant-2',
+        );
+
+        final entry = (start as SubagentStarted).entry;
+        // `assistant` stays the delegator: it is who gets woken with the result.
+        expect(entry.assistant.id, 'assistant-1');
+        expect(entry.target.assistantId, 'assistant-2');
+        expect(entry.targetName, 'SQL 专家');
+        expect(start.toToolResult()['target'], 'assistant:assistant-2');
+        coordinator.dispose();
+      },
+    );
+
+    test(
+      'without a target the receipt says general and the card has no name',
+      () async {
+        final chat = _FakeChat(<String, Conversation>{
+          'parent': Conversation(id: 'parent', title: 'Chat'),
+        });
+        final coordinator = SubagentCoordinator(chat, clock: _clock())
+          ..attachHost(_host(chat));
+
+        final start =
+            await coordinator.begin(
+                  parentConversationId: 'parent',
+                  toolCallId: 'call-1',
+                  task: 'refactor auth',
+                  label: 'auth',
+                  assistant: _assistant(),
+                )
+                as SubagentStarted;
+
+        expect(start.toToolResult()['target'], SubagentTargetKeys.general);
+        expect(chat.created.single.assistantId, 'assistant-1');
+        expect(start.entry.targetName, isNull);
+        coordinator.dispose();
+      },
+    );
+
+    test(
+      'a target nobody resolved is refused, not silently replaced',
+      () async {
+        final chat = _FakeChat(<String, Conversation>{
+          'parent': Conversation(id: 'parent', title: 'Chat'),
+        });
+        final coordinator = SubagentCoordinator(chat, clock: _clock())
+          ..attachHost(_host(chat));
+
+        // The two arguments describe one decision: the id stored in extras and
+        // the assistant that runs the turn have to be the same one, or the
+        // provenance a later reader trusts is wrong.
+        final start = await coordinator.begin(
+          parentConversationId: 'parent',
+          toolCallId: 'call-1',
+          task: 'x',
+          label: 'x',
+          assistant: _assistant(),
+          target: SubagentTarget.assistant('assistant-2'),
+        );
+
+        expect((start as SubagentRefused).code, 'unknown_target');
+        expect(chat.created, isEmpty);
+        coordinator.dispose();
+      },
+    );
 
     test('the same tool call delegates once', () async {
       final chat = _FakeChat(<String, Conversation>{
@@ -556,6 +662,8 @@ void main() {
                 required conversationId,
                 required assistant,
                 required task,
+                delegator,
+                target,
               }) async => const SubagentTurnStart.started(runId: 'run-1'),
           enqueueResult:
               ({
@@ -648,7 +756,13 @@ SubagentHost _host(
   final record = wakes ?? _Wakes();
   return SubagentHost(
     turnStarter:
-        ({required conversationId, required assistant, required task}) async {
+        ({
+          required conversationId,
+          required assistant,
+          required task,
+          delegator,
+          target,
+        }) async {
           chat.onStartTurn?.call(conversationId);
           return const SubagentTurnStart.started(runId: 'run-1');
         },

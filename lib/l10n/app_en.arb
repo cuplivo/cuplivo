@@ -461,6 +461,18 @@
   "assistantEditMaxTokensTitle": "Max Tokens",
   "assistantEditMaxTokensDescription": "Leave empty for unlimited",
   "assistantEditMaxTokensHint": "Unlimited",
+  "assistantEditDescriptionTitle": "Description",
+  "@assistantEditDescriptionTitle": {
+    "description": "Label of the row that holds what this assistant is for. Read by delegation targets and the group chat director, never shown in the chat itself."
+  },
+  "assistantEditDescriptionTip": "Only read when scheduling group chats and subagents. Leave it empty if you use neither.",
+  "@assistantEditDescriptionTip": {
+    "description": "Says who reads the description and that it is optional. Shown behind the row's help icon and under the field."
+  },
+  "assistantEditDescriptionHint": "e.g. Write SQL from a request and explain the query plan",
+  "@assistantEditDescriptionHint": {
+    "description": "Placeholder inside the description field; teaches what to write (what it does, not who it is)."
+  },
   "assistantEditChatBackgroundTitle": "Chat Background",
   "assistantEditChatBackgroundDescription": "Set a background image for this assistant",
   "assistantEditChooseImageButton": "Choose Image",
@@ -1407,6 +1419,18 @@
       }
     },
     "description": "Tool-call title for a delegation; {label} is the model's short name for the job."
+  },
+  "chatMessageWidgetDelegateTo": "Delegate {assistant}: {label}",
+  "@chatMessageWidgetDelegateTo": {
+    "placeholders": {
+      "assistant": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Tool-call title for a delegation the model handed to another assistant; {assistant} is that assistant's name and {label} the short name for the job."
   },
   "subagentResultCompleted": "Subagent finished",
   "@subagentResultCompleted": {
@@ -24705,6 +24729,62 @@
   "subagentConfigModelInherit": "Follow this assistant",
   "@subagentConfigModelInherit": {
     "description": "The model value shown when delegations follow the assistant, and the matching choice in the model picker."
+  },
+  "subagentConfigTargets": "Delegation targets",
+  "@subagentConfigTargets": {
+    "description": "Label of the row that picks which assistants a delegation may name, and the title of the picker it opens."
+  },
+  "subagentConfigTargetsDescription": "Assistants that can work as subagents.",
+  "@subagentConfigTargetsDescription": {
+    "description": "Explains the targets option itself, not its current value."
+  },
+  "subagentConfigTargetsSelf": "This assistant",
+  "@subagentConfigTargetsSelf": {
+    "description": "Value of the delegation targets row when no other assistant is selected; also the label of the fixed row in the picker."
+  },
+  "subagentConfigTargetsSelfPlus": "This assistant + {count}",
+  "@subagentConfigTargetsSelfPlus": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    },
+    "description": "Value of the delegation targets row, counting the other assistants that may be named; the row never shows a single name because it would be clipped."
+  },
+  "subagentConfigTargetsSelfSection": "Delegating to your own assistant is always possible",
+  "@subagentConfigTargetsSelfSection": {
+    "description": "Heading above the fixed picker row that says delegating to your own assistant always works."
+  },
+  "subagentConfigTargetsSelfCaption": "Same assistant, same model, same tools",
+  "@subagentConfigTargetsSelfCaption": {
+    "description": "Second line of the fixed picker row: what a copy of the delegating assistant inherits."
+  },
+  "subagentConfigTargetsAlways": "Always",
+  "@subagentConfigTargetsAlways": {
+    "description": "Trailing word on the fixed picker row, explaining why it cannot be unticked."
+  },
+  "subagentConfigTargetsOthersSection": "Also available by name",
+  "@subagentConfigTargetsOthersSection": {
+    "description": "Heading above the selectable assistants in the delegation target picker."
+  },
+  "subagentConfigTargetsFooter": "Nobody ticked means delegations go to yourself only.",
+  "@subagentConfigTargetsFooter": {
+    "description": "Bottom line of the delegation target picker: what an empty selection means."
+  },
+  "subagentConfigSummaryWithTargets": "{model} · targets {targets} · depth {depth}",
+  "@subagentConfigSummaryWithTargets": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "int"
+      },
+      "depth": {
+        "type": "int"
+      }
+    },
+    "description": "Second line of the subagent toolbox row when some assistants may be named."
   },
   "subagentConfigSummary": "{model} · depth {depth}",
   "@subagentConfigSummary": {

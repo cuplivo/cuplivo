@@ -671,6 +671,19 @@ class AssistantProvider extends ChangeNotifier {
 
     final removingCurrent = _assistants[idx].id == _currentAssistantId;
     _assistants.removeAt(idx);
+    // A deleted assistant cannot be a delegation target any more, and a dead id
+    // in somebody's selection would travel into every backup and sync forever.
+    // The rule lives here, at the one place an assistant stops existing.
+    for (var i = 0; i < _assistants.length; i++) {
+      final other = _assistants[i];
+      if (!other.subagentTargetIds.contains(id)) continue;
+      _assistants[i] = other.copyWith(
+        subagentTargetIds: <String>[
+          for (final targetId in other.subagentTargetIds)
+            if (targetId != id) targetId,
+        ],
+      );
+    }
     if (removingCurrent) {
       _currentAssistantId = _assistants.isNotEmpty
           ? _assistants.first.id

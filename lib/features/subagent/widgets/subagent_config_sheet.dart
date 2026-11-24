@@ -20,18 +20,50 @@ import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../utils/platform_utils.dart';
 import '../../../shared/widgets/ios_switch.dart';
+import '../../group_chat/widgets/group_member_list.dart'
+    show showGroupMemberPickerDialog;
 import '../../home/services/local_tools_service.dart';
+import '../../home/widgets/assistant_avatar.dart';
 import '../../model/widgets/model_select_sheet.dart';
 import '../services/subagent_model.dart';
-import '../services/subagent_rules.dart' show kMaxSubagentDepth;
+import '../services/subagent_rules.dart'
+    show kMaxSubagentDepth, delegableAssistants;
 
-/// The toolbox row's second line: what a delegation would run on, and how deep it
-/// may go.
-String subagentSummary(AppLocalizations l10n, Assistant assistant) {
+/// The toolbox row's second line: what a delegation would run on, who it may
+/// name, and how deep it may go.
+///
+/// The target count appears only when there is one: an assistant that names
+/// nobody keeps the two-part summary it had before targets existed.
+String subagentSummary(
+  BuildContext context,
+  AppLocalizations l10n,
+  Assistant assistant,
+) {
   final model =
       resolveSubagentModel(assistant)?.modelId ??
       l10n.subagentConfigModelInherit;
-  return l10n.subagentConfigSummary(model, kMaxSubagentDepth);
+  final targets = _countTargets(context, assistant);
+  if (targets == 0) {
+    return l10n.subagentConfigSummary(model, kMaxSubagentDepth);
+  }
+  return l10n.subagentConfigSummaryWithTargets(
+    model,
+    targets,
+    kMaxSubagentDepth,
+  );
+}
+
+/// How many assistants a delegation from [assistant] may name, by the same rule
+/// the tool schema uses.
+int _countTargets(BuildContext context, Assistant assistant) {
+  try {
+    return delegableAssistants(
+      delegator: assistant,
+      all: context.read<AssistantProvider>().assistants,
+    ).length;
+  } catch (_) {
+    return 0;
+  }
 }
 
 /// Opens the configuration for delegating with [assistantId].
@@ -79,6 +111,7 @@ class _SubagentConfigBody extends StatelessWidget {
     if (assistant == null) return const SizedBox.shrink();
     final enabled = assistant.localToolIds.contains(LocalToolNames.delegate);
     final model = resolveSubagentModel(assistant);
+    final targets = _otherAssistants(context, assistant);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
       child: Column(
@@ -115,6 +148,17 @@ class _SubagentConfigBody extends StatelessWidget {
             description: l10n.subagentConfigDepthDescription,
             value: '$kMaxSubagentDepth',
           ),
+          // Which assistants a delegation may name. Absent until there is
+          // somebody to name: an assistant alone in the app has nothing to
+          // choose between, and the row would only explain a feature it cannot
+          // demonstrate.
+          if (targets.isNotEmpty)
+            _ConfigRow(
+              label: l10n.subagentConfigTargets,
+              description: l10n.subagentConfigTargetsDescription,
+              value: _targetsLabel(l10n, assistant, targets),
+              onTap: () => _pickTargets(context, assistant, targets),
+            ),
           _ConfigRow(
             label: l10n.subagentConfigModel,
             description: l10n.subagentConfigModelDescription,
@@ -139,6 +183,157 @@ class _SubagentConfigBody extends StatelessWidget {
     SubagentEscalation.deny => l10n.subagentEscalationDeny,
     SubagentEscalation.allow => l10n.subagentEscalationAllow,
   };
+
+  /// Every assistant this one could name — everybody else in the app.
+  ///
+  /// The selection is a filter on top of this list, so the picker always shows
+  /// the full menu with the selected ones ticked: a user who wants to change
+  /// their mind needs to see what they did not choose.
+  static List<Assistant> _otherAssistants(
+    BuildContext context,
+    Assistant assistant,
+  ) {
+    final all = context.read<AssistantProvider>().assistants;
+    return <Assistant>[
+      for (final other in all)
+        if (other.id != assistant.id) other,
+    ];
+  }
+
+  /// What the row says.
+  ///
+  /// A count, never a single assistant's name: with one target selected the
+  /// name filled the value slot and was already clipped, so the row would have
+  /// read as the only assistant that exists.
+  static String _targetsLabel(
+    AppLocalizations l10n,
+    Assistant assistant,
+    List<Assistant> candidates,
+  ) {
+    final selected = delegableAssistants(delegator: assistant, all: candidates);
+    if (selected.isEmpty) return l10n.subagentConfigTargetsSelf;
+    return l10n.subagentConfigTargetsSelfPlus(selected.length);
+  }
+
+  /// The fixed part of the picker: a copy of this assistant is always available,
+  /// and the ticked list below is what may be named on top of it.
+  ///
+  /// The row is deliberately not a checkbox: "delegate to yourself" is not an
+  /// option this setting owns, it is what the feature is, and a control that
+  /// cannot be turned off is a worse lie than a line that never pretended to be
+  /// one.
+  static Widget _targetsHeader(
+    BuildContext context,
+    Assistant self,
+    AppLocalizations l10n,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    // 10 px matches the picker's own rows, so the fixed row and the candidates
+    // share one left edge.
+    Widget section(String text) => Padding(
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 2),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: cs.onSurface.withValues(alpha: .55),
+        ),
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        section(l10n.subagentConfigTargetsSelfSection),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          child: Row(
+            children: [
+              AssistantAvatar(assistant: self, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.subagentConfigTargetsSelf,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14.5),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.subagentConfigTargetsSelfCaption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: cs.onSurface.withValues(alpha: .55),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                l10n.subagentConfigTargetsAlways,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: cs.onSurface.withValues(alpha: .45),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(Lucide.CheckCircle, size: 20, color: cs.primary),
+            ],
+          ),
+        ),
+        Divider(
+          height: 1,
+          thickness: .5,
+          color: cs.outlineVariant.withValues(alpha: .2),
+        ),
+        section(l10n.subagentConfigTargetsOthersSection),
+      ],
+    );
+  }
+
+  static Widget _targetsFooter(BuildContext context, AppLocalizations l10n) =>
+      Text(
+        l10n.subagentConfigTargetsFooter,
+        maxLines: 2,
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.35,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .55),
+        ),
+      );
+
+  /// Picks the targets. The picker is the group chat's member picker with a
+  /// fixed row above the list and one sentence at the bottom.
+  ///
+  /// An empty selection is a real answer here ("only yourself"), not a cancel —
+  /// the group's invite path treats it as one because inviting nobody is not a
+  /// request, whereas naming nobody is exactly what this row is for.
+  static Future<void> _pickTargets(
+    BuildContext context,
+    Assistant assistant,
+    List<Assistant> candidates,
+  ) async {
+    final l10n = AppLocalizations.of(context)!;
+    final assistants = context.read<AssistantProvider>();
+    final picked = await showGroupMemberPickerDialog(
+      context,
+      title: l10n.subagentConfigTargets,
+      candidates: candidates,
+      initialSelection: assistant.subagentTargetIds,
+      header: _targetsHeader(context, assistant, l10n),
+      footer: _targetsFooter(context, l10n),
+    );
+    if (picked == null) return;
+    final latest = assistants.getById(assistant.id) ?? assistant;
+    await assistants.updateAssistant(
+      latest.copyWith(subagentTargetIds: picked),
+    );
+  }
 
   /// The three choices, each with the icon that carries its meaning: a question
   /// mark for asking, a prohibition for refusing, a warning for the one that

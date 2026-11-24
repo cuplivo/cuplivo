@@ -5558,6 +5558,62 @@ void main() {
       expect(next.success, isTrue, reason: next.summary);
       expect(await _messageIds(b, "conv-a"), contains("conv-a-late"));
     });
+
+    test("a session that dies after the push keeps what it proved", () async {
+      // The peer defers the conversation, so nothing about it is agreed; the beat
+      // after the push then throws. Without the partial write this session would
+      // leave the previous entry untouched and the deferral would exist only in
+      // memory — which is what "every way of ending a session other than cleanly"
+      // used to mean.
+      final a = _Side("a", pageBytes: tinyPage);
+      final b = _Side("b", pageBytes: tinyPage);
+      await a.start(
+        root,
+        midApplyWrite: (conversationId) async =>
+            throw StateError("the beat after the push died"),
+      );
+      await b.start(root);
+      sides.addAll([a, b]);
+      await pairSides(a, b);
+
+      await _seedConversation(a, id: "conv-a", contents: ["shared"]);
+      await a.engine.syncWithPeer(await a.peer(b));
+      await a.repository.putMessage(
+        ChatMessage(
+          id: "conv-a-late",
+          conversationId: "conv-a",
+          role: "user",
+          content: "z" * 4000,
+        ),
+      );
+      await _setStreaming(b, "conv-a", streaming: true);
+      // Something to fetch, so the failing beat is an apply rather than a no-op.
+      await _seedConversation(b, id: "conv-b", contents: ["from-b"]);
+
+      final failed = await a.engine.syncWithPeer(await a.peer(b));
+      expect(failed.success, isFalse, reason: failed.summary);
+
+      final checkpoint = await a.store.loadCheckpoint(b.identity.deviceId);
+      final entry = checkpoint.conversations["conv-a"];
+      expect(
+        entry?.cursor,
+        isNotNull,
+        reason:
+            "the peer took the page, so the entry has to say the transfer is "
+            "owed — the prior entry said nothing and lost the deferral",
+      );
+      expect(entry!.cursor!.sending, isTrue);
+      expect(
+        entry.rows,
+        isNotEmpty,
+        reason: "the agreement the transfer started from is still in it",
+      );
+
+      await _setStreaming(b, "conv-a", streaming: false);
+      final after = await a.engine.syncWithPeer(await a.peer(b));
+      expect(after.success, isTrue, reason: after.summary);
+      expect(await _messageIds(b, "conv-a"), contains("conv-a-late"));
+    });
   });
 
   test('a write during the session is not recorded as the peer\'s', () async {

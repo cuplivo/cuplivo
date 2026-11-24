@@ -164,7 +164,7 @@ Future<void> showGroupInvite(BuildContext context, String groupId) async {
   if (group == null) return;
   final existing = _membersOf(context, group).map((m) => m.id).toSet();
   final candidates = [
-    for (final assistant in context.read<AssistantProvider>().assistants)
+    for (final assistant in context.read<AssistantProvider>().chatAssistants)
       if (!existing.contains(assistant.id)) assistant,
   ];
   if (candidates.isEmpty) return;
@@ -187,7 +187,7 @@ Future<void> showGroupInvite(BuildContext context, String groupId) async {
 /// Creates a group from a name plus its first members.
 Future<GroupChat?> showGroupCreate(BuildContext context) async {
   final l10n = AppLocalizations.of(context)!;
-  final candidates = context.read<AssistantProvider>().assistants;
+  final candidates = context.read<AssistantProvider>().chatAssistants;
   if (candidates.isEmpty) return null;
 
   Future<({String name, List<String> memberIds})?> ask(

@@ -31,12 +31,26 @@ class AssistantProvider extends ChangeNotifier {
   bool _isLoaded = false;
 
   List<Assistant> get assistants => List.unmodifiable(_assistants);
+
+  /// Assistants that can own a conversation: everything except a remote
+  /// DeepSeek Harness, which the app opens as a WebUI instead of chatting with.
+  List<Assistant> get chatAssistants =>
+      List.unmodifiable(_assistants.where((a) => !a.isDeepSeekHarness));
+
+  Assistant? get _firstChatAssistant =>
+      _assistants.where((a) => !a.isDeepSeekHarness).firstOrNull;
+
   String? get currentAssistantId => currentAssistant?.id;
   Assistant? get currentAssistant {
     final idx = _assistants.indexWhere((a) => a.id == _currentAssistantId);
-    if (idx != -1) return _assistants[idx];
-    if (_assistants.isNotEmpty) return _assistants.first;
-    return null;
+    if (idx != -1 && !_assistants[idx].isDeepSeekHarness) {
+      return _assistants[idx];
+    }
+    // A harness assistant is never the "current" chat assistant. Falling back
+    // to the first local one keeps every chat surface with a usable owner; the
+    // list is only fully harness-free in deliberate arrangements, and then the
+    // first harness still has a name and avatar to show.
+    return _firstChatAssistant ?? _assistants.firstOrNull;
   }
 
   bool get currentSearchEnabled => currentAssistant?.searchEnabled ?? false;
@@ -115,10 +129,12 @@ class AssistantProvider extends ChangeNotifier {
     // Restore current assistant if present
     final savedValue = preferences.get(_currentAssistantKey);
     final savedId = savedValue is String ? savedValue : null;
-    if (savedId != null && _assistants.any((a) => a.id == savedId)) {
+    final savedAssistant = savedId == null ? null : getById(savedId);
+    if (savedAssistant != null && !savedAssistant.isDeepSeekHarness) {
       _currentAssistantId = savedId;
     } else {
-      _currentAssistantId = _assistants.firstOrNull?.id;
+      _currentAssistantId =
+          _firstChatAssistant?.id ?? _assistants.firstOrNull?.id;
     }
     await _ensureOrphanedAssistant();
     if (_currentAssistantId != null && savedValue != _currentAssistantId) {
@@ -133,6 +149,7 @@ class AssistantProvider extends ChangeNotifier {
     final savedId = savedValue is String ? savedValue : null;
     _orphanedAssistantId =
         (savedId == null ? null : getById(savedId))?.id ??
+        _firstChatAssistant?.id ??
         _assistants.firstOrNull?.id;
     if (_orphanedAssistantId != null && savedValue != _orphanedAssistantId) {
       await preferences.setString(_orphanedAssistantKey, _orphanedAssistantId!);
@@ -325,7 +342,11 @@ class AssistantProvider extends ChangeNotifier {
 
   Future<void> setCurrentAssistant(String id) async {
     await loaded;
-    if (getById(id) == null) return;
+    final assistant = getById(id);
+    if (assistant == null) return;
+    // Selecting the harness in the sidebar opens its WebUI; it does not change
+    // which assistant the chat belongs to.
+    if (assistant.isDeepSeekHarness) return;
     if (_currentAssistantId == id) return;
     _currentAssistantId = id;
     notifyListeners();
@@ -345,9 +366,14 @@ class AssistantProvider extends ChangeNotifier {
   /// deleting that assistant assigns another existing assistant.
   Assistant? resolveConversationAssistant(String? assistantId) {
     if (assistantId == null) return currentAssistant;
-    return getById(assistantId) ??
-        getById(_orphanedAssistantId ?? '') ??
-        _assistants.firstOrNull;
+    final direct = getById(assistantId);
+    // A conversation never chats with a harness; fall through to a local owner
+    // if one is somehow named (an old export, a sync from a device that had a
+    // different arrangement).
+    if (direct != null && !direct.isDeepSeekHarness) return direct;
+    final orphaned = getById(_orphanedAssistantId ?? '');
+    if (orphaned != null && !orphaned.isDeepSeekHarness) return orphaned;
+    return _firstChatAssistant ?? _assistants.firstOrNull;
   }
 
   // Lightweight accessor so callers don't depend on Assistant.presetMessages symbol
@@ -376,6 +402,16 @@ class AssistantProvider extends ChangeNotifier {
       topP: null,
       limitContextMessages: false,
     );
+    _assistants.add(a);
+    await _persist();
+    notifyListeners();
+    return a.id;
+  }
+
+  /// Creates the pointer to a remote DeepSeek Harness. It is not connected yet;
+  /// its settings page sets [Assistant.harnessUrl] and proves the connection.
+  Future<String> addHarnessAssistant({required String name}) async {
+    final a = Assistant.harness(id: const Uuid().v4(), name: name.trim());
     _assistants.add(a);
     await _persist();
     notifyListeners();
@@ -657,8 +693,13 @@ class AssistantProvider extends ChangeNotifier {
   Future<bool> deleteAssistant(String id) async {
     final idx = _assistants.indexWhere((a) => a.id == id);
     if (idx == -1) return false;
-    // Do not allow deleting the last remaining assistant
-    if (_assistants.length <= 1) return false;
+    // Never leave the app without a local chat assistant: a harness is a remote
+    // pointer, not a fallback owner for the conversations a local one takes.
+    // Deleting a harness is always safe because this guardian keeps a local one.
+    if (!_assistants[idx].isDeepSeekHarness &&
+        _assistants.where((a) => !a.isDeepSeekHarness).length <= 1) {
+      return false;
+    }
 
     // One deletion event: the assistant goes and so do its conversations. The
     // group is what lets the bin show them as the one act they were instead of N
@@ -672,9 +713,8 @@ class AssistantProvider extends ChangeNotifier {
     final removingCurrent = _assistants[idx].id == _currentAssistantId;
     _assistants.removeAt(idx);
     if (removingCurrent) {
-      _currentAssistantId = _assistants.isNotEmpty
-          ? _assistants.first.id
-          : null;
+      _currentAssistantId =
+          _firstChatAssistant?.id ?? _assistants.firstOrNull?.id;
     }
     // The assistant's own row is removed by this write, so it takes the same
     // group the conversations did.

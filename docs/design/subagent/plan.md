@@ -425,6 +425,7 @@ master 已经合并生图 job（`3c7e9b2b9`）。它带来的不是"又一个功
 - 结果行只在**模型没有通过工具调用拿到结果**时出现：`await_job` 由 `waiters` 抑制；模型 `interrupt` 成功也不写行、不唤醒——它只回 `accepted`，不回传内容，打断就是说到哪算哪，想要结论用 `await_job`，想让子代理尽快收口用 `send_message`。
 - 用户停止子代理：写分隔线，不唤醒父对话（用户刚按了 Stop，再生成一轮与意图相反；线已在历史里，下次发言时模型读得到）。父对话自己的 Stop 级联同样不唤醒。
 - 留言行不再是独立卡片：时间线里只留与结果行共用的一条 28px 分隔线（`subagentMailLabel` + 发送方标题），**不打印正文**——子代理的具体消息留在子会话里；点分隔线打开 dialog（桌面）/ sheet（移动），正文用 `MarkdownWithCodeHighlight`（与助手消息同一条 markstream 管线）渲染，底部是「复制 / 打开对话 / 关闭」。
+- 留言行与结果行在所有导出里都是同一条分隔线：单条消息 PNG（`_ExportedMessageCard`）、整段对话 PNG（`_ExportedChatImage`）、Markdown/纯文本导出、PDF（`buildExportDocument` 的 `subagentMailLabelOf`）五处都识别 `SubagentMailPart`，不会把子代理的消息印成用户自己的话（新增 `export_document_test` 回归）。
 - 新增 l10n 键 `subagentMailLabel`、`subagentMailOpenConversation`、`subagentMailCopy`、`subagentMailCopied`（6 个 ARB + 指纹 + `gen-l10n`，`translate.py check` 通过）。
 
 

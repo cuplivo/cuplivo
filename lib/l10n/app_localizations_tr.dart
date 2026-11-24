@@ -17253,9 +17253,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get chatMessageWidgetReplySelection => 'Yanıtla';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => 'Kullanıcı';
 
   @override
@@ -17372,6 +17369,9 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => 'Bitti';
+
+  @override
+  String get pdfExportResultSave => 'PDF\'yi kaydet';
 
   @override
   String get sideDrawerMenuCopyLink => 'Bağlantıyı kopyala';

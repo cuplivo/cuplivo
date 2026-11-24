@@ -1261,6 +1261,12 @@ contradicts one of them is a bug, not a preference.
   diagram set as its code, a picture set as its reference. A degrade is not a failure: the same conversation
   is still worth exporting, and `PdfExportResult` is how the result screen says what is missing instead of
   leaving a reader to notice it.
+- **Export handover (导出交付)**: where a finished document goes, and in which order. The layout hands its
+  bytes to a temporary file named after the conversation, and the result panel offers *that* file — save
+  picker, share sheet — with the export's own numbers and degrades above them. Saving first would invert the
+  cost: a user who closed the picker would have paid for the layout a second time. The name is set before the
+  save because iOS's export picker shows the file's name and cannot change it; every other export's name goes
+  through the same `safeFileName`, since a conversation title may carry a slash or be nothing at all.
 - **List nesting (列表层级)**: how deep an item sits. The tree carries it — a `ListNode` holds its
   `ListItemNode`s and an item holds the list inside it — so the layout spends one step (`_indentStep`) per
   level and stops at six, which is where a real document stops and a formatting accident begins. The depth is

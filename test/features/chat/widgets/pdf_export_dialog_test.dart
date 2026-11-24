@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'dart:io';
+
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/fonts/google_fonts_service.dart';
@@ -264,12 +266,15 @@ void main() {
             required options,
             googleFonts,
             resolver,
-          }) async => PdfExportResult(
-            bytes: Uint8List(1024),
-            pages: 1,
-            degradedMath: const <String>[],
-            degradedDiagrams: const <String>[],
-            undrawnImages: const <String>[],
+          }) async => ExportedPdf(
+            file: File('${Directory.systemTemp.path}/plain.pdf'),
+            result: PdfExportResult(
+              bytes: Uint8List(1024),
+              pages: 1,
+              degradedMath: const <String>[],
+              degradedDiagrams: const <String>[],
+              undrawnImages: const <String>[],
+            ),
           ),
     );
     await tester.tap(find.text('Export PDF').last);
@@ -537,12 +542,22 @@ List<PdfFontCandidate> _candidates() => const <PdfFontCandidate>[
   PdfFontCandidate(choice: PdfFontBuiltIn()),
 ];
 
-PdfExportResult _result() => PdfExportResult(
-  bytes: Uint8List(2 * 1024 * 1024),
-  pages: 42,
-  degradedMath: const <String>['x'],
-  degradedDiagrams: const <String>[],
-  undrawnImages: const <String>['a.png'],
+/// What a finished export hands back: the document and the file it was written
+/// to. The file is never read here — the result panel only names it, and the
+/// save picker is what copies it.
+ExportedPdf _result({
+  int pages = 42,
+  int bytes = 2 * 1024 * 1024,
+  String? name,
+}) => ExportedPdf(
+  file: File('${Directory.systemTemp.path}/${name ?? 'a chat.pdf'}'),
+  result: PdfExportResult(
+    bytes: Uint8List(bytes),
+    pages: pages,
+    degradedMath: const <String>['x'],
+    degradedDiagrams: const <String>[],
+    undrawnImages: const <String>['a.png'],
+  ),
 );
 
 Future<void> _open(
@@ -660,13 +675,15 @@ Widget _app({required Widget home}) => ChangeNotifierProvider<SettingsProvider>(
   ),
 );
 
-/// A surface tall enough for the whole dialog.
+/// A surface tall and wide enough for the whole dialog.
 ///
 /// The default 800×600 test window is shorter than this form, and a row that is
 /// clipped away is one `tester.tap` cannot reach — which would make a passing test
-/// say nothing about the row it tapped.
+/// say nothing about the row it tapped. It is also past the desktop breakpoint, so
+/// these cases exercise the dialog the app puts on a computer; the result sheet a
+/// phone gets is covered by `pdf_export_result_test.dart`.
 void _tallSurface(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1000, 1800);
+  tester.view.physicalSize = const Size(1400, 1800);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 }

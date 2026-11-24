@@ -17448,9 +17448,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatMessageWidgetReplySelection => 'Ответить';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => 'Пользователь';
 
   @override
@@ -17568,6 +17565,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => 'Готово';
+
+  @override
+  String get pdfExportResultSave => 'Сохранить PDF';
 
   @override
   String get sideDrawerMenuCopyLink => 'Копировать ссылку';

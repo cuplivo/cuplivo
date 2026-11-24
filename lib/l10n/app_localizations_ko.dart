@@ -16636,9 +16636,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get chatMessageWidgetReplySelection => '답장';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '사용자';
 
   @override
@@ -16753,6 +16750,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => '완료';
+
+  @override
+  String get pdfExportResultSave => 'PDF 저장';
 
   @override
   String get sideDrawerMenuCopyLink => '링크 복사';

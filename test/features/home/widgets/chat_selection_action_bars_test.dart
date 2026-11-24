@@ -53,11 +53,15 @@ void main() {
         onShare: () => shares++,
         onDeleteCurrentVersions: () => deletes++,
         onDeleteAllVersions: () => fail('single version selection'),
-        onExportPdf: () {},
       ),
     );
     expect(find.text('Share'), findsOneWidget);
     expect(find.text('Delete'), findsOneWidget);
+    // The export formats — PDF among them — are items of the Share menu, not
+    // buttons beside it: a format is a choice within "share this selection",
+    // and a row of one button per format competes with the two actions the bar
+    // exists for.
+    expect(find.text('PDF'), findsNothing);
     expect(find.text('TXT'), findsNothing);
     await tester.tap(find.text('Share'));
     await tester.tap(find.text('Delete'));
@@ -75,7 +79,6 @@ void main() {
         onShare: () => fail('no selection'),
         onDeleteCurrentVersions: () => fail('no selection'),
         onDeleteAllVersions: () => fail('no selection'),
-        onExportPdf: () {},
       ),
     );
     expect(
@@ -103,7 +106,6 @@ void main() {
           onShare: () {},
           onDeleteCurrentVersions: () => currentDeletes++,
           onDeleteAllVersions: () => allDeletes++,
-          onExportPdf: () {},
         ),
       );
       await tester.tap(find.text('Delete'));
@@ -153,7 +155,6 @@ void main() {
           onShare: () {},
           onDeleteCurrentVersions: () {},
           onDeleteAllVersions: () {},
-          onExportPdf: () {},
         ),
         size: size,
         locale: const Locale('zh'),

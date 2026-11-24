@@ -163,7 +163,11 @@ class _HarnessWebViewState extends State<HarnessWebView> {
         // strip is guaranteed to paint on every platform, while an overlay
         // above a platform view depends on how the view is composited.
         if (_loading && !_failed)
-          LinearProgressIndicator(minHeight: 2, value: _progress / 100),
+          LinearProgressIndicator(
+            key: const Key('harness-web-view-loading'),
+            minHeight: 2,
+            value: _progress / 100,
+          ),
         Expanded(
           child: Stack(
             fit: StackFit.expand,

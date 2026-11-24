@@ -570,7 +570,7 @@ class _LocalToolsGroup extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: ImageModelSubRow(
-                        label: subagentSummary(l10n, assistant),
+                        label: subagentSummary(context, l10n, assistant),
                         configured: true,
                         onTap: () => unawaited(
                           showSubagentConfig(

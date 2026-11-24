@@ -165,6 +165,38 @@ void main() {
     expect(criteria.keys, isNot(contains('a')));
   });
 
+  test('a description travels only for the members that have one', () async {
+    // The roster is the only place a selector learns what an assistant is for;
+    // an empty description is left out so an unchanged install sends the same
+    // bytes it always did.
+    final described = [
+      const Assistant(id: 'a', name: 'A'),
+      const Assistant(id: 'b', name: 'B', description: '写 SQL\n并解释执行计划'),
+      const Assistant(id: 'c', name: 'C'),
+    ];
+    await GroupDirector(settings: settings).decide(
+      group: group,
+      members: described,
+      transcript: transcript,
+      spokeThisRound: const {},
+      resolve: (id) {
+        for (final member in described) {
+          if (member.id == id) return member;
+        }
+        return null;
+      },
+      remainingTurns: 3,
+    );
+
+    final state = requests.single.body['state'] as Map<String, dynamic>;
+    final byId = <String, Map<String, dynamic>>{
+      for (final member in state['members'] as List)
+        (member as Map)['id'] as String: member.cast<String, dynamic>(),
+    };
+    expect(byId['b']!['description'], '写 SQL 并解释执行计划');
+    expect(byId['a']!.containsKey('description'), isFalse);
+  });
+
   test('Stop aborts the decision request instead of waiting it out', () async {
     delay = const Duration(seconds: 3);
     const requestId = 'conversation-1';

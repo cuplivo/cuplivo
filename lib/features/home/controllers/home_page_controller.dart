@@ -20,6 +20,7 @@ import '../../scheduled_tasks/scheduled_task_runner.dart';
 import '../services/tool_approval_service.dart';
 import '../../subagent/services/subagent_coordinator.dart';
 import '../../subagent/services/subagent_model.dart' show resolveSubagentModel;
+import '../../subagent/services/subagent_target.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show listEquals, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -756,12 +757,19 @@ class HomePageController extends ChangeNotifier {
   /// over the three capabilities once and takes them back when it goes away.
   SubagentHost buildSubagentHost() => SubagentHost(
     turnStarter:
-        ({required conversationId, required assistant, required task}) =>
-            startSubagentTurn(
-              conversationId: conversationId,
-              assistant: assistant,
-              task: task,
-            ),
+        ({
+          required conversationId,
+          required assistant,
+          required task,
+          delegator,
+          target,
+        }) => startSubagentTurn(
+          conversationId: conversationId,
+          assistant: assistant,
+          task: task,
+          delegator: delegator,
+          target: target,
+        ),
     enqueueResult:
         ({
           required parentConversationId,
@@ -808,16 +816,22 @@ class HomePageController extends ChangeNotifier {
   }
 
   /// Runs one whole turn in [conversationId] on behalf of a subagent.
+  ///
+  /// [assistant] is the target — who the child runs as — and [delegator] is who
+  /// handed the task over. They differ when the task was named to another
+  /// assistant, and the pair is what the model override is resolved from.
   Future<SubagentTurnStart> startSubagentTurn({
     required String conversationId,
     required Assistant assistant,
     required String task,
+    Assistant? delegator,
+    SubagentTarget? target,
   }) async {
     final conversation = _chatService.getConversation(conversationId);
     if (conversation == null) {
       return const SubagentTurnStart.refused('conversation_missing');
     }
-    final model = resolveSubagentModel(assistant);
+    final model = resolveSubagentModel(delegator ?? assistant, target: target);
     final result = await _viewModel.sendScheduledMessage(
       input: ChatInputData(text: task),
       conversation: conversation,

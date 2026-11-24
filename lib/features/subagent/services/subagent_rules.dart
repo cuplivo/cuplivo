@@ -6,9 +6,11 @@
 /// pin each rule without standing up the app.
 library;
 
-import '../../../core/models/assistant.dart' show SubagentEscalation;
+import '../../../core/models/assistant.dart' show Assistant, SubagentEscalation;
 import '../../../core/models/workspace_binding.dart';
+import '../../../utils/single_line_text.dart';
 import '../../../utils/utf16_safe_cut.dart';
+import 'subagent_target.dart';
 
 /// The extras keys one delegation writes onto its child conversation.
 ///
@@ -26,9 +28,11 @@ abstract final class SubagentExtrasKeys {
   /// is 0.
   static const String depth = 'subagent.depth';
 
-  /// What this child was asked to be. `general` today; the placeholder is what
-  /// lets a later slice add a target without migrating anything.
-  static const String target = 'subagent.target';
+  /// What this child was asked to be: [SubagentTarget.encode] — `general` for a
+  /// copy of the delegating assistant, `assistant:<id>` for one of the user's
+  /// other assistants. The model sends it, the tool writes it, this key keeps
+  /// it, and nobody has to put it back together from two keys.
+  static const String target = SubagentTargetKeys.extras;
 
   /// How this child may spend the user's permission: the assistant's
   /// `subagentEscalation` at the moment it was delegated. Copied rather than
@@ -42,7 +46,51 @@ abstract final class SubagentExtrasKeys {
   /// withdraw a consent that was given for one delegation.
   static const String escalationCap = 'subagent.escalation.cap';
 
-  static const String generalTarget = 'general';
+  static const String generalTarget = SubagentTargetKeys.general;
+}
+
+/// The assistants a delegation from [delegator] may name, in the order they
+/// should be offered.
+///
+/// One rule, two callers: the tool schema asks it for the names and the handler
+/// asks it whether an emitted target is legal. Two copies would drift, and the
+/// one that drifts is the one that acts.
+///
+/// The delegating assistant is never in the list — "a copy of yourself" is what
+/// `general` already means — and an assistant the user did not select is not
+/// either: the selection is also what keeps the id list (roughly 15 tokens
+/// each, twice) out of a request the user's assistant rarely needs.
+List<Assistant> delegableAssistants({
+  required Assistant delegator,
+  required List<Assistant> all,
+}) {
+  final chosen = delegator.subagentTargetIds.toSet();
+  if (chosen.isEmpty) return const <Assistant>[];
+  return <Assistant>[
+    for (final assistant in all)
+      if (assistant.id != delegator.id && chosen.contains(assistant.id))
+        assistant,
+  ];
+}
+
+/// One line of the target menu: the value the model must emit, and what the
+/// assistant is for.
+///
+/// The name is not decoration — the model reads it and the id is what it copies
+/// back. The description follows only when the user wrote one, and it is folded
+/// to a single line: a menu entry is one line, and a newline would break it.
+String targetMenuLine(Assistant assistant) {
+  final name = assistantName(assistant);
+  final about = oneLineText(assistant.description);
+  return '${SubagentTarget.assistant(assistant.id).encode()} — '
+      '${about.isEmpty ? name : '$name：$about'}';
+}
+
+/// The name a model reads for [assistant]; an id is the last resort, and the
+/// same fallback the group director uses.
+String assistantName(Assistant assistant) {
+  final name = assistant.name.trim();
+  return name.isEmpty ? assistant.id : name;
 }
 
 /// The deepest delegation allowed below a normal conversation.
@@ -74,6 +122,7 @@ SubagentChildSpec buildChildSpec({
   required Map<String, dynamic> parentExtras,
   SubagentEscalation escalation = SubagentEscalation.ask,
   bool delegatorHasFullAccess = false,
+  String target = SubagentTargetKeys.general,
 }) {
   final parentBinding = WorkspaceBinding.fromExtras(parentExtras);
   final depth = parentDepth(parentExtras) + 1;
@@ -88,7 +137,7 @@ SubagentChildSpec buildChildSpec({
       SubagentExtrasKeys.parent: parentConversationId,
       SubagentExtrasKeys.root: root ?? parentConversationId,
       SubagentExtrasKeys.depth: depth,
-      SubagentExtrasKeys.target: SubagentExtrasKeys.generalTarget,
+      SubagentExtrasKeys.target: target,
       SubagentExtrasKeys.escalation: escalation.name,
       SubagentExtrasKeys.escalationCap: delegatorHasFullAccess,
     },

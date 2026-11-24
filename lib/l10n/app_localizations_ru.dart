@@ -1065,6 +1065,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String get assistantEditMaxTokensHint => 'Без ограничений';
 
   @override
+  String get assistantEditDescriptionTitle => 'Описание';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      'Читается только при планировании групповых чатов и делегировании. Оставьте пустым, если этим не пользуетесь.';
+
+  @override
+  String get assistantEditDescriptionHint =>
+      'напр. Писать SQL по запросу и объяснять план запроса';
+
+  @override
+  String get assistantEditDescriptionSet => 'Заполнено';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Фон чата';
 
   @override
@@ -2954,6 +2968,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String chatMessageWidgetDelegate(String label) {
     return 'Поручить субагенту: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return 'Делегировать $assistant: $label';
   }
 
   @override
@@ -19451,6 +19470,49 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get subagentConfigModelInherit => 'Как у этого ассистента';
+
+  @override
+  String get subagentConfigTargets => 'Цели делегирования';
+
+  @override
+  String get subagentConfigTargetsDescription =>
+      'Помощники, которые могут работать как подагенты';
+
+  @override
+  String get subagentConfigTargetsSelf => 'Этот помощник';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return 'Этот помощник + $count';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection =>
+      'Поручить своему помощнику можно всегда';
+
+  @override
+  String get subagentConfigTargetsSelfCaption =>
+      'Тот же помощник, та же модель, те же инструменты';
+
+  @override
+  String get subagentConfigTargetsAlways => 'Всегда';
+
+  @override
+  String get subagentConfigTargetsOthersSection =>
+      'Также можно указать по имени';
+
+  @override
+  String get subagentConfigTargetsFooter =>
+      'Если никого не отметить, задачи будет выполнять только ваш помощник.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · целей $targets · глубина $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {

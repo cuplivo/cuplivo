@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import 'package:Cuplivo/core/models/workspace_binding.dart';
 import 'package:Cuplivo/features/subagent/services/subagent_rules.dart';
+import 'package:Cuplivo/features/subagent/services/subagent_target.dart';
+import 'package:Cuplivo/utils/single_line_text.dart';
 
 void main() {
   group('buildChildSpec', () {
@@ -64,6 +67,121 @@ void main() {
       // A grandchild still names the conversation a user recognises.
       expect(second.extras[SubagentExtrasKeys.root], 'parent-1');
       expect(second.extras[SubagentExtrasKeys.parent], 'child-1');
+    });
+
+    test(
+      'a named target is stored as one value, exactly as the model sent it',
+      () {
+        final target = SubagentTarget.assistant('a-2');
+        final spec = buildChildSpec(
+          parentConversationId: 'parent-1',
+          parentExtras: const <String, dynamic>{},
+          target: target.encode(),
+        );
+
+        // One key, not two: nothing has to join an id to a kind.
+        expect(spec.extras[SubagentExtrasKeys.target], 'assistant:a-2');
+        // A target contributes no grant and no workspace of its own.
+        expect(spec.extras.keys, isNot(contains(ToolPermissionMode.extrasKey)));
+        expect(spec.extras.keys, isNot(contains(WorkspaceBinding.keyId)));
+      },
+    );
+  });
+
+  group('delegableAssistants', () {
+    Assistant assistant(
+      String id, {
+      String name = 'A',
+      List<String>? targets,
+    }) => Assistant(id: id, name: name, subagentTargetIds: targets ?? const []);
+
+    test('an assistant with nothing selected offers nothing', () {
+      // The default is "none": no target parameter, no token spent, byte-for-byte
+      // the schema that shipped before targets existed.
+      final delegator = assistant('self');
+      expect(
+        delegableAssistants(
+          delegator: delegator,
+          all: <Assistant>[delegator, assistant('a'), assistant('b')],
+        ),
+        isEmpty,
+      );
+    });
+
+    test('only the selected ones, never the delegator itself', () {
+      final self = assistant('self', targets: <String>['self', 'a']);
+      final offered = delegableAssistants(
+        delegator: self,
+        all: <Assistant>[assistant('a'), self, assistant('b')],
+      );
+      expect(offered.map((a) => a.id), <String>['a']);
+    });
+
+    test('a deleted assistant is skipped without disturbing the rest', () {
+      final self = assistant('self', targets: <String>['gone', 'b']);
+      final offered = delegableAssistants(
+        delegator: self,
+        all: <Assistant>[self, assistant('b')],
+      );
+      expect(offered.map((a) => a.id), <String>['b']);
+    });
+
+    test('order follows the app, not the selection', () {
+      final self = assistant('self', targets: <String>['c', 'a', 'b']);
+      final offered = delegableAssistants(
+        delegator: self,
+        all: <Assistant>[assistant('a'), assistant('b'), assistant('c')],
+      );
+      expect(offered.map((a) => a.id), <String>['a', 'b', 'c']);
+    });
+  });
+
+  group('targetMenuLine', () {
+    test('carries the value to emit, the name and what it is for', () {
+      final line = targetMenuLine(
+        Assistant(id: 'a-1', name: 'SQL 专家', description: '把需求写成 SQL\n并解释执行计划'),
+      );
+
+      // The value the model must copy back comes first, unchanged.
+      expect(line, startsWith('assistant:a-1 — '));
+      expect(line, contains('SQL 专家'));
+      // Folded to one line: a menu entry is one line, and a newline would break it.
+      expect(line, isNot(contains('\n')));
+      expect(line, contains('把需求写成 SQL 并解释执行计划'));
+    });
+
+    test('an empty description leaves the name alone', () {
+      expect(
+        targetMenuLine(Assistant(id: 'a-1', name: '翻译官')),
+        'assistant:a-1 — 翻译官',
+      );
+    });
+
+    test('a nameless assistant is named by its id rather than by nothing', () {
+      expect(
+        targetMenuLine(Assistant(id: 'a-1', name: '  ')),
+        'assistant:a-1 — a-1',
+      );
+    });
+  });
+
+  group('oneLineText', () {
+    test('flattens newlines and collapses runs of whitespace', () {
+      expect(oneLineText('  a\n\nb\tc  '), 'a b c');
+    });
+
+    test('bounds a long description with an ellipsis', () {
+      final text = oneLineText('x' * 200, max: 20);
+      expect(text.length, 21);
+      expect(text.endsWith('…'), isTrue);
+    });
+
+    test('never tears a surrogate pair at the cut', () {
+      // Each emoji is two UTF-16 code units; a cut inside one would leave a
+      // lone surrogate, which jsonEncode refuses.
+      final text = oneLineText('😀' * 20, max: 5);
+      expect(text.length, lessThanOrEqualTo(6));
+      expect(() => text.runes.toList(), returnsNormally);
     });
   });
 

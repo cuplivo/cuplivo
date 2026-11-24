@@ -51,6 +51,7 @@ final class _PanelRow {
     required this.elapsed,
     required this.phase,
     required this.waitReason,
+    this.assistantName,
   });
 
   factory _PanelRow.fromEntry(SubagentEntry entry) => _PanelRow(
@@ -60,6 +61,9 @@ final class _PanelRow {
     elapsed: entry.elapsed,
     phase: entry.phase,
     waitReason: entry.waitReason,
+    // Only a named target has one: `general` is this assistant, and saying so
+    // on every other row would be noise.
+    assistantName: entry.targetName,
   );
 
   factory _PanelRow.fromPart(SubagentResultPart part, DateTime sentAt) =>
@@ -77,10 +81,16 @@ final class _PanelRow {
           _ => SubagentPhase.completed,
         },
         waitReason: null,
+        // The result part records who the child was by id, not by name; a row
+        // read back after a restart therefore shows the job alone.
       );
 
   final String childConversationId;
   final String title;
+
+  /// Who ran the task, when the delegation named somebody. Null for `general`
+  /// and for every row reconstructed from a result message.
+  final String? assistantName;
 
   /// When the delegation started, which is also what orders the list.
   final DateTime startedAt;
@@ -317,10 +327,15 @@ class _SubagentRow extends StatelessWidget {
 
   static String _elapsedText(AppLocalizations l10n, _PanelRow row) {
     final shown = row.shownDuration;
-    // A row that never recorded a duration shows nothing rather than repeating
-    // its state word in the sub-line.
-    if (shown == null) return '';
-    return l10n.subagentPanelElapsed(shown.inMinutes, shown.inSeconds % 60);
+    final duration = shown == null
+        ? ''
+        : l10n.subagentPanelElapsed(shown.inMinutes, shown.inSeconds % 60);
+    final who = row.assistantName?.trim() ?? '';
+    if (who.isEmpty) return duration;
+    if (duration.isEmpty) return who;
+    // `<assistant> · <duration>`: the same order as the card, so a named
+    // delegation reads the same in both places.
+    return '$who · $duration';
   }
 }
 

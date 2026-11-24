@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/health_data_type.dart';
 import '../../../core/services/browser/browser_tools_service.dart';
+import '../../subagent/services/subagent_rules.dart' show targetMenuLine;
+import '../../subagent/services/subagent_target.dart';
 import 'calculator_service.dart';
 
 typedef TextToSpeechStarter = Future<void> Function(String text);
@@ -506,6 +508,7 @@ class LocalToolsService {
     required Assistant? assistant,
     required bool supportsTools,
     bool allowDelegation = true,
+    List<Assistant> delegateTargets = const <Assistant>[],
   }) {
     if (!supportsTools || assistant == null) {
       return const <Map<String, dynamic>>[];
@@ -545,6 +548,11 @@ class LocalToolsService {
             ),
           ),
         );
+      } else if (id == LocalToolNames.delegate) {
+        // The one definition whose body depends on the assistant's own
+        // settings: with no targets selected it is the const schema, and the
+        // model is never told it could have named somebody.
+        tools.add(delegateDefinitionFor(delegateTargets));
       } else {
         tools.add(definitionFor(id));
       }
@@ -875,40 +883,91 @@ class LocalToolsService {
   /// not claim the work as its own (the child may fail), and it must not repeat
   /// the call (one task, one child). Everything else is deliberately short —
   /// the child sees no history, so the task text has to stand alone.
+  ///
+  /// This is the shape with no target to choose from, which is also every
+  /// assistant that has not selected any: the parameter does not exist, so the
+  /// request is byte-for-byte what it was before delegation targets shipped.
   static const Map<String, dynamic> delegateDefinition = {
     'type': 'function',
     'function': {
       'name': LocalToolNames.delegate,
-      'description':
-          'Hand one self-contained task to a subagent. It works in its own '
-          'conversation with the same assistant, tools and workspace as this '
-          'one, so it can take a while. This call returns immediately with a '
-          'conversation id and NOT with the result: the subagent is still '
-          'working. When it finishes, its conclusion arrives here as a notice '
-          'and you will be asked to continue. Until that notice arrives, do '
-          'not claim the task is done, do not delegate the same task again, '
-          'and if you have nothing else to do just end your reply.',
+      'description': _delegateToolDescription,
       'parameters': {
         'type': 'object',
         'properties': {
-          'task': {
-            'type': 'string',
-            'description':
-                'Everything the subagent needs, in full sentences. It cannot '
-                'see this conversation, so name the files, the goal and the '
-                'constraints.',
-          },
-          'label': {
-            'type': 'string',
-            'description':
-                'A short name for this job, used on the card, the progress '
-                'line and the new conversation title. A noun phrase, not a '
-                'sentence, in the language the user is writing in.',
-          },
+          'task': _delegateTaskParameter,
+          'label': _delegateLabelParameter,
         },
         'required': ['task', 'label'],
       },
     },
+  };
+
+  /// The same schema, with one more parameter: who runs the task.
+  ///
+  /// [targets] is already filtered by `delegableAssistants`, and one menu line
+  /// per target is `targetMenuLine` — the value the model must emit, then what
+  /// that assistant is for. Ids travel, names are read: a name is not unique
+  /// and can change under a request.
+  static Map<String, dynamic> delegateDefinitionFor(List<Assistant> targets) {
+    if (targets.isEmpty) return delegateDefinition;
+    final menu = <String>[
+      'Who runs the task, in this same workspace:',
+      '${SubagentTargetKeys.general} — a copy of yourself.',
+      for (final target in targets) targetMenuLine(target),
+    ];
+    return {
+      'type': 'function',
+      'function': {
+        'name': LocalToolNames.delegate,
+        'description': _delegateToolDescription,
+        'parameters': {
+          'type': 'object',
+          'properties': {
+            'task': _delegateTaskParameter,
+            'label': _delegateLabelParameter,
+            'target': {
+              'type': 'string',
+              'enum': <String>[
+                SubagentTargetKeys.general,
+                for (final target in targets)
+                  SubagentTarget.assistant(target.id).encode(),
+              ],
+              'description': menu.join('\n'),
+            },
+          },
+          'required': ['task', 'label', 'target'],
+        },
+      },
+    };
+  }
+
+  static const String _delegateToolDescription =
+      'Hand one self-contained task to a subagent. It works in its own '
+      'conversation, in this same workspace. By default it runs as a copy of '
+      'yourself; the `target` parameter (when this assistant offers one) runs '
+      'it as that assistant instead, with their prompt, model and tools. It '
+      'can take a while. This call returns immediately with a '
+      'conversation id and NOT with the result: the subagent is still '
+      'working. When it finishes, its conclusion arrives here as a notice '
+      'and you will be asked to continue. Until that notice arrives, do '
+      'not claim the task is done, do not delegate the same task again, '
+      'and if you have nothing else to do just end your reply.';
+
+  static const Map<String, dynamic> _delegateTaskParameter = {
+    'type': 'string',
+    'description':
+        'Everything the subagent needs, in full sentences. It cannot '
+        'see this conversation, so name the files, the goal and the '
+        'constraints.',
+  };
+
+  static const Map<String, dynamic> _delegateLabelParameter = {
+    'type': 'string',
+    'description':
+        'A short name for this job, used on the card, the progress '
+        'line and the new conversation title. A noun phrase, not a '
+        'sentence, in the language the user is writing in.',
   };
 
   /// The blocking counterpart of [delegateDefinition].

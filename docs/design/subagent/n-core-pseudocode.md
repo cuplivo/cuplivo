@@ -317,4 +317,63 @@ preparing / requesting / streaming / waiting_tool 原子地改成 interrupted
 - 侧边栏的 `子代理` 标签补上了（`_ChatTile`，草稿标签那个位置，中性色而不是主色）。
 - 工具卡给 `delegate` / `await_job` 补了图标与标题（之前 `await_job` 会掉成 `Tool Call: await_job`）。
 
+---
+
+## 11. 第二片：委派目标为助手（2026-11-23）
+
+> 澄清轮次见 `zb-target-any-assistant*.html`（v1→v5，最终 accept 的是 v5）。这一节的规则是这一片实现时钉住的。
+
+**一句话**：`delegate` 多一个 `target` 参数，值是 `general` 或 `assistant:<id>`；`general` 是本助手的分身（今天的行为），`assistant:<id>` 是用户勾选的另一个助手。**工作区、授权、深度永远来自调用方**，目标只贡献系统提示 / 模型 / 工具集。这一片之前写死的「子会话 `assistantId` = 父会话的」由此改成「= 目标的」。
+
+### 11.1 词表：一个键、一处解析
+
+- 词表：`subagent.target` 从占位值 `'general'` 变成真词表：`'general' | 'assistant:<id>'`。模型发什么就落什么，`buildChildSpec(target:)` 一次写入。
+- 解析只有 `subagent_target.dart` 一处：`parseSubagentTarget`（工具参数）。**名单外一律拒绝**（`unknown_target`），不回落、不猜；只有键**缺省**才当 `general`（那是这一片之前每条委派请求的样子，`tool_handler_service.dart` 的 `rawTarget == null` 分支）。extras 里的值目前没有运行时读者（子会话的助手就是目标，界面从 `assistantId` 显示它），所以没有为它造第二个解码口。
+- `SubagentEntry` 保留 `assistant`（调用方，唤醒与续写用它）并新增 `target` / `targetName`；`SubagentStarted.toToolResult()` 原样带回 `target`。
+
+### 11.2 谁能被指名：默认无人
+
+- `Assistant.subagentTargetIds`（`List<String>`，默认空）。空 → **工具 schema 与这一片之前逐字节相同**（没有 `target` 参数，不花一个 token）；非空 → `delegateDefinitionFor(targets)` 把名单写进枚举与描述。
+- 名单规则只有 `delegableAssistants(delegator, all)` 一处：排除自己、按勾选过滤、跳过已删的 id、保持应用内顺序。工具定义与 handler 的合法性检查共用它。
+- 配置面在「子代理」弹窗里一行（深度与模型之间），点开复用群聊的 `showGroupMemberPickerDialog`，只传它新增的两个可选参数（`header` / `footer`）。群聊不传，行为一字不变。
+- **界面上「本助手」必须看得见**（A v2，界面验证后改）：
+  - 行值统一写「本助手」/「本助手 + N 个」——勾一个也写 +1，不写那个助手的名字（行右侧只剩一个名字的宽度）。
+  - 行描述只说它管什么：「可作为子代理的助手」。
+  - 弹层分两段：分区头「派给本助手的分身，总是可以」+ 一行固定显示本助手（勾选态、点不动、右侧「总是」），分隔线，分区头「还可以指名」+ 可勾选的其它助手；底部一句「不勾任何人，就是只派给本助手」。固定行不是开关：派给自己是这个功能的默认形态，不是这个设置拥有的一项。
+  - 工具箱摘要补目标数：`继承本助手 · 目标 2 个 · 深度 1`；没有目标时仍是 `继承本助手 · 深度 1`。
+- `AssistantProvider.deleteAssistant` 是唯一收口：删助手时从别人的名单里摘掉它，免得死 id 进备份与同步。
+
+### 11.3 `Assistant.description`：给模型认人的一句话
+
+- 通用字段（可空、默认空、上限 300 字符、多行存、读时折叠成一行）。读者只有两处：委派名单的 `名字：描述`，群聊导演的 roster 与决策 state（非空才加键，所以老用户的请求字节不变）。
+- 编辑页是一个普通的设置行（「默认工作区」之后，`TipIcon` 问号，形状照抄 Max tokens），不在身份卡里：它回答「其它模型眼中的它能做什么」，不回答「它是谁」。
+
+### 11.4 模型与权限
+
+- `resolveSubagentModel(delegator, {target})` 是这一片留的接缝：签名带 target，今天两种目标同一答案（调用方覆盖 → 目标自己的 → 全局默认），测试按 kind 各钉一格。
+- 提权策略与上限仍从调用方快照（`subagent.escalation` / `.cap`），目标不能给自己扩权；深度仍是 `kMaxSubagentDepth`。
+
+### 11.5 钉住它的测试
+
+| 规则 | 测试 |
+|---|---|
+| 词表的往返与拒绝 | `subagent_target_test.dart` |
+| 选谁可指名、菜单行、单行折叠 | `subagent_rules_test.dart` |
+| 指名目标的子会话用目标的 `assistantId`、仍用父的工作区、回执带 target | `subagent_coordinator_test.dart`「a named target runs as that assistant…」 |
+| 名单为空时 schema 完全不变；非空时多一个 required 参数 | `subagent_serialization_test.dart`「the delegation target」 |
+| 字段默认、多行 JSON 往返 | `assistant_subagent_targets_test.dart` |
+| 删助手时摘名单 | `assistant_provider_cascade_delete_test.dart` |
+| 描述只对有描述的人进 roster | `group_director_decision_test.dart` |
+| 共享 picker 不传 header/footer 时与原来逐行相同 | `group_member_picker_test.dart` |
+
+**没有做的**：名字与 id 的选择面（模型按 id 选人，名字只用来读）；`target` 的「全部助手」状态（默认无，本版不做）；子会话标题栏与侧边栏的额外标识（目标本身就是该会话的助手，头像与名字已经显示它）。
+
+### 11.6 评审改掉了什么
+
+- **描述行的值改成一个状态词，且只在写过时出现**：写了 → 「已填写」，没写 → 没有值（和其它可选行一样）。值位不再放预览 —— 24 字预览在 360 dp 下会把「描述」压到 3.5 px 并在宽字形下溢出卡片。曾试过把 `_iosNavRow` 的尾部组改成 loose flex：溢出没有了，但**所有**手机设置行的值都不再右对齐（标签被钉在半行宽，值停在行中间，360 dp 实测右缘差 125.8 px），已还原；行尾仍是非伸缩子节点，放不下的内容属于另一种行的形状，不该由共享行去改。回归测试 `assistant_settings_edit_basic_description_test.dart` 同时钉住「标签可读」与「值右对齐」，后者已用注入验证会红。
+- **工具描述不再自相矛盾**：`delegate` 的 description 原来说「同助手、同工具、同工作区」，与 `target` 直接冲突。现在说「默认是你的分身；`target` 存在时由那个助手运行，用它的提示、模型与工具」，工作区仍写「本工作区」。
+- **桌面描述框不再每敲一字落库**：改成 400 ms 静默 + 失焦立即提交 + 离场冲刷（捕获文本后在 microtask 里写）。此前每个字符都会 `_persist()` 整个助手列表并给该助手的每个会话重排主动关怀。
+- **删掉了没有读者的 `subagentTargetOf`**：extras 里的值目前没人读（子会话的助手就是目标，界面读 `assistantId`），不为它留第二个解码口；`parseSubagentTarget` 仍是唯一解析。
+
+
 

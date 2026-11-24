@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 第二片 · 委派目标为助手 · B 标了才可被委派</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:60em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;line-height:1.6;
+    background:rgba(20,20,25,.04);border:1px solid var(--line-soft);border-radius:12px;
+    padding:12px 14px;margin:0 0 18px;overflow:auto;white-space:pre}
+  pre .c{color:var(--muted)}
+  .row2{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .sheet{padding:20px 20px 16px}
+  .sheet h3{font-size:17px;font-weight:600;margin:0 0 4px}
+  .sheet .sub{font-size:12.5px;line-height:1.45;color:var(--muted);margin:0 0 8px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
+  .row:last-child{border-bottom:none}
+  .row .tx{flex:1;min-width:0}
+  .row .tx .l{font-size:14.5px}
+  .row .tx .d{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+  .row .v{font-size:14px;color:var(--muted)}
+  .sw{width:46px;height:28px;border-radius:14px;background:rgba(20,20,25,.16);position:relative;flex:none}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .sw.on{background:#34C759}
+  .sw.on::after{left:20px}
+  .group{font-size:12px;letter-spacing:.04em;color:var(--muted);font-weight:600;padding:14px 0 2px}
+  .group.new{outline:1.5px dashed rgba(77,92,146,.55);outline-offset:6px;border-radius:4px;display:inline-block}
+  .row.new .tx .l{color:var(--primary)}
+  .field{margin:10px 0 14px;padding:10px 12px;border:1px solid rgba(20,20,25,.14);border-radius:10px;
+         font-size:14.5px;color:rgba(32,32,32,.4);background:var(--card)}
+  .notes{flex:1 1 300px;min-width:260px;max-width:520px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .gain li::marker{color:#5B8C5A}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第二片 · 委派目标为助手 · 方案 B</p>
+  <h1>只有标了「可被委派」并写了一句介绍的助手才能被指名</h1>
+  <p class="lede">同一个 <code>delegate(task, label, assistant?)</code>，同一条工作区规则（永远来自调用方）。变的只有名单从哪来：不是「所有助手」，而是<b>开了开关、写了一句话的助手</b>。助手编辑页的「子代理」弹窗因此多出第二组。</p>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="sheet">
+        <h3>子代理</h3>
+        <p class="sub">在本会话自己的工作区里派一个分身去做完一件任务。</p>
+        <div class="group">派出去</div>
+        <div class="row">
+          <div class="tx"><div class="l">开启</div></div>
+          <div class="sw on"></div>
+        </div>
+        <div class="row"><div class="tx"><div class="l">深度</div><div class="d">允许子代理再派子代理的层数</div></div><div class="v">1</div></div>
+        <div class="row"><div class="tx"><div class="l">模型</div><div class="d">用哪个模型跑子代理</div></div><div class="v">继承本助手</div></div>
+        <div class="row"><div class="tx"><div class="l">子代理提权访问</div></div><div class="v">询问</div></div>
+
+        <div class="group new">接进来</div>
+        <div class="row new">
+          <div class="tx"><div class="l">可被委派</div><div class="d">别的助手派活时可以指名本助手</div></div>
+          <div class="sw on"></div>
+        </div>
+        <div class="field">被委派时我能做什么——一句话，写能干什么，不是写我是谁</div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>多出来的一组：开关 + 一句话</h2>
+      <p class="note"><b>可被委派</b>默认关。关着的助手不进任何人的名单，对模型不存在。</p>
+      <p class="note"><b>那一句话</b>是模型选人时唯一读到的东西，所以它必须写「把需求写成 SQL 并解释执行计划」这种，不是「我是一个数据库专家」。空着就回落到名字——等于方案 A 里的一条。</p>
+      <p class="note"><b>放哪</b>：「子代理」弹窗分两组，派出去 / 接进来。一个入口，两件事，不另开页面。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>契约：名单短，每行带介绍</h2>
+<pre>{ "name": "delegate",
+  "parameters": {
+    "task": "…", "label": "…",
+    "assistant": {
+      "type": "string",
+      "enum": ["SQL 专家", "翻译官"],
+      "description": "Omit to run the task as yourself. Available assistants:
+                      SQL 专家 — 把需求写成 SQL 并解释执行计划
+                      翻译官 — 中英互译，保留术语与格式
+                      Name one to run it as them: their prompt, model and tools." } },
+  "required": ["task", "label"] }
+<span class="c">// 没有任何助手开了「可被委派」→ 整个参数不出现，和今天一模一样。</span></pre>
+    <ul>
+      <li><b>数据</b>：<code>Assistant</code> JSON 加两个字段 <code>subagentTargetEnabled</code> / <code>subagentTargetDescription</code>，schema 仍是 5。子会话 extras 同 A：<code>subagent.target = 'assistant'</code> + <code>subagent.assistant_id</code>。</li>
+      <li><b>谁贡献什么</b>：与 A 完全一致——目标出提示 / 模型 / 工具；调用方出工作区 / 授权 / 深度；模型优先级先调用方覆盖、再目标自己的。</li>
+      <li><b>失败模式</b>：A 的全部，外加一条：开了开关但介绍空着 → 回落到名字，不拒绝。</li>
+      <li><b>界面</b>：工具卡与面板同 A，多出的只有上面这一组设置。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>好处</h2>
+    <ul class="gain">
+      <li><b>名单短而准。</b>模型读到的是为委派写的一句话，不是名字；选错的概率比 A 低。</li>
+      <li><b>用户决定哪些助手暴露给模型。</b>40 个助手的用户只标 3 个，每个请求多 3 行，不是 40 个名字。</li>
+      <li><b>令牌成本由用户控制</b>，不需要以后再补一个来源侧筛选。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>代价</h2>
+    <ul class="cost">
+      <li><b>这正是 v3 的形状。</b>目标要 <code>discoverable</code> + 介绍，来源要开局部工具——「该开的都开了，却什么都不发生」。v1 放弃它就是为了这条。</li>
+      <li><b>每个想被指名的助手要配两样。</b>那一句话没人知道怎么写；写不好模型就选错——比名字选错更糟，因为用户以为自己配好了。</li>
+      <li><b>功能默认不可见。</b>要两个以上助手各配一遍，模型才有名单。没配的用户看到的和今天一样，却多了一个开关。</li>
+      <li><b>助手编辑页多一组控件</b>，是一次真正的配置面扩张。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>这一轮只定一件事：</b>谁能被指名——任何助手（方案 A），还是只有标了「可被委派」并写了一句介绍的助手（本方案）。</p>
+
+</main>
+</body>
+</html>

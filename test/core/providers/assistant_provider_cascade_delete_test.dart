@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
@@ -290,6 +291,47 @@ void main() {
         );
       },
     );
+
+    test('a deleted assistant stops being a delegation target', () async {
+      final chatService = createService();
+      await chatService.init();
+      final provider = await _createLoadedAssistantProvider(
+        session: session,
+        chatService: chatService,
+        assistants: const [
+          {'id': 'assistant-delete', 'name': 'Delete Me'},
+          {
+            'id': 'assistant-keep',
+            'name': 'Keep Me',
+            'subagentTargetIds': ['assistant-delete', 'assistant-other'],
+          },
+          {'id': 'assistant-other', 'name': 'Other'},
+        ],
+      );
+
+      expect(provider.getById('assistant-keep')!.subagentTargetIds, <String>[
+        'assistant-delete',
+        'assistant-other',
+      ], reason: 'the selection is loaded from the stored JSON');
+
+      expect(await provider.deleteAssistant('assistant-delete'), isTrue);
+
+      // A dead id in a selection would be stored, backed up and synced
+      // forever, and the tool would keep offering a target the handler must
+      // refuse.
+      expect(provider.getById('assistant-keep')!.subagentTargetIds, <String>[
+        'assistant-other',
+      ]);
+      // And the write that removed the assistant carried the fix with it,
+      // rather than leaving it to whichever screen reloads next.
+      final stored = Assistant.decodeList(
+        session.preferences.getString('assistants_v1')!,
+      );
+      expect(
+        stored.firstWhere((a) => a.id == 'assistant-keep').subagentTargetIds,
+        <String>['assistant-other'],
+      );
+    });
 
     test(
       'deletes draft conversations owned by the deleted assistant',

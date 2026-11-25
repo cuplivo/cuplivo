@@ -1017,6 +1017,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get assistantEditMaxTokensHint => '무제한';
 
   @override
+  String get assistantEditDescriptionTitle => '설명';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      '그룹 채팅과 하위 에이전트 조정 시에만 참고됩니다. 이 기능을 쓰지 않으면 비워 두세요.';
+
+  @override
+  String get assistantEditDescriptionHint => '예: 요구 사항을 SQL로 작성하고 실행 계획 설명';
+
+  @override
+  String get assistantEditDescriptionSet => '작성됨';
+
+  @override
   String get assistantEditChatBackgroundTitle => '채팅 배경';
 
   @override
@@ -2844,6 +2857,11 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String chatMessageWidgetDelegate(String label) {
     return '서브에이전트 파견: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '$assistant에게 위임: $label';
   }
 
   @override
@@ -16636,9 +16654,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get chatMessageWidgetReplySelection => '답장';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '사용자';
 
   @override
@@ -16753,6 +16768,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => '완료';
+
+  @override
+  String get pdfExportResultSave => 'PDF 저장';
 
   @override
   String get sideDrawerMenuCopyLink => '링크 복사';
@@ -18534,13 +18552,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get subagentConfigSubtitle => '이 대화의 복제본에서 같은 작업 공간으로 한 가지 작업을 실행합니다.';
 
   @override
-  String get subagentConfigEnabled => '켜기';
-
-  @override
   String get subagentConfigDepth => '깊이';
 
   @override
   String get subagentConfigDepthDescription => '하위 에이전트가 다시 위임할 수 있는 단계 수';
+
+  @override
+  String get subagentConfigDepthOne => '서브에이전트는 더 이상 위임할 수 없습니다';
+
+  @override
+  String get subagentConfigDepthTwo => '서브에이전트가 한 단계 더 위임할 수 있습니다';
+
+  @override
+  String get subagentConfigDepthThree => '서브에이전트가 최대 두 단계 더 위임할 수 있습니다';
 
   @override
   String get subagentConfigModel => '모델';
@@ -18550,6 +18574,44 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get subagentConfigModelInherit => '이 어시스턴트 따르기';
+
+  @override
+  String get subagentConfigTargets => '위임 대상';
+
+  @override
+  String get subagentConfigTargetsDescription => '하위 에이전트로 활동할 수 있는 어시스턴트';
+
+  @override
+  String get subagentConfigTargetsSelf => '이 어시스턴트';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '이 어시스턴트 + $count개';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '이 어시스턴트에게 맡기는 것은 항상 가능합니다';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '같은 어시스턴트, 같은 모델, 같은 도구';
+
+  @override
+  String get subagentConfigTargetsAlways => '항상';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '이름으로 지정할 수도 있음';
+
+  @override
+  String get subagentConfigTargetsFooter => '아무도 선택하지 않으면 이 어시스턴트에게만 맡깁니다.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 대상 $targets개 · 깊이 $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {

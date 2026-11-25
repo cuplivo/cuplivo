@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 可委派的目标 · A v2</title>
+<style>
+  :root{--bg:#F7F7F7;--card:#FFFFFF;--ink:#202020;--muted:#6B6B73;
+    --line:rgba(20,20,25,.08);--line-soft:rgba(20,20,25,.05);--primary:#4D5C92;--green:#34C759}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:60em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .row2{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .cfg{padding:20px 20px 10px}
+  .cfg h3{font-size:17px;font-weight:600;margin:0 0 4px}
+  .cfg .sub{font-size:12.5px;line-height:1.45;color:var(--muted);margin:0 0 8px}
+  .crow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+  .crow:last-child{border-bottom:none}
+  .crow .tx{flex:1;min-width:0}
+  .crow .tx .l{font-size:14.5px}
+  .crow .tx .d{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+  .crow .v{font-size:14px;color:var(--muted);white-space:nowrap}
+  .crow.new .tx .l{color:var(--primary);font-weight:600}
+  .crow.new .v{color:var(--ink)}
+  .sw2{width:51px;height:31px;border-radius:16px;background:var(--green);position:relative;flex:none}
+  .sw2::after{content:"";position:absolute;top:2px;left:22px;width:27px;height:27px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .sheet{background:var(--card)}
+  .handle{width:40px;height:4px;border-radius:999px;background:rgba(32,32,32,.2);margin:12px auto 10px}
+  .sheettitle{padding:14px 20px 10px;font-size:16px;font-weight:600;text-align:center}
+  .sechead{padding:10px 16px 4px;font-size:11.5px;letter-spacing:.04em;color:var(--muted);font-weight:600}
+  .mrow{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line-soft)}
+  .mrow.pinned{background:rgba(77,92,146,.05);border-bottom:1px solid var(--line)}
+  .mrow .cav{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;background:rgba(77,92,146,.12);color:var(--primary)}
+  .mrow .nm{flex:1;min-width:0;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mrow .nm small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+  .mrow .always{font-size:11.5px;color:var(--muted);flex:none}
+  .mrow .ck{width:20px;height:20px;flex:none}
+  .mrow .ck circle{fill:none;stroke:rgba(32,32,32,.3);stroke-width:1.6}
+  .mrow .ck.on circle{fill:var(--primary);stroke:var(--primary)}
+  .mfoot{display:flex;align-items:center;padding:10px 18px;gap:8px}
+  .mfoot .tt{flex:1;font-size:13px;color:rgba(32,32,32,.6)}
+  .mfoot .btn{background:var(--primary);color:#fff;font-size:14px;font-weight:600;border-radius:999px;padding:7px 18px}
+  .notes{flex:1 1 300px;min-width:260px;max-width:520px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}.cost li::marker{color:#B08968}
+  .gain li::marker{color:#5B8C5A}
+  .diff{border-left:3px solid var(--primary);padding:2px 0 2px 12px;margin:0 0 18px}
+  .diff .h{font-size:12px;letter-spacing:.04em;color:var(--primary);font-weight:600;margin:0 0 6px}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+    padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){.page{padding:18px 10px 44px}.phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 可委派的目标 · 方案 A · v2（按两条意见改）</p>
+  <h1>把「本助手」摆进选择面，<span style="color:var(--muted)">「无」这个词不再出现</span></h1>
+  <p class="lede">「可委派的目标」说的其实只有一半：<b>派给本助手的分身永远可以</b>，这一行管的是<b>除它之外还能指名谁</b>。现在弹层里只列别人，空态写「无」，读起来就成了「一个都派不出去」。A 的做法是把那一半摆出来：弹层顶部是<b>本助手</b>（勾着，不能取消，因为它不是一个选项，是默认形态），下面是可勾选的其它助手。这一版按意见精简了描述、并把值统一成<b>本助手 + N 个</b>。</p>
+
+  <div class="diff">
+    <p class="h">这一版改三处字与一处结构</p>
+    <ul>
+      <li>弹层顶部加一个<b>分区头 + 一行「本助手 · 分身」</b>（勾选态、不可点），下面分区头「还可以指名」。其余行原样。</li>
+      <li>行标签仍是<b>可委派的目标</b>；值从「无」变成<b>「本助手」/「本助手 + N 个」</b>——<b>统一用数量，不再显示单个助手的名字</b>（+1 时名字已经把值挤满）。</li>
+      <li>行描述精简为<b>「可作为子代理的助手」</b>：弹层里已经写了分身总是可派，这一行只说它管什么。</li>
+      <li>工具箱那行摘要补一段：<b>继承本助手 · 目标 2 个 · 深度 1</b>（只列摘要，点进去还是这个弹窗）。</li>
+    </ul>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="cfg">
+        <h3>子代理</h3>
+        <p class="sub">在本会话自己的工作区里派一个分身去做完一件任务。</p>
+        <div class="crow"><div class="tx"><div class="l">开启</div></div><div class="sw2"></div></div>
+        <div class="crow"><div class="tx"><div class="l">深度</div><div class="d">允许子代理再派子代理的层数</div></div><div class="v">1</div></div>
+        <div class="crow new"><div class="tx"><div class="l">可委派的目标</div><div class="d">可作为子代理的助手</div></div><div class="v">本助手 + 2 个 ›</div></div>
+        <div class="crow"><div class="tx"><div class="l">模型</div><div class="d">用哪个模型跑子代理</div></div><div class="v">继承本助手</div></div>
+        <div class="crow"><div class="tx"><div class="l">子代理提权访问</div></div><div class="v">询问</div></div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>行：值里先说本助手</h2>
+      <p class="note"><b>「本助手」</b>＝没勾任何人时的值。<b>「本助手 + 2 个」</b>＝勾了两个；<b>勾一个也写「本助手 + 1 个」</b>，不写那个助手的名字——行右侧只剩一个名字的宽度，多一个字就截断，数量反而稳定。</p>
+      <p class="note"><b>描述只说它管什么</b>：分身总是可派这件事由弹层的分区头说，行上不重复。</p>
+      <p class="note"><b>为什么保留「可委派的目标」这个名字</b>：它是这一组设置的名字；改描述就够说清它管的是「除分身之外」。</p>
+      <p class="note"><b>工具箱摘要</b>：<code>继承本助手 · 目标 2 个 · 深度 1</code>。没勾任何目标时仍只写 <code>继承本助手 · 深度 1</code>，一个字不多。</p>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheettitle">可委派的目标</div>
+        <div class="sechead">派给本助手的分身，总是可以</div>
+        <div class="mrow pinned">
+          <div class="cav">登</div>
+          <div class="nm">本助手<small>与当前助手同提示、同模型、同工具</small></div>
+          <div class="always">总是</div>
+          <svg class="ck on" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9"/><path d="M6 10.3l2.6 2.6L14 7.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="sechead">还可以指名</div>
+        <div class="mrow"><div class="cav">S</div><div class="nm">SQL 专家</div><svg class="ck on" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9"/><path d="M6 10.3l2.6 2.6L14 7.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="mrow"><div class="cav">翻</div><div class="nm">翻译官</div><svg class="ck on" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9"/><path d="M6 10.3l2.6 2.6L14 7.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="mrow"><div class="cav">审</div><div class="nm">审稿人</div><svg class="ck" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9"/></svg></div>
+        <div class="mfoot"><div class="tt">不勾任何人，就是只派给本助手</div><div class="btn">保存</div></div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>弹层：两段，一段固定一段可选</h2>
+      <p class="note"><b>「本助手」不是开关</b>：勾是勾着的，点不动。它不是一个可选项，是这个功能默认的样子；做成能取消的开关，就要回答「关掉以后模型还能不能派给自己」，那是一个新问题。</p>
+      <p class="note"><b>下面那段才是这一行管的</b>，分区头写「还可以指名」。<b>底部一句</b>「不勾任何人，就是只派给本助手」——空态的解释放在它该在的地方，而不是塞进一个「无」。</p>
+      <p class="note"><b>实现</b>：给复用的 <code>GroupMemberPicker</code> 加两个可选参数（<code>header</code> / <code>footer</code>），群聊调用不传，行为不变。行仍是头像 + 名字，本助手那行用当前助手的头像。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>模型侧：一个字不改</h2>
+    <ul class="gain">
+      <li>没勾任何其它助手 → <code>target</code> 参数仍然不出现，schema 与发布前逐字节相同；模型照样派给本助手。</li>
+      <li>勾了 → 枚举仍是 <code>general</code> + <code>assistant:&lt;id&gt;</code>，描述里第一行就是 <code>general — a copy of yourself.</code>。</li>
+      <li>所以这一轮只动界面与三处文案，不动契约、不动数据、不动测试口径（序列化那两条断言不变）。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>代价</h2>
+    <ul class="cost">
+      <li><b>共享的 picker 多两个可选参数</b>：群聊那条路不传，但要保证不传时布局与今天一模一样（一次群聊邀请的回归测试）。</li>
+      <li><b>弹层多两段</b>，比一列到底长一点；换来的是「默认形态」和「可选项」不再混在一列里。</li>
+      <li><b>「本助手」那行点不动</b>：有人会想点。右上角写「总是」，用文字先回答它。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>这一轮只确认：</b>按这两条改后的 A——弹层分两段、本助手固定一行、值统一写「本助手 + N 个」、描述精简为「可作为子代理的助手」。确认后直接改，再走一次同样的界面验证。</p>
+
+</main>
+</body>
+</html>

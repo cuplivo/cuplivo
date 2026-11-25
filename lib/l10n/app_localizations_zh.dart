@@ -992,6 +992,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditMaxTokensHint => '无限制';
 
   @override
+  String get assistantEditDescriptionTitle => '描述';
+
+  @override
+  String get assistantEditDescriptionTip => '只作为群聊、子代理调度时参考，不使用这两个功能就无需填写。';
+
+  @override
+  String get assistantEditDescriptionHint => '例如：把需求写成 SQL 并解释执行计划';
+
+  @override
+  String get assistantEditDescriptionSet => '已填写';
+
+  @override
   String get assistantEditChatBackgroundTitle => '聊天背景';
 
   @override
@@ -2785,6 +2797,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String chatMessageWidgetDelegate(String label) {
     return '派遣子代理：$label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '派遣 $assistant：$label';
   }
 
   @override
@@ -16255,9 +16272,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatMessageWidgetReplySelection => '回复';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '用户';
 
   @override
@@ -16371,6 +16385,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '保存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '复制链接';
@@ -18100,13 +18117,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
 
   @override
-  String get subagentConfigEnabled => '开启';
-
-  @override
   String get subagentConfigDepth => '深度';
 
   @override
   String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一层';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派两层';
 
   @override
   String get subagentConfigModel => '模型';
@@ -18116,6 +18139,44 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get subagentConfigModelInherit => '继承本助手';
+
+  @override
+  String get subagentConfigTargets => '可委派的目标';
+
+  @override
+  String get subagentConfigTargetsDescription => '可作为子代理的助手';
+
+  @override
+  String get subagentConfigTargetsSelf => '本助手';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '本助手 + $count 个';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '派给本助手的分身，总是可以';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '与当前助手同提示、同模型、同工具';
+
+  @override
+  String get subagentConfigTargetsAlways => '总是';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '还可以指名';
+
+  @override
+  String get subagentConfigTargetsFooter => '不勾任何人，就是只派给本助手。';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 目标 $targets 个 · 深度 $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {
@@ -19219,6 +19280,18 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditMaxTokensHint => '无限制';
 
   @override
+  String get assistantEditDescriptionTitle => '描述';
+
+  @override
+  String get assistantEditDescriptionTip => '只作为群聊、子代理调度时参考，不使用这两个功能就无需填写。';
+
+  @override
+  String get assistantEditDescriptionHint => '例如：把需求写成 SQL 并解释执行计划';
+
+  @override
+  String get assistantEditDescriptionSet => '已填写';
+
+  @override
   String get assistantEditChatBackgroundTitle => '聊天背景';
 
   @override
@@ -21012,6 +21085,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String chatMessageWidgetDelegate(String label) {
     return '派遣子代理：$label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '派遣 $assistant：$label';
   }
 
   @override
@@ -34482,9 +34560,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatMessageWidgetReplySelection => '回复';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '用户';
 
   @override
@@ -34598,6 +34673,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '保存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '复制链接';
@@ -36327,13 +36405,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
 
   @override
-  String get subagentConfigEnabled => '开启';
-
-  @override
   String get subagentConfigDepth => '深度';
 
   @override
   String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一层';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派两层';
 
   @override
   String get subagentConfigModel => '模型';
@@ -36343,6 +36427,44 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get subagentConfigModelInherit => '继承本助手';
+
+  @override
+  String get subagentConfigTargets => '可委派的目标';
+
+  @override
+  String get subagentConfigTargetsDescription => '可作为子代理的助手';
+
+  @override
+  String get subagentConfigTargetsSelf => '本助手';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '本助手 + $count 个';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '派给本助手的分身，总是可以';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '与当前助手同提示、同模型、同工具';
+
+  @override
+  String get subagentConfigTargetsAlways => '总是';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '还可以指名';
+
+  @override
+  String get subagentConfigTargetsFooter => '不勾任何人，就是只派给本助手。';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 目标 $targets 个 · 深度 $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {
@@ -37449,6 +37571,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditMaxTokensHint => '無限制';
+
+  @override
+  String get assistantEditDescriptionTitle => '描述';
+
+  @override
+  String get assistantEditDescriptionTip => '只作為群聊、子代理調度時參考，不使用這兩個功能就無需填寫。';
+
+  @override
+  String get assistantEditDescriptionHint => '例如：把需求寫成 SQL 並解釋執行計畫';
+
+  @override
+  String get assistantEditDescriptionSet => '已填寫';
 
   @override
   String get assistantEditChatBackgroundTitle => '聊天背景';
@@ -39244,6 +39378,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String chatMessageWidgetDelegate(String label) {
     return '派遣子代理：$label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '派遣 $assistant：$label';
   }
 
   @override
@@ -52720,9 +52859,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatMessageWidgetReplySelection => '回覆';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '使用者';
 
   @override
@@ -52836,6 +52972,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '儲存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '複製連結';
@@ -54576,13 +54715,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get subagentConfigSubtitle => '在本會話自己的工作區裡派一個分身去做完一件任務。';
 
   @override
-  String get subagentConfigEnabled => '開啟';
-
-  @override
   String get subagentConfigDepth => '深度';
 
   @override
   String get subagentConfigDepthDescription => '允許子代理再派子代理的層數';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一層';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派兩層';
 
   @override
   String get subagentConfigModel => '模型';
@@ -54592,6 +54737,44 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subagentConfigModelInherit => '繼承本助手';
+
+  @override
+  String get subagentConfigTargets => '可委派的目標';
+
+  @override
+  String get subagentConfigTargetsDescription => '可作為子代理的助手';
+
+  @override
+  String get subagentConfigTargetsSelf => '本助手';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '本助手 + $count 個';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '派給本助手的分身，總是可以';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '與目前助手同提示、同模型、同工具';
+
+  @override
+  String get subagentConfigTargetsAlways => '總是';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '還可以指名';
+
+  @override
+  String get subagentConfigTargetsFooter => '不勾任何人，就是只派給本助手。';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 目標 $targets 個 · 深度 $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {

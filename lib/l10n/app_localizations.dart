@@ -1978,6 +1978,30 @@ abstract class AppLocalizations {
   /// **'Unlimited'**
   String get assistantEditMaxTokensHint;
 
+  /// Label of the row that holds what this assistant is for. Read by delegation targets and the group chat director, never shown in the chat itself.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get assistantEditDescriptionTitle;
+
+  /// Says who reads the description and that it is optional. Shown behind the row's help icon and under the field.
+  ///
+  /// In en, this message translates to:
+  /// **'Only read when scheduling group chats and subagents. Leave it empty if you use neither.'**
+  String get assistantEditDescriptionTip;
+
+  /// Placeholder inside the description field; teaches what to write (what it does, not who it is).
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Write SQL from a request and explain the query plan'**
+  String get assistantEditDescriptionHint;
+
+  /// Value of the description row when one is written; the row does not preview the text because any useful preview would push the label off a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get assistantEditDescriptionSet;
+
   /// Label for the per-assistant chat background image setting.
   ///
   /// In en, this message translates to:
@@ -5373,6 +5397,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delegate: {label}'**
   String chatMessageWidgetDelegate(String label);
+
+  /// Tool-call title for a delegation the model handed to another assistant; {assistant} is that assistant's name and {label} the short name for the job.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegate {assistant}: {label}'**
+  String chatMessageWidgetDelegateTo(String assistant, String label);
 
   /// Divider label where a finished subagent's result appears in the parent conversation.
   ///
@@ -30150,12 +30180,6 @@ abstract class AppLocalizations {
   /// **'Reply'**
   String get chatMessageWidgetReplySelection;
 
-  /// Action in the chat selection bar that exports the selected messages as a PDF document.
-  ///
-  /// In en, this message translates to:
-  /// **'PDF'**
-  String get chatSelectionExportPdf;
-
   /// Role label printed for the user's own messages in an exported transcript.
   ///
   /// In en, this message translates to:
@@ -30365,6 +30389,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get pdfExportResultDone;
+
+  /// Primary button on the panel that offers a finished PDF; it opens the system save picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Save PDF'**
+  String get pdfExportResultSave;
 
   /// Menu item in the conversation sidebar that copies a link to the conversation.
   ///
@@ -33432,12 +33462,6 @@ abstract class AppLocalizations {
   /// **'Run one task in a copy of this chat, in the same workspace.'**
   String get subagentConfigSubtitle;
 
-  /// Label of the switch that turns delegation on for this assistant.
-  ///
-  /// In en, this message translates to:
-  /// **'On'**
-  String get subagentConfigEnabled;
-
   /// Label of the row that states how deep delegation may go.
   ///
   /// In en, this message translates to:
@@ -33449,6 +33473,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How many levels of subagents may delegate again.'**
   String get subagentConfigDepthDescription;
+
+  /// Depth choice 1: the chain stops at the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent cannot delegate again'**
+  String get subagentConfigDepthOne;
+
+  /// Depth choice 2: one further level below the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent may delegate once more'**
+  String get subagentConfigDepthTwo;
+
+  /// Depth choice 3: two further levels below the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent may delegate two more levels'**
+  String get subagentConfigDepthThree;
 
   /// Label of the row that chooses the model delegations run on.
   ///
@@ -33467,6 +33509,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Follow this assistant'**
   String get subagentConfigModelInherit;
+
+  /// Label of the row that picks which assistants a delegation may name, and the title of the picker it opens.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegation targets'**
+  String get subagentConfigTargets;
+
+  /// Explains the targets option itself, not its current value.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants that can work as subagents.'**
+  String get subagentConfigTargetsDescription;
+
+  /// Value of the delegation targets row when no other assistant is selected; also the label of the fixed row in the picker.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant'**
+  String get subagentConfigTargetsSelf;
+
+  /// Value of the delegation targets row, counting the other assistants that may be named; the row never shows a single name because it would be clipped.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant + {count}'**
+  String subagentConfigTargetsSelfPlus(int count);
+
+  /// Heading above the fixed picker row that says delegating to your own assistant always works.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegating to your own assistant is always possible'**
+  String get subagentConfigTargetsSelfSection;
+
+  /// Second line of the fixed picker row: what a copy of the delegating assistant inherits.
+  ///
+  /// In en, this message translates to:
+  /// **'Same assistant, same model, same tools'**
+  String get subagentConfigTargetsSelfCaption;
+
+  /// Trailing word on the fixed picker row, explaining why it cannot be unticked.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get subagentConfigTargetsAlways;
+
+  /// Heading above the selectable assistants in the delegation target picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Also available by name'**
+  String get subagentConfigTargetsOthersSection;
+
+  /// Bottom line of the delegation target picker: what an empty selection means.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody ticked means delegations go to yourself only.'**
+  String get subagentConfigTargetsFooter;
+
+  /// Second line of the subagent toolbox row when some assistants may be named.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} · targets {targets} · depth {depth}'**
+  String subagentConfigSummaryWithTargets(String model, int targets, int depth);
 
   /// Second line of the toolbox row: what a delegation runs on and how deep it may go.
   ///

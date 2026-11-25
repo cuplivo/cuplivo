@@ -39,7 +39,9 @@ import '../../../core/services/workspace/workspace_tools_service.dart';
 import '../../../core/providers/workspace_provider.dart';
 import '../../image_job/services/image_job_coordinator.dart';
 import '../../subagent/services/subagent_coordinator.dart';
-import '../../subagent/services/subagent_rules.dart' show delegationBlockedFor;
+import '../../subagent/services/subagent_rules.dart'
+    show delegableAssistants, delegationBlockedFor;
+import '../../subagent/services/subagent_target.dart';
 import 'ask_user_interaction_service.dart';
 import 'built_in_tool_names.dart';
 import 'local_tools_service.dart';
@@ -250,6 +252,24 @@ class ToolHandlerService {
     );
   }
 
+  /// The assistants [assistant] may hand a task to, as the schema offers them.
+  ///
+  /// One rule for the menu and for the handler's legality check, so a target the
+  /// user removed between the request and the call is refused by the same code
+  /// that stopped offering it.
+  List<Assistant> _delegableTargets(Assistant assistant) {
+    try {
+      return delegableAssistants(
+        delegator: assistant,
+        all: contextProvider.read<AssistantProvider>().assistants,
+      );
+    } catch (_) {
+      // No provider above this context: offer nothing rather than a menu the
+      // handler cannot resolve.
+      return const <Assistant>[];
+    }
+  }
+
   /// Build tool definitions for API call.
   ///
   /// Returns a list of tool definitions including:
@@ -276,7 +296,10 @@ class ToolHandlerService {
   /// not offer what would be refused: a child never gets the tool, a group
   /// conversation has no single assistant to inherit, and a temporary chat would
   /// leave a real conversation behind when it claims to leave nothing.
-  bool _mayDelegateInConversation(String? conversationId) {
+  bool _mayDelegateInConversation(
+    String? conversationId,
+    Assistant? assistant,
+  ) {
     if (conversationId == null) return true;
     try {
       final conversation = contextProvider.read<ChatService>().getConversation(
@@ -287,6 +310,7 @@ class ToolHandlerService {
             extras: conversation.extras,
             isGroup: conversation.isGroupConversation,
             isTemporary: _isTemporaryConversation(conversationId),
+            delegator: assistant,
           ) ==
           null;
     } catch (_) {
@@ -349,7 +373,10 @@ class ToolHandlerService {
       LocalToolsService.buildToolDefinitions(
         assistant: assistant,
         supportsTools: supportsTools,
-        allowDelegation: _mayDelegateInConversation(conversationId),
+        allowDelegation: _mayDelegateInConversation(conversationId, assistant),
+        delegateTargets: assistant == null
+            ? const <Assistant>[]
+            : _delegableTargets(assistant),
       ).where(
         (definition) =>
             (definition['function'] as Map)['name'] !=
@@ -848,12 +875,54 @@ class ToolHandlerService {
             } catch (_) {
               workspaceExists = null;
             }
+            // Who runs it. The parameter only exists when the assistant has
+            // targets selected, so an absent value is `general` by design; a
+            // value that is present but not legal is refused here rather than
+            // delegating to somebody the user did not pick.
+            final targets = _delegableTargets(current);
+            final rawTarget = args['target'];
+            final target = rawTarget == null
+                ? SubagentTarget.general()
+                : parseSubagentTarget(rawTarget);
+            if (target == null) {
+              return _toolError(
+                error: 'unknown_target',
+                message:
+                    'That is not an assistant this conversation can hand a '
+                    'task to. Use `general`, or one of the targets the tool '
+                    'offered.',
+                tool: name,
+              );
+            }
+            final targetId = target.assistantId;
+            Assistant? targetAssistant = current;
+            if (targetId != null) {
+              targetAssistant = null;
+              for (final candidate in targets) {
+                if (target.names(candidate.id)) {
+                  targetAssistant = candidate;
+                  break;
+                }
+              }
+            }
+            if (targetAssistant == null) {
+              return _toolError(
+                error: 'unknown_target',
+                message:
+                    'That assistant is no longer available to this '
+                    'conversation. Use `general`, or one of the targets the '
+                    'tool offered.',
+                tool: name,
+              );
+            }
             final start = await coordinator.begin(
               parentConversationId: conversationId,
               toolCallId: toolCallId ?? '',
               task: task,
               label: args['label']?.toString(),
               assistant: current,
+              targetAssistant: targetAssistant,
+              target: target,
               workspaceExists: workspaceExists,
             );
             if (start is SubagentStarted) {

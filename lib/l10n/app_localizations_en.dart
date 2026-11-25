@@ -1041,6 +1041,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditMaxTokensHint => 'Unlimited';
 
   @override
+  String get assistantEditDescriptionTitle => 'Description';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      'Only read when scheduling group chats and subagents. Leave it empty if you use neither.';
+
+  @override
+  String get assistantEditDescriptionHint =>
+      'e.g. Write SQL from a request and explain the query plan';
+
+  @override
+  String get assistantEditDescriptionSet => 'Set';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Chat Background';
 
   @override
@@ -2908,6 +2922,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String chatMessageWidgetDelegate(String label) {
     return 'Delegate: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return 'Delegate $assistant: $label';
   }
 
   @override
@@ -17155,9 +17174,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatMessageWidgetReplySelection => 'Reply';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => 'User';
 
   @override
@@ -17274,6 +17290,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => 'Done';
+
+  @override
+  String get pdfExportResultSave => 'Save PDF';
 
   @override
   String get sideDrawerMenuCopyLink => 'Copy Link';
@@ -19125,14 +19144,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Run one task in a copy of this chat, in the same workspace.';
 
   @override
-  String get subagentConfigEnabled => 'On';
-
-  @override
   String get subagentConfigDepth => 'Depth';
 
   @override
   String get subagentConfigDepthDescription =>
       'How many levels of subagents may delegate again.';
+
+  @override
+  String get subagentConfigDepthOne => 'A subagent cannot delegate again';
+
+  @override
+  String get subagentConfigDepthTwo => 'A subagent may delegate once more';
+
+  @override
+  String get subagentConfigDepthThree =>
+      'A subagent may delegate two more levels';
 
   @override
   String get subagentConfigModel => 'Model';
@@ -19142,6 +19168,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subagentConfigModelInherit => 'Follow this assistant';
+
+  @override
+  String get subagentConfigTargets => 'Delegation targets';
+
+  @override
+  String get subagentConfigTargetsDescription =>
+      'Assistants that can work as subagents.';
+
+  @override
+  String get subagentConfigTargetsSelf => 'This assistant';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return 'This assistant + $count';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection =>
+      'Delegating to your own assistant is always possible';
+
+  @override
+  String get subagentConfigTargetsSelfCaption =>
+      'Same assistant, same model, same tools';
+
+  @override
+  String get subagentConfigTargetsAlways => 'Always';
+
+  @override
+  String get subagentConfigTargetsOthersSection => 'Also available by name';
+
+  @override
+  String get subagentConfigTargetsFooter =>
+      'Nobody ticked means delegations go to yourself only.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · targets $targets · depth $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {

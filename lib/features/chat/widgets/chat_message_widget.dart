@@ -97,7 +97,9 @@ import '../../../shared/widgets/emoji_text.dart';
 import '../../../utils/platform_utils.dart';
 import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
-import '../../subagent/services/subagent_rules.dart' show childTitle;
+import '../../subagent/services/subagent_rules.dart'
+    show childTitle, assistantName;
+import '../../subagent/services/subagent_target.dart';
 import '../../subagent/widgets/subagent_panel.dart' show showSubagentPanel;
 import '../../subagent/widgets/subagent_result_divider.dart';
 import '../../home/services/tool_approval_service.dart';
@@ -588,6 +590,7 @@ IconData? _localToolIconFor(String name, Map<String, dynamic> args) {
 }
 
 String? _localToolTitleFor(
+  BuildContext context,
   AppLocalizations l10n,
   String name,
   Map<String, dynamic> args,
@@ -624,13 +627,10 @@ String? _localToolTitleFor(
     LocalToolNames.remindersComplete =>
       l10n.assistantEditLocalToolRemindersCompleteTitle,
     // The card and the child conversation title must agree, so both come from
-    // the same bound and the same fallback.
-    LocalToolNames.delegate => l10n.chatMessageWidgetDelegate(
-      childTitle(
-        label: args['label']?.toString(),
-        task: (args['task'] ?? '').toString(),
-      ),
-    ),
+    // the same bound and the same fallback. When the task was handed to a named
+    // assistant the card says so: two delegations with the same job name are
+    // otherwise indistinguishable.
+    LocalToolNames.delegate => _delegateCardTitle(context, l10n, args),
     LocalToolNames.awaitJob => l10n.assistantEditLocalToolAwaitJobTitle,
     _ => null,
   };
@@ -715,6 +715,32 @@ String _askUserToolTitleFor(AppLocalizations l10n, Map<String, dynamic> args) {
   return l10n.assistantEditLocalToolAskUserTitle;
 }
 
+/// The delegation card's title: `派遣子代理：<label>` for a copy of this
+/// assistant, `派遣<助手名>：<label>` when the task was named to somebody.
+///
+/// The name is resolved at render time, which is also what makes a deleted
+/// target fall back to the plain title instead of a dangling id.
+String _delegateCardTitle(
+  BuildContext context,
+  AppLocalizations l10n,
+  Map<String, dynamic> args,
+) {
+  final label = childTitle(
+    label: args['label']?.toString(),
+    task: (args['task'] ?? '').toString(),
+  );
+  final targetId = parseSubagentTarget(args['target'])?.assistantId;
+  if (targetId == null) return l10n.chatMessageWidgetDelegate(label);
+  Assistant? assistant;
+  try {
+    assistant = context.read<AssistantProvider>().getById(targetId);
+  } catch (_) {
+    assistant = null;
+  }
+  if (assistant == null) return l10n.chatMessageWidgetDelegate(label);
+  return l10n.chatMessageWidgetDelegateTo(assistantName(assistant), label);
+}
+
 String _toolTitleFor(
   BuildContext context,
   String name,
@@ -725,7 +751,7 @@ String _toolTitleFor(
   if (name == LocalToolNames.askUser) {
     return UnicodeSanitizer.sanitize(_askUserToolTitleFor(l10n, args));
   }
-  final localToolTitle = _localToolTitleFor(l10n, name, args);
+  final localToolTitle = _localToolTitleFor(context, l10n, name, args);
   if (localToolTitle != null) return UnicodeSanitizer.sanitize(localToolTitle);
   if (isWorkspaceToolName(name)) {
     return workspaceToolTitle(l10n, name);

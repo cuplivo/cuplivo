@@ -118,6 +118,33 @@ bool _isDecisionModel(
   return DecisionClient.canDecide(config, modelId);
 }
 
+/// The name a model shows under: the provider's own name for it, else the API
+/// id it is sent upstream as, else the raw id.
+///
+/// This is the one place that rule lives — the chat's model line, the drawing
+/// sub-row and the subagent summary all ask here. The name is read when it is
+/// shown and never stored beside the ids, so renaming a model renames it
+/// everywhere, and a binding whose provider is gone still names its raw id.
+String modelDisplayName(
+  SettingsProvider settings,
+  String providerId,
+  String modelId,
+) {
+  try {
+    final override =
+        settings.getProviderConfig(providerId).modelOverrides[modelId] as Map?;
+    final name = (override?['name'] as String?)?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    final apiId = (override?['apiModelId'] ?? override?['api_model_id'])
+        ?.toString()
+        .trim();
+    if (apiId != null && apiId.isNotEmpty) return apiId;
+  } catch (_) {
+    // A malformed override is a display problem, not a reason to drop the row.
+  }
+  return modelId;
+}
+
 /// Extracts model display information from settings, conversation and assistant.
 ///
 /// This consolidates the repeated pattern of resolving the active model and
@@ -142,25 +169,9 @@ ModelDisplayInfo getModelDisplayInfo(
   final cfg = settings.getProviderConfig(providerKey);
   final providerName = cfg.name.isNotEmpty ? cfg.name : providerKey;
 
-  // Extract model display name from overrides or use raw modelId
-  String modelDisplay = modelId;
-  final ov = cfg.modelOverrides[modelId] as Map?;
-  if (ov != null) {
-    // Priority: override name > apiModelId > api_model_id > raw modelId
-    final overrideName = (ov['name'] as String?)?.trim();
-    if (overrideName != null && overrideName.isNotEmpty) {
-      modelDisplay = overrideName;
-    } else {
-      final apiId = (ov['apiModelId'] ?? ov['api_model_id'])?.toString().trim();
-      if (apiId != null && apiId.isNotEmpty) {
-        modelDisplay = apiId;
-      }
-    }
-  }
-
   return ModelDisplayInfo(
     providerName: providerName,
-    modelDisplay: modelDisplay,
+    modelDisplay: modelDisplayName(settings, providerKey, modelId),
     providerKey: providerKey,
     modelId: modelId,
   );

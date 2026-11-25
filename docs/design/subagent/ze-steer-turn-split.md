@@ -52,7 +52,7 @@
 
 **子 → 父**（`send_message{text}`，深度 ≥ 1）：写进父会话，带 `SubagentMailPart`，前缀「Subagent <label> sent a message: 」。同一条规则。
 
-**中断**（`interrupt{job_id}`）：取消子会话当前的 run → 该段 `cancelled`，阶段 `stopped`，父会话写一条 outcome `stopped` 的结果行，不入队。待投的留言留在收件箱（N11），之后 `send_message` 可续。
+**中断**（`interrupt{job_id}`）：取消子会话当前的 run → 该段 `cancelled`，阶段 `stopped`，**父会话不写结果行、也不发通知**——模型已经从工具返回值知道它停了，再补一条行只是噪音；待投的留言留在收件箱（N11），之后 `send_message` 可续。用户按 Stop 是另一条路：写行、不唤醒。
 
 **简报**：替换 `_subagentPrompt`，每次装配请求时渲染，不落行。
 
@@ -67,7 +67,7 @@
 | `subagent:delegation` 节 | 简报 | `message_builder_service.dart:2250-2259`；仍归 `ContextSource.systemPrompt` |
 | 留言的消息形状 | `SubagentMailPart`（kind `subagent_mail`）：`fromRole`、`senderConversationId` | `core/models/message_part.dart`；`isUserInputMessage` 加一支 |
 | 结算按 run | `messageIdFor(childId, runId)`；面板最新优先 | `message_part.dart:193`；`subagent_panel.dart:205-219` |
-| `interrupt` 保留收件箱 | `stopped` 阶段，写行不唤醒 | `subagent_coordinator.dart` |
+| `interrupt` 保留收件箱 | `stopped` 阶段，不写行不唤醒 | `subagent_coordinator.dart` |
 | 子代理监视「轮」 | `_watch` 从「盯一个 run」改为「盯这一串 run 的最后一段」；会话空闲时读最后一段的终态 | `subagent_coordinator.dart:526-568`、`:585-661` |
 | 不搬 | `list_agents`、命名 / 目录、fork、深度 > 1、全树、`omitClosingText`、快照 / 压缩、外部后端 | — |
 
@@ -86,7 +86,7 @@ You are "{label}", delegated by "{parent title}", at depth {depth}.
 - Do not wait for the delegator to answer a question. Use `send_message` to say what you found and what you need, then keep going with what you have; sending a message does not end your turn. Write only when a finding changes what the delegator should do next.
 - A message from the delegator arrives as a new message in this conversation, after the round you were in. It may end the round you were in and start the next one; apply it before you continue.
 - When you are done, finish with a short, self-contained conclusion: what you did, what you found, what is still open. That conclusion is the result; the delegator does not receive your transcript, tool output or reasoning.
-- You cannot delegate further.
+- You cannot delegate further.   ← 深度 1–3 之后改为条件句：「If `delegate` is among your tools, you may hand part of the work to a subagent; the same depth and permission rules apply.」
 </subagent_context>
 ```
 
@@ -97,14 +97,17 @@ send_message(job_id, text):
 Send a message to a subagent you started with `delegate`: to correct it, answer a question it asked, or give it a new task after it finished. This returns when the message is delivered, NOT with the subagent's reply — its answer arrives later as a notice and you will be asked to continue. A subagent that has finished or was stopped by `interrupt` starts a new turn with your message; one that is still working finishes the round it is in and reads your message at the start of the next. A subagent the user stopped cannot be continued.
 
 interrupt(job_id):
-Ask a subagent you started with `delegate` to stop what it is doing. This returns immediately, NOT when it has stopped. What it concluded so far arrives as a notice marked stopped; you can then `send_message` to continue it with a correction, or leave it.
+Ask a subagent you started with `delegate` to stop what it is doing. This returns immediately, NOT when it has stopped, and the stop is silent: nothing arrives later — you asked for it, so there is no notice to wait for. If you need what it had concluded, call `await_job` first, or `send_message` to continue it.
 ```
 
 **工具说明**（子会话）
 
 ```
-send_message(text):
-Send a message to the conversation that delegated your task: a finding that changes what it should do next, or a question you cannot answer yourself. This returns when the message is delivered, NOT with an answer — do not wait for one, keep working with what you have. Sending a message does not end your turn; your final reply is still delivered as the result.
+send_message(job_id?, text):
+Send a message to another conversation in this delegation. Omit `job_id`, or pass your delegator's conversation id (it is printed in the description), to reply to your delegator; pass the `job_id` of one of your own subagents to message it. This returns when the message is delivered, NOT with an answer — do not wait for one, keep working with what you have. Sending a message does not end your turn; your final reply is still delivered as the result.
+```
+
+（深度 1–3 之后：父与子同名的 `send_message` 由角色决定 schema——根必须给 `job_id`；子代理可省略，省略或传父 ID 都是向上。）
 ```
 
 **留言行**：模型可见文本 `The delegator sent a message: …` / `Subagent <label> sent a message: …`；卡片标题走 l10n。**待读标记**：一个图标，不加文字。
@@ -114,7 +117,7 @@ Send a message to the conversation that delegated your task: a finding that chan
 沿用 `n-core-pseudocode.md` #1 #2 #4 #5 #6 #9 #10，改三条：
 
 - **#3 改**：每一段（每个 run）一条结果行。
-- **#7 改**：`stopped` 也写行，只是不唤醒。
+- **#7 改**：`stopped` 既不写行也不唤醒（模型已从工具返回值知道结果）；用户 Stop 写行、不唤醒。
 - **#8 改**：留言在父对话忙时于段边界开下一段，不新开一轮；轮末才开新一轮的仍遵守「忙 / 草稿不开」。
 
 新增：
@@ -219,6 +222,15 @@ Send a message to the conversation that delegated your task: a finding that chan
 - Gemini 交替约束：评审说连续两条 `user` 会 400，但仓库既有的工具续聊形状（`user(functionResponse)` 紧跟 `user(text)`）就是这样，四个测试锁定它。合并相邻同角色回合的改动已回滚，等真有 400 再按窄条件处理。
 - 命名目标的子代理无条件获得 `send_message`；`interrupt` 仍只属于委派方。
 - 两个新工具卡标题键；续聊重置 `startedAt`；手递手就绪判断加 `blocksSending`。
+
+### 13.6 第四轮 review 修正（2026-11-26）
+
+- 手递手：队头只在投递成功后出队；失败时原样留在队列（旧写法回插进的是已脱离 `_queue` 的列表）。
+- 就绪判断先看 paused / 压缩 / 群聊轮，mail 分支不再绕过。
+- `§6`/`§7` 与代码对齐：模型发起的 stop 静默，不写行不通知；用户 Stop 写行。
+- mail 待投 2 分钟上限（`mail_not_delivered`）。
+- 邮件弹窗底部按钮改 `Wrap`（360 px ru/tr 溢出）。
+- 新增回归测试，并做了反向验证（改回旧形状 → 失败；恢复后通过，SHA256 一致）。
 
 ### 13.4 rebase 到深度 1–3（2026-11-26）
 

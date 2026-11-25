@@ -219,36 +219,11 @@ Future<List<Map<String, dynamic>>> _googleFunctionResponseParts(
   ];
 }
 
-/// Gemini rejects a request whose `contents` do not alternate between `user`
-/// and `model`. Two rows can legitimately make two `user` turns — a tool result
-/// followed by a message that arrived at the step boundary — so adjacent turns
-/// of one role become one, their parts concatenated in arrival order.
-List<Map<String, dynamic>> mergeAdjacentGoogleTurns(
-  List<Map<String, dynamic>> contents,
-) {
-  final merged = <Map<String, dynamic>>[];
-  for (final content in contents) {
-    final parts = content['parts'];
-    if (merged.isNotEmpty &&
-        merged.last['role'] == content['role'] &&
-        merged.last['parts'] is List &&
-        parts is List) {
-      (merged.last['parts'] as List).addAll(parts);
-      continue;
-    }
-    merged.add(<String, dynamic>{
-      ...content,
-      'parts': parts is List ? List<dynamic>.of(parts) : <dynamic>[],
-    });
-  }
-  return merged;
-}
-
 List<Map<String, dynamic>> _googleApiContents(
   List<Map<String, dynamic>> contents,
 ) {
   return [
-    for (final content in mergeAdjacentGoogleTurns(contents))
+    for (final content in contents)
       {
         ...content,
         if (content['parts'] is List)
@@ -670,7 +645,7 @@ Stream<StreamChunk> sendGoogleStream(
     };
 
     Map<String, dynamic> baseBody = {
-      'contents': mergeAdjacentGoogleTurns(contents),
+      'contents': contents,
       if (systemPrompt.isNotEmpty)
         'systemInstruction': {
           'parts': [
@@ -1153,7 +1128,7 @@ Stream<StreamChunk> sendGoogleStream(
         if (wantsImageOutput) 'responseModalities': ['TEXT', 'IMAGE'],
       };
       final body = <String, dynamic>{
-        'contents': mergeAdjacentGoogleTurns(convo),
+        'contents': convo,
         if (systemPrompt.isNotEmpty)
           'systemInstruction': {
             'parts': [

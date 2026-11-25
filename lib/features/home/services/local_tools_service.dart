@@ -523,6 +523,7 @@ class LocalToolsService {
     bool allowDelegation = true,
     List<Assistant> delegateTargets = const <Assistant>[],
     bool isSubagent = false,
+    String? parentConversationId,
   }) {
     if (!supportsTools || assistant == null) {
       return const <Map<String, dynamic>>[];
@@ -578,15 +579,21 @@ class LocalToolsService {
       }
     }
     if (isSubagent) {
-      // A child is a child because its delegator delegated. Whether the named
-      // target assistant has 子代理 switched on says something about its own
-      // ability to delegate, not about answering the delegator, so the reply
-      // tool is offered either way.
-      tools.add(sendMessageDefinition(subagent: true));
+      // A child always has a delegator to answer, whatever its own assistant is
+      // configured to do; the id is handed over in the description so the model
+      // can name it instead of relying on the default.
+      tools.add(
+        sendMessageDefinition(
+          subagent: true,
+          parentConversationId: parentConversationId,
+        ),
+      );
     } else if (delegation && allowDelegation) {
       tools.add(sendMessageDefinition(subagent: false));
-      tools.add(interruptDefinition);
     }
+    // Stopping is for whoever may actually create a child: the delegator, and a
+    // child whose own assistant has delegation on and was handed levels.
+    if (delegation && allowDelegation) tools.add(interruptDefinition);
     return tools;
   }
 
@@ -1035,26 +1042,44 @@ class LocalToolsService {
 
   /// Sends a message to the other side of a delegation.
   ///
-  /// Two schemas, one name: a delegator names the job it is steering, while a
-  /// child has exactly one conversation to answer and does not need to name it.
-  /// Each side reads only what it can actually do, so the model never spends a
-  /// call on a parameter it does not have.
-  static Map<String, dynamic> sendMessageDefinition({required bool subagent}) {
+  /// One name, two roles. A delegator names the job it is steering. A child has
+  /// a delegator and may also have subagents of its own: it replies upward by
+  /// omitting `job_id` (or naming the delegator's conversation id, which the
+  /// description hands it), and reaches one of its own children by naming that
+  /// job. The child schema is built with the delegator's id so the model never
+  /// has to guess it or remember it from the brief.
+  static Map<String, dynamic> sendMessageDefinition({
+    required bool subagent,
+    String? parentConversationId,
+  }) {
     if (subagent) {
+      final parentId = (parentConversationId ?? '').trim();
+      final parent = parentId.isEmpty
+          ? 'your delegator'
+          : 'your delegator (conversation `$parentId`)';
       return <String, dynamic>{
         'type': 'function',
         'function': {
           'name': LocalToolNames.sendMessage,
           'description':
-              'Send a message to the conversation that delegated your task: a '
-              'finding that changes what it should do next, or a question you '
-              'cannot answer yourself. This returns when the message is '
-              'delivered, NOT with an answer — do not wait for one, keep '
+              'Send a message to another conversation in this delegation. Omit '
+              '`job_id`, or pass $parent\'s conversation id, to reply to your '
+              'delegator: a finding that changes what it should do next, or a '
+              'question you cannot answer yourself. Pass the `job_id` of one of '
+              'your own subagents to message it. This returns when the message '
+              'is delivered, NOT with an answer — do not wait for one, keep '
               'working with what you have. Sending a message does not end your '
               'turn; your final reply is still delivered as the result.',
           'parameters': <String, dynamic>{
             'type': 'object',
             'properties': <String, dynamic>{
+              'job_id': {
+                'type': 'string',
+                'description':
+                    'Optional. One of your own subagents\' job ids, or your '
+                    'delegator\'s conversation id. Omit to reply to your '
+                    'delegator.',
+              },
               'text': {
                 'type': 'string',
                 'description':

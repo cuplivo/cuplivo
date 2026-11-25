@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>深层委派：描述里再带孩子名单</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0E0E11; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; color: #E8E8EA; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 26px 18px 48px; }
+  h1 { font-size: 17px; margin: 0 0 6px; }
+  .lede { color: #9A9AA2; font-size: 13px; line-height: 1.7; margin: 0 0 22px; }
+  h2 { font-size: 13px; color: #9A9AA2; letter-spacing: .05em; margin: 26px 0 10px; font-weight: 600; }
+  .card { background: #17171B; border: 1px solid #26262C; border-radius: 14px; padding: 14px 16px; }
+  pre { background: #121216; border: 1px solid #26262C; border-radius: 10px; padding: 12px; overflow: auto; font-size: 12.5px; line-height: 1.65; color: #D6D6DC; margin: 0; white-space: pre-wrap; }
+  .k { color: #9DB4FF; } .s { color: #B5D6A0; } .c { color: #7E7E86; } .n { color: #E0C08A; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #26262C; vertical-align: top; }
+  th { color: #8E8E96; font-weight: 600; }
+  code { background: #26262D; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+  .note { color: #8E8E96; font-size: 12.5px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>深层委派：描述里再带孩子名单</h1>
+  <p class="lede">同样的可选 <code>job_id</code> 与父对话 ID，额外把<strong>当前每个孩子的名字与 job_id</strong> 拼进描述。模型不必记住 <code>delegate</code> 的返回值，就能直接点名。</p>
+
+  <h2>子代理看到的 schema 与描述</h2>
+  <div class="card">
+    <pre>{
+  "name": <span class="s">"send_message"</span>,
+  "description": <span class="s">"Send a message to another conversation in this
+    delegation. Your delegator is `<span class="n">c-123</span>`: omit `job_id`
+    to reply to it. Your subagents right now:
+    - <span class="n">c-42</span> — 工作区内容调研
+    - <span class="n">c-57</span> — 依赖审计"</span>,
+  <span class="k">"required"</span>: [<span class="s">"text"</span>],
+  <span class="k">"properties"</span>: {
+    <span class="s">"job_id"</span>: { <span class="c">// optional: a child's id, or the delegator's id</span> },
+    <span class="s">"text"</span>:   { <span class="c">// what to say</span> }
+  }
+}</pre>
+  </div>
+
+  <h2>三种调用</h2>
+  <table>
+    <tr><th>调用</th><th>落到哪</th></tr>
+    <tr><td><code>send_message({"text": "缺 config"})</code></td><td>父对话（默认）</td></tr>
+    <tr><td><code>send_message({"job_id": "c-123", "text": "缺 config"})</code></td><td>父对话（显式 ID）</td></tr>
+    <tr><td><code>send_message({"job_id": "c-42", "text": "改用 YAML"})</code></td><td>自己的孩子 <code>c-42</code>（描述里已经列出）</td></tr>
+  </table>
+
+  <h2>名单从哪来</h2>
+  <div class="card">
+    <pre><span class="c">// 工具表每次请求都会重新构建</span>
+children = conversations where extras[parent] == this conversation
+<span class="k">for</span> child <span class="k">in</span> children:
+    line = <span class="s">"- {child.id} — {child.title}"</span>
+description += <span class="s">"\n\nYour subagents right now:\n"</span> + join(lines)</pre>
+  </div>
+
+  <p class="note">代价：每轮 prompt 多出孩子名单（每个孩子一行）；名单随 <code>delegate</code>/结束变化，工具表要按会话状态重建——目前工具表是每请求重建的，代价可控。</p>
+</div>
+</body>
+</html>

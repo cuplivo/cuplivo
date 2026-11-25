@@ -226,3 +226,9 @@ Send a message to the conversation that delegated your task: a finding that chan
 - 已知缺口：可继续委派的子代理仍只有向上回复的 `send_message`，没有 `interrupt`，无法管理自己的下一层——记为下一片。
 - 面板保留 master 的 `descendants` 计数，同时保持「同一子会话取最新结果行」。
 
+### 13.5 深度 >1 的双向消息（2026-11-26）
+
+- `send_message` 的 `job_id` 变可选：省略或传父对话 ID 是向上，传孩子的 `job_id` 是向下；父对话 ID 拼进工具描述。
+- 能继续委派的子代理也拿到 `interrupt`；`delegate`/`await_job` 仍由 `levels` 与助手开关决定。
+- 简报的委派行改为条件句，避免 `levels` 允许但工具没给时的谎报。
+

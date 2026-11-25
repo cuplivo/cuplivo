@@ -2296,9 +2296,11 @@ class MessageBuilderService {
     // The depth is the child's own budget, carried in its extras. A child handed
     // levels may delegate again; one that was not must not be told otherwise.
     final canDelegate = mayDelegate(delegator: null, extras: extras);
+    // Levels say the chain may go deeper, not that this assistant was given the
+    // tool, so the line states the permission conditional on the tool.
     final delegateLine = canDelegate
-        ? '- The work may itself need a subagent: `delegate` is available, under '
-              'the same depth and permission rules.\n'
+        ? '- If `delegate` is among your tools, you may hand part of the work '
+              'to a subagent; the same depth and permission rules apply.\n'
         : '- You cannot delegate further.\n';
     return '<subagent_context>\n'
         'You are a subagent: this conversation was started by another '

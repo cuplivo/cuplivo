@@ -232,15 +232,26 @@ void main() {
       ]);
     });
 
-    test('a child has only the text to give', () {
+    test('a child replies upward by default and may name its own child', () {
+      final function =
+          LocalToolsService.sendMessageDefinition(
+                subagent: true,
+                parentConversationId: 'parent-1',
+              )['function']
+              as Map;
+      expect((function['parameters'] as Map)['required'], <String>['text']);
+      // The id is optional, and the delegator's own id is printed so the model
+      // can name it instead of relying on the default.
+      expect((function['parameters'] as Map)['properties'], contains('job_id'));
+      expect(function['description'], contains('parent-1'));
+    });
+
+    test('a child with no delegator id prints no dangling address', () {
       final function =
           LocalToolsService.sendMessageDefinition(subagent: true)['function']
               as Map;
-      expect((function['parameters'] as Map)['required'], <String>['text']);
-      expect(
-        (function['parameters'] as Map)['properties'],
-        isNot(contains('job_id')),
-      );
+      expect(function['description'], contains('your delegator'));
+      expect(function['description'], isNot(contains('``')));
     });
 
     test('interrupt names the job', () {
@@ -255,6 +266,7 @@ void main() {
         supportsTools: true,
         allowDelegation: false,
         isSubagent: true,
+        parentConversationId: 'parent-9',
       );
       final names = offered.map(nameOf);
       expect(names, contains(LocalToolNames.sendMessage));
@@ -268,6 +280,19 @@ void main() {
         ((send['function'] as Map)['parameters'] as Map)['required'],
         <String>['text'],
       );
+      expect((send['function'] as Map)['description'], contains('parent-9'));
+    });
+
+    test('a child handed levels may stop its own child', () {
+      final names = LocalToolsService.buildToolDefinitions(
+        assistant: childAssistant(),
+        supportsTools: true,
+        isSubagent: true,
+        parentConversationId: 'parent-9',
+      ).map(nameOf);
+      expect(names, contains(LocalToolNames.sendMessage));
+      expect(names, contains(LocalToolNames.interrupt));
+      expect(names, contains(LocalToolNames.delegate));
     });
 
     test('a named-target child still gets the reply tool', () {

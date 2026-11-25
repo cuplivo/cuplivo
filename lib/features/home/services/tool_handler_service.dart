@@ -40,7 +40,11 @@ import '../../../core/providers/workspace_provider.dart';
 import '../../image_job/services/image_job_coordinator.dart';
 import '../../subagent/services/subagent_coordinator.dart';
 import '../../subagent/services/subagent_rules.dart'
-    show delegableAssistants, delegationBlockedFor, isSubagentConversation;
+    show
+        SubagentExtrasKeys,
+        delegableAssistants,
+        delegationBlockedFor,
+        isSubagentConversation;
 import '../../subagent/services/subagent_target.dart';
 import 'ask_user_interaction_service.dart';
 import 'built_in_tool_names.dart';
@@ -336,6 +340,23 @@ class ToolHandlerService {
     }
   }
 
+  /// The delegator's conversation id, or null for a conversation without one.
+  ///
+  /// The child schema prints it so the model can name its delegator explicitly
+  /// instead of relying on the default; the router compares against it to tell
+  /// "reply upward" from "message my own child".
+  String? _parentConversationId(String? conversationId) {
+    if (conversationId == null) return null;
+    try {
+      final conversation = contextProvider.read<ChatService>().getConversation(
+        conversationId,
+      );
+      return conversation?.extras[SubagentExtrasKeys.parent] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   List<Map<String, dynamic>> buildToolDefinitions(
     SettingsProvider settings,
     Assistant? assistant,
@@ -396,6 +417,7 @@ class ToolHandlerService {
             ? const <Assistant>[]
             : _delegableTargets(assistant),
         isSubagent: _isSubagentConversation(conversationId),
+        parentConversationId: _parentConversationId(conversationId),
       ).where(
         (definition) =>
             (definition['function'] as Map)['name'] !=
@@ -1018,11 +1040,16 @@ class ToolHandlerService {
                 tool: name,
               );
             }
+            final target = (args['job_id'] ?? '').toString().trim();
             final conversation = contextProvider
                 .read<ChatService>()
                 .getConversation(conversationId);
-            if (conversation != null &&
-                isSubagentConversation(conversation.extras)) {
+            final parentId =
+                conversation?.extras[SubagentExtrasKeys.parent] as String?;
+            // A child replies upward by omitting the id, or by naming its
+            // delegator explicitly — the schema prints that id so both spellings
+            // work. Any other id is one of its own subagents.
+            if (parentId != null && (target.isEmpty || target == parentId)) {
               return jsonEncode(
                 await coordinator.sendToParent(
                   childConversationId: conversationId,
@@ -1031,8 +1058,7 @@ class ToolHandlerService {
                 ),
               );
             }
-            final jobId = (args['job_id'] ?? '').toString().trim();
-            if (jobId.isEmpty) {
+            if (target.isEmpty) {
               return _toolError(
                 error: 'invalid_arguments',
                 message: 'send_message needs the job_id delegate returned.',
@@ -1053,7 +1079,7 @@ class ToolHandlerService {
             return jsonEncode(
               await coordinator.sendToChild(
                 parentConversationId: conversationId,
-                jobId: jobId,
+                jobId: target,
                 text: text,
                 assistant: current,
                 toolCallId: toolCallId,

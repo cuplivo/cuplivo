@@ -5524,6 +5524,14 @@ void main() {
       expect(report.conversationsSent, 1);
       expect(report.deferred, 0, reason: "a page is not a deferral");
       expect(await _messageIds(b, "conv-big"), hasLength(6));
+
+      // The entry this transfer writes is composed from the pages that arrived,
+      // not from a re-read of the conversation, so the two sides record the same
+      // agreement — and a session that finds nothing to do is what proves it.
+      final settled = await a.engine.syncWithPeer(await a.peer(b));
+      expect(settled.success, isTrue, reason: settled.summary);
+      expect(settled.conversationsSent, 0, reason: "the pair already agrees");
+      expect(settled.conversationsReceived, 0, reason: "nothing left to fetch");
     });
 
     test("an intermediate page deletes nothing", () async {

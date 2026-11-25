@@ -492,6 +492,13 @@ class RequestImageContext {
         message[multimodalInternalMediaPathsKey] = refs;
         continue;
       }
+      // A picture the assistant produced is never put back on the wire: no
+      // provider takes it in an assistant turn, and the providers that carry it
+      // forward made the model read its own old work as a fresh user upload.
+      // It stays on the message as a recallable asset (`view_image`), so no
+      // reference is prepared for it here either — `activeHandles` is what the
+      // image panel reports as sent, and this keeps that answer honest.
+      if (message['role'] == 'assistant') continue;
       final raw = message['content'];
       if (raw is String && parseMarkdownImages) {
         final parsed = await parseTextAndImages(

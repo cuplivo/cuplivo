@@ -8,6 +8,7 @@ import '../../chat_api_helpers.dart';
 import '../../stream/stream_chunk.dart';
 import '../../stream/stream_chunk_emit.dart';
 import 'openai_tool_transcript.dart';
+import 'responses_decoder.dart';
 
 const responsesTurnArtifactKind = 'responses_turn';
 
@@ -232,11 +233,26 @@ List<Map<String, dynamic>>? buildResponsesHistory({
   }
 }
 
+/// Preserve a native item's reference while dropping the pixels it may carry.
+/// The picture is output-only: the app already saved it as a recallable asset.
+Map<String, dynamic> withoutImagePayload(Map<String, dynamic> item) {
+  final out = Map<String, dynamic>.from(item);
+  for (final key in responsesImagePayloadKeys) {
+    out.remove(key);
+  }
+  return out;
+}
+
 /// Preserve native fields while honoring assistant text transformations (for
 /// example regex rules) applied after history assembly. Reasoning stays opaque.
+///
+/// A native image-generation item keeps its hosted-call reference but loses its
+/// pixels: replaying the bytes made a model treat its own old picture as a
+/// fresh upload.
 Map<String, dynamic> responsesInputItem(Map<String, dynamic> message) {
-  final item = Map<String, dynamic>.from(
-    message[multimodalInternalResponsesItemKey] as Map,
+  final item = withoutImagePayload(
+    (message[multimodalInternalResponsesItemKey] as Map)
+        .cast<String, dynamic>(),
   );
   final text = (message['content'] ?? '').toString();
   if (item['type'] == 'message' && text != responsesMessageText(item)) {

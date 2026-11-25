@@ -93,6 +93,39 @@ void main() {
       expect(none.payload.output, [compact]);
     },
   );
+  test('a compaction window cannot replay an image payload', () async {
+    final payload = NativeCompactionPayload(
+      protocol: NativeCompactionProtocol.codex,
+      scope: nativeCompactionScope(nativeConfig),
+      modelId: 'test',
+      output: [
+        compact,
+        {
+          'type': 'image_generation_call',
+          'id': 'ig_1',
+          'status': 'completed',
+          'result': 'iVBORw0KGgo=',
+        },
+      ],
+    );
+    final body = await buildOpenAIResponsesBody(
+      nativeResponsesConfig(nativeConfig),
+      'test',
+      RequestHistoryContext.identify([
+        {'role': 'user', 'content': 'tail'},
+        {
+          'role': 'user',
+          'content': '',
+          nativeCompactionMessageKey: payload.toJson(),
+        },
+      ]),
+    );
+    final input = RequestHistoryContext.stripSources(body)['input'] as List;
+    final item = input.cast<Map>().firstWhere((item) => item['id'] == 'ig_1');
+    expect(item.containsKey('result'), isFalse);
+    expect(jsonEncode(body), isNot(contains('iVBORw0KGgo')));
+  });
+
   for (final kind in [ProviderKind.claude, ProviderKind.google]) {
     test(
       '$kind keeps consecutive carried user, summary and tail in order',

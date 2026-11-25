@@ -1084,6 +1084,11 @@ class HomeViewModel extends ChangeNotifier {
     // A paused queue is a failed delivery the composer is showing as paused: it
     // is not ready to go, and a handoff that took it would deliver it anyway.
     if (_pausedQueuedInputs.contains(conversationId)) return false;
+    // Asking for a handoff while the next turn cannot start would end the
+    // running one and deliver nothing.
+    if (_chatService.contextCompression.blocksSending(conversationId)) {
+      return false;
+    }
     final head = _queue[conversationId]?.firstOrNull;
     return head is QueuedUserInput;
   }

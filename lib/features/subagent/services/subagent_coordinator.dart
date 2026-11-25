@@ -111,7 +111,9 @@ final class SubagentEntry {
 
   /// The model's short name for the job, already bounded by `childTitle`.
   final String title;
-  final DateTime startedAt;
+  /// When the current segment started. A continued delegation resets it, so the
+  /// panel measures this turn rather than the whole lifetime.
+  DateTime startedAt;
 
   /// Who delegated: the assistant that is woken with the result. It is not the
   /// assistant running the child when the task was named to somebody else.
@@ -452,6 +454,9 @@ class SubagentCoordinator extends ChangeNotifier {
       entry.stoppedByModel = false;
       entry.brief = null;
       entry.elapsed = null;
+      // This segment's duration starts now: measuring from the first segment
+      // would report the idle gap as time the child spent working.
+      entry.startedAt = _clock();
       notifyListeners();
     }
     final running = _host?.isTurnRunning?.call(childId) ?? false;

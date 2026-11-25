@@ -15304,6 +15304,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditLocalToolAwaitJobTitle => '等待任务';
 
   @override
+  String get assistantEditLocalToolSendMessageTitle => '发送消息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
+
+  @override
   String get defaultModelPageImageModelTitle => '绘图模型';
 
   @override
@@ -33508,6 +33514,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '发送消息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
 
   @override
   String get defaultModelPageImageModelTitle => '绘图模型';
@@ -51725,6 +51737,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => '等待任務';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '傳送訊息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
 
   @override
   String get defaultModelPageImageModelTitle => '繪圖模型';

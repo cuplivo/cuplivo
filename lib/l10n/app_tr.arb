@@ -4719,6 +4719,8 @@
   "assistantEditLocalToolImageTitle": "Çizim",
   "assistantEditLocalToolDelegateTitle": "Alt ajan",
   "assistantEditLocalToolAwaitJobTitle": "Görev bekle",
+  "assistantEditLocalToolSendMessageTitle": "Mesaj gönder",
+  "assistantEditLocalToolInterruptTitle": "Alt ajanı durdur",
   "defaultModelPageImageModelTitle": "Görsel Modeli",
   "defaultModelPageImageModelSubtitle": "Yanıt içinde resim çizen model; ayarlanmazsa çizim devre dışı kalır.",
   "imageJobPanelCopy": "Kopyala",

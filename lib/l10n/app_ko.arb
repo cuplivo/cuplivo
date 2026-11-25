@@ -4719,6 +4719,8 @@
   "assistantEditLocalToolImageTitle": "그리기",
   "assistantEditLocalToolDelegateTitle": "서브에이전트",
   "assistantEditLocalToolAwaitJobTitle": "작업 대기",
+  "assistantEditLocalToolSendMessageTitle": "메시지 보내기",
+  "assistantEditLocalToolInterruptTitle": "하위 에이전트 중지",
   "defaultModelPageImageModelTitle": "이미지 모델",
   "defaultModelPageImageModelSubtitle": "답변 안에서 그림을 그리는 모델입니다. 설정하지 않으면 그리기가 꺼집니다.",
   "imageJobPanelCopy": "복사",

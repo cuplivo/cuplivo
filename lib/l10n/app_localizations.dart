@@ -28446,6 +28446,18 @@ abstract class AppLocalizations {
   /// **'Wait for task'**
   String get assistantEditLocalToolAwaitJobTitle;
 
+  /// Tool-call card title for a message one side of a delegation sends to the other.
+  ///
+  /// In en, this message translates to:
+  /// **'Send message'**
+  String get assistantEditLocalToolSendMessageTitle;
+
+  /// Tool-call card title for asking a subagent to stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop subagent'**
+  String get assistantEditLocalToolInterruptTitle;
+
   /// Settings row for choosing the model that draws pictures.
   ///
   /// In en, this message translates to:

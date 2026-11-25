@@ -5581,5 +5581,7 @@
   "subagentMailOpenConversation": "41be977ed2053211f58b1dd62222026ac7735f2cf7f9f82831beae243d0e58c3",
   "subagentMailCopy": "eb6a516600fbd2e818843bf1f494fe363759d74c1c3739154456582970367c2a",
   "subagentMailCopied": "077ac616f710df6af70c674d1826a4df9bb1739137d6e0bd75a145737aba730c",
-  "subagentMailDelegatorLabel": "fac4fdc7dc34e6e5d80e55df6f4fe281167f5e8a979552c8ef61426ce835e7ff"
+  "subagentMailDelegatorLabel": "fac4fdc7dc34e6e5d80e55df6f4fe281167f5e8a979552c8ef61426ce835e7ff",
+  "assistantEditLocalToolSendMessageTitle": "206c3edbd2ab79e9f16f695a238e3c928f87da1aeb508a1269adaf6f7622ea8f",
+  "assistantEditLocalToolInterruptTitle": "a41504d6ddd5907f70e44801cc0dafb17a24e5694820323a030b6cbbb62354ae"
 }

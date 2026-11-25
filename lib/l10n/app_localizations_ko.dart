@@ -18634,4 +18634,845 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => '항상 허용';
+
+  @override
+  String get dshProductName => 'DeepSeek Harness';
+
+  @override
+  String get dshConnectSheetTitle => '새 DeepSeek Harness에 연결';
+
+  @override
+  String get dshConnectModeDirect => '직접 연결';
+
+  @override
+  String get dshCancel => '취소';
+
+  @override
+  String get dshConfirm => '확인';
+
+  @override
+  String get dshAssistantNameLabel => '어시스턴트 이름';
+
+  @override
+  String get dshAssistantSubtitle => '원격 연결을 통한 DeepSeek Harness';
+
+  @override
+  String get dshWebUiUrlLabel => 'DeepSeek Harness WebUI 링크를 붙여넣으세요';
+
+  @override
+  String get dshWebUiUrlHint => '예: 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
+
+  @override
+  String get dshWebUiUrlHelper =>
+      '같은 LAN에 있는 DeepSeek Harness 또는 공용 네트워크에 노출된 DeepSeek Harness에 사용할 수 있습니다.';
+
+  @override
+  String get dshTabConnection => '연결';
+
+  @override
+  String get dshTabGeneral => '일반';
+
+  @override
+  String get dshTabModels => '모델';
+
+  @override
+  String get dshDefaultPermissionLabel => '새 세션의 기본 권한 제한';
+
+  @override
+  String get dshUploadSessionLogLabel => '공식 모델 API 사용 시 세션 로그 업로드';
+
+  @override
+  String get dshPermissionUnset => 'DeepSeek Harness 기본값';
+
+  @override
+  String get dshPermissionPickerTitle => '새 세션의 기본 권한';
+
+  @override
+  String get dshStatusIdle => '연결되지 않음';
+
+  @override
+  String get dshStatusConnecting => '연결 중…';
+
+  @override
+  String get dshStatusReady => '연결됨';
+
+  @override
+  String get dshGeneralNotConnected => '이 설정을 변경하려면 DeepSeek Harness에 연결하세요.';
+
+  @override
+  String get dshModelsPlaceholder =>
+      'DeepSeek Harness의 모델과 공급자 설정이 여기에서 관리됩니다.';
+
+  @override
+  String get dshErrorNotConfigured =>
+      'DeepSeek Harness 클라이언트가 아직 연결되지 않아 연결할 수 없습니다.';
+
+  @override
+  String get dshErrorUnreachable =>
+      '해당 DeepSeek Harness에 연결할 수 없습니다. 주소와 네트워크를 확인하세요.';
+
+  @override
+  String get dshErrorAuth => '연결이 거부되었습니다. WebUI 링크를 다시 붙여넣으세요.';
+
+  @override
+  String get dshErrorProtocol => 'DeepSeek Harness가 이 앱에서 이해할 수 없는 응답을 반환했습니다.';
+
+  @override
+  String get dshErrorUnsupported =>
+      '현재 DeepSeek Harness 버전에서는 이 기능을 지원하지 않습니다.';
+
+  @override
+  String get dshErrorUnknown => '연결에 실패했습니다. 나중에 다시 시도하세요.';
+
+  @override
+  String get dshErrorNameRequired => '어시스턴트 이름을 입력하세요.';
+
+  @override
+  String get dshErrorInvalidLink =>
+      '링크가 올바르지 않습니다. DeepSeek Harness에서 표시된 WebUI 링크를 붙여넣으세요.';
+
+  @override
+  String get dshRemoteDeleteTooltip => 'DeepSeek Harness 삭제';
+
+  @override
+  String get dshRemoteDeleteTitle => 'DeepSeek Harness를 삭제할까요?';
+
+  @override
+  String get dshRemoteDeleteContent =>
+      'Cuplivo에서만 이 연결이 제거됩니다. DeepSeek Harness의 어떤 데이터도 삭제되지 않습니다.';
+
+  @override
+  String get dshRemoteDeleteConfirm => '삭제';
+
+  @override
+  String get dshSidebarPlugins => '플러그인';
+
+  @override
+  String get dshSidebarAutomations => '자동화';
+
+  @override
+  String get dshSidebarMore => '더 보기';
+
+  @override
+  String get dshNewSession => '새 세션';
+
+  @override
+  String get dshNewSessionTooltip => '새 세션';
+
+  @override
+  String get dshDefaultWorkspace => '기본 작업 공간';
+
+  @override
+  String get dshSessionsEmpty => '아직 세션이 없습니다';
+
+  @override
+  String get dshSessionsLoading => '세션 불러오는 중…';
+
+  @override
+  String get dshSessionsFailed => '원격 세션을 불러오지 못했습니다';
+
+  @override
+  String get dshCatalogUnavailable => '이 빌드에서는 원격 세션을 사용할 수 없습니다';
+
+  @override
+  String get dshCatalogUnavailableHint =>
+      'DeepSeek Harness 클라이언트를 연결하면 여기에 세션이 표시됩니다.';
+
+  @override
+  String get dshOperationFailed => '작업을 완료하지 못했습니다. 다시 시도하세요.';
+
+  @override
+  String get dshSessionRenameTitle => '세션 이름 변경';
+
+  @override
+  String get dshSessionFork => '브랜치 만들기';
+
+  @override
+  String get dshSessionArchive => '보관';
+
+  @override
+  String get dshSessionArchived => '세션이 보관되었습니다';
+
+  @override
+  String get dshSessionDeleted => '세션이 삭제되었습니다';
+
+  @override
+  String get dshRailStart => '시작';
+
+  @override
+  String get dshRailWorkspaceFiles => '작업 공간 파일';
+
+  @override
+  String get dshRailWorkspaceFilesSubtitle => '이 세션의 작업 공간 파일 탐색';
+
+  @override
+  String get dshRailWorkspaceFilesShortcut => 'Ctrl + P';
+
+  @override
+  String get dshRailNewTerminal => '새 터미널';
+
+  @override
+  String get dshRailNewTerminalSubtitle => '세션 작업 공간에서 명령 실행';
+
+  @override
+  String get dshRailNewTerminalShortcut => 'Ctrl + `';
+
+  @override
+  String get dshRailMoreTools => '더 많은 도구';
+
+  @override
+  String get dshRailMoreToolsEmpty => '이 호스트의 다른 도구가 없습니다';
+
+  @override
+  String get dshRailMoreToolsEmptyHint => '호스트가 보고하면 플러그인 패널이 여기에 표시됩니다.';
+
+  @override
+  String get dshRailPluginsSection => '플러그인';
+
+  @override
+  String get dshRailExpand => '패널 펼치기';
+
+  @override
+  String get dshRailCollapse => '패널 접기';
+
+  @override
+  String get dshRailClose => '패널 닫기';
+
+  @override
+  String get dshRailBackToStart => '시작으로 돌아가기';
+
+  @override
+  String get dshRailToggle => '오른쪽 패널';
+
+  @override
+  String get dshFilesNoSession => '먼저 세션을 여세요';
+
+  @override
+  String get dshFilesUnavailable => '이 빌드에서는 원격 파일 탐색을 사용할 수 없습니다';
+
+  @override
+  String get dshFilesUnavailableHint =>
+      'DeepSeek Harness 클라이언트를 연결하면 여기에서 작업 공간 파일을 탐색할 수 있습니다.';
+
+  @override
+  String get dshFilesParentFolder => '상위 폴더';
+
+  @override
+  String get dshFilesBackToFiles => '파일 목록으로 돌아가기';
+
+  @override
+  String get dshFilesPreviewUnavailable => '이 파일은 미리 볼 수 없습니다';
+
+  @override
+  String get dshFilesTruncated => '이 파일의 첫 페이지만 표시합니다.';
+
+  @override
+  String get dshTerminalUnavailable => '이 빌드에서는 원격 터미널을 사용할 수 없습니다';
+
+  @override
+  String get dshTerminalUnavailableHint =>
+      'DeepSeek Harness 터미널은 작업 공간 기능과 함께 제공됩니다.';
+
+  @override
+  String get dshHomeOfflineTitle => 'DeepSeek Harness가 연결되지 않았습니다';
+
+  @override
+  String get dshHomeOfflineHint => '어시스턴트 설정에서 연결을 확인한 후 다시 시도하세요.';
+
+  @override
+  String get dshHomeRetry => '다시 시도';
+
+  @override
+  String get dshHomeNoSession => '열린 세션이 없습니다';
+
+  @override
+  String get dshSurfaceUnavailable => '이 빌드에서는 이 화면을 사용할 수 없습니다';
+
+  @override
+  String get dshSurfaceUnavailableHint =>
+      '이 화면은 이후 DeepSeek Harness 기능과 함께 제공됩니다.';
+
+  @override
+  String get dshModelPickerTitle => '모델 선택';
+
+  @override
+  String get dshModelPickerSearchHint => '공급자 또는 모델 검색';
+
+  @override
+  String get dshModelPickerAllProviders => '전체';
+
+  @override
+  String get dshModelPickerFailuresSection => '로드하지 못한 공급자';
+
+  @override
+  String get dshModelPickerEmpty => '이 서버는 현재 사용 가능한 모델을 제공하지 않습니다.';
+
+  @override
+  String get dshModelReasoningBadge => '추론';
+
+  @override
+  String get dshReasoningPickerTitle => '추론 강도';
+
+  @override
+  String get dshReasoningDefaultTag => '기본값';
+
+  @override
+  String get dshReasoningPickerNone => '이 모델은 조정 가능한 추론 강도가 없습니다.';
+
+  @override
+  String get dshReasoningChangeFailed => '추론 강도를 변경하지 못했습니다.';
+
+  @override
+  String get dshModelChangeFailed => '모델을 전환하지 못했습니다.';
+
+  @override
+  String get dshModelDetailsTitle => '모델 세부 정보';
+
+  @override
+  String get dshModelDetailsProvider => '공급자';
+
+  @override
+  String get dshModelDetailsEffort => '추론 강도';
+
+  @override
+  String get dshModelDetailsId => '모델 ID';
+
+  @override
+  String get dshModelDetailsNote =>
+      '모델 및 추론 설정은 DeepSeek Harness에 있으며, Cuplivo는 이를 요청만 합니다.';
+
+  @override
+  String get dshPermissionTitle => '권한';
+
+  @override
+  String get dshPermissionReadOnly => '읽기 전용';
+
+  @override
+  String get dshPermissionReadOnlyDesc =>
+      '어시스턴트는 파일을 읽고 답변할 수 있지만 아무것도 변경할 수 없습니다.';
+
+  @override
+  String get dshPermissionWorkspaceWrite => '작업 공간 쓰기';
+
+  @override
+  String get dshPermissionWorkspaceWriteDesc =>
+      '어시스턴트는 세션 작업 공간 내에서 파일을 생성하고 편집할 수 있습니다.';
+
+  @override
+  String get dshPermissionFullAccess => '전체 액세스';
+
+  @override
+  String get dshPermissionFullAccessDesc =>
+      '어시스턴트는 DeepSeek Harness 호스트가 허용하는 범위 어디서든 명령을 실행하고 파일을 변경할 수 있습니다.';
+
+  @override
+  String get dshPermissionRiskTag => '위험';
+
+  @override
+  String get dshPermissionRiskTitle => '전체 액세스를 허용하시겠습니까?';
+
+  @override
+  String get dshPermissionRiskBody =>
+      '이렇게 하면 어시스턴트가 다시 묻지 않고 DeepSeek Harness 호스트에서 명령을 실행하고 파일을 변경할 수 있습니다. 이 서버와 이 세션을 신뢰하는 경우에만 계속하세요.';
+
+  @override
+  String get dshPermissionRiskAcknowledge => '위험을 이해합니다';
+
+  @override
+  String get dshPermissionRiskConfirm => '계속';
+
+  @override
+  String get dshPermissionChanging => '적용 중…';
+
+  @override
+  String get dshPermissionNoPresets => '이 서버는 권한 프리셋을 제공하지 않습니다.';
+
+  @override
+  String get dshPermissionChangeFailed => '권한을 변경하지 못했습니다.';
+
+  @override
+  String get dshPlusSheetTitle => '더 보기';
+
+  @override
+  String get dshPlusWorkspace => '작업 공간';
+
+  @override
+  String get dshPlusWorkspaceUnknown => '서버가 이 세션의 작업 공간 정보를 제공하지 않았습니다.';
+
+  @override
+  String get dshPlusPermission => '권한';
+
+  @override
+  String get dshPlusModelDetails => '모델 상세 정보';
+
+  @override
+  String get dshPlusPluginPanel => '플러그인 패널 (오른쪽 레일)';
+
+  @override
+  String get dshPlusPluginPanelSubtitle =>
+      'DSH 플러그인은 독립 페이지가 없으며 웹 UI 안에 패널로 표시됩니다.';
+
+  @override
+  String get dshPlusSettings => 'DSH 설정';
+
+  @override
+  String get dshApprovalTitle => '계속하려면 승인이 필요합니다';
+
+  @override
+  String get dshApprovalAllow => '한 번 허용';
+
+  @override
+  String get dshApprovalDeny => '거부';
+
+  @override
+  String get dshQuestionTitle => '어시스턴트가 답변을 기다리고 있습니다';
+
+  @override
+  String get dshQuestionSubmit => '제출';
+
+  @override
+  String get dshQuestionReject => '거절';
+
+  @override
+  String get dshQuestionFreeformHint => '답변을 입력하세요';
+
+  @override
+  String get dshChatEmptyTitle => 'DeepSeek Harness와 대화 시작하기';
+
+  @override
+  String get dshChatEmptyBody =>
+      '메시지는 Cuplivo가 아닌 DeepSeek Harness 서버에서 저장되고 실행됩니다.';
+
+  @override
+  String get dshStaleBanner => '연결이 끊어졌습니다 — 마지막으로 받은 내용을 표시하고 있습니다.';
+
+  @override
+  String dshQueuedCount(int count) {
+    return '$count개 대기 중';
+  }
+
+  @override
+  String get dshSendFailedTitle => '메시지가 전송되지 않았습니다';
+
+  @override
+  String get dshControllerUnavailable => '채팅 세션을 사용할 수 없습니다. 어시스턴트를 다시 연결하세요.';
+
+  @override
+  String get dshPluginPanelTitle => '플러그인 패널';
+
+  @override
+  String get dshWebPanelNoPluginUrl =>
+      'DeepSeek Harness 플러그인은 웹 UI 내부의 슬롯이며 독립 주소가 없으므로, 이 페이지에는 해당 서버의 전체 웹 UI가 표시됩니다.';
+
+  @override
+  String get dshWebPanelLoading => 'DeepSeek Harness 웹 UI를 여는 중…';
+
+  @override
+  String get dshWebPanelUnauthorizedTitle => '웹 UI 세션이 만료되었습니다';
+
+  @override
+  String get dshWebPanelUnauthorizedBody =>
+      'dsh web이 재시작되면 실행 토큰이 변경됩니다. 새 WebUI 링크로 어시스턴트를 다시 연결한 후 이 페이지를 다시 여세요.';
+
+  @override
+  String get dshWebPanelNetworkTitle => '웹 UI를 열 수 없습니다';
+
+  @override
+  String get dshWebPanelNetworkBody =>
+      '이 기기에서 DeepSeek Harness 호스트에 접근할 수 있는지, 주소가 실행 중인 서버와 여전히 일치하는지 확인하세요.';
+
+  @override
+  String get dshWebPanelUnsupportedTitle => '이 플랫폼은 웹 UI를 내장할 수 없습니다';
+
+  @override
+  String get dshWebPanelUnsupportedBody =>
+      '대신 이 기기의 브라우저에서 DeepSeek Harness 웹 UI를 여세요.';
+
+  @override
+  String get dshWebPanelReconnect => '다시 연결';
+
+  @override
+  String get dshModelsSearchHint => '공급자 또는 그룹 검색';
+
+  @override
+  String get dshModelsAddProvider => '공급자 추가';
+
+  @override
+  String get dshModelsCustomProviderTitle => '사용자 지정 공급자';
+
+  @override
+  String get dshModelsCustomProviderSubtitle =>
+      '게이트웨이나 자체 호스팅 엔드포인트를 직접 구성합니다.';
+
+  @override
+  String get dshModelsProviderEnabled => '사용 중';
+
+  @override
+  String get dshModelsProviderUnavailable => '사용 불가';
+
+  @override
+  String get dshModelsEmptyTitle => '아직 공급자가 없습니다';
+
+  @override
+  String get dshModelsEmptyBody =>
+      '이 DeepSeek Harness에 공급자를 추가하여 에이전트가 모델을 사용할 수 있게 하세요.';
+
+  @override
+  String get dshModelsNotConnectedTitle => '연결해야 공급자를 불러올 수 있습니다';
+
+  @override
+  String get dshModelsNotConnectedBody =>
+      'Cuplivo는 DeepSeek Harness 호스트에서 이 목록을 읽습니다.';
+
+  @override
+  String get dshModelsLoading => '공급자 불러오는 중…';
+
+  @override
+  String get dshModelsLoadFailed => '공급자 목록을 불러오지 못했습니다';
+
+  @override
+  String get dshModelsSearchEmpty => '검색과 일치하는 공급자가 없습니다';
+
+  @override
+  String get dshModelsRefresh => '새로고침';
+
+  @override
+  String dshModelsModelCount(int count) {
+    return '모델 $count개';
+  }
+
+  @override
+  String get dshModelsSettingsUnavailableTitle => '이 빌드에서는 공급자 설정을 사용할 수 없습니다';
+
+  @override
+  String get dshModelsSettingsUnavailableBody =>
+      '연결은 작동하지만, 공급자를 편집하려면 다음 버전에서 제공되는 설정 어댑터가 필요합니다. 원격 모델은 계속 둘러볼 수 있습니다.';
+
+  @override
+  String get dshProviderDetailApiKey => 'API 키';
+
+  @override
+  String get dshProviderDetailApiKeyHint => '저장된 자격 증명을 사용하려면 비워 두세요';
+
+  @override
+  String get dshProviderDetailApiKeyHelp =>
+      'DeepSeek Harness에만 저장되며, Cuplivo는 해당 값을 보관하지 않습니다.';
+
+  @override
+  String get dshProviderDetailCredentialConfigured => '자격 증명이 저장되어 있습니다';
+
+  @override
+  String get dshProviderDetailCredentialMissing => '아직 저장된 자격 증명이 없습니다';
+
+  @override
+  String get dshProviderDetailCustomSettings => '사용자 지정 설정';
+
+  @override
+  String get dshProviderDetailApiAddress => 'API 주소';
+
+  @override
+  String get dshProviderDetailApiAddressHint => '공급자 기본값을 사용하려면 비워 두세요';
+
+  @override
+  String get dshProviderDetailApiProtocol => 'API 프로토콜';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiChat => 'OpenAI Chat Completions';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiResponses => 'OpenAI Responses';
+
+  @override
+  String get dshProviderDetailProtocolAnthropic => 'Anthropic Messages';
+
+  @override
+  String get dshProviderDetailApiAddressHintAnthropic =>
+      'Anthropic Messages 프로토콜을 지원하는 API 주소를 입력하세요.';
+
+  @override
+  String get dshProviderDetailApiAddressHintOpenAi =>
+      'OpenAI 프로토콜을 지원하는 API 주소를 입력하세요.';
+
+  @override
+  String dshProviderDetailEnvHint(String env) {
+    return '기본값은 $env 환경 변수를 사용합니다.';
+  }
+
+  @override
+  String get dshProviderDetailModels => '모델 카탈로그';
+
+  @override
+  String get dshProviderDetailModelsAdapterDefault => '어댑터의 기본 모델을 사용 중입니다';
+
+  @override
+  String get dshProviderDetailModelsEmpty => '아직 추가된 모델이 없습니다';
+
+  @override
+  String get dshProviderDetailModelsFirstConfig =>
+      '먼저 자격 증명을 저장하세요. 그 후 모델 목록이 표시됩니다.';
+
+  @override
+  String get dshProviderDetailAddModel => '모델 추가';
+
+  @override
+  String get dshProviderDetailModelId => '모델 ID';
+
+  @override
+  String get dshProviderDetailModelName => '표시 이름';
+
+  @override
+  String get dshProviderDetailContextWindow => '컨텍스트 창';
+
+  @override
+  String get dshProviderDetailMaxTokens => '최대 출력 토큰 수';
+
+  @override
+  String get dshProviderDetailInputTypes => '입력 유형';
+
+  @override
+  String get dshProviderDetailInputText => '텍스트';
+
+  @override
+  String get dshProviderDetailInputImage => '이미지';
+
+  @override
+  String get dshProviderDetailDeleteModel => '모델 삭제';
+
+  @override
+  String get dshProviderDetailReasoningEfforts => '추론 강도';
+
+  @override
+  String get dshProviderDetailReasoningEffortsHint =>
+      '이 모델이 허용하는 강도 수준입니다. DeepSeek Harness가 전송해야 하는 API 값을 추가하세요.';
+
+  @override
+  String get dshProviderDetailAddReasoningEffort => '강도 추가';
+
+  @override
+  String get dshProviderDetailEffortId => '강도 ID';
+
+  @override
+  String get dshProviderDetailEffortName => '강도 이름';
+
+  @override
+  String get dshProviderDetailSave => '저장';
+
+  @override
+  String get dshProviderDetailSaved => '공급자가 저장되었습니다';
+
+  @override
+  String get dshProviderDetailSaveFailed => '공급자를 저장하지 못했습니다. 다시 시도하세요.';
+
+  @override
+  String get dshProviderDetailConflict =>
+      '이 공급자가 DeepSeek Harness에서 변경되었습니다. 최신 값이 다시 로드되었으니 변경 사항을 다시 적용하세요.';
+
+  @override
+  String get dshProviderDetailDeleteProvider => '공급자 삭제';
+
+  @override
+  String get dshProviderDetailDeleteConfirmTitle => '이 공급자를 삭제할까요?';
+
+  @override
+  String get dshProviderDetailDeleteConfirmBody =>
+      'DeepSeek Harness에서 제거됩니다. 이 공급자를 사용한 세션의 기록은 유지됩니다.';
+
+  @override
+  String get dshProviderDetailCustomProviderTitle => '새 사용자 지정 공급자';
+
+  @override
+  String get dshProviderDetailProviderId => '공급자 ID';
+
+  @override
+  String get dshProviderDetailProviderIdHint => '고유 ID, 예: my-gateway';
+
+  @override
+  String get dshProviderDetailDisplayName => '표시 이름';
+
+  @override
+  String get dshProviderDetailBaseUrl => '기본 URL';
+
+  @override
+  String get dshProviderDetailBaseUrlHint => 'https://api.example.com';
+
+  @override
+  String get dshProviderDetailDiscover => '모델 가져오기';
+
+  @override
+  String get dshProviderDetailDiscoverEmpty => '해당 엔드포인트에서 반환된 모델이 없습니다';
+
+  @override
+  String get dshProviderDetailDiscoverFailed => '해당 엔드포인트에서 모델을 가져오지 못했습니다';
+
+  @override
+  String get dshProviderDetailInvalidModelId => '모든 모델에는 ID가 필요합니다.';
+
+  @override
+  String get dshProviderDetailRequiredFields => '먼저 필수 항목을 입력하세요.';
+
+  @override
+  String get dshMoreBackToLocal => '로컬 어시스턴트로 돌아가기';
+
+  @override
+  String get dshMoreOpenSettings => 'DeepSeek Harness 설정';
+
+  @override
+  String get dshMoreAbout => '버전 정보';
+
+  @override
+  String get dshMoreAboutHint => '이 기기에 설치된 앱 버전입니다.';
+
+  @override
+  String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => '내장 플러그인';
+
+  @override
+  String get dshTabAgentPresets => '에이전트 프리셋';
+
+  @override
+  String get dshPluginsReadOnly =>
+      '플러그인은 원격 DeepSeek Harness에서 관리됩니다. 이 목록은 읽기 전용입니다.';
+
+  @override
+  String get dshPluginsEmpty => '이 Host는 내장 플러그인을 보고하지 않았습니다.';
+
+  @override
+  String get dshPluginsEnabled => '사용함';
+
+  @override
+  String get dshPluginsDisabled => '사용 안 함';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return '단계: $phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      '에이전트 프리셋은 원격 DeepSeek Harness에서 관리됩니다. 이 구성은 읽기 전용입니다.';
+
+  @override
+  String get dshAgentPresetsEmpty => '이 Host는 에이전트 프리셋을 보고하지 않았습니다.';
+
+  @override
+  String get dshAgentPresetsDefault => '기본';
+
+  @override
+  String get dshPlusSectionAdd => '추가';
+
+  @override
+  String get dshPlusSectionCommands => '명령';
+
+  @override
+  String get dshPlusAttachFile => '파일';
+
+  @override
+  String get dshPlusAttachFileSubtitle => '이미지 또는 파일';
+
+  @override
+  String get dshPlusTarget => '목표';
+
+  @override
+  String get dshPlusPlan => '계획';
+
+  @override
+  String get dshPlusFeedback => '피드백';
+
+  @override
+  String get dshPlusCompress => '압축';
+
+  @override
+  String get dshPlusModel => '모델';
+
+  @override
+  String get dshPlusDownloadLog => '로그 다운로드';
+
+  @override
+  String get dshPlusWireMissing => '서버에서 이 작업을 위한 API를 제공하지 않습니다.';
+
+  @override
+  String get dshPlusPickPhoto => '사진';
+
+  @override
+  String get dshPlusPickFile => '파일';
+
+  @override
+  String get dshSlashCommandsTitle => '명령';
+
+  @override
+  String get dshAttachmentTooManyImages => '이 서버의 이미지 개수 제한을 초과했습니다.';
+
+  @override
+  String get dshAttachmentImageTooLarge => '서버의 크기 제한을 초과하는 이미지가 있습니다.';
+
+  @override
+  String get dshAttachmentImagesTooLarge => '이미지 전체 크기가 서버의 제한을 초과했습니다.';
+
+  @override
+  String get dshAttachmentUnsupportedType => '서버에서 이 이미지 유형을 지원하지 않습니다.';
+
+  @override
+  String get dshAttachmentReadFailed => '파일을 읽을 수 없습니다.';
+
+  @override
+  String get dshAttachmentUploadFailed => '파일을 업로드할 수 없습니다.';
+
+  @override
+  String get dshAttachmentUploading => '첨부 파일 업로드 중…';
+
+  @override
+  String get dshPresetChipHint => '새 작업에 사용할 에이전트 프리셋을 선택하세요';
+
+  @override
+  String get dshPresetPickerTitle => '에이전트 프리셋';
+
+  @override
+  String get dshPresetPickerEmpty => '이 Host는 에이전트 프리셋을 제공하지 않습니다.';
+
+  @override
+  String get dshPresetLocked => '작업이 이미 시작되어 에이전트 프리셋을 변경할 수 없습니다.';
+
+  @override
+  String get dshPresetChanging => '에이전트 프리셋 전환 중…';
+
+  @override
+  String get dshPresetBrokenTag => '사용할 수 없음';
+
+  @override
+  String get dshPresetStandardName => '표준 모드';
+
+  @override
+  String get dshPresetStandardDescription =>
+      '코드, 파일, 정보를 다룹니다. 대부분의 작업에 적합하며 검색, 편집, 터미널 명령 등 도구를 필요에 따라 사용합니다.';
+
+  @override
+  String get dshPresetPtcName => 'PTC 모드';
+
+  @override
+  String get dshPresetPtcDescription =>
+      '표준 모드의 모든 기능을 포함합니다. 도구를 일괄 호출한 뒤 결과를 필터링, 정리, 중복 제거, 계산, 요약하는 작업에 더 적합합니다.';
+
+  @override
+  String get dshPresetMinimalName => '미니멀 모드';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      '에이전트가 터미널과 이미지 읽기를 사용하며 컨텍스트 압축을 지원합니다. 기본 성능을 테스트하고 비교하는 데 유용합니다.';
+
+  @override
+  String get dshPresetCordisName => '크리에이터 모드';
+
+  @override
+  String get dshPresetCordisDescription =>
+      '대화로 DSH를 맞춤 설정합니다. 에이전트가 기능이나 UI를 추가하는 플러그인을 작성하거나, 도구와 프롬프트를 조합해 나만의 모드를 만들 수 있습니다.';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return '에이전트 프리셋을 전환하지 못했습니다: $reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown => '에이전트 프리셋을 전환하지 못했습니다.';
 }

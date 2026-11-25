@@ -536,6 +536,11 @@ final class BusinessKeyRegistry {
       PolicyReason.runtimeDiagnostics,
       'The destination the last run used — a run stamp, not configuration.',
     ),
+    'dsh_remotes_v1': KeyRule(
+      KeyPolicy.deviceLocal,
+      PolicyReason.networkEnvironment,
+      'Remote DeepSeek Harness records: the address is this device\'s network path and the cookie lives in the keychain, so a pairing must not carry the record and a travelling backup strips it.',
+    ),
     'backup_auto_local_retention_v1': KeyRule(
       KeyPolicy.deviceLocal,
       PolicyReason.deviceScheduleState,

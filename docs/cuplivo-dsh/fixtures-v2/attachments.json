@@ -1,0 +1,472 @@
+{
+  "_source": "real DSH Host (0.2.2-rc.1), captured 2026-11-20; ids/host/paths redacted",
+  "upload_route": {
+    "request": {
+      "method": "POST",
+      "path": "/api/session/uploadFileBinary?sessionId=<sessionId>&name=pixel.png&mediaType=image/png",
+      "headers": {
+        "content-type": "application/octet-stream"
+      },
+      "body": "the raw file bytes (a 189-byte 8x8 PNG here)"
+    },
+    "response": {
+      "ok": true,
+      "value": {
+        "receiptId": "<receiptId>",
+        "image": {
+          "attachmentId": "<attachmentId>",
+          "mediaType": "image/png",
+          "width": 8,
+          "height": 8,
+          "bytes": 189,
+          "name": "pixel.png"
+        }
+      }
+    },
+    "note": "without mediaType the value is {receiptId, file}; with mediaType it is {receiptId, image}. 405/415/400 are carrier answers for method/content-type/missing sessionId; business failures come back as HTTP 200 {ok:false,error}"
+  },
+  "rpc_fallback": {
+    "method": "fileUploads/upload",
+    "args": {
+      "agentId": "<sessionId>",
+      "request": {
+        "data": "<canonical base64>",
+        "name": "notes.txt"
+      }
+    },
+    "value": {
+      "receiptId": "<receiptId>",
+      "file": {
+        "attachmentId": "<attachmentId>",
+        "name": "notes.txt",
+        "bytes": 164
+      }
+    }
+  },
+  "prompt_with_receipt": {
+    "method": "session/prompt",
+    "args": {
+      "request": {
+        "requestId": "<requestId>",
+        "sessionId": "<sessionId>",
+        "mode": "queue",
+        "clientTimeZone": "UTC",
+        "content": [
+          {
+            "type": "text",
+            "text": "Reply with just: OK"
+          },
+          {
+            "type": "file",
+            "receiptId": "<receiptId>"
+          }
+        ]
+      }
+    },
+    "value": {
+      "accepted": true
+    },
+    "note": "a receipt from an image upload enters the message as that image; an image may also be sent inline as {type:image, mediaType, data:<base64>}"
+  },
+  "follow": {
+    "snapshot": {
+      "type": "snapshot",
+      "header": {
+        "version": 4,
+        "id": "<sessionId>",
+        "createdAt": 1795147359313,
+        "cwd": "<workspace>",
+        "isSeeded": false,
+        "agentPreset": "standard"
+      },
+      "projections": {
+        "asOfSeq": 2,
+        "values": {
+          "sessionStats": {
+            "turns": 0,
+            "steps": 0,
+            "llmMs": 0,
+            "toolMs": 0,
+            "ttftMs": 0,
+            "ttftSteps": 0,
+            "decodeMs": 0,
+            "decodeTokens": 0
+          },
+          "turnOutline": [],
+          "userQuestions": {
+            "active": [],
+            "settled": []
+          },
+          "tokenUsage": {
+            "uncachedInputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "contextPressure": {},
+          "title": "<session title>",
+          "agentPreset": "standard",
+          "goal": null,
+          "modelSelection": {
+            "lastUsed": null,
+            "next": null
+          },
+          "workingDirectory": "<workspace>",
+          "contextBreakdown": {
+            "systemTokens": 0,
+            "toolsTokens": 0,
+            "messageTokens": 0
+          },
+          "inbox": {
+            "next-turn": [],
+            "next-step": []
+          },
+          "permissions": {
+            "currentValue": "workspace-write"
+          },
+          "subagentCatalog": [],
+          "subagentTiming": {
+            "settledMs": 0
+          },
+          "subagent": null,
+          "todos": null,
+          "plan": {
+            "active": false,
+            "pending": false
+          },
+          "sessionListMetadata": {
+            "blank": true,
+            "lastPromptAt": null
+          },
+          "imageLimits": {
+            "maxImageBytes": 52428800,
+            "maxImagesPerMessage": 20,
+            "maxMessageImageBytes": 209715200,
+            "maxImagePixels": 64000000,
+            "maxImageDimension": 65535,
+            "mediaTypes": [
+              "image/png",
+              "image/jpeg",
+              "image/webp",
+              "image/gif"
+            ]
+          }
+        }
+      },
+      "cursor": 2,
+      "records": [
+        {
+          "type": "event",
+          "event": {
+            "type": "permission/preset",
+            "seq": 0,
+            "time": 1795147359326,
+            "data": {
+              "preset": "workspace-write"
+            }
+          }
+        },
+        {
+          "type": "event",
+          "event": {
+            "type": "sandbox/mode",
+            "seq": 1,
+            "time": 1795147359327,
+            "data": {
+              "mode": "workspace-write"
+            }
+          }
+        },
+        {
+          "type": "event",
+          "event": {
+            "type": "approval/policy",
+            "seq": 2,
+            "time": 1795147359327,
+            "data": {
+              "policy": "ask"
+            }
+          }
+        }
+      ],
+      "hasMore": false,
+      "assistantStream": {
+        "revision": 0
+      }
+    },
+    "frames": [
+      {
+        "type": "event",
+        "event": {
+          "type": "user/message",
+          "seq": 8,
+          "time": 1795147482959,
+          "data": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Reply with just: OK"
+              },
+              {
+                "type": "image",
+                "attachment": {
+                  "attachmentId": "<attachmentId>",
+                  "mediaType": "image/png",
+                  "width": 8,
+                  "height": 8,
+                  "bytes": 189,
+                  "name": "pixel.png"
+                }
+              }
+            ],
+            "source": {
+              "kind": "user",
+              "rpcId": "<requestId>",
+              "clientTimeZone": "UTC"
+            },
+            "role": "user",
+            "id": "<messageId>"
+          },
+          "surfaceOp": "append"
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "start",
+          "attemptId": "<sessionId>:1",
+          "revision": 1,
+          "turn": 1,
+          "step": 1,
+          "startedAfterSeq": 12
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "attemptId": "<sessionId>:1",
+          "revision": 2,
+          "index": 0,
+          "time": 1795147483913,
+          "chunk": {
+            "type": "block-start",
+            "index": 0,
+            "blockType": "reasoning"
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "attemptId": "<sessionId>:1",
+          "revision": 4,
+          "index": 2,
+          "time": 1795147484366,
+          "chunk": {
+            "type": "block-start",
+            "index": 1,
+            "blockType": "text"
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "attemptId": "<sessionId>:1",
+          "revision": 5,
+          "index": 3,
+          "time": 1795147484367,
+          "chunk": {
+            "type": "text-delta",
+            "index": 1,
+            "text": "OK"
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "attemptId": "<sessionId>:1",
+          "revision": 7,
+          "index": 5,
+          "time": 1795147484380,
+          "chunk": {
+            "type": "usage",
+            "usage": {
+              "inputTokens": 832,
+              "outputTokens": 2,
+              "cacheReadTokens": 8448,
+              "cacheWriteTokens": 0,
+              "totalTokens": 9282
+            }
+          }
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "chunk",
+          "attemptId": "<sessionId>:1",
+          "revision": 8,
+          "index": 6,
+          "time": 1795147484381,
+          "chunk": {
+            "type": "finish",
+            "reason": {
+              "kind": "stop"
+            },
+            "replayState": {
+              "response": {
+                "kind": "deepseek-messages",
+                "version": 1,
+                "model": "deepseek-flash"
+              },
+              "blocks": [
+                {
+                  "type": "reasoning",
+                  "signature": "<uuid>"
+                },
+                {
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "type": "event",
+        "event": {
+          "type": "assistant/message",
+          "seq": 18,
+          "time": 1795147484381,
+          "data": {
+            "turn": 1,
+            "step": 1,
+            "message": {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "reasoning",
+                  "text": ""
+                },
+                {
+                  "type": "text",
+                  "text": "OK"
+                }
+              ],
+              "source": {
+                "kind": "model",
+                "provider": "deepseek-official",
+                "model": "deepseek-flash",
+                "replayState": {
+                  "response": {
+                    "kind": "deepseek-messages",
+                    "version": 1,
+                    "model": "deepseek-flash"
+                  },
+                  "blocks": [
+                    {
+                      "type": "reasoning",
+                      "signature": "<uuid>"
+                    },
+                    {
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "id": "<messageId>"
+            },
+            "usage": {
+              "inputTokens": 832,
+              "outputTokens": 2,
+              "cacheReadTokens": 8448,
+              "cacheWriteTokens": 0,
+              "totalTokens": 9282
+            },
+            "stream": [
+              "<chunks elided>"
+            ],
+            "id": "<messageId>"
+          },
+          "surfaceOp": "append"
+        }
+      },
+      {
+        "type": "assistant-stream",
+        "frame": {
+          "type": "end",
+          "attemptId": "<sessionId>:1",
+          "revision": 9,
+          "index": 7,
+          "outcome": {
+            "kind": "committed",
+            "eventType": "assistant/message",
+            "seq": 18
+          }
+        }
+      }
+    ],
+    "note": "after the snapshot: {type:'event'} durable events and {type:'assistant-stream'} live attempt frames; the attempt commits with an end frame naming the assistant/message seq. A turn also commits injected user/message events (source.kind runtime-context and time-context); they are elided here and must not render as human prompts"
+  },
+  "durable_attachment_read": {
+    "method": "session/attachment",
+    "args": {
+      "request": {
+        "sessionId": "<sessionId>",
+        "attachment": {
+          "attachmentId": "<attachmentId>",
+          "mediaType": "image/png",
+          "width": 8,
+          "height": 8,
+          "bytes": 189,
+          "name": "pixel.png"
+        }
+      }
+    },
+    "value": {
+      "attachment": {
+        "attachmentId": "<attachmentId>",
+        "mediaType": "image/png",
+        "bytes": 189,
+        "width": 8,
+        "height": 8,
+        "name": "pixel.png"
+      },
+      "data": "<canonical base64; 252 chars for this 189-byte PNG>"
+    },
+    "note": "the transcript re-reads an image by its full durable reference; the reference identity is the sha256 content id, so a rewritten name/dimension set is rejected by verification"
+  },
+  "file_route": {
+    "request": {
+      "method": "GET",
+      "path": "/api/file?path=<url-encoded absolute path>"
+    },
+    "first_response": {
+      "status": 302,
+      "headers": {
+        "cache-control": "private, no-store",
+        "content-security-policy": "sandbox; default-src 'none'",
+        "location": "?path=<encoded absolute path>&v=<opaque-version>",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    "final_response": {
+      "status": 200,
+      "headers": {
+        "content-type": "image/png (mime by extension)",
+        "content-length": "189",
+        "cache-control": "private, max-age=31536000, immutable",
+        "content-security-policy": "sandbox; default-src 'none'",
+        "x-content-type-options": "nosniff",
+        "vary": "Accept-Encoding"
+      }
+    },
+    "note": "authenticated by the same cookie; the redirect pins the versioned URL which is then cacheable. Markdown body images and previews use this route rather than readBytes"
+  }
+}

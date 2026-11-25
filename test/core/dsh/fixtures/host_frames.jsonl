@@ -1,0 +1,7 @@
+{"type":"item","streamId":"events","value":{"type":"ready","clientId":"client-1","host":{"home":"/home/demo"}}}
+{"type":"item","streamId":"events","value":{"type":"emit","event":"api-session/added","args":[{"sessionId":"session-7f3c2a9e-0000-4000-8000-000000000001","updatedAt":1795110873369,"agentAvailable":true,"formatStatus":null,"running":false,"blank":false,"cwd":"/workspace/demo","projections":{"kind":"sequenced","asOfSeq":12,"values":{"title":"Pong","modelSelection":{"lastUsed":null,"next":null}}}}]}}
+{"type":"item","streamId":"events","value":{"type":"emit","event":"api-session/status","args":["session-7f3c2a9e-0000-4000-8000-000000000001",true]}}
+{"type":"item","streamId":"events","value":{"type":"waterfall","event":"approval/request","eventId":"approval-1","agentId":"session-7f3c2a9e-0000-4000-8000-000000000001","request":{"toolName":"shell","callId":"call_1","reason":"Run a command","displayReason":{"en":"Allow the shell command?"}}}}
+{"type":"item","streamId":"events","value":{"type":"waterfall","event":"user-questions/request","eventId":"question-1","agentId":"session-7f3c2a9e-0000-4000-8000-000000000001","request":{"questions":[{"id":"q1","question":"Pick a color","header":"Color","options":[{"label":"Blue"},{"label":"Green"}],"multiSelect":false}]}}}
+{"type":"item","streamId":"events","value":{"type":"cancel","eventId":"finding-later"}}
+{"type":"item","streamId":"events","value":{"type":"future-frame","payload":{"anything":true}}}

@@ -7,24 +7,37 @@ import '../models/chat_owner.dart';
 import 'assistant_provider.dart';
 import 'group_chat_provider.dart';
 
-/// The sidebar's single ordered list of chat owners: assistants and group chats
-/// together, in one drag order.
+/// A live source of `harness` owner ids (remote DeepSeek Harness records).
+///
+/// Implemented by the DSH feature's connection provider so the shared owner
+/// list can order remote owners without `lib/core` importing the feature. Like
+/// the other two sources it is the authority for *membership*; the order list
+/// only remembers placement.
+abstract interface class HarnessOwnerSource implements Listenable {
+  Iterable<String> get harnessOwnerIds;
+}
+
+/// The sidebar's single ordered list of chat owners: assistants, group chats
+/// and remote DeepSeek Harness records together, in one drag order.
 ///
 /// The order is stored as a plain string list (`assistant:<id>` /
-/// `group:<id>`), so it rides the ordinary preference channel — backup, restore
-/// and LAN sync — without a new table. Membership is not stored: the sources are
-/// the authority for *what exists*, and this provider only remembers *where*.
-/// A key whose assistant or group is gone keeps its slot (so a restore returns
-/// it to where it was) but is not listed, and a newly created one is appended,
-/// so the two can never drift into disagreeing about what the sidebar shows.
+/// `group:<id>` / `harness:<id>`), so it rides the ordinary preference channel —
+/// backup, restore and LAN sync — without a new table. Membership is not
+/// stored: the sources are the authority for *what exists*, and this provider
+/// only remembers *where*. A key whose owner is gone keeps its slot (so a
+/// restore returns it to where it was) but is not listed, and a newly created
+/// one is appended, so the two can never drift into disagreeing about what the
+/// sidebar shows.
 class ChatOwnersProvider extends ChangeNotifier {
   ChatOwnersProvider({
     required this.assistants,
     required this.groups,
     required this.preferences,
+    this.harnesses,
   }) {
     assistants.addListener(_onSourcesChanged);
     groups.addListener(_onSourcesChanged);
+    harnesses?.addListener(_onSourcesChanged);
     loaded = _load();
   }
 
@@ -34,6 +47,11 @@ class ChatOwnersProvider extends ChangeNotifier {
   final GroupChatProvider groups;
   final BusinessPreferences preferences;
 
+  /// Remote owners, or null in hosts that do not provide the DSH feature
+  /// (tests, reduced builds). Null and empty mean the same thing: no remote
+  /// rows.
+  final HarnessOwnerSource? harnesses;
+
   final List<String> _order = <String>[];
   List<ChatOwner> _owners = const <ChatOwner>[];
 
@@ -42,12 +60,12 @@ class ChatOwnersProvider extends ChangeNotifier {
   /// Every existing owner, in the user's order.
   List<ChatOwner> get owners => _owners;
 
-  /// The part of the list that sits under no tag header: untagged assistants
-  /// plus every group, in order. Tag headers stay assistant-only, which is why
-  /// groups land here rather than inventing a tag of their own.
+  /// The part of the list that sits under no tag header: untagged assistants,
+  /// every group, and every remote. Tag headers stay assistant-only, which is
+  /// why groups and remotes land here rather than inventing a tag of their own.
   List<ChatOwner> ungroupedOwners(Set<String> taggedAssistantIds) => [
     for (final owner in _owners)
-      if (owner.isGroup || !taggedAssistantIds.contains(owner.id)) owner,
+      if (!owner.isAssistant || !taggedAssistantIds.contains(owner.id)) owner,
   ];
 
   /// [items] in the user's drag order, with anything the order does not know
@@ -99,6 +117,8 @@ class ChatOwnersProvider extends ChangeNotifier {
         ),
       for (final group in groups.groups)
         ChatOwner.group(group.id).key: ChatOwner.group(group.id),
+      for (final id in harnesses?.harnessOwnerIds ?? const <String>[])
+        ChatOwner.harness(id).key: ChatOwner.harness(id),
     };
     // A key whose owner is gone keeps its slot instead of being dropped: an
     // owner deleted into the bin and restored later must come back where it

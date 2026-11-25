@@ -1,0 +1,269 @@
+{
+  "_source": "real DSH Host (0.2.2-rc.1), captured 2026-11-20; ids and paths redacted",
+  "namespace": "workspaceFiles — list/read/stat/readBytes/changes over one Session's workspace",
+  "path_rules": {
+    "list": "workspace-relative (`docs`, `data`) or the absolute workspace root; `.` lists the root and echoes path:''. `/` is refused with workspace-file/outside-workspace",
+    "read": "absolute Host path or workspace-relative path (resolved against the Session workspace)",
+    "readBytes": "absolute/workspace-relative path, or a target `options.baseFile` resolves; `range` is optional"
+  },
+  "list_root": {
+    "method": "workspaceFiles/list",
+    "args": {
+      "workspaceFileScopeId": "<sessionId>",
+      "path": "."
+    },
+    "value": {
+      "path": "",
+      "entries": [
+        {
+          "name": ".git",
+          "type": "directory"
+        },
+        {
+          "name": "assets",
+          "type": "directory"
+        },
+        {
+          "name": "data",
+          "type": "directory"
+        },
+        {
+          "name": "docs",
+          "type": "directory"
+        },
+        {
+          "name": "hello.txt",
+          "type": "file",
+          "size": 122
+        },
+        {
+          "name": "notes.md",
+          "type": "file",
+          "size": 164
+        }
+      ],
+      "truncated": false
+    }
+  },
+  "list_dir": {
+    "method": "workspaceFiles/list",
+    "args": {
+      "workspaceFileScopeId": "<sessionId>",
+      "path": "docs"
+    },
+    "value": {
+      "path": "docs",
+      "entries": [
+        {
+          "name": "report.pdf",
+          "type": "file",
+          "size": 599
+        }
+      ],
+      "truncated": false
+    }
+  },
+  "read_text": {
+    "method": "workspaceFiles/read",
+    "args": {
+      "workspaceFileScopeId": "<sessionId>",
+      "path": "<workspace>/hello.txt",
+      "range": {}
+    },
+    "value": {
+      "absolutePath": "<workspace>/hello.txt",
+      "version": "<opaque-version>",
+      "bytes": 122,
+      "offset": 1,
+      "text": "Hello from the Cuplivo end-to-end workspace.\nThis file exists so acceptance scenarios can read a small, stable text file.",
+      "lines": 2,
+      "eof": true
+    }
+  },
+  "read_range": {
+    "method": "workspaceFiles/read",
+    "args": {
+      "workspaceFileScopeId": "<sessionId>",
+      "path": "<workspace>/hello.txt",
+      "range": {
+        "offset": 2,
+        "limit": 1
+      }
+    },
+    "value": {
+      "absolutePath": "<workspace>/hello.txt",
+      "version": "<opaque-version>",
+      "bytes": 122,
+      "offset": 2,
+      "text": "This file exists so acceptance scenarios can read a small, stable text file.",
+      "lines": 1,
+      "eof": true
+    }
+  },
+  "read_past_eof": {
+    "method": "workspaceFiles/read",
+    "args": {
+      "workspaceFileScopeId": "<sessionId>",
+      "path": "<workspace>/hello.txt",
+      "range": {
+        "offset": 99
+      }
+    },
+    "value": {
+      "absolutePath": "<workspace>/hello.txt",
+      "version": "<opaque-version>",
+      "bytes": 122,
+      "offset": 99,
+      "text": "",
+      "lines": 0,
+      "eof": true
+    }
+  },
+  "read_not_found": {
+    "method": "workspaceFiles/read",
+    "args": {
+      "workspaceFileScopeId": "<sessionId>",
+      "path": "<workspace>/nope.txt",
+      "range": {}
+    },
+    "error": {
+      "code": "workspace-file/not-found",
+      "message": "no entry at \"<workspace>/nope.txt\"",
+      "details": {
+        "path": "<workspace>/nope.txt"
+      }
+    }
+  },
+  "stat": {
+    "method": "workspaceFiles/stat",
+    "args": {
+      "workspaceFileScopeId": "<sessionId>",
+      "path": "<workspace>/assets/pixel.png"
+    },
+    "value": {
+      "absolutePath": "<workspace>/assets/pixel.png",
+      "version": "<opaque-version>",
+      "bytes": 189
+    }
+  },
+  "read_bytes_image": {
+    "method": "workspaceFiles/readBytes",
+    "multipart_response": {
+      "response_headers": {
+        "content-type": "multipart/form-data; boundary=<boundary>",
+        "transfer-encoding": "chunked"
+      },
+      "parts": [
+        {
+          "name": "bytes-0",
+          "filename": "blob",
+          "content_type": "application/octet-stream",
+          "bytes": 189,
+          "first_bytes_hex": "89504e470d0a1a0a0000000d49484452"
+        }
+      ],
+      "metadata_envelope": {
+        "type": "server-response",
+        "rpcId": "<uuid>",
+        "result": {
+          "ok": true,
+          "value": {
+            "absolutePath": "<workspace>/assets/pixel.png",
+            "version": "<opaque-version>",
+            "bytes": 189,
+            "offset": 0,
+            "data": null,
+            "eof": true
+          }
+        },
+        "attachments": [
+          {
+            "path": [
+              "data"
+            ],
+            "codec": "bytes",
+            "part": "bytes-0"
+          }
+        ]
+      },
+      "decoded_value": {
+        "absolutePath": "<workspace>/assets/pixel.png",
+        "version": "<opaque-version>",
+        "bytes": 189,
+        "offset": 0,
+        "data": null,
+        "eof": true
+      }
+    }
+  },
+  "read_bytes_range": {
+    "method": "workspaceFiles/readBytes",
+    "multipart_response": {
+      "response_headers": {
+        "content-type": "multipart/form-data; boundary=<boundary>",
+        "transfer-encoding": "chunked"
+      },
+      "parts": [
+        {
+          "name": "bytes-0",
+          "filename": "blob",
+          "content_type": "application/octet-stream",
+          "bytes": 32,
+          "first_bytes_hex": "101112131415161718191a1b1c1d1e1f"
+        }
+      ],
+      "metadata_envelope": {
+        "type": "server-response",
+        "rpcId": "<uuid>",
+        "result": {
+          "ok": true,
+          "value": {
+            "absolutePath": "<workspace>/data/blob.bin",
+            "version": "<opaque-version>",
+            "bytes": 260,
+            "offset": 16,
+            "data": null,
+            "eof": false
+          }
+        },
+        "attachments": [
+          {
+            "path": [
+              "data"
+            ],
+            "codec": "bytes",
+            "part": "bytes-0"
+          }
+        ]
+      },
+      "decoded_value": {
+        "absolutePath": "<workspace>/data/blob.bin",
+        "version": "<opaque-version>",
+        "bytes": 260,
+        "offset": 16,
+        "data": null,
+        "eof": false
+      }
+    }
+  },
+  "changes": {
+    "method": "workspaceFiles/changes (stream)",
+    "open": {
+      "type": "open",
+      "streamId": "<streamId>",
+      "endpoint": "workspaceFiles/changes",
+      "payload": {
+        "args": {
+          "workspaceFileScopeId": "<sessionId>",
+          "path": "hello.txt"
+        }
+      }
+    },
+    "downlink": [
+      {
+        "kind": "ready"
+      }
+    ],
+    "note": "the first frame is {kind:'ready'}; later change frames carry the target's current metadata"
+  }
+}

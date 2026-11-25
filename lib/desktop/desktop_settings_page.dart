@@ -48,6 +48,13 @@ import '../features/assistant/pages/assistant_settings_edit_page.dart'
 import '../core/providers/assistant_provider.dart';
 import '../features/assistant/widgets/assistant_copy_dialog.dart';
 import '../features/assistant/widgets/chat_owner_section_header.dart';
+import '../features/harness/models/dsh_remote.dart';
+import '../features/harness/pages/assistant/dsh_assistant_settings_page.dart';
+import '../features/harness/pages/connect/dsh_create_flow.dart';
+import '../features/harness/state/dsh_connections_provider.dart';
+import '../features/harness/state/dsh_gateway.dart';
+import '../features/harness/widgets/dsh_owner_card.dart';
+import '../features/harness/widgets/dsh_whale_mark.dart';
 import '../core/models/chat_owner.dart';
 import '../features/home/controllers/chat_actions.dart' show ChatActions;
 import '../core/models/assistant.dart';

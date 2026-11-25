@@ -2128,7 +2128,52 @@ class HomePageController extends ChangeNotifier {
   ///
   /// Version 4.6.0 threaded an `assistantId` through six widgets to fix the same
   /// accident; that parameter chain is deliberately not reintroduced.
+  /// The remote whose DeepSeek Harness surface is active, or null while the
+  /// local assistant surface is showing.
+  String? _activeHarnessRemoteId;
+
+  /// The remote owner the harness home surface is showing (null = local mode).
+  ///
+  /// Local conversation/model state is untouched while this is set; the page
+  /// branches on it before building the local chat body, so no local data
+  /// source is entered in harness mode.
+  String? get activeHarnessRemoteId => _activeHarnessRemoteId;
+
+  bool get isHarnessMode => _activeHarnessRemoteId != null;
+
+  /// The harness surface seam.
+  ///
+  /// The DSH home slice owns the destination; keeping a named seam is what
+  /// stops a remote owner from ever reaching [_mostRecentConversationOf] or
+  /// [createNewConversationAnimated]. Entering harness mode only records which
+  /// remote is active — the page resolves the remote record, the session list
+  /// and the landing session from the DSH state layer.
+  void _openHarnessOwner(ChatOwner owner) {
+    if (_activeHarnessRemoteId == owner.id) return;
+    _activeHarnessRemoteId = owner.id;
+    notifyListeners();
+  }
+
+  /// Leaves the harness surface (a local owner row was opened).
+  void exitHarnessMode() {
+    if (_activeHarnessRemoteId == null) return;
+    _activeHarnessRemoteId = null;
+    notifyListeners();
+  }
+
   Future<void> openOwner(ChatOwner owner) async {
+    // A remote DeepSeek Harness owns no local conversation: opening one must
+    // never mint a 1:1 tagged with its id, switch the local chat or touch its
+    // fallback assistant. The DSH home slice replaces [_openHarnessOwner]'s
+    // body with navigation to the harness surface; until then the branch is
+    // deliberately inert instead of falling through to conversation logic.
+    if (owner.isHarness) {
+      _openHarnessOwner(owner);
+      return;
+    }
+    // A local owner tap leaves the remote surface; every local entry point
+    // (share sheet, deep link, hotkey) goes through this one method.
+    exitHarnessMode();
     final assistants = _context.read<AssistantProvider>();
     // A group row that is already gone owns nothing, and must never mint another
     // topic tagged with its id. The same for an assistant deleted in another

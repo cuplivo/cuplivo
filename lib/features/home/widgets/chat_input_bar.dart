@@ -732,6 +732,7 @@ class ChatInputBar extends StatefulWidget {
     this.onConfigureReasoning,
     this.reasoningButtonKey,
     this.onOpenContextUsage,
+    this.contextUsageOverride,
     this.moreOpen = false,
     this.focusNode,
     this.modelIcon,
@@ -776,6 +777,8 @@ class ChatInputBar extends StatefulWidget {
     this.onToggleOcr,
     this.conversationId,
     this.sendButtonTooltip,
+    this.composerFieldKey,
+    this.sendButtonKey,
     this.leading,
     this.onTapLeading,
     this.leadingTooltip,
@@ -804,6 +807,15 @@ class ChatInputBar extends StatefulWidget {
   final VoidCallback? onConfigureReasoning;
   final GlobalKey? reasoningButtonKey;
   final VoidCallback? onOpenContextUsage;
+
+  /// A caller-owned context usage snapshot for a remote conversation.
+  ///
+  /// Local chats resolve usage from [ContextUsageService] through the provider
+  /// tree, keyed by `conversationId`; a remote-composer host (DeepSeek Harness)
+  /// has neither, so it hands the mapped snapshot in here. When non-null the
+  /// ring renders from this value and the `conversationId` gate is relaxed —
+  /// only for the override path; local composers behave exactly as before.
+  final ContextUsageSnapshot? contextUsageOverride;
   final bool moreOpen;
   final FocusNode? focusNode;
   final Widget? modelIcon;
@@ -863,6 +875,16 @@ class ChatInputBar extends StatefulWidget {
   final String? chatModelProviderKey;
   final String? chatModelId;
   final String? sendButtonTooltip;
+
+  /// Optional stable keys for integration tests that drive this composer from
+  /// outside its own widget tree (the DSH chat slice's E2E scenario).
+  ///
+  /// [composerFieldKey] wraps the text editor (the test enters text through a
+  /// descendant `EditableText`); [sendButtonKey] sits on the compact send
+  /// button. Both are null for every existing caller, so nothing changes for
+  /// the local chat.
+  final Key? composerFieldKey;
+  final Key? sendButtonKey;
 
   /// Replaces the model-select slot at the start of the composer.
   ///
@@ -4955,6 +4977,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                   .watch<SettingsProvider>()
                                                   .enterToSendOnMobile;
                                               return GestureDetector(
+                                                key: widget.composerFieldKey,
                                                 behavior: HitTestBehavior
                                                     .deferToChild,
                                                 // onSecondaryTapDown: (details) {
@@ -5173,12 +5196,16 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                     ),
                                                     const SizedBox(width: 8),
                                                   ],
-                                                  if (!isMobileLayout &&
-                                                      (widget
-                                                              .conversationId
-                                                              ?.isNotEmpty ??
-                                                          false))
+                                                  if (widget.contextUsageOverride !=
+                                                          null ||
+                                                      (!isMobileLayout &&
+                                                          (widget
+                                                                  .conversationId
+                                                                  ?.isNotEmpty ??
+                                                              false)))
                                                     _ContextUsageInputControl(
+                                                      contextUsageOverride: widget
+                                                          .contextUsageOverride,
                                                       onTap: widget
                                                           .onOpenContextUsage,
                                                     ),
@@ -5199,6 +5226,7 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                     const SizedBox(width: 8),
                                                   ],
                                                   _CompactSendButton(
+                                                    key: widget.sendButtonKey,
                                                     enabled:
                                                         hasInput &&
                                                         !_composerLocked &&
@@ -5631,18 +5659,30 @@ class _CompactIconButton extends StatelessWidget {
 }
 
 class _ContextUsageInputControl extends StatelessWidget {
-  const _ContextUsageInputControl({this.onTap});
+  const _ContextUsageInputControl({this.onTap, this.contextUsageOverride});
 
   final VoidCallback? onTap;
 
+  /// Remote-composer override; when null the local service is read instead.
+  final ContextUsageSnapshot? contextUsageOverride;
+
   @override
   Widget build(BuildContext context) {
-    final usage = context.watch<ContextUsageService?>();
-    if (usage == null) return const SizedBox.shrink();
+    final service = context.watch<ContextUsageService?>();
+    final snapshot = contextUsageOverride ?? service?.current;
+    // The local composer keeps the ring on screen before the first usage
+    // readout (the ring draws an empty track for a null snapshot), exactly as
+    // before the DSH override existed; the remote composer only reaches this
+    // control when it has a readout, so a null snapshot there is still "no
+    // ring". The only state that renders nothing is "no source at all".
+    if (snapshot == null && contextUsageOverride == null && service == null) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ContextUsageRing(
-        snapshot: usage.current,
+        key: const ValueKey<String>('dsh-context-ring'),
+        snapshot: snapshot,
         onTap: () => onTap?.call(),
       ),
     );
@@ -5652,6 +5692,7 @@ class _ContextUsageInputControl extends StatelessWidget {
 // New compact send button for the integrated input bar
 class _CompactSendButton extends StatelessWidget {
   const _CompactSendButton({
+    super.key,
     required this.enabled,
     required this.onSend,
     required this.color,

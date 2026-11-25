@@ -1,0 +1,192 @@
+{
+  "_source": "real DSH Host (0.2.2-rc.1), captured 2026-11-20; ids/titles redacted",
+  "schedule_namespace": "schedule — the 自动化任务 task manager",
+  "catalog": {
+    "method": "schedule/catalog",
+    "args": {},
+    "value": []
+  },
+  "list": {
+    "method": "schedule/list",
+    "args": {
+      "request": {}
+    },
+    "value": {
+      "items": [],
+      "shown": 0,
+      "total": 0,
+      "limit": 100,
+      "offset": 0
+    }
+  },
+  "list_active": {
+    "method": "schedule/list",
+    "args": {
+      "request": {
+        "active": true
+      }
+    },
+    "value": {
+      "items": [],
+      "shown": 0,
+      "total": 0,
+      "limit": 100,
+      "offset": 0
+    }
+  },
+  "create": {
+    "method": "schedule/create",
+    "args": {
+      "request": {
+        "title": "<title>",
+        "prompt": "<prompt>",
+        "timing": {
+          "kind": "after",
+          "after_seconds": 3600
+        },
+        "target": {
+          "kind": "session",
+          "sessionId": "<sessionId>"
+        }
+      }
+    },
+    "value": {
+      "id": "<scheduleId>",
+      "kind": "after",
+      "title": "<title>",
+      "prompt": "<prompt>",
+      "afterSeconds": 3600,
+      "scheduledAt": "<rfc3339 UTC>",
+      "target": {
+        "kind": "session",
+        "sessionId": "<sessionId>"
+      },
+      "involvedSessionIds": [
+        "<sessionId>"
+      ],
+      "status": "active",
+      "createdAt": "<rfc3339 UTC>",
+      "updatedAt": "<rfc3339 UTC>"
+    },
+    "note": "request timing is snake_case (after_seconds, every_seconds, daily.time/time_zone, weekly.time/time_zone/weekdays, cron.expression/time_zone, rrule) while the stored record is camelCase (afterSeconds/everySeconds/time/timeZone/weekdays/expression) plus scheduledAt; target is session/new_once/new"
+  },
+  "pause": {
+    "method": "schedule/edit",
+    "args": {
+      "request": {
+        "id": "<scheduleId>",
+        "action": "update",
+        "patch": {
+          "active": false
+        },
+        "expectedUpdatedAt": "<rfc3339 UTC>"
+      }
+    },
+    "value": {
+      "id": "<scheduleId>",
+      "kind": "after",
+      "title": "<title>",
+      "prompt": "<prompt>",
+      "afterSeconds": 3600,
+      "scheduledAt": "<rfc3339 UTC>",
+      "target": {
+        "kind": "session",
+        "sessionId": "<sessionId>"
+      },
+      "involvedSessionIds": [
+        "<sessionId>"
+      ],
+      "status": "paused",
+      "createdAt": "<rfc3339 UTC>",
+      "updatedAt": "<rfc3339 UTC>"
+    }
+  },
+  "delete": {
+    "method": "schedule/edit",
+    "args": {
+      "request": {
+        "id": "<scheduleId>",
+        "action": "delete",
+        "expectedUpdatedAt": "<rfc3339 UTC>"
+      }
+    },
+    "value": {
+      "id": "<scheduleId>",
+      "deleted": true
+    }
+  },
+  "delete_inactive": {
+    "method": "schedule/deleteInactive",
+    "args": {},
+    "value": {
+      "deleted": 0
+    }
+  },
+  "input_errors": {
+    "error": "schedule/input-invalid",
+    "details_codes": [
+      "invalid_prompt",
+      "invalid_selector",
+      "invalid_rule",
+      "invalid_time_zone",
+      "not_future",
+      "time_out_of_range",
+      "frequency_too_high",
+      "subagent_session"
+    ],
+    "conflict": {
+      "code": "schedule_conflict"
+    },
+    "note": "these are business answers, not carrier errors"
+  },
+  "delivery_limits": {
+    "method": "schedule/deliveryLimits",
+    "args": {},
+    "value": {
+      "newSessionIntervalSeconds": 60
+    }
+  },
+  "job_list": {
+    "stream": {
+      "type": "open",
+      "streamId": "<streamId>",
+      "endpoint": "job/list",
+      "payload": {
+        "args": {
+          "request": {
+            "sessionId": "<sessionId>"
+          }
+        }
+      }
+    },
+    "first_frame": {
+      "type": "rows",
+      "jobs": []
+    },
+    "note": "job/list is a stream of {type:'rows', jobs:[...]} whole-set replacements, not a unary call; JobView = {id, kind, label, owner?, status, progress?, detail?, startedAt, finishedAt?, output:{total, earliest, spillPaths?}}"
+  },
+  "job_follow_unknown": {
+    "stream": {
+      "type": "open",
+      "streamId": "<streamId>",
+      "endpoint": "job/follow",
+      "payload": {
+        "args": {
+          "request": {
+            "sessionId": "<sessionId>",
+            "jobId": "<unknown id>"
+          }
+        }
+      }
+    },
+    "frame": {
+      "type": "error",
+      "error": {
+        "code": "gateway/internal",
+        "message": "unknown job bash-00000000",
+        "details": {}
+      }
+    },
+    "note": "job/follow emits opened → output batches → status for a real job; an unknown id is refused on the stream. 后台任务 header popover uses job/list + job/follow + job/kill"
+  }
+}

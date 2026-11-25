@@ -19543,4 +19543,893 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => 'Всегда разрешать';
+
+  @override
+  String get dshProductName => 'DeepSeek Harness';
+
+  @override
+  String get dshConnectSheetTitle => 'Подключение к новому DeepSeek Harness';
+
+  @override
+  String get dshConnectModeDirect => 'Прямое подключение';
+
+  @override
+  String get dshCancel => 'Отмена';
+
+  @override
+  String get dshConfirm => 'Подтвердить';
+
+  @override
+  String get dshAssistantNameLabel => 'Имя ассистента';
+
+  @override
+  String get dshAssistantSubtitle =>
+      'DeepSeek Harness через удалённое подключение';
+
+  @override
+  String get dshWebUiUrlLabel => 'Вставьте ссылку WebUI DeepSeek Harness';
+
+  @override
+  String get dshWebUiUrlHint =>
+      'например, 127.0.0.1:3080/?token=PEaxKDfNOHzbHp…';
+
+  @override
+  String get dshWebUiUrlHelper =>
+      'Подходит для DeepSeek Harness в той же локальной сети или доступного из публичной сети.';
+
+  @override
+  String get dshTabConnection => 'Подключение';
+
+  @override
+  String get dshTabGeneral => 'Общие';
+
+  @override
+  String get dshTabModels => 'Модели';
+
+  @override
+  String get dshDefaultPermissionLabel =>
+      'Ограничение разрешений по умолчанию для новых сеансов';
+
+  @override
+  String get dshUploadSessionLogLabel =>
+      'Загружать журналы сеансов при использовании официального API модели';
+
+  @override
+  String get dshPermissionUnset => 'По умолчанию DeepSeek Harness';
+
+  @override
+  String get dshPermissionPickerTitle =>
+      'Разрешения по умолчанию для новых сеансов';
+
+  @override
+  String get dshStatusIdle => 'Не подключено';
+
+  @override
+  String get dshStatusConnecting => 'Подключение…';
+
+  @override
+  String get dshStatusReady => 'Подключено';
+
+  @override
+  String get dshGeneralNotConnected =>
+      'Подключитесь к DeepSeek Harness, чтобы изменить эти настройки.';
+
+  @override
+  String get dshModelsPlaceholder =>
+      'Здесь будут управляться модели и провайдеры DeepSeek Harness.';
+
+  @override
+  String get dshErrorNotConfigured =>
+      'Клиент DeepSeek Harness ещё не подключён, поэтому подключение недоступно.';
+
+  @override
+  String get dshErrorUnreachable =>
+      'Не удалось связаться с этим DeepSeek Harness. Проверьте адрес и сеть.';
+
+  @override
+  String get dshErrorAuth =>
+      'В подключении отказано. Вставьте ссылку WebUI ещё раз.';
+
+  @override
+  String get dshErrorProtocol =>
+      'DeepSeek Harness вернул ответ, который это приложение не понимает.';
+
+  @override
+  String get dshErrorUnsupported =>
+      'Эта версия DeepSeek Harness не поддерживает данную функцию.';
+
+  @override
+  String get dshErrorUnknown =>
+      'Не удалось подключиться. Повторите попытку позже.';
+
+  @override
+  String get dshErrorNameRequired => 'Введите имя ассистента.';
+
+  @override
+  String get dshErrorInvalidLink =>
+      'Эта ссылка недействительна. Вставьте ссылку WebUI, которую выводит DeepSeek Harness.';
+
+  @override
+  String get dshRemoteDeleteTooltip => 'Удалить DeepSeek Harness';
+
+  @override
+  String get dshRemoteDeleteTitle => 'Удалить DeepSeek Harness?';
+
+  @override
+  String get dshRemoteDeleteContent =>
+      'Подключение будет удалено только из Cuplivo. На самом DeepSeek Harness ничего не удаляется.';
+
+  @override
+  String get dshRemoteDeleteConfirm => 'Удалить';
+
+  @override
+  String get dshSidebarPlugins => 'Плагины';
+
+  @override
+  String get dshSidebarAutomations => 'Автоматизации';
+
+  @override
+  String get dshSidebarMore => 'Ещё';
+
+  @override
+  String get dshNewSession => 'Новый сеанс';
+
+  @override
+  String get dshNewSessionTooltip => 'Новый сеанс';
+
+  @override
+  String get dshDefaultWorkspace => 'Рабочая область по умолчанию';
+
+  @override
+  String get dshSessionsEmpty => 'Сеансов пока нет';
+
+  @override
+  String get dshSessionsLoading => 'Загрузка сеансов…';
+
+  @override
+  String get dshSessionsFailed => 'Не удалось загрузить удалённые сеансы';
+
+  @override
+  String get dshCatalogUnavailable =>
+      'Удалённые сеансы недоступны в этой сборке';
+
+  @override
+  String get dshCatalogUnavailableHint =>
+      'Подключите клиент DeepSeek Harness, чтобы перечислять его сеансы здесь.';
+
+  @override
+  String get dshOperationFailed => 'Не получилось. Попробуйте ещё раз.';
+
+  @override
+  String get dshSessionRenameTitle => 'Переименовать сеанс';
+
+  @override
+  String get dshSessionFork => 'Создать ветку';
+
+  @override
+  String get dshSessionArchive => 'Архивировать';
+
+  @override
+  String get dshSessionArchived => 'Сеанс архивирован';
+
+  @override
+  String get dshSessionDeleted => 'Сеанс удалён';
+
+  @override
+  String get dshRailStart => 'Начало';
+
+  @override
+  String get dshRailWorkspaceFiles => 'Файлы рабочей области';
+
+  @override
+  String get dshRailWorkspaceFilesSubtitle =>
+      'Просмотр файлов рабочей области этого сеанса';
+
+  @override
+  String get dshRailWorkspaceFilesShortcut => 'Ctrl + P';
+
+  @override
+  String get dshRailNewTerminal => 'Новый терминал';
+
+  @override
+  String get dshRailNewTerminalSubtitle =>
+      'Выполнение команд в рабочей области сеанса';
+
+  @override
+  String get dshRailNewTerminalShortcut => 'Ctrl + `';
+
+  @override
+  String get dshRailMoreTools => 'Другие инструменты';
+
+  @override
+  String get dshRailMoreToolsEmpty => 'От этого хоста нет других инструментов';
+
+  @override
+  String get dshRailMoreToolsEmptyHint =>
+      'Панели плагинов появятся здесь, когда хост сообщит о них.';
+
+  @override
+  String get dshRailPluginsSection => 'Плагины';
+
+  @override
+  String get dshRailExpand => 'Развернуть панель';
+
+  @override
+  String get dshRailCollapse => 'Свернуть панель';
+
+  @override
+  String get dshRailClose => 'Закрыть панель';
+
+  @override
+  String get dshRailBackToStart => 'Назад к началу';
+
+  @override
+  String get dshRailToggle => 'Правая панель';
+
+  @override
+  String get dshFilesNoSession => 'Сначала откройте сеанс';
+
+  @override
+  String get dshFilesUnavailable =>
+      'Удалённый просмотр файлов недоступен в этой сборке';
+
+  @override
+  String get dshFilesUnavailableHint =>
+      'Подключите клиент DeepSeek Harness, чтобы просматривать файлы рабочей области здесь.';
+
+  @override
+  String get dshFilesParentFolder => 'Родительская папка';
+
+  @override
+  String get dshFilesBackToFiles => 'Назад к файлам';
+
+  @override
+  String get dshFilesPreviewUnavailable => 'Этот файл нельзя просмотреть';
+
+  @override
+  String get dshFilesTruncated => 'Показана первая страница этого файла.';
+
+  @override
+  String get dshTerminalUnavailable =>
+      'Удалённые терминалы недоступны в этой сборке';
+
+  @override
+  String get dshTerminalUnavailableHint =>
+      'Терминалы DeepSeek Harness появятся вместе с рабочей областью.';
+
+  @override
+  String get dshHomeOfflineTitle => 'DeepSeek Harness не подключён';
+
+  @override
+  String get dshHomeOfflineHint =>
+      'Проверьте подключение в настройках ассистента и повторите попытку.';
+
+  @override
+  String get dshHomeRetry => 'Повторить';
+
+  @override
+  String get dshHomeNoSession => 'Нет открытого сеанса';
+
+  @override
+  String get dshSurfaceUnavailable => 'Этот раздел недоступен в этой сборке';
+
+  @override
+  String get dshSurfaceUnavailableHint =>
+      'Он появится в следующем обновлении DeepSeek Harness.';
+
+  @override
+  String get dshModelPickerTitle => 'Выберите модель';
+
+  @override
+  String get dshModelPickerSearchHint => 'Поиск провайдеров или моделей';
+
+  @override
+  String get dshModelPickerAllProviders => 'Все';
+
+  @override
+  String get dshModelPickerFailuresSection =>
+      'Провайдеры, которые не удалось загрузить';
+
+  @override
+  String get dshModelPickerEmpty => 'Этот сервер сейчас не предлагает моделей.';
+
+  @override
+  String get dshModelReasoningBadge => 'Рассуждение';
+
+  @override
+  String get dshReasoningPickerTitle => 'Интенсивность рассуждения';
+
+  @override
+  String get dshReasoningDefaultTag => 'По умолчанию';
+
+  @override
+  String get dshReasoningPickerNone =>
+      'У этой модели нет настраиваемой интенсивности рассуждения.';
+
+  @override
+  String get dshReasoningChangeFailed =>
+      'Не удалось изменить интенсивность рассуждения.';
+
+  @override
+  String get dshModelChangeFailed => 'Не удалось переключить модель.';
+
+  @override
+  String get dshModelDetailsTitle => 'Сведения о модели';
+
+  @override
+  String get dshModelDetailsProvider => 'Провайдер';
+
+  @override
+  String get dshModelDetailsEffort => 'Интенсивность рассуждения';
+
+  @override
+  String get dshModelDetailsId => 'ID модели';
+
+  @override
+  String get dshModelDetailsNote =>
+      'Настройки модели и рассуждения хранятся в DeepSeek Harness; Cuplivo только запрашивает их.';
+
+  @override
+  String get dshPermissionTitle => 'Разрешения';
+
+  @override
+  String get dshPermissionReadOnly => 'Только чтение';
+
+  @override
+  String get dshPermissionReadOnlyDesc =>
+      'Ассистент может читать файлы и отвечать, но не может ничего изменить.';
+
+  @override
+  String get dshPermissionWorkspaceWrite => 'Запись в рабочей области';
+
+  @override
+  String get dshPermissionWorkspaceWriteDesc =>
+      'Ассистент может создавать и изменять файлы внутри рабочей области сеанса.';
+
+  @override
+  String get dshPermissionFullAccess => 'Полный доступ';
+
+  @override
+  String get dshPermissionFullAccessDesc =>
+      'Ассистент может выполнять команды и изменять файлы везде, где это разрешено хостом DeepSeek Harness.';
+
+  @override
+  String get dshPermissionRiskTag => 'Рискованно';
+
+  @override
+  String get dshPermissionRiskTitle => 'Разрешить полный доступ?';
+
+  @override
+  String get dshPermissionRiskBody =>
+      'Это позволит ассистенту выполнять команды и изменять файлы на хосте DeepSeek Harness без дополнительных запросов. Продолжайте, только если доверяете этому серверу и этому сеансу.';
+
+  @override
+  String get dshPermissionRiskAcknowledge => 'Я понимаю риск';
+
+  @override
+  String get dshPermissionRiskConfirm => 'Продолжить';
+
+  @override
+  String get dshPermissionChanging => 'Применение…';
+
+  @override
+  String get dshPermissionNoPresets =>
+      'Этот сервер не предоставляет уровней разрешений.';
+
+  @override
+  String get dshPermissionChangeFailed => 'Не удалось изменить разрешение.';
+
+  @override
+  String get dshPlusSheetTitle => 'Ещё';
+
+  @override
+  String get dshPlusWorkspace => 'Рабочая область';
+
+  @override
+  String get dshPlusWorkspaceUnknown =>
+      'Сервер не сообщил рабочую область для этого чата.';
+
+  @override
+  String get dshPlusPermission => 'Разрешение';
+
+  @override
+  String get dshPlusModelDetails => 'Сведения о модели';
+
+  @override
+  String get dshPlusPluginPanel => 'Панель плагинов (правая колонка)';
+
+  @override
+  String get dshPlusPluginPanelSubtitle =>
+      'У плагинов DSH нет отдельной страницы; они добавляют панели в веб-интерфейс.';
+
+  @override
+  String get dshPlusSettings => 'Настройки DSH';
+
+  @override
+  String get dshApprovalTitle => 'Требуется одобрение для продолжения';
+
+  @override
+  String get dshApprovalAllow => 'Разрешить один раз';
+
+  @override
+  String get dshApprovalDeny => 'Отклонить';
+
+  @override
+  String get dshQuestionTitle => 'Ассистенту нужен ваш ответ';
+
+  @override
+  String get dshQuestionSubmit => 'Отправить';
+
+  @override
+  String get dshQuestionReject => 'Отказаться';
+
+  @override
+  String get dshQuestionFreeformHint => 'Введите ответ';
+
+  @override
+  String get dshChatEmptyTitle => 'Начните чат с DeepSeek Harness';
+
+  @override
+  String get dshChatEmptyBody =>
+      'Сообщения хранятся и выполняются на сервере DeepSeek Harness, а не в Cuplivo.';
+
+  @override
+  String get dshStaleBanner =>
+      'Соединение потеряно — показано последнее полученное содержимое.';
+
+  @override
+  String dshQueuedCount(int count) {
+    return 'В очереди: $count';
+  }
+
+  @override
+  String get dshSendFailedTitle => 'Сообщение не отправлено';
+
+  @override
+  String get dshControllerUnavailable =>
+      'Чат недоступен. Переподключите ассистента.';
+
+  @override
+  String get dshPluginPanelTitle => 'Панель плагинов';
+
+  @override
+  String get dshWebPanelNoPluginUrl =>
+      'Плагины DeepSeek Harness — это слоты внутри его веб-интерфейса без отдельного адреса, поэтому здесь показан полный веб-интерфейс этого сервера.';
+
+  @override
+  String get dshWebPanelLoading => 'Открытие веб-интерфейса DeepSeek Harness…';
+
+  @override
+  String get dshWebPanelUnauthorizedTitle => 'Сеанс веб-интерфейса истёк';
+
+  @override
+  String get dshWebPanelUnauthorizedBody =>
+      'Токен запуска меняется при перезапуске dsh web. Переподключите ассистента с новой ссылкой веб-интерфейса, затем снова откройте эту страницу.';
+
+  @override
+  String get dshWebPanelNetworkTitle => 'Не удалось открыть веб-интерфейс';
+
+  @override
+  String get dshWebPanelNetworkBody =>
+      'Убедитесь, что хост DeepSeek Harness доступен с этого устройства и адрес по-прежнему соответствует запущенному серверу.';
+
+  @override
+  String get dshWebPanelUnsupportedTitle =>
+      'Эта платформа не поддерживает встроенный веб-интерфейс';
+
+  @override
+  String get dshWebPanelUnsupportedBody =>
+      'Откройте веб-интерфейс DeepSeek Harness в браузере на этом устройстве.';
+
+  @override
+  String get dshWebPanelReconnect => 'Переподключить';
+
+  @override
+  String get dshModelsSearchHint => 'Поиск провайдеров или групп';
+
+  @override
+  String get dshModelsAddProvider => 'Добавить провайдера';
+
+  @override
+  String get dshModelsCustomProviderTitle => 'Свой провайдер';
+
+  @override
+  String get dshModelsCustomProviderSubtitle =>
+      'Настройте шлюз или собственный эндпоинт вручную.';
+
+  @override
+  String get dshModelsProviderEnabled => 'Включён';
+
+  @override
+  String get dshModelsProviderUnavailable => 'Недоступен';
+
+  @override
+  String get dshModelsEmptyTitle => 'Провайдеров пока нет';
+
+  @override
+  String get dshModelsEmptyBody =>
+      'Добавьте провайдера на этом DeepSeek Harness, чтобы его агенты получили модель.';
+
+  @override
+  String get dshModelsNotConnectedTitle =>
+      'Подключитесь, чтобы загрузить провайдеров';
+
+  @override
+  String get dshModelsNotConnectedBody =>
+      'Cuplivo читает этот список с хоста DeepSeek Harness.';
+
+  @override
+  String get dshModelsLoading => 'Загрузка провайдеров…';
+
+  @override
+  String get dshModelsLoadFailed => 'Не удалось загрузить список провайдеров';
+
+  @override
+  String get dshModelsSearchEmpty => 'Нет провайдеров, соответствующих запросу';
+
+  @override
+  String get dshModelsRefresh => 'Обновить';
+
+  @override
+  String dshModelsModelCount(int count) {
+    return 'Моделей: $count';
+  }
+
+  @override
+  String get dshModelsSettingsUnavailableTitle =>
+      'Настройки провайдера недоступны в этой сборке';
+
+  @override
+  String get dshModelsSettingsUnavailableBody =>
+      'Подключение работает, но для редактирования провайдеров нужен адаптер настроек из следующей версии. Вы по-прежнему можете просматривать модели удалённого сервера.';
+
+  @override
+  String get dshProviderDetailApiKey => 'API-ключ';
+
+  @override
+  String get dshProviderDetailApiKeyHint =>
+      'Оставьте пустым, чтобы использовать сохранённые учётные данные';
+
+  @override
+  String get dshProviderDetailApiKeyHelp =>
+      'Хранится только на DeepSeek Harness; Cuplivo никогда не сохраняет это значение.';
+
+  @override
+  String get dshProviderDetailCredentialConfigured =>
+      'Учётные данные сохранены';
+
+  @override
+  String get dshProviderDetailCredentialMissing =>
+      'Учётные данные ещё не сохранены';
+
+  @override
+  String get dshProviderDetailCustomSettings => 'Пользовательские настройки';
+
+  @override
+  String get dshProviderDetailApiAddress => 'Адрес API';
+
+  @override
+  String get dshProviderDetailApiAddressHint =>
+      'Оставьте пустым, чтобы использовать значение провайдера по умолчанию';
+
+  @override
+  String get dshProviderDetailApiProtocol => 'Протокол API';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiChat => 'OpenAI Chat Completions';
+
+  @override
+  String get dshProviderDetailProtocolOpenAiResponses => 'OpenAI Responses';
+
+  @override
+  String get dshProviderDetailProtocolAnthropic => 'Anthropic Messages';
+
+  @override
+  String get dshProviderDetailApiAddressHintAnthropic =>
+      'Укажите адрес API, совместимый с протоколом Anthropic Messages.';
+
+  @override
+  String get dshProviderDetailApiAddressHintOpenAi =>
+      'Укажите адрес API, совместимый с протоколом OpenAI.';
+
+  @override
+  String dshProviderDetailEnvHint(String env) {
+    return 'По умолчанию используется переменная окружения $env.';
+  }
+
+  @override
+  String get dshProviderDetailModels => 'Каталог моделей';
+
+  @override
+  String get dshProviderDetailModelsAdapterDefault =>
+      'Используются модели адаптера по умолчанию';
+
+  @override
+  String get dshProviderDetailModelsEmpty => 'Модели ещё не добавлены';
+
+  @override
+  String get dshProviderDetailModelsFirstConfig =>
+      'Сначала сохраните учётные данные; после этого появится список моделей.';
+
+  @override
+  String get dshProviderDetailAddModel => 'Добавить модель';
+
+  @override
+  String get dshProviderDetailModelId => 'ID модели';
+
+  @override
+  String get dshProviderDetailModelName => 'Отображаемое имя';
+
+  @override
+  String get dshProviderDetailContextWindow => 'Контекстное окно';
+
+  @override
+  String get dshProviderDetailMaxTokens => 'Макс. выходных токенов';
+
+  @override
+  String get dshProviderDetailInputTypes => 'Типы ввода';
+
+  @override
+  String get dshProviderDetailInputText => 'Текст';
+
+  @override
+  String get dshProviderDetailInputImage => 'Изображение';
+
+  @override
+  String get dshProviderDetailDeleteModel => 'Удалить модель';
+
+  @override
+  String get dshProviderDetailReasoningEfforts => 'Уровни рассуждения';
+
+  @override
+  String get dshProviderDetailReasoningEffortsHint =>
+      'Уровни усилий, которые принимает эта модель; добавьте значения API, которые должен отправлять DeepSeek Harness.';
+
+  @override
+  String get dshProviderDetailAddReasoningEffort => 'Добавить уровень';
+
+  @override
+  String get dshProviderDetailEffortId => 'ID уровня';
+
+  @override
+  String get dshProviderDetailEffortName => 'Название уровня';
+
+  @override
+  String get dshProviderDetailSave => 'Сохранить';
+
+  @override
+  String get dshProviderDetailSaved => 'Провайдер сохранён';
+
+  @override
+  String get dshProviderDetailSaveFailed =>
+      'Не удалось сохранить провайдера. Попробуйте ещё раз.';
+
+  @override
+  String get dshProviderDetailConflict =>
+      'Этот провайдер был изменён в DeepSeek Harness. Загружены последние значения; примените изменение снова.';
+
+  @override
+  String get dshProviderDetailDeleteProvider => 'Удалить провайдера';
+
+  @override
+  String get dshProviderDetailDeleteConfirmTitle => 'Удалить этого провайдера?';
+
+  @override
+  String get dshProviderDetailDeleteConfirmBody =>
+      'Он будет удалён из DeepSeek Harness. История чатов, которые его использовали, сохранится.';
+
+  @override
+  String get dshProviderDetailCustomProviderTitle =>
+      'Новый пользовательский провайдер';
+
+  @override
+  String get dshProviderDetailProviderId => 'ID провайдера';
+
+  @override
+  String get dshProviderDetailProviderIdHint =>
+      'Уникальный ID, например my-gateway';
+
+  @override
+  String get dshProviderDetailDisplayName => 'Отображаемое имя';
+
+  @override
+  String get dshProviderDetailBaseUrl => 'Базовый URL';
+
+  @override
+  String get dshProviderDetailBaseUrlHint => 'https://api.example.com';
+
+  @override
+  String get dshProviderDetailDiscover => 'Получить модели';
+
+  @override
+  String get dshProviderDetailDiscoverEmpty =>
+      'Эндпоинт не вернул ни одной модели';
+
+  @override
+  String get dshProviderDetailDiscoverFailed =>
+      'Не удалось получить модели с этого эндпоинта';
+
+  @override
+  String get dshProviderDetailInvalidModelId => 'Каждой модели нужен ID.';
+
+  @override
+  String get dshProviderDetailRequiredFields =>
+      'Сначала заполните обязательные поля.';
+
+  @override
+  String get dshMoreBackToLocal => 'Назад к локальным ассистентам';
+
+  @override
+  String get dshMoreOpenSettings => 'Настройки DeepSeek Harness';
+
+  @override
+  String get dshMoreAbout => 'О версии';
+
+  @override
+  String get dshMoreAboutHint =>
+      'Версия приложения, установленная на этом устройстве.';
+
+  @override
+  String get dshProviderDetailMaxTokensHint => '256K';
+
+  @override
+  String get dshTabPlugins => 'Встроенные плагины';
+
+  @override
+  String get dshTabAgentPresets => 'Пресеты агентов';
+
+  @override
+  String get dshPluginsReadOnly =>
+      'Плагинами управляет удалённый DeepSeek Harness; этот список доступен только для чтения.';
+
+  @override
+  String get dshPluginsEmpty => 'Этот Host не сообщает о встроенных плагинах.';
+
+  @override
+  String get dshPluginsEnabled => 'Включено';
+
+  @override
+  String get dshPluginsDisabled => 'Отключено';
+
+  @override
+  String dshPluginsPhase(String phase) {
+    return 'Этап: $phase';
+  }
+
+  @override
+  String get dshAgentPresetsReadOnly =>
+      'Пресетами агентов управляет удалённый DeepSeek Harness; эта композиция доступна только для чтения.';
+
+  @override
+  String get dshAgentPresetsEmpty =>
+      'Этот Host не сообщает о пресетах агентов.';
+
+  @override
+  String get dshAgentPresetsDefault => 'По умолчанию';
+
+  @override
+  String get dshPlusSectionAdd => 'Добавить';
+
+  @override
+  String get dshPlusSectionCommands => 'Команды';
+
+  @override
+  String get dshPlusAttachFile => 'Файл';
+
+  @override
+  String get dshPlusAttachFileSubtitle => 'Изображение или файл';
+
+  @override
+  String get dshPlusTarget => 'Цель';
+
+  @override
+  String get dshPlusPlan => 'План';
+
+  @override
+  String get dshPlusFeedback => 'Отзыв';
+
+  @override
+  String get dshPlusCompress => 'Сжать';
+
+  @override
+  String get dshPlusModel => 'Модель';
+
+  @override
+  String get dshPlusDownloadLog => 'Скачать журнал';
+
+  @override
+  String get dshPlusWireMissing =>
+      'Сервер не предоставляет API для этого действия.';
+
+  @override
+  String get dshPlusPickPhoto => 'Фото';
+
+  @override
+  String get dshPlusPickFile => 'Файлы';
+
+  @override
+  String get dshSlashCommandsTitle => 'Команды';
+
+  @override
+  String get dshAttachmentTooManyImages =>
+      'Слишком много изображений для этого сервера.';
+
+  @override
+  String get dshAttachmentImageTooLarge =>
+      'Одно из изображений превышает ограничение размера на этом сервере.';
+
+  @override
+  String get dshAttachmentImagesTooLarge =>
+      'Изображения вместе превышают ограничение этого сервера.';
+
+  @override
+  String get dshAttachmentUnsupportedType =>
+      'Сервер не принимает этот тип изображений.';
+
+  @override
+  String get dshAttachmentReadFailed => 'Не удалось прочитать файл.';
+
+  @override
+  String get dshAttachmentUploadFailed => 'Не удалось загрузить файл.';
+
+  @override
+  String get dshAttachmentUploading => 'Загрузка вложения…';
+
+  @override
+  String get dshPresetChipHint =>
+      'Выберите предустановку агента для вашей новой задачи';
+
+  @override
+  String get dshPresetPickerTitle => 'Предустановка агента';
+
+  @override
+  String get dshPresetPickerEmpty =>
+      'Этот Host не сообщает предустановки агента.';
+
+  @override
+  String get dshPresetLocked =>
+      'Задача уже начата; предустановку агента изменить нельзя.';
+
+  @override
+  String get dshPresetChanging => 'Переключение предустановки агента…';
+
+  @override
+  String get dshPresetBrokenTag => 'Недоступно';
+
+  @override
+  String get dshPresetStandardName => 'Стандартный режим';
+
+  @override
+  String get dshPresetStandardDescription =>
+      'Работайте с кодом, файлами и информацией. Подходит для большинства задач, с поиском, редактированием, командами терминала и другими инструментами, доступными по мере необходимости.';
+
+  @override
+  String get dshPresetPtcName => 'Режим PTC';
+
+  @override
+  String get dshPresetPtcDescription =>
+      'Включает все возможности стандартного режима. Лучше подходит для задач, которые вызывают инструменты в пакетном режиме, а затем фильтруют, организуют, дедуплицируют, подсчитывают или суммируют результаты.';
+
+  @override
+  String get dshPresetMinimalName => 'Минимальный режим';
+
+  @override
+  String get dshPresetMinimalDescription =>
+      'Агент использует терминал и чтение изображений со сжатием контекста. Полезно для тестирования и сравнения его базовой производительности.';
+
+  @override
+  String get dshPresetCordisName => 'Режим автора';
+
+  @override
+  String get dshPresetCordisDescription =>
+      'Настройте DSH через разговор. Позвольте агенту писать плагины, которые добавляют функции или пользовательский интерфейс, или комбинируйте инструменты и подсказки для создания собственного режима.';
+
+  @override
+  String dshPresetSelectFailed(String reason) {
+    return 'Не удалось переключить предустановку агента: $reason';
+  }
+
+  @override
+  String get dshPresetSelectFailedUnknown =>
+      'Не удалось переключить предустановку агента.';
 }

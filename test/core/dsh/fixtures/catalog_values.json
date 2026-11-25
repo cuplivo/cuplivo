@@ -1,0 +1,307 @@
+{
+  "session/list": {
+    "items": [
+      {
+        "sessionId": "session-7f3c2a9e-0000-4000-8000-000000000001",
+        "updatedAt": 1795110873369,
+        "agentAvailable": true,
+        "formatStatus": null,
+        "running": false,
+        "blank": false,
+        "cwd": "/workspace/demo",
+        "projections": {
+          "kind": "sequenced",
+          "asOfSeq": 12,
+          "values": {
+            "title": "Pong",
+            "modelSelection": {
+              "lastUsed": null,
+              "next": {
+                "provider": "deepseek-official",
+                "model": "deepseek-flash"
+              }
+            },
+            "tokenUsage": {
+              "uncachedInputTokens": 10,
+              "outputTokens": 4,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "session-7f3c2a9e-0000-4000-8000-000000000002",
+        "updatedAt": 1795110870000,
+        "agentAvailable": true,
+        "formatStatus": null,
+        "running": true,
+        "blank": true,
+        "cwd": "/workspace/demo",
+        "projections": {
+          "kind": "cached",
+          "asOfSeq": -1,
+          "values": {}
+        }
+      }
+    ]
+  },
+  "session/modelCatalog": {
+    "default": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off"
+    },
+    "routableProviders": [
+      "deepseek-official"
+    ],
+    "groups": [
+      {
+        "id": "deepseek-official",
+        "name": "DeepSeek",
+        "models": [
+          {
+            "id": "deepseek-flash",
+            "name": "DeepSeek-V4.1-Flash",
+            "reasoning": {
+              "efforts": [
+                {
+                  "id": "off",
+                  "name": "Off"
+                },
+                {
+                  "id": "high",
+                  "name": "High"
+                }
+              ],
+              "defaultEffort": "off"
+            }
+          },
+          {
+            "id": "deepseek-pro",
+            "name": "DeepSeek-Pro"
+          }
+        ]
+      }
+    ],
+    "failures": [
+      {
+        "id": "amazon-bedrock",
+        "name": "amazon-bedrock",
+        "message": "credentials missing"
+      }
+    ]
+  },
+  "llm/listProviders": [
+    {
+      "id": "deepseek-official",
+      "name": "DeepSeek"
+    },
+    {
+      "id": "deepseek-account",
+      "name": "DeepSeek Account"
+    }
+  ],
+  "llm/listConfigurableProviders": [
+    {
+      "provider": "deepseek-official",
+      "displayName": "DeepSeek",
+      "settingsNs": "llm-deepseek",
+      "settingsPath": []
+    },
+    {
+      "provider": "amazon-bedrock",
+      "displayName": "amazon-bedrock",
+      "settingsNs": "llm-pi-ai",
+      "settingsPath": [
+        "providers",
+        "amazon-bedrock"
+      ],
+      "declared": false,
+      "baseURLEnv": [
+        "AWS_REGION"
+      ],
+      "nativeAuth": {
+        "env": [
+          "AWS_PROFILE"
+        ],
+        "oauth": false
+      }
+    }
+  ],
+  "permissionPresets/catalog": {
+    "options": [
+      {
+        "value": "read-only",
+        "name": "read-only"
+      },
+      {
+        "value": "workspace-write",
+        "name": "workspace-write"
+      },
+      {
+        "value": "danger-full-access",
+        "name": "danger-full-access"
+      }
+    ],
+    "defaultOptions": [
+      {
+        "value": "read-only",
+        "name": "read-only"
+      },
+      {
+        "value": "workspace-write",
+        "name": "workspace-write"
+      }
+    ],
+    "defaultPreset": "workspace-write"
+  },
+  "pluginInventory/list": {
+    "managementAvailable": true,
+    "entries": [
+      {
+        "entryId": "include",
+        "moduleName": "cordis:include",
+        "enabled": true,
+        "fiberPhase": "active"
+      },
+      {
+        "entryId": "include:plugin-manager",
+        "moduleName": "@deepseek-ai/dsh-plugin-manager",
+        "enabled": true,
+        "fiberPhase": "active",
+        "meta": {
+          "title": {
+            "en": "plugin-manager",
+            "zh": "插件管理"
+          },
+          "description": {
+            "en": "Plugin management service"
+          }
+        }
+      }
+    ],
+    "agentPresets": [
+      {
+        "id": "standard",
+        "name": "Standard",
+        "isDefault": true,
+        "rows": [
+          {
+            "moduleName": "cordis:include",
+            "enabled": true
+          },
+          {
+            "moduleName": "@deepseek-ai/dsh-plugin-manager",
+            "enabled": "conditional",
+            "condition": "!!js process.env.PLUGIN_MANAGER"
+          }
+        ]
+      }
+    ]
+  },
+  "settings/describe": {
+    "writable": true,
+    "hasDocument": true,
+    "namespaces": [
+      {
+        "ns": "session-log-deepseek",
+        "autoGenerate": true,
+        "schema": {
+          "uid": 4304
+        },
+        "value": {
+          "enabled": true
+        },
+        "base": {
+          "enabled": true
+        },
+        "user": {},
+        "applies": "live",
+        "secrets": [],
+        "revision": 0
+      },
+      {
+        "ns": "permission",
+        "autoGenerate": false,
+        "schema": {
+          "uid": 4400
+        },
+        "value": {
+          "defaultPreset": "workspace-write"
+        },
+        "base": {
+          "defaultPreset": "workspace-write"
+        },
+        "user": {},
+        "applies": "live",
+        "secrets": [
+          {
+            "path": [
+              "apiKey"
+            ],
+            "set": false
+          }
+        ],
+        "revision": 3
+      }
+    ]
+  },
+  "account/getState": {
+    "status": "signed-out",
+    "attempt": null,
+    "links": {
+      "usageUrl": "https://platform.deepseek.com/usage",
+      "topUpUrl": "https://platform.deepseek.com/top_up"
+    }
+  },
+  "workspace/follow": {
+    "type": "baseline",
+    "value": {
+      "items": [
+        {
+          "workspaceId": "workspace-1",
+          "path": "/workspace/demo",
+          "title": "Demo",
+          "sessionIds": [
+            "session-7f3c2a9e-0000-4000-8000-000000000001"
+          ],
+          "createdAt": "2026-01-02T03:04:05.000Z",
+          "updatedAt": "2026-01-02T03:04:05.000Z"
+        }
+      ],
+      "archivedSessionIds": [],
+      "pinnedSessionIds": [
+        "session-7f3c2a9e-0000-4000-8000-000000000001"
+      ]
+    }
+  },
+  "agentPresets/list": {
+    "presets": [
+      {
+        "id": "standard",
+        "order": 1,
+        "isDefault": true
+      },
+      {
+        "id": "ptc",
+        "order": 2,
+        "isDefault": false
+      },
+      {
+        "id": "review",
+        "order": 3,
+        "isDefault": false,
+        "name": "Code review",
+        "description": "Prioritizes bugs and test gaps."
+      },
+      {
+        "id": "broken-one",
+        "order": 4,
+        "isDefault": false,
+        "name": "Broken mode",
+        "broken": "Its plugin failed to activate."
+      }
+    ]
+  }
+}

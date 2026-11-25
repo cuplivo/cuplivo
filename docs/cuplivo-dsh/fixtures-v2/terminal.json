@@ -1,0 +1,526 @@
+{
+  "_source": "real DSH Host (0.2.2-rc.1), captured 2026-11-20; ids, host name and paths redacted",
+  "namespace": "terminal — one Session's caller-minted browser terminals",
+  "environment": {
+    "method": "terminal/environment",
+    "args": {
+      "agentId": "<sessionId>"
+    },
+    "value": {
+      "cwd": "<workspace>",
+      "maxInputBytes": 65536,
+      "maxBufferedBytes": 2097152,
+      "maxCols": 500,
+      "maxRows": 200,
+      "scrollback": 1000
+    }
+  },
+  "shells": {
+    "method": "terminal/shells",
+    "args": {
+      "agentId": "<sessionId>"
+    },
+    "value": [
+      {
+        "path": "/bin/bash",
+        "name": "bash",
+        "args": [
+          "-i"
+        ]
+      }
+    ]
+  },
+  "create": {
+    "method": "terminal/create",
+    "args": {
+      "agentId": "<sessionId>",
+      "request": {
+        "id": "<caller-minted id>",
+        "cols": 80,
+        "rows": 24
+      }
+    },
+    "value": {
+      "id": "<terminalId>",
+      "shell": {
+        "path": "/bin/bash",
+        "name": "bash",
+        "args": [
+          "-i"
+        ]
+      },
+      "title": "bash",
+      "cwd": "<workspace>",
+      "cols": 80,
+      "rows": 24,
+      "state": "running",
+      "exitCode": null
+    },
+    "note": "idempotent for an open identity (a second create returns the same info and ignores new dimensions); a closed identity is refused with terminal/unavailable"
+  },
+  "create_after_close": {
+    "method": "terminal/create",
+    "args": {
+      "agentId": "<sessionId>",
+      "request": {
+        "id": "<previously closed id>",
+        "cols": 80,
+        "rows": 24
+      }
+    },
+    "error": {
+      "code": "terminal/unavailable",
+      "message": "Terminal was closed in this Session",
+      "details": {}
+    }
+  },
+  "list_before": {
+    "method": "terminal/list",
+    "args": {
+      "sessionId": "<sessionId>"
+    },
+    "value": []
+  },
+  "attach": {
+    "open": {
+      "type": "open",
+      "streamId": "<streamId>",
+      "endpoint": "terminal/attach",
+      "payload": {
+        "args": {
+          "agentId": "<sessionId>",
+          "id": "<terminalId>"
+        }
+      }
+    },
+    "uplink": [
+      {
+        "type": "item",
+        "streamId": "<streamId>",
+        "value": {
+          "type": "write",
+          "sequence": 1,
+          "data": "echo hello-from-cuplivo\r"
+        }
+      },
+      {
+        "type": "item",
+        "streamId": "<streamId>",
+        "value": {
+          "type": "resize",
+          "sequence": 2,
+          "cols": 100,
+          "rows": 30
+        }
+      }
+    ],
+    "downlink": [
+      {
+        "type": "snapshot",
+        "sequence": 1,
+        "screen": "\u001b[32;1mdsh@<host>\u001b[0m:\u001b[34;1m~/workspace\u001b[0m$ \u001b[?2004h",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 80,
+          "rows": 24,
+          "state": "running",
+          "exitCode": null
+        },
+        "writable": true,
+        "inputWindow": {
+          "maxBytes": 262144,
+          "frameOverheadBytes": 49
+        }
+      },
+      {
+        "type": "ack",
+        "sequence": 1
+      },
+      {
+        "type": "output",
+        "sequence": 2,
+        "data": "echo hello-from-cuplivo\r\n\u001b[?2004l\r"
+      },
+      {
+        "type": "output",
+        "sequence": 3,
+        "data": "hello-from-cuplivo\r\n\u001b[?2004h\u001b]0;dsh@<host>: ~/workspace\u0007\u001b[01;32mdsh@<host>\u001b[00m:\u001b[01;34m~/workspace\u001b[00m$ "
+      },
+      {
+        "type": "state",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 100,
+          "rows": 30,
+          "state": "running",
+          "exitCode": null
+        },
+        "writable": true
+      },
+      {
+        "type": "ack",
+        "sequence": 2
+      }
+    ],
+    "note": "uplink write/resize sequences are per attachment and consecutive from 1; downlink output sequence is a shared cursor per terminal (a re-attach snapshot continues it). An ack can arrive before the output it acknowledges"
+  },
+  "retain": {
+    "open": {
+      "type": "open",
+      "streamId": "<streamId>",
+      "endpoint": "terminal/retain",
+      "payload": {
+        "args": {
+          "sessionId": "<sessionId>",
+          "id": "<terminalId>"
+        }
+      }
+    },
+    "downlink": [
+      {
+        "type": "retained"
+      }
+    ],
+    "note": "a physical window hold: acknowledges retention without screen or input control; the stream stays open until cancelled"
+  },
+  "concurrent_attach": {
+    "attach_a_first_frame": [
+      {
+        "type": "snapshot",
+        "sequence": 1,
+        "screen": "\u001b[32;1mdsh@<host>\u001b[0m:\u001b[34;1m~/workspace\u001b[0m$ \u001b[?2004h",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 80,
+          "rows": 24,
+          "state": "running",
+          "exitCode": null
+        },
+        "writable": true,
+        "inputWindow": {
+          "maxBytes": 262144,
+          "frameOverheadBytes": 49
+        }
+      }
+    ],
+    "attach_b_first_frame": [
+      {
+        "type": "snapshot",
+        "sequence": 1,
+        "screen": "\u001b[32;1mdsh@<host>\u001b[0m:\u001b[34;1m~/workspace\u001b[0m$ \u001b[?2004h",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 80,
+          "rows": 24,
+          "state": "running",
+          "exitCode": null
+        },
+        "writable": true,
+        "inputWindow": {
+          "maxBytes": 262144,
+          "frameOverheadBytes": 49
+        }
+      }
+    ],
+    "attach_a_after_b_wrote": [
+      {
+        "type": "output",
+        "sequence": 3,
+        "data": "from-b\r\n"
+      }
+    ],
+    "attach_b_after_b_wrote": [
+      {
+        "type": "state",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 80,
+          "rows": 24,
+          "state": "running",
+          "exitCode": null
+        },
+        "writable": false
+      },
+      {
+        "type": "ack",
+        "sequence": 1
+      },
+      {
+        "type": "output",
+        "sequence": 2,
+        "data": "echo from-b\r\n\u001b[?2004l\r"
+      },
+      {
+        "type": "output",
+        "sequence": 2,
+        "data": "echo from-b\r\n\u001b[?2004l\r"
+      }
+    ],
+    "note": "two attachments may render the same terminal; the Host grants input control to the writer and revokes the other with a state frame carrying writable:false"
+  },
+  "exit": {
+    "uplink": {
+      "type": "item",
+      "streamId": "<streamId>",
+      "value": {
+        "type": "write",
+        "sequence": 1,
+        "data": "exit 3\r"
+      }
+    },
+    "downlink": [
+      {
+        "type": "snapshot",
+        "sequence": 1,
+        "screen": "\u001b[32;1mdsh@<host>\u001b[0m:\u001b[34;1m~/workspace\u001b[0m$ \u001b[?2004h",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 80,
+          "rows": 24,
+          "state": "running",
+          "exitCode": null
+        },
+        "writable": true,
+        "inputWindow": {
+          "maxBytes": 262144,
+          "frameOverheadBytes": 49
+        }
+      },
+      {
+        "type": "ack",
+        "sequence": 1
+      },
+      {
+        "type": "output",
+        "sequence": 2,
+        "data": "exit 3"
+      },
+      {
+        "type": "output",
+        "sequence": 3,
+        "data": "\r\n\u001b[?2004l\r"
+      },
+      {
+        "type": "output",
+        "sequence": 4,
+        "data": "exit\r\n"
+      },
+      {
+        "type": "state",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 80,
+          "rows": 24,
+          "state": "exited",
+          "exitCode": 3
+        },
+        "writable": false
+      },
+      {
+        "_note": "no frame follows: the attach stream stays open after the process exits"
+      }
+    ],
+    "note": "process exit produces one state frame (state:exited, exitCode, writable:false); the attach stream does not end by itself, and closing the identity is the client's next call"
+  },
+  "attach_after_exit": {
+    "open": {
+      "type": "open",
+      "streamId": "<streamId>",
+      "endpoint": "terminal/attach",
+      "payload": {
+        "args": {
+          "agentId": "<sessionId>",
+          "id": "<terminalId>"
+        }
+      }
+    },
+    "snapshot": [
+      {
+        "type": "snapshot",
+        "sequence": 3,
+        "screen": "\u001b[32;1mdsh@<host>\u001b[0m:\u001b[34;1m~/workspace\u001b[0m$ exit 3\r\nexit\u001b[1B\u001b[4D",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 80,
+          "rows": 24,
+          "state": "exited",
+          "exitCode": 3
+        },
+        "writable": false,
+        "inputWindow": {
+          "maxBytes": 262144,
+          "frameOverheadBytes": 49
+        }
+      }
+    ],
+    "write_attempt_reply": [
+      {
+        "type": "state",
+        "info": {
+          "id": "<terminalId>",
+          "shell": {
+            "path": "/bin/bash",
+            "name": "bash",
+            "args": [
+              "-i"
+            ]
+          },
+          "title": "bash",
+          "cwd": "<workspace>",
+          "cols": 80,
+          "rows": 24,
+          "state": "exited",
+          "exitCode": 3
+        },
+        "writable": false
+      }
+    ],
+    "note": "an exited identity is still listable and attachable; the snapshot reports state:exited, exitCode and writable:false, and a write is answered with another writable:false state frame, not with output"
+  },
+  "validation": {
+    "bad_dims": {
+      "method": "terminal/create",
+      "args": {
+        "agentId": "<sessionId>",
+        "request": {
+          "id": "<new id>",
+          "cols": 1,
+          "rows": 24
+        }
+      },
+      "error": {
+        "code": "gateway/internal",
+        "message": "Terminal dimensions exceed the configured limits",
+        "details": {}
+      }
+    },
+    "bad_id": {
+      "method": "terminal/create",
+      "args": {
+        "agentId": "<sessionId>",
+        "request": {
+          "id": "<129+ chars>",
+          "cols": 80,
+          "rows": 24
+        }
+      },
+      "error": {
+        "code": "gateway/internal",
+        "message": "Invalid terminal identity",
+        "details": {}
+      }
+    },
+    "note": "boundary validation surfaces as gateway/internal in 0.2.2; guard in the UI"
+  },
+  "close": {
+    "method": "terminal/close",
+    "args": {
+      "agentId": "<sessionId>",
+      "id": "<terminalId>"
+    },
+    "value": null
+  },
+  "list_after_close": {
+    "method": "terminal/list",
+    "args": {
+      "sessionId": "<sessionId>"
+    },
+    "value": []
+  },
+  "scoping": {
+    "method": "terminal/list",
+    "observed": "two Sessions each created a terminal with the same caller-minted id; each list showed only its own terminal, each attach stream saw only its own output, and closing one left the other",
+    "rule": "identity = (sessionId, caller-minted terminalId); ids may repeat across Sessions, so a client mints a fresh id per tab and never assumes an id is globally unique",
+    "first_session_list": [
+      {
+        "id": "term-8e6dbc43",
+        "shell": {
+          "path": "/bin/bash",
+          "name": "bash",
+          "args": [
+            "-i"
+          ]
+        },
+        "title": "bash",
+        "cwd": "<workspace>",
+        "cols": 80,
+        "rows": 24,
+        "state": "running",
+        "exitCode": null
+      }
+    ],
+    "second_session_list_before": []
+  }
+}

@@ -1,3 +1,4 @@
+import 'package:Cuplivo/features/harness/pages/home/harness_home_chrome.dart';
 import '../../side_panel/desktop_side_panel_controller.dart';
 import '../../side_panel/widgets/desktop_side_panel.dart';
 import '../../../desktop/sidebar_resize_handle.dart';
@@ -71,6 +72,7 @@ class HomeDesktopScaffold extends StatelessWidget {
     required this.onSidebarWidthChangeEnd,
     required this.buildAssistantBackground,
     this.appBarOverride,
+    this.harness,
     required this.body,
   });
 
@@ -120,6 +122,12 @@ class HomeDesktopScaffold extends StatelessWidget {
   final VoidCallback onSidebarWidthChangeEnd;
   final Widget Function(BuildContext context) buildAssistantBackground;
   final PreferredSizeWidget? appBarOverride;
+
+  /// Non-null in DeepSeek Harness mode: replaces the app bar, the chat body and
+  /// the drawer's list source, and puts the DSH right rail where the local side
+  /// panel normally floats. Null keeps the local path unchanged.
+  final HarnessHomeChrome? harness;
+
   final Widget body;
 
   static const Duration _sidebarAnimDuration = Duration(milliseconds: 260);
@@ -133,6 +141,7 @@ class HomeDesktopScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final harness = this.harness;
     final sp = context.watch<SettingsProvider>();
     final topicsOnRight = sp.desktopTopicPosition == DesktopTopicPosition.right;
     final chat = Scaffold(
@@ -140,8 +149,11 @@ class HomeDesktopScaffold extends StatelessWidget {
       resizeToAvoidBottomInset: true,
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
-      appBar: appBarOverride ?? _buildAppBar(context, cs, topicsOnRight),
-      body: body,
+      appBar:
+          harness?.appBar ??
+          appBarOverride ??
+          _buildAppBar(context, cs, topicsOnRight),
+      body: harness?.body ?? body,
     );
     final layout = Builder(
       builder: (context) {
@@ -172,18 +184,27 @@ class HomeDesktopScaffold extends StatelessWidget {
                     width: !compact && tabletSidebarOpen ? sidebarWidth : 0,
                   ),
                   Expanded(
-                    child: _isDesktop
-                        ? DesktopSidePanel(
-                            conversationId: context
-                                .select<ChatService, String?>(
-                                  (chat) => chat.currentConversationId,
-                                ),
-                            topicsOnRight: topicsOnRight,
-                            topicsBuilder: (context, width) =>
-                                _buildTopics(context, width),
+                    child: harness != null
+                        // The rail host is a push/dock container, not a desktop
+                        // panel: it is the right side on tablet widths too.
+                        ? HarnessRightRailHost(
+                            open: harness.railOpen,
+                            expanded: harness.railExpanded,
+                            rail: harness.rail,
                             child: chatSurface,
                           )
-                        : chat,
+                        : (_isDesktop
+                              ? DesktopSidePanel(
+                                  conversationId: context
+                                      .select<ChatService, String?>(
+                                        (chat) => chat.currentConversationId,
+                                      ),
+                                  topicsOnRight: topicsOnRight,
+                                  topicsBuilder: (context, width) =>
+                                      _buildTopics(context, width),
+                                  child: chatSurface,
+                                )
+                              : chat),
                   ),
                 ],
               ),
@@ -261,6 +282,7 @@ class HomeDesktopScaffold extends StatelessWidget {
     final sidebar = SideDrawer(
       embedded: true,
       embeddedWidth: width,
+      remoteSidebarSource: harness?.sidebarSource,
       userName: context.watch<UserProvider>().name,
       assistantName: _getAssistantName(context),
       closePickerTicker: assistantPickerCloseTick,
@@ -289,6 +311,7 @@ class HomeDesktopScaffold extends StatelessWidget {
   Widget _buildTopics(BuildContext context, double width) => SideDrawer(
     embedded: true,
     embeddedWidth: width,
+    remoteSidebarSource: harness?.sidebarSource,
     userName: context.watch<UserProvider>().name,
     assistantName: _getAssistantName(context),
     closePickerTicker: assistantPickerCloseTick,

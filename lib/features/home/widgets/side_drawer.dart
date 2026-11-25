@@ -59,6 +59,12 @@ import '../../../shared/widgets/emoji_text.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../core/providers/tag_provider.dart';
 import '../../assistant/widgets/assistant_select_sheet.dart';
+import '../../harness/models/dsh_remote.dart';
+import '../../harness/pages/assistant/dsh_assistant_settings_page.dart';
+import '../../harness/state/dsh_connections_provider.dart';
+import '../../harness/state/dsh_gateway.dart';
+import '../../harness/widgets/dsh_link_status_dot.dart';
+import '../../harness/widgets/dsh_whale_mark.dart';
 import '../../assistant/widgets/chat_owner_section_header.dart';
 import '../../../desktop/hotkeys/sidebar_tab_bus.dart';
 import '../../../desktop/desktop_settings_navigation_bus.dart';
@@ -75,6 +81,27 @@ import '../../../shared/widgets/section_card.dart';
 import '../../../shared/animations/status_animation.dart';
 import '../../../core/services/conversation_link.dart';
 import '../../subagent/services/subagent_rules.dart' show SubagentExtrasKeys;
+
+/// The remote surface a [SideDrawer] shows instead of local conversations.
+///
+/// Setting this on the drawer puts it in remote mode (a connected DeepSeek
+/// Harness): the local assistant rows, desktop tabs, selection and
+/// conversation list are skipped, because a remote groups its sessions by
+/// workspace and owns no local conversation. The drawer keeps the chrome it
+/// shares with local mode — the search field, the history/close actions and the
+/// bottom bar — and hands the area between them to [bodyBuilder], which
+/// receives the current search query so a remote list can filter locally.
+///
+/// This is the one seam the harness home slice uses; the default
+/// (`remoteSidebarSource == null`) is the unchanged local path.
+@immutable
+class RemoteSidebarSource {
+  const RemoteSidebarSource({required this.bodyBuilder});
+
+  /// Builds the remote body for the drawer's list area. [query] is the shared
+  /// search field's trimmed-at-the-call-site text.
+  final Widget Function(BuildContext context, String query) bodyBuilder;
+}
 
 class SideDrawer extends StatefulWidget {
   const SideDrawer({
@@ -98,6 +125,7 @@ class SideDrawer extends StatefulWidget {
     this.onEnterGlobalSearch,
     this.onExitGlobalSearch,
     this.onOpenGlobalSearchResult,
+    this.remoteSidebarSource,
   });
 
   final String userName;
@@ -133,6 +161,10 @@ class SideDrawer extends StatefulWidget {
     String? surfaceKey,
   )?
   onOpenGlobalSearchResult;
+
+  /// Non-null while a remote (DeepSeek Harness) owner is open: the local lists
+  /// are replaced by its body. See [RemoteSidebarSource].
+  final RemoteSidebarSource? remoteSidebarSource;
 
   /// Number of times the conversation-list area has (re)built. The sidebar
   /// subscribes only to conversation-list semantics, so unrelated ChatService
@@ -1966,12 +1998,24 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       );
     }
 
+    // Remote (DeepSeek Harness) mode owns the list area: the local assistants,
+    // tabs and conversation rows describe local owners only.
+    final RemoteSidebarSource? remoteSource = widget.remoteSidebarSource;
+    final bool remoteMode = remoteSource != null;
+
     // Desktop-only: enable tabs for embedded sidebar when requested
     final bool assistOnly =
-        widget.desktopAssistantsOnly && _isDesktop && widget.embedded;
+        !remoteMode &&
+        widget.desktopAssistantsOnly &&
+        _isDesktop &&
+        widget.embedded;
     final bool topicsOnly =
-        widget.desktopTopicsOnly && _isDesktop && widget.embedded;
+        !remoteMode &&
+        widget.desktopTopicsOnly &&
+        _isDesktop &&
+        widget.embedded;
     final bool useTabs =
+        !remoteMode &&
         widget.useDesktopTabs &&
         _isDesktop &&
         widget.embedded &&
@@ -2757,7 +2801,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                           textColor: textBase,
                           controller: _tabController!,
                         )
-                      else if (!assistOnly && !topicsOnly)
+                      else if (!remoteMode && !assistOnly && !topicsOnly)
                         // 当前助手区域（固定）
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -2782,6 +2826,7 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                                   ? SystemMouseCursors.click
                                   : SystemMouseCursors.basic,
                               child: IosCardPress(
+                                key: const Key('dsh-assistant-picker-toggle'),
                                 baseColor: (() {
                                   final embedded = widget.embedded;
                                   final base = embedded
@@ -2864,6 +2909,12 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
               // Scrollable area below header
               Expanded(
                 child: () {
+                  // Remote mode replaces the whole local list area. The remote
+                  // list is its own widget (workspace sections, not the local
+                  // pinned/date model), injected by the home slice.
+                  if (remoteSource != null) {
+                    return remoteSource.bodyBuilder(context, _query);
+                  }
                   // Global search mode replaces the list area
                   if (widget.globalSearchMode) {
                     return _buildGlobalSearchResultsList(context);
@@ -3246,6 +3297,22 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
 
   Future<void> _handleSelectGroup(GroupChat group) {
     return _openOwner(ChatOwner.group(group.id));
+  }
+
+  Future<void> _handleSelectHarness(DshRemote remote) {
+    return _openOwner(ChatOwner.harness(remote.id));
+  }
+
+  /// The pencil on a remote row opens its assistant settings page (R4); the row
+  /// body goes through `onOpenOwner`, whose placeholder destination the home
+  /// slice replaces with the DSH home surface.
+  void _openHarnessSettings(DshRemote remote) {
+    _closeAssistantPicker();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DshAssistantSettingsPage.edit(remoteId: remote.id),
+      ),
+    );
   }
 
   /// One owner tap, whichever kind it was.
@@ -4064,6 +4131,12 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     final tp = context.watch<TagProvider>();
     final groups = context.watch<GroupChatProvider>();
     final owners = context.watch<ChatOwnersProvider>();
+    // Remote DeepSeek Harness records are owners as well: they are listed,
+    // searched, dragged and edited here exactly like a local owner, and the row
+    // tap goes through the same `onOpenOwner` seam (the DSH home slice replaces
+    // the placeholder destination there).
+    final harnessConnections = context.watch<DshConnectionsProvider?>();
+    final harnessRemotes = harnessConnections?.remotes ?? const <DshRemote>[];
     final textBase2 = Theme.of(context).colorScheme.onSurface;
     final l10n = AppLocalizations.of(context)!;
 
@@ -4095,15 +4168,24 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     // untagged section and each tag section both read that order through the
     // provider's one projection, so a drag anywhere means the same thing, and a
     // row the order has not reconciled yet still renders at the tail.
+    final visibleHarnessRemotes = query.isEmpty
+        ? harnessRemotes
+        : harnessRemotes
+              .where((remote) => remote.name.toLowerCase().contains(query))
+              .toList();
     final ungrouped = owners.inOwnerOrder<Object>(
       [
         for (final assistant in assistants)
           if (!taggedIds.contains(assistant.id)) assistant,
         for (final group in visibleGroups) group,
+        for (final remote in visibleHarnessRemotes) remote,
       ],
-      (owner) => owner is GroupChat
-          ? ChatOwner.group(owner.id).key
-          : ChatOwner.assistant((owner as Assistant).id).key,
+      (owner) => switch (owner) {
+        GroupChat() => ChatOwner.group(owner.id).key,
+        DshRemote() => ChatOwner.harness(owner.id).key,
+        Assistant() => ChatOwner.assistant(owner.id).key,
+        _ => '',
+      },
     );
 
     final groupedByTag = <String, List<Assistant>>{};
@@ -4151,9 +4233,45 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
       );
     }
 
-    Widget buildOwnerTile(Object owner) => owner is GroupChat
-        ? buildGroupTile(owner)
-        : buildTile(owner as Assistant);
+    Widget buildHarnessTile(DshRemote remote) {
+      final status =
+          harnessConnections?.linkStatus(remote.id) ??
+          const DshLinkStatus.idle();
+      final remoteName = remote.name.trim().isEmpty
+          ? l10n.dshProductName
+          : remote.name;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: _AssistantInlineTile(
+          key: const Key('dsh-owner-row'),
+          avatar: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              DshWhaleAvatar(size: _isDesktop ? 28 : 32),
+              if (!status.isIdle && !status.isReady)
+                Positioned(
+                  right: -1,
+                  bottom: -1,
+                  child: DshLinkStatusDot(status: status, size: 8),
+                ),
+            ],
+          ),
+          name: remoteName,
+          textColor: textBase2,
+          embedded: widget.embedded,
+          selected: selectedOwner == ChatOwner.harness(remote.id),
+          loading: loadingOwnerKeys.contains(ChatOwner.harness(remote.id).key),
+          onTap: () => _handleSelectHarness(remote),
+          onEditTap: () => _openHarnessSettings(remote),
+        ),
+      );
+    }
+
+    Widget buildOwnerTile(Object owner) => switch (owner) {
+      GroupChat() => buildGroupTile(owner),
+      DshRemote() => buildHarnessTile(owner),
+      _ => buildTile(owner as Assistant),
+    };
 
     // Desktop: enable drag-reorder within each group; Mobile/tablet: keep static list
     final bool enableReorder = _isDesktop;
@@ -4222,10 +4340,13 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     final separated =
         context.watch<SettingsProvider>().separateChatOwners &&
         groups.groups.isNotEmpty;
+    // The assistants half also carries remotes: they are not taggable and they
+    // are not groups, and hiding them when the sections split would make a
+    // created remote disappear from the sidebar.
     final ungroupedAssistants = separated
         ? [
             for (final owner in ungrouped)
-              if (owner is Assistant) owner,
+              if (owner is Assistant || owner is DshRemote) owner,
           ]
         : const <Object>[];
     final ungroupedGroups = separated
@@ -4241,12 +4362,16 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     Widget buildOwnerSection(List<Object> sectionOwners) =>
         buildReorderableSection<Object>(
           sectionOwners,
-          ownerOf: (owner) => owner is GroupChat
-              ? ChatOwner.group(owner.id)
-              : ChatOwner.assistant((owner as Assistant).id),
-          widgetKeyOf: (owner) => owner is GroupChat
-              ? 'group-${owner.id}'
-              : 'assistant-${(owner as Assistant).id}',
+          ownerOf: (owner) => switch (owner) {
+            GroupChat() => ChatOwner.group(owner.id),
+            DshRemote() => ChatOwner.harness(owner.id),
+            _ => ChatOwner.assistant((owner as Assistant).id),
+          },
+          widgetKeyOf: (owner) => switch (owner) {
+            GroupChat() => 'group-${owner.id}',
+            DshRemote() => 'harness-${owner.id}',
+            _ => 'assistant-${(owner as Assistant).id}',
+          },
           tileOf: buildOwnerTile,
         );
 
@@ -5428,6 +5553,7 @@ class _LegacyListArea extends StatelessWidget {
 
 class _AssistantInlineTile extends StatefulWidget {
   const _AssistantInlineTile({
+    super.key,
     required this.avatar,
     required this.name,
     required this.textColor,

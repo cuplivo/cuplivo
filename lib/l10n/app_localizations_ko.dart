@@ -18634,4 +18634,39 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get assistantHarnessRetry => '다시 시도';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '연결 방식';
+
+  @override
+  String get assistantHarnessMethodLink => '공용 링크';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 플러그인';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'tailcat 주소 입력';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'DeepSeek Harness 사이드바에서 \'원격 액세스\'를 열고 tailcat 주소 또는 페어링 명령을 복사하세요.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '\'원격 액세스\'에 표시된 tailcat 주소 또는 페어링 명령을 입력하세요.';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'tailcat 터널을 열지 못했습니다. 주소와 네트워크를 확인하세요.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      '이 플랫폼은 tailcat 연결을 지원하지 않습니다.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'tailcat 터널을 여는 중…';
 }

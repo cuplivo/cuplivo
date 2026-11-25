@@ -19226,4 +19226,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantHarnessRetry => 'Retry';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Connection method';
+
+  @override
+  String get assistantHarnessMethodLink => 'Public link';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu plugin';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'Enter the tailcat address';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Enter the tailcat address or pairing command shown under Remote access.';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'Could not open the tailcat tunnel. Check the address and network.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'tailcat connections are not supported on this platform.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'Opening the tailcat tunnel…';
 }

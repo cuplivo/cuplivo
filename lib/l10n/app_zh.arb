@@ -7002,5 +7002,15 @@
   "assistantHarnessLoadFailed": "无法加载 DeepSeek Harness。",
   "assistantHarnessUnsupportedPlatform": "当前平台不支持内嵌 WebView。",
   "assistantHarnessOpenInBrowser": "在浏览器中打开",
-  "assistantHarnessRetry": "重试"
+  "assistantHarnessRetry": "重试",
+  "assistantHarnessConnectionMethodLabel": "连接方式",
+  "assistantHarnessMethodLink": "公网链接",
+  "assistantHarnessMethodTailcat": "ds-hu 插件",
+  "assistantHarnessTailcatAddressLabel": "填写 tailcat 地址",
+  "assistantHarnessTailcatAddressHint": "tailcat forward tc… 18080:13080",
+  "assistantHarnessTailcatAddressHelper": "在 DeepSeek Harness 侧边栏打开「远程访问」，复制 tailcat 地址或配对命令。",
+  "assistantHarnessTailcatInvalidAddress": "填写「远程访问」页上显示的 tailcat 地址或配对命令。",
+  "assistantHarnessTailcatUnavailable": "无法建立 tailcat 隧道，请检查地址和网络。",
+  "assistantHarnessTailcatUnsupported": "当前平台不支持 tailcat 连接。",
+  "assistantHarnessTailcatOpening": "正在建立 tailcat 隧道…"
 }

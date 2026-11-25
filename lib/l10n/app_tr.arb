@@ -5579,5 +5579,15 @@
   "assistantHarnessLoadFailed": "DeepSeek Harness yüklenemedi.",
   "assistantHarnessUnsupportedPlatform": "Bu platformda gömülü WebView desteklenmiyor.",
   "assistantHarnessOpenInBrowser": "Tarayıcıda Aç",
-  "assistantHarnessRetry": "Yeniden dene"
+  "assistantHarnessRetry": "Yeniden dene",
+  "assistantHarnessConnectionMethodLabel": "Bağlantı yöntemi",
+  "assistantHarnessMethodLink": "Genel bağlantı",
+  "assistantHarnessMethodTailcat": "ds-hu eklentisi",
+  "assistantHarnessTailcatAddressLabel": "tailcat adresini girin",
+  "assistantHarnessTailcatAddressHint": "tailcat forward tc… 18080:13080",
+  "assistantHarnessTailcatAddressHelper": "DeepSeek Harness kenar çubuğunda Uzaktan erişim bölümünü açın ve tailcat adresini veya eşleştirme komutunu kopyalayın.",
+  "assistantHarnessTailcatInvalidAddress": "Uzaktan erişim bölümünde gösterilen tailcat adresini veya eşleştirme komutunu girin.",
+  "assistantHarnessTailcatUnavailable": "tailcat tüneli açılamadı. Adresi ve ağı kontrol edin.",
+  "assistantHarnessTailcatUnsupported": "tailcat bağlantıları bu platformda desteklenmiyor.",
+  "assistantHarnessTailcatOpening": "tailcat tüneli açılıyor…"
 }

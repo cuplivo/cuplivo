@@ -24814,5 +24814,45 @@
   "assistantHarnessRetry": "Retry",
   "@assistantHarnessRetry": {
     "description": "Button that retries loading or connecting to DeepSeek Harness after a failure."
+  },
+  "assistantHarnessConnectionMethodLabel": "Connection method",
+  "@assistantHarnessConnectionMethodLabel": {
+    "description": "Title above the two-way selector on the DeepSeek Harness settings page; chooses how the app reaches the remote instance."
+  },
+  "assistantHarnessMethodLink": "Public link",
+  "@assistantHarnessMethodLink": {
+    "description": "Selector option for reaching DeepSeek Harness through the access link printed by dsh web, which works on the same LAN or over the internet."
+  },
+  "assistantHarnessMethodTailcat": "ds-hu plugin",
+  "@assistantHarnessMethodTailcat": {
+    "description": "Selector option for reaching DeepSeek Harness through the ds-hu remote-access plugin, which exposes a tailnet address instead of a public link. ds-hu is a product name and is not translated."
+  },
+  "assistantHarnessTailcatAddressLabel": "Enter the tailcat address",
+  "@assistantHarnessTailcatAddressLabel": {
+    "description": "Label of the field where the user pastes the tailcat address (or the pairing command) shown by the ds-hu plugin. tailcat is a product name and is not translated."
+  },
+  "assistantHarnessTailcatAddressHint": "tailcat forward tc… 18080:13080",
+  "@assistantHarnessTailcatAddressHint": {
+    "description": "Sample placeholder inside the tailcat address field; an example pairing command. It is a command with an abbreviated address and must be kept unchanged."
+  },
+  "assistantHarnessTailcatAddressHelper": "In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.",
+  "@assistantHarnessTailcatAddressHelper": {
+    "description": "Helper text below the tailcat address field explaining where the user finds the address or pairing command in the remote DeepSeek Harness interface."
+  },
+  "assistantHarnessTailcatInvalidAddress": "Enter the tailcat address or pairing command shown under Remote access.",
+  "@assistantHarnessTailcatInvalidAddress": {
+    "description": "Validation error shown when the pasted text is not a tailcat address or pairing command; tells the user where to find the right text."
+  },
+  "assistantHarnessTailcatUnavailable": "Could not open the tailcat tunnel. Check the address and network.",
+  "@assistantHarnessTailcatUnavailable": {
+    "description": "Error shown when a tailcat address is valid but the tunnel cannot be established; asks the user to check the address and network."
+  },
+  "assistantHarnessTailcatUnsupported": "tailcat connections are not supported on this platform.",
+  "@assistantHarnessTailcatUnsupported": {
+    "description": "Error shown when a tailcat connection is attempted on a platform without a tailcat client (the web build)."
+  },
+  "assistantHarnessTailcatOpening": "Opening the tailcat tunnel…",
+  "@assistantHarnessTailcatOpening": {
+    "description": "Loading message inside the DeepSeek Harness page while the tailcat tunnel is being established; the trailing ellipsis indicates an ongoing action."
   }
 }

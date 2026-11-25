@@ -21,14 +21,13 @@ Future<void> openHarnessWebUi(BuildContext context, String assistantId) {
   );
 }
 
-/// The one entry point for "go to this harness": a link that was never set
-/// opens the page that sets it, instead of an empty view.
+/// The one entry point for "go to this harness": a connection that was never
+/// set up opens the page that sets it, instead of an empty view.
 Future<void> openHarnessForAssistant(
   BuildContext context,
   Assistant assistant,
 ) {
-  final url = assistant.harnessUrl?.trim() ?? '';
-  return url.isEmpty
-      ? openHarnessSettings(context, assistant.id)
-      : openHarnessWebUi(context, assistant.id);
+  return assistant.hasHarnessConnection
+      ? openHarnessWebUi(context, assistant.id)
+      : openHarnessSettings(context, assistant.id);
 }

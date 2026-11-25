@@ -5579,5 +5579,15 @@
   "assistantHarnessLoadFailed": "9f870598bbad4250706a707846e74c1f96540ce36d0ade2cba04c7a2399d60ae",
   "assistantHarnessUnsupportedPlatform": "193ee3470aa4caf740897b8a3ea1ba486dd4d1b7f5c24ed7391481a76450f0dd",
   "assistantHarnessOpenInBrowser": "c7992132b82b1af5880f6e966dd119ab3c519fcdb5a49cb4de5c9cf0cd886df6",
-  "assistantHarnessRetry": "2961d7f04846b0a8391c2a254267af58aec69f2601d3383ff645ca2d3785cf3e"
+  "assistantHarnessRetry": "2961d7f04846b0a8391c2a254267af58aec69f2601d3383ff645ca2d3785cf3e",
+  "assistantHarnessConnectionMethodLabel": "28ac9c64b06ba98f5460e02a8bab7b3407c5c3ea0689a6a9fb93a114d21b297f",
+  "assistantHarnessMethodLink": "f653c13fb0d4aa6676faa852f2a2ecfb7d0e94bf3aae3e0811fd58d89b5420bd",
+  "assistantHarnessMethodTailcat": "db466b0484612c2c9a340165af2398e116f1f914e03b3473d1ed566e3f271cac",
+  "assistantHarnessTailcatAddressLabel": "d453bb3f71d9bd4344dcb8c905c778fd8a6deddf2363875614a9f6f13e54662e",
+  "assistantHarnessTailcatAddressHint": "b42711cf67bffd822844d15cef340cb995574f8544b89c24ac3c13a29dd2df30",
+  "assistantHarnessTailcatAddressHelper": "2ab36e421cd19e40f3453f5db7de9e1cf13e43c9d551160ab6db65a6493eba29",
+  "assistantHarnessTailcatInvalidAddress": "9cd5efb293d8706bb781cc0b4a7d964ddd5ea8cb5c8d4843a85dc5923a307e62",
+  "assistantHarnessTailcatUnavailable": "44d2a2c68304562219e3eee595be21eff752f9349f5d562b1796e0fbb8e3b39e",
+  "assistantHarnessTailcatUnsupported": "6da0b746e28cb5768a0910ded668972cfab9d988d76a2ec8bedef8d4e1123524",
+  "assistantHarnessTailcatOpening": "6928281f6461cb40d3320084749f0c187dccf395e439673d4b66ebcfa971a53f"
 }

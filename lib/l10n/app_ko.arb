@@ -5579,5 +5579,15 @@
   "assistantHarnessLoadFailed": "DeepSeek Harness를 불러오지 못했습니다.",
   "assistantHarnessUnsupportedPlatform": "이 플랫폼에서는 내장 WebView를 지원하지 않습니다.",
   "assistantHarnessOpenInBrowser": "브라우저에서 열기",
-  "assistantHarnessRetry": "다시 시도"
+  "assistantHarnessRetry": "다시 시도",
+  "assistantHarnessConnectionMethodLabel": "연결 방식",
+  "assistantHarnessMethodLink": "공용 링크",
+  "assistantHarnessMethodTailcat": "ds-hu 플러그인",
+  "assistantHarnessTailcatAddressLabel": "tailcat 주소 입력",
+  "assistantHarnessTailcatAddressHint": "tailcat forward tc… 18080:13080",
+  "assistantHarnessTailcatAddressHelper": "DeepSeek Harness 사이드바에서 '원격 액세스'를 열고 tailcat 주소 또는 페어링 명령을 복사하세요.",
+  "assistantHarnessTailcatInvalidAddress": "'원격 액세스'에 표시된 tailcat 주소 또는 페어링 명령을 입력하세요.",
+  "assistantHarnessTailcatUnavailable": "tailcat 터널을 열지 못했습니다. 주소와 네트워크를 확인하세요.",
+  "assistantHarnessTailcatUnsupported": "이 플랫폼은 tailcat 연결을 지원하지 않습니다.",
+  "assistantHarnessTailcatOpening": "tailcat 터널을 여는 중…"
 }

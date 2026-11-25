@@ -19537,4 +19537,39 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get assistantHarnessRetry => 'Повторить';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Способ подключения';
+
+  @override
+  String get assistantHarnessMethodLink => 'Публичная ссылка';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'Плагин ds-hu';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'Введите адрес tailcat';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'В боковой панели DeepSeek Harness откройте «Удалённый доступ» и скопируйте адрес tailcat или команду сопряжения.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Введите адрес tailcat или команду сопряжения, показанные в разделе «Удалённый доступ».';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'Не удалось открыть туннель tailcat. Проверьте адрес и сеть.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'Подключения tailcat не поддерживаются на этой платформе.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'Открываем туннель tailcat…';
 }

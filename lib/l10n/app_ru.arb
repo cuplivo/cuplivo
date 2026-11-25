@@ -5579,5 +5579,15 @@
   "assistantHarnessLoadFailed": "Не удалось загрузить DeepSeek Harness.",
   "assistantHarnessUnsupportedPlatform": "На этой платформе встроенный WebView не поддерживается.",
   "assistantHarnessOpenInBrowser": "Открыть в браузере",
-  "assistantHarnessRetry": "Повторить"
+  "assistantHarnessRetry": "Повторить",
+  "assistantHarnessConnectionMethodLabel": "Способ подключения",
+  "assistantHarnessMethodLink": "Публичная ссылка",
+  "assistantHarnessMethodTailcat": "Плагин ds-hu",
+  "assistantHarnessTailcatAddressLabel": "Введите адрес tailcat",
+  "assistantHarnessTailcatAddressHint": "tailcat forward tc… 18080:13080",
+  "assistantHarnessTailcatAddressHelper": "В боковой панели DeepSeek Harness откройте «Удалённый доступ» и скопируйте адрес tailcat или команду сопряжения.",
+  "assistantHarnessTailcatInvalidAddress": "Введите адрес tailcat или команду сопряжения, показанные в разделе «Удалённый доступ».",
+  "assistantHarnessTailcatUnavailable": "Не удалось открыть туннель tailcat. Проверьте адрес и сеть.",
+  "assistantHarnessTailcatUnsupported": "Подключения tailcat не поддерживаются на этой платформе.",
+  "assistantHarnessTailcatOpening": "Открываем туннель tailcat…"
 }

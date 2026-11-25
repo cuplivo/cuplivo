@@ -19322,4 +19322,39 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get assistantHarnessRetry => 'Yeniden dene';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Bağlantı yöntemi';
+
+  @override
+  String get assistantHarnessMethodLink => 'Genel bağlantı';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu eklentisi';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'tailcat adresini girin';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'DeepSeek Harness kenar çubuğunda Uzaktan erişim bölümünü açın ve tailcat adresini veya eşleştirme komutunu kopyalayın.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Uzaktan erişim bölümünde gösterilen tailcat adresini veya eşleştirme komutunu girin.';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'tailcat tüneli açılamadı. Adresi ve ağı kontrol edin.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'tailcat bağlantıları bu platformda desteklenmiyor.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'tailcat tüneli açılıyor…';
 }

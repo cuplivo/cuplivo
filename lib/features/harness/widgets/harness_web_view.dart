@@ -10,8 +10,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_text_button.dart';
-import '../../../theme/app_font_weights.dart';
 import '../../../utils/app_directories.dart';
+import 'harness_status.dart';
 
 /// Whether the DeepSeek Harness WebUI can be embedded on [platform].
 ///
@@ -178,7 +178,7 @@ class _HarnessWebViewState extends State<HarnessWebView> {
                 Positioned.fill(
                   child: ColoredBox(
                     color: Theme.of(context).colorScheme.surface,
-                    child: _HarnessStatus(
+                    child: HarnessStatus(
                       key: const Key('harness-web-view-error'),
                       icon: LucideIcons.cloudOff,
                       title: l10n.assistantHarnessLoadFailed,
@@ -204,7 +204,7 @@ class _HarnessWebViewState extends State<HarnessWebView> {
   Widget _buildUnsupported(BuildContext context, AppLocalizations l10n) {
     return ColoredBox(
       color: Theme.of(context).colorScheme.surface,
-      child: _HarnessStatus(
+      child: HarnessStatus(
         key: const Key('harness-web-view-unsupported'),
         icon: LucideIcons.monitorOff,
         title: l10n.assistantHarnessUnsupportedPlatform,
@@ -315,52 +315,3 @@ class _HarnessWebViewState extends State<HarnessWebView> {
 }
 
 /// A centered icon, message and action row for the states that are not a
-/// live WebUI (load failure, unsupported platform).
-class _HarnessStatus extends StatelessWidget {
-  const _HarnessStatus({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.actions,
-  });
-
-  final IconData icon;
-  final String title;
-  final List<Widget> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 36, color: colorScheme.onSurfaceVariant),
-              const SizedBox(height: 18),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: AppFontWeights.semibold,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 4,
-                children: actions,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

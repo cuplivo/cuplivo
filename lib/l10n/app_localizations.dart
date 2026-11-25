@@ -33611,6 +33611,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get assistantHarnessRetry;
+
+  /// Title above the two-way selector on the DeepSeek Harness settings page; chooses how the app reaches the remote instance.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection method'**
+  String get assistantHarnessConnectionMethodLabel;
+
+  /// Selector option for reaching DeepSeek Harness through the access link printed by dsh web, which works on the same LAN or over the internet.
+  ///
+  /// In en, this message translates to:
+  /// **'Public link'**
+  String get assistantHarnessMethodLink;
+
+  /// Selector option for reaching DeepSeek Harness through the ds-hu remote-access plugin, which exposes a tailnet address instead of a public link. ds-hu is a product name and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'ds-hu plugin'**
+  String get assistantHarnessMethodTailcat;
+
+  /// Label of the field where the user pastes the tailcat address (or the pairing command) shown by the ds-hu plugin. tailcat is a product name and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the tailcat address'**
+  String get assistantHarnessTailcatAddressLabel;
+
+  /// Sample placeholder inside the tailcat address field; an example pairing command. It is a command with an abbreviated address and must be kept unchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'tailcat forward tc… 18080:13080'**
+  String get assistantHarnessTailcatAddressHint;
+
+  /// Helper text below the tailcat address field explaining where the user finds the address or pairing command in the remote DeepSeek Harness interface.
+  ///
+  /// In en, this message translates to:
+  /// **'In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.'**
+  String get assistantHarnessTailcatAddressHelper;
+
+  /// Validation error shown when the pasted text is not a tailcat address or pairing command; tells the user where to find the right text.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the tailcat address or pairing command shown under Remote access.'**
+  String get assistantHarnessTailcatInvalidAddress;
+
+  /// Error shown when a tailcat address is valid but the tunnel cannot be established; asks the user to check the address and network.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the tailcat tunnel. Check the address and network.'**
+  String get assistantHarnessTailcatUnavailable;
+
+  /// Error shown when a tailcat connection is attempted on a platform without a tailcat client (the web build).
+  ///
+  /// In en, this message translates to:
+  /// **'tailcat connections are not supported on this platform.'**
+  String get assistantHarnessTailcatUnsupported;
+
+  /// Loading message inside the DeepSeek Harness page while the tailcat tunnel is being established; the trailing ellipsis indicates an ongoing action.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the tailcat tunnel…'**
+  String get assistantHarnessTailcatOpening;
 }
 
 class _AppLocalizationsDelegate

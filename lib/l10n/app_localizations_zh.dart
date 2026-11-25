@@ -18196,6 +18196,39 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantHarnessRetry => '重试';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '连接方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公网链接';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 插件';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填写 tailcat 地址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 侧边栏打开「远程访问」，复制 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填写「远程访问」页上显示的 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '无法建立 tailcat 隧道，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '当前平台不支持 tailcat 连接。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -36390,6 +36423,39 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantHarnessRetry => '重试';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '连接方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公网链接';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 插件';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填写 tailcat 地址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 侧边栏打开「远程访问」，复制 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填写「远程访问」页上显示的 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '无法建立 tailcat 隧道，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '当前平台不支持 tailcat 连接。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -54606,4 +54672,37 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantHarnessRetry => '重試';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '連線方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公網連結';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 外掛';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填寫 tailcat 位址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 側邊欄開啟「遠端存取」，複製 tailcat 位址或配對指令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填寫「遠端存取」頁面上顯示的 tailcat 位址或配對指令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '無法建立 tailcat 隧道，請檢查位址和網路。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '目前平台不支援 tailcat 連線。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
 }

@@ -459,4 +459,13 @@ master 已经合并生图 job（`3c7e9b2b9`）。它带来的不是"又一个功
 - 简报的委派行改成条件句（「如果 `delegate` 在你的工具里……」）：`levels` 只说明链可以更深，不保证这个助手拿到了工具。
 - 处理器按 `job_id` 路由：空或等于父 ID → `sendToParent`，否则 → `sendToChild`（父子校验照旧）。
 
+**第四轮 review 修正**：
+
+- 手递手失败不再丢消息：队头留在队列里直到投递成功，成功后用 `_dropQueuedHead` 出队（只在它仍是队头时）。旧写法先 `removeAt(0)` 并 `_queue.remove`，回插进的是已经脱离 `_queue` 的列表——输入框的排队气泡消失、排空也找不到它。
+- `_hasHandoffReady` 先判 `_pausedQueuedInputs`、`blocksSending`、`isGroupRoundLoading`，再判 mail/队列；mail 分支不再绕过这些闸。否则会截断当前回复、下一段却开不起来。
+- 设计文档 §6/§7 改成实际契约：模型发起的 `stopped` 不写行、不通知；用户 Stop 才写行。此前 §6 还写着「outcome stopped + notice」，与 §13.2 自相矛盾。
+- mail 待投加上限：2 分钟开不了轮就按 `mail_not_delivered` 结算，不再让条永远计时。正常轮次开始仍走原来的 20 秒 `turn_not_started`。
+- 邮件弹窗底部三个按钮从 `Row` 改为 `Wrap`：ru/tr 在 360 px 上会溢出。
+- 新增回归 `a handoff blocked by compression keeps the queued message`，并做过反向验证：把出队改回投递前，用例失败；恢复后通过（文件 SHA256 校验一致）。
+
 

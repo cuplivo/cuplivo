@@ -866,6 +866,7 @@ class SubagentCoordinator extends ChangeNotifier {
     final childId = entry.childConversationId;
     DateTime? missingSince;
     DateTime? settledSince;
+    DateTime? mailPendingSince;
     while (!_disposed) {
       await Future<void>.delayed(pollInterval);
       if (_disposed || entry.watchGeneration != generation) return;
@@ -896,9 +897,21 @@ class SubagentCoordinator extends ChangeNotifier {
         // context blocked on a compression review — and closing the delegation
         // then would report a failure for a turn that runs later, unwatched.
         if (_host?.hasPendingMail?.call(childId) ?? false) {
+          // Waiting through the normal 20 s clock would report a failure for a
+          // turn that runs later (backgrounded, or blocked on a compression
+          // review). Waiting forever is worse: a mail that can never start a
+          // turn — the child's model was removed, its queue is paused — leaves
+          // the strip ticking with no outcome and no way out. Two minutes.
+          mailPendingSince ??= DateTime.now();
+          if (DateTime.now().difference(mailPendingSince) >
+              const Duration(minutes: 2)) {
+            await _finish(entry, SubagentPhase.failed, 'mail_not_delivered');
+            return;
+          }
           settledSince = null;
           continue;
         }
+        mailPendingSince = null;
         settledSince ??= DateTime.now();
         if (DateTime.now().difference(settledSince) >
             const Duration(seconds: 20)) {

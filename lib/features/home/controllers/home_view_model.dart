@@ -1081,15 +1081,17 @@ class HomeViewModel extends ChangeNotifier {
   /// delegation's notice is not: it is a result, and a result waits for the turn
   /// to end rather than interrupting it.
   bool _hasHandoffReady(String conversationId) {
-    if (_hasPendingMail(conversationId)) return true;
-    // A paused queue is a failed delivery the composer is showing as paused: it
-    // is not ready to go, and a handoff that took it would deliver it anyway.
+    // A handoff ends the running turn, so the next one must be able to start.
+    // A paused queue, a compression review and a group round in flight all make
+    // the follow-up refuse, and the reply would end on its tool results with
+    // nothing after it. These checks cover the mail branch too, which used to
+    // return before them.
     if (_pausedQueuedInputs.contains(conversationId)) return false;
-    // Asking for a handoff while the next turn cannot start would end the
-    // running one and deliver nothing.
     if (_chatService.contextCompression.blocksSending(conversationId)) {
       return false;
     }
+    if (_chatActions.isGroupRoundLoading(conversationId)) return false;
+    if (_hasPendingMail(conversationId)) return true;
     final head = _queue[conversationId]?.firstOrNull;
     return head is QueuedUserInput;
   }
@@ -1123,28 +1125,39 @@ class HomeViewModel extends ChangeNotifier {
       if (queue == null || queue.isEmpty) return false;
       final head = queue.first;
       if (head is! QueuedUserInput) return false;
-      // Take it out before starting: the drain would otherwise see the same head
-      // after this turn ends and deliver it a second time.
-      queue.removeAt(0);
-      if (queue.isEmpty) _queue.remove(conversationId);
+      // The head stays in the queue until the turn actually starts. Removing it
+      // up front detaches the list from `_queue`, so a failed start has nowhere
+      // to put the message back: the composer chip disappears and the drain
+      // finds nothing. `_drainingQueuedInputs` keeps the drain off this head for
+      // the length of the await, so it cannot be delivered twice.
       try {
         final delivered = await _sendMessageToConversation(
           head.input,
           conversation,
         );
-        if (!delivered) {
-          queue.insert(0, head);
-          return false;
-        }
+        if (!delivered) return false;
+        _dropQueuedHead(conversationId, head);
         return true;
       } catch (_) {
-        queue.insert(0, head);
         return false;
       }
     } finally {
       _drainingQueuedInputs.remove(conversationId);
       notifyListeners();
     }
+  }
+
+  /// Drops [head] from the queue, and only if it is still the head.
+  ///
+  /// A new message may have been appended while the previous one was starting;
+  /// this removes the one that started, not whatever is at the front now.
+  void _dropQueuedHead(String conversationId, QueuedUserInput head) {
+    final queue = _queue[conversationId];
+    if (queue == null || queue.isEmpty || !identical(queue.first, head)) {
+      return;
+    }
+    queue.removeAt(0);
+    if (queue.isEmpty) _queue.remove(conversationId);
   }
 
   /// Runs one turn from a mail row that is already in the transcript.

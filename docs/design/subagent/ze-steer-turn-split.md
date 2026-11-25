@@ -201,3 +201,9 @@ Send a message to the conversation that delegated your task: a finding that chan
 
 界面上还缺 §6 的「待读标记」：留言行在收件箱里时不带标记，因为人的消息还没先落盘，只给代理留言加标记会造成两种消息两种外观。
 
+### 13.1 第二轮 clarity 之后（2026-11-24）
+
+- **结果行只在模型没通过工具调用拿到结果时出现**：`await_job` 由 `waiters` 抑制；模型 `interrupt` 成功也不写行、不唤醒（只回 `accepted`，不回传内容——打断就是说到哪算哪；想要结论用 `await_job`，想让子代理尽快收口用 `send_message`）。用户停止子代理写行但不唤醒；父对话自己的 Stop 级联同样不唤醒。
+- **留言行改用结果行那条 28px 分隔线**：`subagentMailLabel · 发送方标题`，正文跟在下面，不再是独立卡片；点分隔线打开 dialog（桌面）/ sheet（移动）看完整消息。导出与 PNG 走已有分隔线分支。
+- 新增 `subagentMailLabel`（6 个 ARB、指纹、`gen-l10n`、`translate.py check` 全过），实现里不再需要「已停止」文案——停止不产生结果行。
+

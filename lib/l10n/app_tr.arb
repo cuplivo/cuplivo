@@ -885,6 +885,7 @@
   "subagentResultFailed": "Alt ajan başarısız",
   "subagentResultCancelled": "Alt ajan iptal edildi",
   "subagentResultInterrupted": "Alt ajan kesildi",
+  "subagentMailLabel": "Alt ajan mesajı",
   "subagentStripRunning": "Alt ajan çalışıyor ({elapsed}) {label}",
   "subagentStripRunningMany": "Çalışan alt ajan: {count}",
   "subagentStripWaiting": "Alt ajan yanıtınızı bekliyor · {label}",

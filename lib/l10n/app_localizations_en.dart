@@ -2942,6 +2942,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subagentResultInterrupted => 'Subagent interrupted';
 
   @override
+  String get subagentMailLabel => 'Subagent message';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Subagent running ($elapsed) $label';
   }

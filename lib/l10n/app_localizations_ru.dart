@@ -16416,6 +16416,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get assistantEditLocalToolAwaitJobTitle => 'Ожидание задачи';
 
   @override
+  String get assistantEditLocalToolSendMessageTitle => 'Отправить сообщение';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Остановить субагента';
+
+  @override
   String get defaultModelPageImageModelTitle => 'Модель изображений';
 
   @override

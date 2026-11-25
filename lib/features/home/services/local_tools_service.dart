@@ -577,15 +577,15 @@ class LocalToolsService {
         tools.add(definitionFor(id));
       }
     }
-    if (delegation) {
-      if (isSubagent) {
-        // A child reaches its delegator and nobody else; it never gets the
-        // delegation pair itself, so a chain cannot grow below the limit.
-        tools.add(sendMessageDefinition(subagent: true));
-      } else if (allowDelegation) {
-        tools.add(sendMessageDefinition(subagent: false));
-        tools.add(interruptDefinition);
-      }
+    if (isSubagent) {
+      // A child is a child because its delegator delegated. Whether the named
+      // target assistant has 子代理 switched on says something about its own
+      // ability to delegate, not about answering the delegator, so the reply
+      // tool is offered either way.
+      tools.add(sendMessageDefinition(subagent: true));
+    } else if (delegation && allowDelegation) {
+      tools.add(sendMessageDefinition(subagent: false));
+      tools.add(interruptDefinition);
     }
     return tools;
   }

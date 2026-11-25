@@ -16138,6 +16138,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditLocalToolAwaitJobTitle => 'Wait for task';
 
   @override
+  String get assistantEditLocalToolSendMessageTitle => 'Send message';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Stop subagent';
+
+  @override
   String get defaultModelPageImageModelTitle => 'Image Model';
 
   @override

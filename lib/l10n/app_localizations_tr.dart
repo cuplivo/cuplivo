@@ -16234,6 +16234,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get assistantEditLocalToolAwaitJobTitle => 'Görev bekle';
 
   @override
+  String get assistantEditLocalToolSendMessageTitle => 'Mesaj gönder';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Alt ajanı durdur';
+
+  @override
   String get defaultModelPageImageModelTitle => 'Görsel Modeli';
 
   @override

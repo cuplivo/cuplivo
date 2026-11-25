@@ -5862,6 +5862,8 @@
   "assistantEditLocalToolImageTitle": "绘图",
   "assistantEditLocalToolDelegateTitle": "子代理",
   "assistantEditLocalToolAwaitJobTitle": "等待任务",
+  "assistantEditLocalToolSendMessageTitle": "发送消息",
+  "assistantEditLocalToolInterruptTitle": "停止子代理",
   "defaultModelPageImageModelTitle": "绘图模型",
   "defaultModelPageImageModelSubtitle": "在回复里画图所用的模型；不设置就等于不启用绘图。",
   "imageJobPanelCopy": "复制",

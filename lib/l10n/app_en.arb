@@ -24710,10 +24710,6 @@
   "@subagentConfigSubtitle": {
     "description": "One sentence above the three settings, saying what delegating does in this conversation."
   },
-  "subagentConfigEnabled": "On",
-  "@subagentConfigEnabled": {
-    "description": "Label of the switch that turns delegation on for this assistant."
-  },
   "subagentConfigDepth": "Depth",
   "@subagentConfigDepth": {
     "description": "Label of the row that states how deep delegation may go."
@@ -24721,6 +24717,18 @@
   "subagentConfigDepthDescription": "How many levels of subagents may delegate again.",
   "@subagentConfigDepthDescription": {
     "description": "Explains the depth option itself, not its current value."
+  },
+  "subagentConfigDepthOne": "A subagent cannot delegate again",
+  "@subagentConfigDepthOne": {
+    "description": "Depth choice 1: the chain stops at the first subagent."
+  },
+  "subagentConfigDepthTwo": "A subagent may delegate once more",
+  "@subagentConfigDepthTwo": {
+    "description": "Depth choice 2: one further level below the first subagent."
+  },
+  "subagentConfigDepthThree": "A subagent may delegate two more levels",
+  "@subagentConfigDepthThree": {
+    "description": "Depth choice 3: two further levels below the first subagent."
   },
   "subagentConfigModel": "Model",
   "@subagentConfigModel": {

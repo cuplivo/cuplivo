@@ -19238,14 +19238,21 @@ class AppLocalizationsTr extends AppLocalizations {
       'Bu sohbetin bir kopyasında, aynı çalışma alanında tek bir görevi yürütür.';
 
   @override
-  String get subagentConfigEnabled => 'Açık';
-
-  @override
   String get subagentConfigDepth => 'Derinlik';
 
   @override
   String get subagentConfigDepthDescription =>
       'Alt ajanların kaç düzey daha devredebileceği';
+
+  @override
+  String get subagentConfigDepthOne => 'Alt ajan artık devredemez';
+
+  @override
+  String get subagentConfigDepthTwo => 'Alt ajan bir seviye daha devredebilir';
+
+  @override
+  String get subagentConfigDepthThree =>
+      'Alt ajan en fazla iki seviye daha devredebilir';
 
   @override
   String get subagentConfigModel => 'Model';

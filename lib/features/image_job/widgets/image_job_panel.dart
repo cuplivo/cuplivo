@@ -29,6 +29,7 @@ import '../../../utils/sandbox_path_resolver.dart';
 import '../models/image_job.dart';
 import '../services/image_job_coordinator.dart' show imageJobCoordinatorOf;
 import '../services/image_model_resolver.dart';
+import '../../home/utils/model_display_helper.dart';
 
 /// Everything the panel needs, resolved once by the caller that has them.
 final class ImageJobPanelData {
@@ -417,15 +418,5 @@ String imageModelDisplayName(
     modelId = split.sublist(1).join('::');
   }
   if (modelId.isEmpty) return '—';
-  try {
-    final config = settings.getProviderConfig(providerId);
-    final override = config.modelOverrides[modelId] as Map?;
-    final name = (override?['name'] as String?)?.trim();
-    if (name != null && name.isNotEmpty) return name;
-    final apiId = (override?['apiModelId'] ?? override?['api_model_id'])
-        ?.toString()
-        .trim();
-    if (apiId != null && apiId.isNotEmpty) return apiId;
-  } catch (_) {}
-  return modelId;
+  return modelDisplayName(settings, providerId, modelId);
 }

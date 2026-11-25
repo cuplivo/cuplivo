@@ -296,7 +296,10 @@ class ToolHandlerService {
   /// not offer what would be refused: a child never gets the tool, a group
   /// conversation has no single assistant to inherit, and a temporary chat would
   /// leave a real conversation behind when it claims to leave nothing.
-  bool _mayDelegateInConversation(String? conversationId) {
+  bool _mayDelegateInConversation(
+    String? conversationId,
+    Assistant? assistant,
+  ) {
     if (conversationId == null) return true;
     try {
       final conversation = contextProvider.read<ChatService>().getConversation(
@@ -307,6 +310,7 @@ class ToolHandlerService {
             extras: conversation.extras,
             isGroup: conversation.isGroupConversation,
             isTemporary: _isTemporaryConversation(conversationId),
+            delegator: assistant,
           ) ==
           null;
     } catch (_) {
@@ -369,7 +373,7 @@ class ToolHandlerService {
       LocalToolsService.buildToolDefinitions(
         assistant: assistant,
         supportsTools: supportsTools,
-        allowDelegation: _mayDelegateInConversation(conversationId),
+        allowDelegation: _mayDelegateInConversation(conversationId, assistant),
         delegateTargets: assistant == null
             ? const <Assistant>[]
             : _delegableTargets(assistant),

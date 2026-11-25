@@ -317,11 +317,22 @@ class SubagentCoordinator extends ChangeNotifier {
 
   /// Stops the child's run, so a cancelled parent does not leave work running.
   ///
+  /// It stops what the child started first: a cancelled subagent whose own
+  /// subagent kept running would report a result into a conversation nobody is
+  /// watching, and keep spending the user's tokens while doing it.
+  ///
   /// The watcher then sees a `cancelled` run and writes the notice as usual; no
   /// second bookkeeping path is needed for a cancellation.
   Future<void> cancelChild(String childConversationId) async {
     final cancel = _host?.cancelTurn;
     if (cancel == null) return;
+    final started = _byChild.values
+        .where((entry) => entry.parentConversationId == childConversationId)
+        .map((entry) => entry.childConversationId)
+        .toList(growable: false);
+    for (final id in started) {
+      await cancelChild(id);
+    }
     final entry = _byChild[childConversationId];
     if (entry == null || !entry.isLive) return;
     await cancel(childConversationId);
@@ -396,6 +407,7 @@ class SubagentCoordinator extends ChangeNotifier {
       extras: parent.extras,
       isGroup: parent.isGroupConversation,
       isTemporary: _chat.isTemporaryConversation(parentConversationId),
+      delegator: assistant,
     );
     if (blocked != null) {
       return SubagentRefused(blocked, switch (blocked) {
@@ -407,8 +419,9 @@ class SubagentCoordinator extends ChangeNotifier {
               'promise that it disappears. Ask the user to delegate from a '
               'saved conversation.',
         _ =>
-          'Delegation is limited to $kMaxSubagentDepth level(s); this '
-              'conversation is already at the limit.',
+          'This conversation is already as deep as its assistant allows; a '
+              'subagent started here could not delegate again. Do the work '
+              'yourself or ask the user to raise the depth setting.',
       });
     }
 
@@ -422,6 +435,15 @@ class SubagentCoordinator extends ChangeNotifier {
           ToolPermissionMode.fromExtras(parent.extras) ==
           ToolPermissionMode.fullAccess,
       target: who.encode(),
+      // What the child may do from here: the chain's remaining levels, capped
+      // by the assistant that will actually spend them.
+      levels: childLevels(
+        parentLevels: delegationLevels(
+          delegator: assistant,
+          extras: parent.extras,
+        ),
+        child: runner,
+      ),
     );
     // No workspace is not a refusal: a child inherits whatever the parent has,
     // including nothing. An unbound parent that still wants a second opinion gets

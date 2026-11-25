@@ -18117,13 +18117,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
 
   @override
-  String get subagentConfigEnabled => '开启';
-
-  @override
   String get subagentConfigDepth => '深度';
 
   @override
   String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一层';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派两层';
 
   @override
   String get subagentConfigModel => '模型';
@@ -36308,13 +36314,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
 
   @override
-  String get subagentConfigEnabled => '开启';
-
-  @override
   String get subagentConfigDepth => '深度';
 
   @override
   String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一层';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派两层';
 
   @override
   String get subagentConfigModel => '模型';
@@ -54521,13 +54533,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get subagentConfigSubtitle => '在本會話自己的工作區裡派一個分身去做完一件任務。';
 
   @override
-  String get subagentConfigEnabled => '開啟';
-
-  @override
   String get subagentConfigDepth => '深度';
 
   @override
   String get subagentConfigDepthDescription => '允許子代理再派子代理的層數';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一層';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派兩層';
 
   @override
   String get subagentConfigModel => '模型';

@@ -131,4 +131,38 @@ void main() {
       expect(menu.split('\n').where((line) => line.trim().isEmpty), isEmpty);
     });
   });
+
+  group('the depth setting', () {
+    test('is one level for an assistant written before it existed', () {
+      final plain = Assistant(id: 'a', name: 'A');
+      expect(plain.subagentDepth, kSubagentDepthMin);
+
+      // An assistant stored before the field existed has no key at all.
+      final json = plain.toJson()..remove('subagentDepth');
+      expect(Assistant.fromJson(json).subagentDepth, kSubagentDepthMin);
+    });
+
+    test('survives the assistant JSON', () {
+      final deep = Assistant(id: 'a', name: 'A', subagentDepth: 3);
+      expect(Assistant.fromJson(deep.toJson()).subagentDepth, 3);
+      // And through copyWith, which every write path goes through.
+      expect(deep.copyWith(name: 'B').subagentDepth, 3);
+    });
+
+    test('is clamped to the range the picker offers', () {
+      final json = Assistant(id: 'a', name: 'A').toJson();
+      expect(
+        Assistant.fromJson({...json, 'subagentDepth': 99}).subagentDepth,
+        kSubagentDepthMax,
+      );
+      expect(
+        Assistant.fromJson({...json, 'subagentDepth': 0}).subagentDepth,
+        kSubagentDepthMin,
+      );
+      expect(
+        Assistant(id: 'a', name: 'A').copyWith(subagentDepth: -5).subagentDepth,
+        kSubagentDepthMin,
+      );
+    });
+  });
 }

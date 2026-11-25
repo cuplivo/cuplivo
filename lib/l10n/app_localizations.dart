@@ -33462,12 +33462,6 @@ abstract class AppLocalizations {
   /// **'Run one task in a copy of this chat, in the same workspace.'**
   String get subagentConfigSubtitle;
 
-  /// Label of the switch that turns delegation on for this assistant.
-  ///
-  /// In en, this message translates to:
-  /// **'On'**
-  String get subagentConfigEnabled;
-
   /// Label of the row that states how deep delegation may go.
   ///
   /// In en, this message translates to:
@@ -33479,6 +33473,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How many levels of subagents may delegate again.'**
   String get subagentConfigDepthDescription;
+
+  /// Depth choice 1: the chain stops at the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent cannot delegate again'**
+  String get subagentConfigDepthOne;
+
+  /// Depth choice 2: one further level below the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent may delegate once more'**
+  String get subagentConfigDepthTwo;
+
+  /// Depth choice 3: two further levels below the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent may delegate two more levels'**
+  String get subagentConfigDepthThree;
 
   /// Label of the row that chooses the model delegations run on.
   ///

@@ -18552,13 +18552,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get subagentConfigSubtitle => '이 대화의 복제본에서 같은 작업 공간으로 한 가지 작업을 실행합니다.';
 
   @override
-  String get subagentConfigEnabled => '켜기';
-
-  @override
   String get subagentConfigDepth => '깊이';
 
   @override
   String get subagentConfigDepthDescription => '하위 에이전트가 다시 위임할 수 있는 단계 수';
+
+  @override
+  String get subagentConfigDepthOne => '서브에이전트는 더 이상 위임할 수 없습니다';
+
+  @override
+  String get subagentConfigDepthTwo => '서브에이전트가 한 단계 더 위임할 수 있습니다';
+
+  @override
+  String get subagentConfigDepthThree => '서브에이전트가 최대 두 단계 더 위임할 수 있습니다';
 
   @override
   String get subagentConfigModel => '모델';

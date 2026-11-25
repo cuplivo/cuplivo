@@ -2991,6 +2991,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get subagentMailLabel => 'Сообщение субагента';
 
   @override
+  String get subagentMailOpenConversation => 'Открыть чат';
+
+  @override
+  String get subagentMailCopy => 'Копировать';
+
+  @override
+  String get subagentMailCopied => 'Скопировано';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Субагент работает ($elapsed) $label';
   }

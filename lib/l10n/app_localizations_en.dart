@@ -2945,6 +2945,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subagentMailLabel => 'Subagent message';
 
   @override
+  String get subagentMailOpenConversation => 'Open conversation';
+
+  @override
+  String get subagentMailCopy => 'Copy';
+
+  @override
+  String get subagentMailCopied => 'Copied';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Subagent running ($elapsed) $label';
   }

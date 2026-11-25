@@ -5581,5 +5581,6 @@
   "subagentEscalationAllow": "4fec22266b2564bfb1c0b79e1029c0feb03d5f06c49426245ac7185989a8b54c",
   "lanSyncPhasePreparing": "376a8abcf333370aef98d077895ad7ce838fc6846fea2ec768caf1745f33e41a",
   "lanSyncPhaseSendingOf": "62894451d3e00b83c8c9e01f545165ad65a33064369d63e9ea8779badc9c6833",
-  "lanSyncPhaseReceivingOf": "8397d8244ff8a01d6998c625bb5c04d983ba7a6c5e1065cfcd204b73b6958564"
+  "lanSyncPhaseReceivingOf": "8397d8244ff8a01d6998c625bb5c04d983ba7a6c5e1065cfcd204b73b6958564",
+  "subagentMailLabel": "3e5ad7f621ae47637e7ab17486af1f517bd617d9916c58b9bd0d50fc9eeea8a0"
 }

@@ -5428,6 +5428,12 @@ abstract class AppLocalizations {
   /// **'Subagent interrupted'**
   String get subagentResultInterrupted;
 
+  /// Divider label for a message the other side of a subagent delegation sent; the sender's conversation title follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent message'**
+  String get subagentMailLabel;
+
   /// Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name.
   ///
   /// In en, this message translates to:

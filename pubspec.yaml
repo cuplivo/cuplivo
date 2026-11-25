@@ -116,6 +116,15 @@ dependencies:
   webview_flutter: ^4.13.1
   webview_flutter_android: ^4.14.1
   flutter_inappwebview: ^6.1.5
+  # tailcat client for the ds-hu remote-access plugin: a remote DeepSeek
+  # Harness exposed over a tailnet address instead of a public tokenized link.
+  # Cuplivo consumes the fork whose pins and native artifacts it controls; the
+  # package's build hook downloads the native library built by the fork's CI
+  # (no Go or NDK on a developer machine).
+  libtailcat:
+    git:
+      url: https://github.com/cuplivo/libtailcat.git
+      ref: e2384d3024c64e669498d03e4593f353758fc341
   liquid_glass_widgets:
     path: ./dependencies/liquid_glass_widgets
   webview_flutter_wkwebview: ^3.25.1

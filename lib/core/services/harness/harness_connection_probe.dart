@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:uuid/uuid.dart';
 
+import 'harness_http_cookies.dart';
+
 /// Why a DeepSeek Harness WebUI link could not be turned into a session.
 enum HarnessConnectionFailure {
   /// Not an http(s) URL with a host.
@@ -22,6 +24,16 @@ enum HarnessConnectionFailure {
   /// The token was accepted, but the JSON-RPC API did not answer with the
   /// session list — a different server, a proxy in front, or a broken instance.
   apiUnavailable,
+
+  /// The pasted tailcat text is not an address (or a pairing command).
+  invalidTailcatAddress,
+
+  /// The tailcat tunnel could not be established: the peer is offline, the
+  /// relay is unreachable, or the address has been rotated.
+  tailcatUnavailable,
+
+  /// The current build has no tailcat client (the web target).
+  tailcatUnsupported,
 }
 
 /// The outcome of [HarnessConnectionProbe.check].
@@ -98,7 +110,7 @@ class HarnessConnectionProbe {
     // 1. The link printed by `dsh web`: 303 See Other plus the browser cookie.
     final launchResponse = await _get(client, _withToken(base, token));
     final launchStatus = launchResponse.statusCode;
-    final launchCookies = _cookiesOf(launchResponse);
+    final launchCookies = harnessResponseCookies(launchResponse);
     await launchResponse.drain<void>();
     if (_rejected(launchStatus)) {
       return const HarnessConnectionResult.failed(
@@ -123,7 +135,7 @@ class HarnessConnectionProbe {
     final connectStatus = connectResponse.statusCode;
     final cookies = <String, String>{
       ...launchCookies,
-      ..._cookiesOf(connectResponse),
+      ...harnessResponseCookies(connectResponse),
     };
     await connectResponse.drain<void>();
     if (_rejected(connectStatus)) {
@@ -144,7 +156,7 @@ class HarnessConnectionProbe {
     );
     final request = await client.postUrl(listUri);
     request.followRedirects = false;
-    final cookieHeader = _cookieHeader(cookies);
+    final cookieHeader = harnessCookieHeader(cookies);
     if (cookieHeader != null) {
       request.headers.set(HttpHeaders.cookieHeader, cookieHeader);
     }
@@ -242,26 +254,5 @@ class HarnessConnectionProbe {
   static String _joinPath(String basePath, String tail) {
     if (basePath.isEmpty || basePath == '/') return '/$tail';
     return basePath.endsWith('/') ? '$basePath$tail' : '$basePath/$tail';
-  }
-
-  static Map<String, String> _cookiesOf(HttpClientResponse response) {
-    final cookies = <String, String>{};
-    final values = response.headers[HttpHeaders.setCookieHeader];
-    if (values == null) return cookies;
-    for (final raw in values) {
-      // One cookie per header line: "name=value; Path=/; HttpOnly; ...".
-      final pair = raw.split(';').first.trim();
-      final equals = pair.indexOf('=');
-      if (equals <= 0) continue;
-      cookies[pair.substring(0, equals).trim()] = pair
-          .substring(equals + 1)
-          .trim();
-    }
-    return cookies;
-  }
-
-  static String? _cookieHeader(Map<String, String> cookies) {
-    if (cookies.isEmpty) return null;
-    return cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
   }
 }

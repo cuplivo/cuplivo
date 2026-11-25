@@ -39,6 +39,8 @@ import 'core/providers/tts_provider.dart';
 import 'core/providers/asr_provider.dart';
 import 'core/providers/assistant_provider.dart';
 import 'core/providers/harness_connection_provider.dart';
+import 'core/services/harness/harness_tailcat_probe.dart';
+import 'core/services/harness/harness_tailcat_tunnels.dart';
 import 'core/providers/tag_provider.dart';
 import 'core/providers/update_provider.dart';
 import 'core/providers/quick_phrase_provider.dart';
@@ -1010,10 +1012,19 @@ class MyApp extends StatelessWidget {
             chatService: ctx.read<ChatService>(),
           ),
         ),
+        Provider<HarnessTailcatTunnels>(
+          create: (_) => HarnessTailcatTunnels(),
+          dispose: (_, tunnels) => unawaited(tunnels.closeAll()),
+        ),
         ChangeNotifierProvider(
-          create: (ctx) => HarnessConnectionProvider(
-            assistants: ctx.read<AssistantProvider>(),
-          ),
+          create: (ctx) {
+            final tunnels = ctx.read<HarnessTailcatTunnels>();
+            return HarnessConnectionProvider(
+              assistants: ctx.read<AssistantProvider>(),
+              tailcatProbe: HarnessTailcatProbe(tunnels: tunnels),
+              tailcatTunnels: tunnels,
+            );
+          },
         ),
         ChangeNotifierProvider(
           create: (ctx) {

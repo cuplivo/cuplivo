@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'assistant_regex.dart';
+import 'harness_tailcat_endpoint.dart';
 import 'health_data_type.dart';
 import 'memory_entry.dart';
 import 'preset_message.dart';
@@ -32,6 +33,15 @@ enum SubagentEscalation { ask, deny, allow }
 /// assistant as a chat model, so the chat settings do not apply to it.
 enum AssistantKind { local, deepSeekHarness }
 
+/// How a [AssistantKind.deepSeekHarness] assistant reaches its instance.
+///
+/// [publicLink] is the launch link `dsh web` prints: an http(s) URL carrying
+/// the instance's launch token. [tailcat] is the ds-hu remote-access plugin:
+/// the instance publishes its Web listener on a tailnet address, and the app
+/// dials it through a tailcat tunnel and serves it to the embedded WebView from
+/// a loopback port, so no port has to be exposed to the internet.
+enum HarnessConnectionMode { publicLink, tailcat }
+
 class Assistant {
   static const int defaultRecentChatsSummaryMessageCount = 5;
   static const int defaultMemoryOrganizeEveryNTurns = 1;
@@ -55,11 +65,39 @@ class Assistant {
   final AssistantKind kind;
 
   /// The DeepSeek Harness WebUI launch link, token included, for a
-  /// [AssistantKind.deepSeekHarness] assistant. `null` until the user connects
-  /// one; ignored for a local assistant.
+  /// [AssistantKind.deepSeekHarness] assistant connected through
+  /// [HarnessConnectionMode.publicLink]. `null` until the user connects one;
+  /// ignored for a local assistant.
   final String? harnessUrl;
 
+  /// How a [AssistantKind.deepSeekHarness] assistant reaches its instance.
+  /// Ignored for a local assistant, whose conversations never leave the app.
+  final HarnessConnectionMode harnessConnectionMode;
+
+  /// The tailcat address of a [HarnessConnectionMode.tailcat] assistant, as
+  /// the ds-hu plugin's pairing page shows it. `null` until the user connects
+  /// one; ignored in the other modes.
+  ///
+  /// This is a capability secret like [harnessUrl]: whoever holds the address
+  /// can open the instance's door, so it is stored but never rendered back.
+  final String? harnessTailcatAddress;
+
+  /// The peer port the plugin's tunnel serves the WebUI on.
+  ///
+  /// The plugin defaults to [kHarnessTailcatDefaultPort]; a pairing command
+  /// that maps another port overrides it.
+  final int harnessTailcatPort;
+
   bool get isDeepSeekHarness => kind == AssistantKind.deepSeekHarness;
+
+  /// Whether this harness has the credential its [harnessConnectionMode]
+  /// needs. A harness assistant may exist before it is connected: it is a card
+  /// in the assistants list whose settings page is the only thing to open.
+  bool get hasHarnessConnection => switch (harnessConnectionMode) {
+    HarnessConnectionMode.publicLink => harnessUrl?.trim().isNotEmpty ?? false,
+    HarnessConnectionMode.tailcat =>
+      harnessTailcatAddress?.trim().isNotEmpty ?? false,
+  };
 
   final String? avatar; // path/url/base64, null for initial-letter avatar
   final bool
@@ -164,6 +202,9 @@ class Assistant {
     required this.name,
     this.kind = AssistantKind.local,
     this.harnessUrl,
+    this.harnessConnectionMode = HarnessConnectionMode.publicLink,
+    this.harnessTailcatAddress,
+    this.harnessTailcatPort = kHarnessTailcatDefaultPort,
     this.avatar,
     this.useAssistantAvatar = false,
     this.useAssistantName = false,
@@ -224,17 +265,24 @@ class Assistant {
 
   /// A remote DeepSeek Harness, before (or after) it is connected.
   ///
-  /// It owns a name and an optional WebUI launch link and nothing else: no
-  /// model, no prompt, no tools — the remote instance brings its own.
+  /// It owns a name, a connection mode and that mode's credential and nothing
+  /// else: no model, no prompt, no tools — the remote instance brings its own.
   factory Assistant.harness({
     required String id,
     required String name,
+    HarnessConnectionMode harnessConnectionMode =
+        HarnessConnectionMode.publicLink,
     String? harnessUrl,
+    String? harnessTailcatAddress,
+    int harnessTailcatPort = kHarnessTailcatDefaultPort,
   }) => Assistant(
     id: id,
     name: name,
     kind: AssistantKind.deepSeekHarness,
     harnessUrl: harnessUrl,
+    harnessConnectionMode: harnessConnectionMode,
+    harnessTailcatAddress: harnessTailcatAddress,
+    harnessTailcatPort: harnessTailcatPort,
     temperature: null,
     topP: null,
     limitContextMessages: false,
@@ -246,6 +294,10 @@ class Assistant {
     AssistantKind? kind,
     String? harnessUrl,
     bool clearHarnessUrl = false,
+    HarnessConnectionMode? harnessConnectionMode,
+    String? harnessTailcatAddress,
+    bool clearHarnessTailcatAddress = false,
+    int? harnessTailcatPort,
     String? avatar,
     bool? useAssistantAvatar,
     bool? useAssistantName,
@@ -321,6 +373,12 @@ class Assistant {
       name: name ?? this.name,
       kind: kind ?? this.kind,
       harnessUrl: clearHarnessUrl ? null : (harnessUrl ?? this.harnessUrl),
+      harnessConnectionMode:
+          harnessConnectionMode ?? this.harnessConnectionMode,
+      harnessTailcatAddress: clearHarnessTailcatAddress
+          ? null
+          : (harnessTailcatAddress ?? this.harnessTailcatAddress),
+      harnessTailcatPort: harnessTailcatPort ?? this.harnessTailcatPort,
       avatar: clearAvatar ? null : (avatar ?? this.avatar),
       useAssistantAvatar: useAssistantAvatar ?? this.useAssistantAvatar,
       useAssistantName: useAssistantName ?? this.useAssistantName,
@@ -428,6 +486,9 @@ class Assistant {
     'name': name,
     'kind': kind.name,
     'harnessUrl': harnessUrl,
+    'harnessConnectionMode': harnessConnectionMode.name,
+    'harnessTailcatAddress': harnessTailcatAddress,
+    'harnessTailcatPort': harnessTailcatPort,
     'avatar': avatar,
     'useAssistantAvatar': useAssistantAvatar,
     'useAssistantName': useAssistantName,
@@ -500,6 +561,16 @@ class Assistant {
     return trimmed.isEmpty ? null : trimmed;
   }
 
+  /// Clamps a stored peer port to a usable TCP port, defaulting to the
+  /// plugin's port when the payload has none (or an unusable one).
+  static int _readHarnessTailcatPort(Object? value) {
+    final port = value is num ? value.toInt() : null;
+    if (port == null || port < 1 || port > 65535) {
+      return kHarnessTailcatDefaultPort;
+    }
+    return port;
+  }
+
   static double _readGradientBackgroundPhase(Object? value) =>
       value is num && value.isFinite && value >= 0
       ? value.toDouble()
@@ -514,6 +585,13 @@ class Assistant {
             .firstOrNull ??
         AssistantKind.local,
     harnessUrl: _nonEmptyHarnessUrl(json['harnessUrl']),
+    harnessConnectionMode:
+        HarnessConnectionMode.values
+            .where((value) => value.name == json['harnessConnectionMode'])
+            .firstOrNull ??
+        HarnessConnectionMode.publicLink,
+    harnessTailcatAddress: _nonEmptyHarnessUrl(json['harnessTailcatAddress']),
+    harnessTailcatPort: _readHarnessTailcatPort(json['harnessTailcatPort']),
     avatar: json['avatar'] as String?,
     useAssistantAvatar: json['useAssistantAvatar'] as bool? ?? false,
     useAssistantName: json['useAssistantName'] as bool? ?? false,

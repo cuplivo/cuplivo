@@ -1979,13 +1979,14 @@ class HomePageController extends ChangeNotifier {
         for (final id in group.memberIds)
           if (assistants.getById(id) case final member?) member,
       ];
-      // A reply whose author has left the group — or a group with no members
-      // left — has nobody to ask again. Say so: the button is offered on every
-      // reply, and one that quietly does nothing reads as a bug.
-      if (groupSpeaker == null || groupMembers.isEmpty) {
+      // The group is there but nobody is in it: say so. A reply with no author
+      // left is a different state — the timeline does not offer the action for
+      // it — and there is nothing to ask, so it stays quiet.
+      if (groupMembers.isEmpty) {
         _viewModel.onWarning?.call('group_unavailable');
         return;
       }
+      if (groupSpeaker == null) return;
     }
     final deletingTail = _context
         .read<SettingsProvider>()

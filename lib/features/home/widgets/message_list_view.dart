@@ -136,6 +136,7 @@ class MessageListView extends StatefulWidget {
     this.removingSlotIds = const <String>{},
     this.onVersionChange,
     this.onRegenerateMessage,
+    this.canRegenerateMessage,
     this.onRetryWithoutImages,
     this.onSetContextStart,
     this.onResendMessage,
@@ -240,6 +241,13 @@ class MessageListView extends StatefulWidget {
   // Callbacks
   final OnVersionChange? onVersionChange;
   final OnRegenerateMessage? onRegenerateMessage;
+
+  /// Whether this row may offer the regenerate action at all.
+  ///
+  /// A host that knows some replies have no author left to ask passes a
+  /// predicate; the row then hides the button instead of offering one that
+  /// cannot run. Null means every assistant message may be regenerated.
+  final bool Function(ChatMessage message)? canRegenerateMessage;
   final OnRegenerateMessage? onRetryWithoutImages;
   final ValueChanged<ChatMessage>? onSetContextStart;
   final OnResendMessage? onResendMessage;
@@ -2665,7 +2673,9 @@ class _MessageListViewState extends State<MessageListView> {
       // Null means "this conversation offers no such action", which must not
       // become a closure that silently does nothing: the row hides the button.
       onRegenerate:
-          message.role == 'assistant' && widget.onRegenerateMessage != null
+          message.role == 'assistant' &&
+              widget.onRegenerateMessage != null &&
+              (widget.canRegenerateMessage?.call(message) ?? true)
           ? () => widget.onRegenerateMessage!(message)
           : null,
       onRetryWithoutImages: widget.onRetryWithoutImages == null

@@ -1662,6 +1662,14 @@ class _HomePageState extends State<HomePage>
       // its round. One call, and the controller decides which of the two it is.
       onRegenerateMessage: (message) =>
           _controller.regenerateAtMessage(message),
+      // A reply whose author is gone has nobody to ask again. The row hides the
+      // action rather than offering one that cannot run.
+      canRegenerateMessage: (message) {
+        if (message.role != 'assistant' || _currentGroup() == null) return true;
+        final senderId = message.senderId;
+        return senderId != null &&
+            context.read<AssistantProvider>().getById(senderId) != null;
+      },
       onRetryWithoutImages: (message) =>
           _controller.regenerateAtMessage(message, omitImages: true),
       onSetContextStart: (message) async {

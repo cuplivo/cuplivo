@@ -330,7 +330,7 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
     }
     // The row opens the default-model page, whose director card names the
     // model the same way; the two must not disagree.
-    return modelDisplayName(settings, providerKey: provider, modelId: modelId);
+    return modelDisplayName(settings, provider, modelId);
   }
 }
 

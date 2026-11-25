@@ -965,8 +965,8 @@ class _ModelCardState extends State<_ModelCard> {
       providerName = cfg.name.isNotEmpty ? cfg.name : effectiveProvider;
       modelDisplay = modelDisplayName(
         settings,
-        providerKey: effectiveProvider,
-        modelId: effectiveModelId,
+        effectiveProvider,
+        effectiveModelId,
       );
     }
     if (usingFallback) {

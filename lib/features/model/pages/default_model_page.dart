@@ -864,8 +864,8 @@ class _ModelCard extends StatelessWidget {
       providerName = cfg.name.isNotEmpty ? cfg.name : effectiveProvider;
       modelDisplay = modelDisplayName(
         settings,
-        providerKey: effectiveProvider,
-        modelId: effectiveModelId,
+        effectiveProvider,
+        effectiveModelId,
       );
     }
 

@@ -100,7 +100,14 @@ class HarnessTailcatTunnel {
   final int _remotePort;
   final ServerSocket _server;
   final HarnessTailcatDialer _dialer;
+
+  /// Every socket still owned by a forwarded connection, so [close] can tear
+  /// down connections whose pipes have not unwound yet.
   final Set<Socket> _open = <Socket>{};
+
+  /// One entry per forwarded connection, completed when both directions have
+  /// unwound: that is what ownership of a socket pair ends.
+  final Set<Future<void>> _bridges = <Future<void>>{};
   bool _closed = false;
 
   /// Whether [close] has run.
@@ -135,17 +142,22 @@ class HarnessTailcatTunnel {
       return;
     }
     _open.add(remote);
-    _pipe(local, remote);
+    final bridge =
+        Future.wait(<Future<void>>[
+          _pipeOneWay(local, remote),
+          _pipeOneWay(remote, local),
+        ]).whenComplete(() {
+          // Both directions are done, so this pair is no longer owned here.
+          _open.remove(local);
+          _open.remove(remote);
+        });
+    _bridges.add(bridge);
+    unawaited(bridge.whenComplete(() => _bridges.remove(bridge)));
   }
 
   void _drop(Socket socket) {
     _open.remove(socket);
     socket.destroy();
-  }
-
-  void _pipe(Socket a, Socket b) {
-    unawaited(_pipeOneWay(a, b));
-    unawaited(_pipeOneWay(b, a));
   }
 
   Future<void> _pipeOneWay(Socket from, Socket to) async {
@@ -157,9 +169,6 @@ class HarnessTailcatTunnel {
     } catch (_) {
       from.destroy();
       to.destroy();
-    } finally {
-      _open.remove(from);
-      _open.remove(to);
     }
   }
 
@@ -173,6 +182,11 @@ class HarnessTailcatTunnel {
     }
     _open.clear();
     await _dialer.close();
+    // The destroyed sockets end every pipe; the timeout is only a guard so a
+    // stream that refuses to unwind cannot hold up the page that closed us.
+    await Future.wait<void>(
+      _bridges.toList(growable: false),
+    ).timeout(const Duration(seconds: 2), onTimeout: () => const <void>[]);
   }
 
   @override

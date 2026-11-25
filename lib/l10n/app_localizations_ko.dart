@@ -15648,6 +15648,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get assistantEditLocalToolAwaitJobTitle => '작업 대기';
 
   @override
+  String get assistantEditLocalToolSendMessageTitle => '메시지 보내기';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '하위 에이전트 중지';
+
+  @override
   String get defaultModelPageImageModelTitle => '이미지 모델';
 
   @override

@@ -15,12 +15,34 @@ import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import '../../support/business_test_harness.dart';
 
+/// A loaded assistant view without the Drift-backed store: this page only reads
+/// rows, so a real provider would make the widget test wait on database work
+/// inside the fake-async zone for nothing.
+class _InMemoryAssistantProvider extends AssistantProvider {
+  _InMemoryAssistantProvider({required super.preferences});
+
+  final List<Assistant> _rows = <Assistant>[];
+
+  @override
+  List<Assistant> get assistants => List<Assistant>.unmodifiable(_rows);
+
+  @override
+  Assistant? getById(String id) {
+    for (final row in _rows) {
+      if (row.id == id) return row;
+    }
+    return null;
+  }
+
+  void seed(Assistant assistant) => _rows.add(assistant);
+}
+
 const String _launchUrl = 'https://dsh.example.com/webui?token=launch';
 const String _tailcatAddress =
     'tcAPpXUQeEXAMPLEaddressEXAMPLEaddressEXAMPLEaddressEXAMPLE00';
 
-/// A dialer that fails the way a missing peer does, so the page's tunnel
-/// failure path is observable without a network.
+/// A dialer that fails the way a missing peer does, so the page's tunnel relay
+/// path is observable without a network.
 final class _FailingDialer implements HarnessTailcatDialer {
   @override
   Future<Socket> connect(int port) async =>
@@ -30,28 +52,32 @@ final class _FailingDialer implements HarnessTailcatDialer {
   Future<void> close() async {}
 }
 
-HarnessTailcatTunnels _failingTunnels() => HarnessTailcatTunnels(
+HarnessTailcatTunnels _unavailableTunnels() => HarnessTailcatTunnels(
   dialer: (_) => throw const HarnessTailcatTunnelException(
     HarnessTailcatTunnelFailure.tunnelUnavailable,
   ),
 );
 
-Future<AssistantProvider> _providerFor(List<Assistant> assistants) async {
-  final harness = await createBusinessTestHarness(
-    initial: <String, Object?>{
-      'assistants_v1': Assistant.encodeList(assistants),
-      'current_assistant_id_v1': assistants.first.id,
-    },
-  );
-  final provider = AssistantProvider(preferences: harness.preferences);
-  addTearDown(provider.dispose);
-  await provider.loaded;
+Future<_InMemoryAssistantProvider> _providerFor(
+  WidgetTester tester,
+  List<Assistant> assistants,
+) async {
+  late _InMemoryAssistantProvider provider;
+  await tester.runAsync(() async {
+    provider = _InMemoryAssistantProvider(
+      preferences: createBusinessTestPreferences(),
+    );
+    await provider.loaded;
+    for (final assistant in assistants) {
+      provider.seed(assistant);
+    }
+  });
   return provider;
 }
 
 Future<void> _pumpPage(
   WidgetTester tester, {
-  required AssistantProvider assistants,
+  required _InMemoryAssistantProvider assistants,
   required String assistantId,
   HarnessTailcatTunnels? tunnels,
 }) async {
@@ -120,8 +146,9 @@ void main() {
     tester,
   ) async {
     await _runOnLinux(tester, () async {
-      final assistants = await _providerFor(<Assistant>[linked]);
+      final assistants = await _providerFor(tester, <Assistant>[linked]);
       await _pumpPage(tester, assistants: assistants, assistantId: linked.id);
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('harness-web-page')), findsOneWidget);
       expect(find.byKey(const Key('harness-return-button')), findsOneWidget);
@@ -134,11 +161,16 @@ void main() {
     'a tailcat-mode harness embeds its tunnel origin, not the address',
     (tester) async {
       await _runOnLinux(tester, () async {
-        final assistants = await _providerFor(<Assistant>[tailcat]);
+        final assistants = await _providerFor(tester, <Assistant>[tailcat]);
         // A factory that opens the loopback tunnel but never dials: the page only
-        // renders the origin the tunnel serves.
+        // renders the origin the tunnel serves. Opening it ahead of the widget
+        // keeps the real socket bind out of the fake-async zone.
         final tunnels = HarnessTailcatTunnels(dialer: (_) => _FailingDialer());
-        addTearDown(tunnels.closeAll);
+        late Uri origin;
+        await tester.runAsync(() async {
+          origin = await tunnels.ensureOpen(_tailcatAddress);
+        });
+
         await _pumpPage(
           tester,
           assistants: assistants,
@@ -149,9 +181,12 @@ void main() {
 
         expect(find.byKey(const Key('harness-web-page')), findsOneWidget);
         final view = tester.widget<HarnessWebView>(find.byType(HarnessWebView));
+        expect(view.url, origin.toString());
         expect(view.url, startsWith('http://127.0.0.1:'));
         expect(view.url, isNot(contains(_tailcatAddress)));
         expect(find.byKey(const Key('harness-tailcat-error')), findsNothing);
+
+        await tester.runAsync(tunnels.closeAll);
       });
     },
   );
@@ -160,9 +195,8 @@ void main() {
     tester,
   ) async {
     await _runOnLinux(tester, () async {
-      final assistants = await _providerFor(<Assistant>[tailcat]);
-      final tunnels = _failingTunnels();
-      addTearDown(tunnels.closeAll);
+      final assistants = await _providerFor(tester, <Assistant>[tailcat]);
+      final tunnels = _unavailableTunnels();
       await _pumpPage(
         tester,
         assistants: assistants,
@@ -194,13 +228,12 @@ void main() {
     'a tailcat tunnel that cannot be opened on this platform is explained',
     (tester) async {
       await _runOnLinux(tester, () async {
-        final assistants = await _providerFor(<Assistant>[tailcat]);
+        final assistants = await _providerFor(tester, <Assistant>[tailcat]);
         final tunnels = HarnessTailcatTunnels(
           dialer: (_) => throw const HarnessTailcatTunnelException(
             HarnessTailcatTunnelFailure.unsupportedPlatform,
           ),
         );
-        addTearDown(tunnels.closeAll);
         await _pumpPage(
           tester,
           assistants: assistants,
@@ -224,7 +257,7 @@ void main() {
     tester,
   ) async {
     await _runOnLinux(tester, () async {
-      final assistants = await _providerFor(<Assistant>[unconfigured]);
+      final assistants = await _providerFor(tester, <Assistant>[unconfigured]);
       tester.view.physicalSize = const Size(400, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -249,8 +282,9 @@ void main() {
           ),
         ),
       );
-      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
-      navigator.pushNamed('/harness');
+      tester
+          .state<NavigatorState>(find.byType(Navigator))
+          .pushNamed('/harness');
       await tester.pump();
       await tester.pump();
       await tester.pumpAndSettle();
@@ -264,7 +298,7 @@ void main() {
     tester,
   ) async {
     await _runOnLinux(tester, () async {
-      final assistants = await _providerFor(<Assistant>[linked]);
+      final assistants = await _providerFor(tester, <Assistant>[linked]);
       tester.view.physicalSize = const Size(400, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);

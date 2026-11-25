@@ -456,6 +456,11 @@ void main() {
           .byKey(const Key('harness-web-view-loading'))
           .evaluate()
           .isNotEmpty;
+      if (!tailcatFailed && !tailcatLoading) {
+        // loadStop reports the document, not the remote SPA's first screen: give
+        // the tunneled WebUI a beat to paint so the recording shows DSH itself.
+        await pumpFrames(tester, frames: 30);
+      }
       // Platform view on screen: the frame is evidenced by the device video,
       // not by a captured image (see docs/e2e-android.md). Leave before
       // asserting so a failure cannot end the test with the view still up.

@@ -502,10 +502,16 @@ void main() {
 
       expect(find.byKey(const Key('harness-connected-status')), findsOneWidget);
       expect(find.text(l10n.assistantHarnessConnected), findsOneWidget);
-      final tailcatField = tester.widget<TextField>(
-        find.byKey(const Key('harness-tailcat-field')).first,
+      // The key names the app's text-field widget, not a Flutter `TextField`;
+      // the controller that proves the value was cleared lives on the
+      // `EditableText` underneath it.
+      final tailcatField = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byKey(const Key('harness-tailcat-field')),
+          matching: find.byType(EditableText),
+        ),
       );
-      expect(tailcatField.controller!.text, isEmpty);
+      expect(tailcatField.controller.text, isEmpty);
     },
   );
 

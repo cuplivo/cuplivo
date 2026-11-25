@@ -98,8 +98,13 @@ class _TailcatHarnessView extends StatefulWidget {
 }
 
 class _TailcatHarnessViewState extends State<_TailcatHarnessView> {
-  Future<Uri>? _tunnel;
+  Uri? _origin;
+  Object? _error;
   String? _openedFor;
+
+  /// Bumped on every attempt so a late answer from an abandoned tunnel (the
+  /// credential changed, or the user retried) cannot repaint the page.
+  int _generation = 0;
 
   @override
   void initState() {
@@ -127,34 +132,50 @@ class _TailcatHarnessViewState extends State<_TailcatHarnessView> {
     final key = _keyOf(widget.assistant);
     if (!force && _openedFor == key) return;
     _openedFor = key;
-    _tunnel = context.read<HarnessTailcatTunnels>().ensureOpen(
-      address,
-      remotePort: widget.assistant.harnessTailcatPort,
+    _origin = null;
+    _error = null;
+    final generation = ++_generation;
+    unawaited(
+      _runTunnel(generation, address, widget.assistant.harnessTailcatPort),
     );
+  }
+
+  /// Owns the tunnel future's answer from the moment it exists.
+  ///
+  /// A `FutureBuilder` only subscribes on the next build, so an error that
+  /// arrives first is an unhandled async error; a retry starts its future from
+  /// a tap handler, which is exactly that window. This keeps the answer in
+  /// state instead, where a stale generation is simply dropped.
+  Future<void> _runTunnel(int generation, String address, int port) async {
+    try {
+      final origin = await context.read<HarnessTailcatTunnels>().ensureOpen(
+        address,
+        remotePort: port,
+      );
+      if (!mounted || generation != _generation) return;
+      setState(() => _origin = origin);
+    } catch (error) {
+      if (!mounted || generation != _generation) return;
+      setState(() => _error = error);
+    }
   }
 
   void _retry() => setState(() => _openTunnel(force: true));
 
   @override
   Widget build(BuildContext context) {
-    final future = _tunnel;
-    if (future == null) {
+    if (_openedFor == null) {
       // Only reachable while the assistant's address is being removed; the page
       // above pops on the same notification.
       return const SizedBox.shrink();
     }
-    return FutureBuilder<Uri>(
-      future: future,
-      builder: (context, snapshot) {
-        final error = snapshot.error;
-        if (error != null) {
-          return _TunnelFailureView(error: error, onRetry: _retry);
-        }
-        final origin = snapshot.data;
-        if (origin == null) return const _TunnelOpeningView();
-        return HarnessWebView(url: origin.toString());
-      },
-    );
+    final error = _error;
+    if (error != null) {
+      return _TunnelFailureView(error: error, onRetry: _retry);
+    }
+    final origin = _origin;
+    if (origin == null) return const _TunnelOpeningView();
+    return HarnessWebView(url: origin.toString());
   }
 }
 

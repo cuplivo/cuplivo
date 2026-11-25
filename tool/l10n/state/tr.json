@@ -5582,8 +5582,9 @@
   "lanSyncPhasePreparing": "9f3f4ec9b738d7833d8dae05e73eeab10a0d6d21688b8b4356eb6694f4a97ddc",
   "lanSyncPhaseSendingOf": "7b5a8531a4104f5166b1a0bbf42814ac7bd0daa758237864393850fd6c20971f",
   "lanSyncPhaseReceivingOf": "ced6dff2ef9fed19944b1b8f7f95d2f3e930858f9386f47337f3cee9b6300eb9",
-  "subagentMailLabel": "d96f01bfe2bd3cfadcde51b19486e409a10bd239f4a629e642aad14b653edf40",
+  "subagentMailLabel": "176c6738139516f2aee50224418171b2dbf2cd857103b49008278eae2ad106c1",
   "subagentMailOpenConversation": "d56ad5e0af4d4569433dad8d396a7cc459adbdc58b687e105083713f4fa11ec7",
   "subagentMailCopy": "8017cabd4afb5aa56d680b2b2ea70f350ba458f1cc9c3a65e194655a99f1d763",
-  "subagentMailCopied": "6893a2ca1f8f5f56aed40a8858114f8a3051b248237d98dacd89ad33f4bad912"
+  "subagentMailCopied": "6893a2ca1f8f5f56aed40a8858114f8a3051b248237d98dacd89ad33f4bad912",
+  "subagentMailDelegatorLabel": "3920c6e579b588fa88523fbd4afb31fa441c1920533f3e2348481ccd3a8f85f4"
 }

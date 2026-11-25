@@ -252,11 +252,6 @@ Future<ExportedPdf?> exportChatMessagesPdf(
             part,
             chat.getConversation(part.senderConversationId)?.title ?? '',
           ),
-          // A delegation's result is a divider in the timeline, so it is one here
-          // too: printing it as the user's own message is the one thing an export
-          // must not do with a row the user never wrote.
-          subagentResultLabelOf: (part) =>
-              SubagentResultDivider.labelOf(l10n, part),
         );
         if (!context.mounted) return null;
         final fonts =
@@ -304,58 +299,7 @@ Future<ExportedPdf?> exportChatMessagesPdf(
     );
     return null;
   }
-||||||| parent of 57bed5208 (fix(chat): every export draws a delegation mail row as a divider)
-  final captures =
-      uiCaptures ?? await captureUiExportMessages(context, messages);
-  final operations = await chat.loadContextOperations(conversation.id);
-  final title = conversation.title.trim().isNotEmpty
-      ? conversation.title
-      : l10n.messageExportSheetDefaultTitle;
-  final document = await buildExportDocument(
-    title: title,
-    messages: captures.messages,
-    roleNameOf: (message) => message.role == 'user'
-        ? l10n.messageExportSheetUser
-        : l10n.messageExportSheetAssistant,
-    formatTime: DateFormat(
-      l10n.messageExportSheetDateTimeWithSecondsPattern,
-    ).format,
-    includeThinking:
-        choice.showThinkingAndToolCards && choice.expandThinkingContent,
-    includeTools: choice.showThinkingAndToolCards,
-    uiTextByMessage: captures.projections,
-    operations: operations,
-    readImageBytes: readExportImageBytes,
-    // A delegation's result is a divider in the timeline, so it is one here too:
-    // printing it as the user's own message is the one thing an export must not
-    // do with a row the user never wrote.
-    subagentResultLabelOf: (part) => SubagentResultDivider.labelOf(l10n, part),
-  );
-  if (!context.mounted) return null;
-  final fonts = await (resolver ?? PdfFontResolver(googleFonts: googleFonts))
-      .resolve(
-        body: choice.body,
-        mono: choice.mono,
-        emoji: choice.emoji,
-        appFontPath: settings.appFontLocalPath,
-        codeFontPath: settings.codeFontLocalPath,
-      );
-  return compute(
-    buildConversationPdf,
-    PdfExportRequest(
-      title: document.title,
-      messages: document.messages,
-      thinkingLabel: l10n.messageExportThinkingContentLabel,
-      accent: PdfColor.fromInt(scheme.primary.toARGB32()),
-      muted: PdfColor.fromInt(scheme.onSurfaceVariant.toARGB32()),
-      userLabel: l10n.messageExportSheetUser,
-      bodyFont: fonts.body,
-      monoFont: fonts.mono,
-      emojiFont: fonts.emoji,
-      enableMathRendering: settings.enableMathRendering,
-      enableDollarLatex: settings.enableDollarLatex,
-    ),
-  );}
+}
 
 /// Writes [result]'s bytes beside the app's other exports, named after
 /// [title].

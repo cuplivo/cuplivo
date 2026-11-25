@@ -78,8 +78,6 @@ final class _PanelRow {
             : Duration(milliseconds: part.elapsedMs!),
         phase: switch (part.outcome) {
           'failed' => SubagentPhase.failed,
-          // The delegator's model asked it to stop; it can be continued.
-          'stopped' => SubagentPhase.stopped,
           'cancelled' => SubagentPhase.cancelled,
           'interrupted' => SubagentPhase.interrupted,
           _ => SubagentPhase.completed,

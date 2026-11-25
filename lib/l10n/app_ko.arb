@@ -886,6 +886,7 @@
   "subagentResultCancelled": "서브에이전트 취소됨",
   "subagentResultInterrupted": "서브에이전트 중단됨",
   "subagentMailLabel": "서브에이전트 메시지",
+  "subagentMailDelegatorLabel": "위임자 메시지",
   "subagentMailOpenConversation": "대화 열기",
   "subagentMailCopy": "복사",
   "subagentMailCopied": "복사됨",

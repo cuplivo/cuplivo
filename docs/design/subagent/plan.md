@@ -428,4 +428,13 @@ master 已经合并生图 job（`3c7e9b2b9`）。它带来的不是"又一个功
 - 留言行与结果行在所有导出里都是同一条分隔线：单条消息 PNG（`_ExportedMessageCard`）、整段对话 PNG（`_ExportedChatImage`）、Markdown/纯文本导出、PDF（`buildExportDocument` 的 `subagentMailLabelOf`）五处都识别 `SubagentMailPart`，不会把子代理的消息印成用户自己的话（新增 `export_document_test` 回归）。
 - 新增 l10n 键 `subagentMailLabel`、`subagentMailOpenConversation`、`subagentMailCopy`、`subagentMailCopied`（6 个 ARB + 指纹 + `gen-l10n`，`translate.py check` 通过）。
 
+**review 修正（第二轮）**：
+
+- `interrupt` 的说明改成实情：停止是**静默**的，之后不会再来通知；要结论先 `await_job`，要续聊用 `send_message`。`stopped` 永远写不进存储（没有结果行），`SubagentResultDivider` 与面板里处理 `stopped` 的分支已删除。
+- 手递手的死锁：`_finishStreaming` 跑在旧段的顺序 drain 里，下一段 `_executeGeneration` 的 `await previousSub.cancel()` 会等这个 drain，只能等 3 秒超时。现在在启动下一段前把旧订阅从 `_conversationStreams` 移除（finish/done 处理器本来就是这样收尾的），不再触发取消等待。
+- 留言标签按方向取词：父对话里是「子代理消息」，子对话里是「委派方消息」（新增 `subagentMailDelegatorLabel`），导出共用同一个 helper。
+- `tool/l10n/state/*.json` 用字节写回，保持 LF（此前被文本模式改写成 CRLF，4 个键淹没在 2.2 万行改动里）。
+- 协调器：watcher 带 generation，续聊恰逢旧 watcher 结算时仍会有新的 watcher 跟；`stoppedByModel` 每次结算后清掉；暂停的队列（`_pausedQueuedInputs`）不再被手递手取走。
+- 待确认项之一（interrupt 未真正停下、之后用户 Stop 被误判为 stopped）仍存在：`stoppedByModel` 只在这段结算时生效，若中断停在审批上、随后用户 Stop，会走 `cancelled` 分支——这与「用户 Stop 写行」的规则一致，记为已知边界。
+
 

@@ -214,3 +214,9 @@ Send a message to the conversation that delegated your task: a finding that chan
 - 留言标签按方向取词：子对话里读「委派方消息」（`subagentMailDelegatorLabel`），导出共用 `subagentMailLabelText`。
 - l10n state 文件保持 LF；watcher 带 generation；`stoppedByModel` 每段结算清空；暂停队列不参与手递手。
 
+### 13.3 第三轮 review（2026-11-25）
+
+- Gemini 交替约束：`mergeAdjacentGoogleTurns` 合并相邻同角色回合，两个 builder 与每轮 body 都应用；否则「工具结果 + 边界留言」会让 Gemini 永久 400。
+- 命名目标的子代理无条件获得 `send_message`；`interrupt` 仍只属于委派方。
+- 两个新工具卡标题键；续聊重置 `startedAt`；手递手就绪判断加 `blocksSending`。
+

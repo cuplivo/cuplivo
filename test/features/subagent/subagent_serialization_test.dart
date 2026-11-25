@@ -270,6 +270,21 @@ void main() {
       );
     });
 
+    test('a named-target child still gets the reply tool', () {
+      // A target is any assistant the user selected; delegates are off by
+      // default there, but answering the delegator is not its own choice.
+      final offered = LocalToolsService.buildToolDefinitions(
+        assistant: Assistant(id: 'target', name: 'SQL 专家'),
+        supportsTools: true,
+        allowDelegation: false,
+        isSubagent: true,
+      );
+      final names = offered.map(nameOf);
+      expect(names, contains(LocalToolNames.sendMessage));
+      expect(names, isNot(contains(LocalToolNames.delegate)));
+      expect(names, isNot(contains(LocalToolNames.interrupt)));
+    });
+
     test('a delegator gets the pair and the stop switch', () {
       final names = LocalToolsService.buildToolDefinitions(
         assistant: childAssistant(),

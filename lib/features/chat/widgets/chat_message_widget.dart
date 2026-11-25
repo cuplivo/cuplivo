@@ -635,6 +635,8 @@ String? _localToolTitleFor(
     // otherwise indistinguishable.
     LocalToolNames.delegate => _delegateCardTitle(context, l10n, args),
     LocalToolNames.awaitJob => l10n.assistantEditLocalToolAwaitJobTitle,
+    LocalToolNames.sendMessage => l10n.assistantEditLocalToolSendMessageTitle,
+    LocalToolNames.interrupt => l10n.assistantEditLocalToolInterruptTitle,
     _ => null,
   };
 }

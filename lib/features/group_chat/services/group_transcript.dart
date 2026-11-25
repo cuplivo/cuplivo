@@ -106,22 +106,37 @@ class GroupTranscript {
   /// Names only: another member's system prompt, memory and world books belong
   /// to that member, and handing them to a peer model would turn a roster into a
   /// prompt leak.
+  ///
+  /// [speakerIsMember] is false when the speaker wrote the reply being redone
+  /// and has since been removed from the group. The reply is still theirs, so
+  /// it can be asked again — but the paragraph must not call them a member
+  /// while listing a roster they are absent from.
   static String rosterDirective({
     required GroupChat group,
     required List<Assistant> members,
     required String speakerName,
     required Set<String> spokeThisRound,
+    bool speakerIsMember = true,
   }) {
     final names = [
       for (final member in members)
         member.name.trim().isEmpty ? member.id : member.name.trim(),
     ];
-    final buffer = StringBuffer()
-      ..writeln(
+    final buffer = StringBuffer();
+    if (speakerIsMember) {
+      buffer.writeln(
         'You are "$speakerName", one member of the group chat '
         '"${group.name}". Other members may also reply to the same user '
         'message; write only your own turn.',
-      )
+      );
+    } else {
+      buffer.writeln(
+        'You are "$speakerName". You wrote an earlier reply in the group chat '
+        '"${group.name}" and it is being written again; you are no longer one '
+        'of its members. Write only your own turn.',
+      );
+    }
+    buffer
       ..writeln('Group members: ${names.join(', ')}.')
       ..writeln(
         'Messages from other members reach you as user turns wrapped in '

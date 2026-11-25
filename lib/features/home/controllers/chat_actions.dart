@@ -2512,6 +2512,9 @@ class ChatActions {
                 ? assistant.id
                 : assistant.name.trim(),
             spokeThisRound: speakerIdsBefore(completeMessages, idx),
+            // A reply can outlive its author's membership: the reply is still
+            // theirs, so it is asked again, but not as a member.
+            speakerIsMember: members.any((member) => member.id == assistant.id),
           )
         : null;
     final turnMessages = groupDirective == null

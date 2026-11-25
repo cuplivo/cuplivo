@@ -111,6 +111,7 @@ final class SubagentEntry {
 
   /// The model's short name for the job, already bounded by `childTitle`.
   final String title;
+
   /// When the current segment started. A continued delegation resets it, so the
   /// panel measures this turn rather than the whole lifetime.
   DateTime startedAt;

@@ -266,6 +266,9 @@ class ChatDatabaseRepository {
   Future<GenerationRun?> getGenerationRun(String id) =>
       GenerationRunCommands(_db).get(id);
 
+  Future<GenerationRun?> latestGenerationRun(String conversationId) =>
+      GenerationRunCommands(_db).latestFor(conversationId);
+
   Future<GenerationRun> transitionGenerationRun({
     required String id,
     required GenerationRunState expectedState,

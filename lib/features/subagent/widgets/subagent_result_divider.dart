@@ -102,6 +102,10 @@ class SubagentResultDivider extends StatelessWidget {
     String? outcome,
   ) => switch (outcome) {
     'failed' => l10n.subagentResultFailed,
+    // The delegator's model asked it to stop. It is not the user's Stop — the
+    // conversation can be continued — but until its own string exists it reads
+    // with the nearest word the app already has.
+    'stopped' => l10n.subagentResultCancelled,
     'cancelled' => l10n.subagentResultCancelled,
     'interrupted' => l10n.subagentResultInterrupted,
     // `completed`, and anything a future version wrote: a stale value must read
@@ -119,6 +123,7 @@ class SubagentResultDivider extends StatelessWidget {
 
   static IconData _icon(String? outcome) => switch (outcome) {
     'failed' => Lucide.CircleAlert,
+    'stopped' => Lucide.CircleStop,
     'cancelled' => Lucide.CircleX,
     'interrupted' => Lucide.Power,
     _ => Lucide.Check,

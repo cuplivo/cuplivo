@@ -119,6 +119,10 @@ class _FixedRepository extends Fake implements ChatDatabaseRepository {
   }
 
   @override
+  Future<GenerationRun?> latestGenerationRun(String conversationId) =>
+      getGenerationRun('run-1');
+
+  @override
   Future<ChatMessage?> getMessage(String id) async {
     onBriefEntered?.call();
     await briefGate?.future;

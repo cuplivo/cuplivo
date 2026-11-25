@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/harness_tailcat_endpoint.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/features/assistant/pages/assistant_settings_page.dart';
 import 'package:Cuplivo/features/harness/pages/harness_settings_page.dart';
@@ -30,7 +32,11 @@ import 'acceptance_support.dart';
 ///    and answers one authenticated Remote API request;
 /// 3. the assistants list shows the harness row with the connected dot;
 /// 4. the native sidebar lists the harness row, and tapping it opens the
-///    embedded DSH WebUI under a return bar that goes back to the chat page.
+///    embedded DSH WebUI under a return bar that goes back to the chat page;
+/// 5. the connection form switches to the ds-hu remote-access plugin (tailcat):
+///    the hermetic run only validates the form locally, while the live run
+///    seeds the plugin's pairing address through the provider — never typed
+///    onto a recorded screen — and proves the WebUI loads through the tunnel.
 ///
 /// Live path (`E2E_DSH_URL` + `E2E_DSH_TOKEN` from `--dart-define-from-file`):
 /// additionally proves the operator session is usable for a whole turn —
@@ -325,6 +331,192 @@ void main() {
     await _settleRoute(tester);
     await _capture(tester, binding, 'harness_06_back_to_chat');
 
+    // --- Second connection method: the ds-hu remote-access plugin ------------
+    if (live) {
+      final pairing = await _fetchTailcatPairing(baseUrl, token);
+      expect(
+        looksLikeHarnessTailcatAddress(pairing.address),
+        isTrue,
+        reason: 'the remote-access plugin must publish a usable address',
+      );
+      expect(pairing.port, inInclusiveRange(1, 65535));
+
+      // Seed the tailcat connection the same way the live link was seeded: a
+      // pairing address is a capability, so it is never typed onto the screen
+      // being recorded.
+      final homeContext = tester.element(find.byType(HomeMobileScaffold));
+      final appAssistants = Provider.of<AssistantProvider>(
+        homeContext,
+        listen: false,
+      );
+      final harnessAssistant = appAssistants.assistants.firstWhere(
+        (assistant) => assistant.isDeepSeekHarness,
+      );
+      await appAssistants.updateAssistant(
+        harnessAssistant.copyWith(
+          harnessConnectionMode: HarnessConnectionMode.tailcat,
+          harnessTailcatAddress: pairing.address,
+          harnessTailcatPort: pairing.port,
+          clearHarnessUrl: true,
+        ),
+      );
+
+      await _openHarnessSettingsFromHome(tester, l10n);
+      // The page re-proves the saved connection when it opens; for a tailcat
+      // connection that proof is a whole tunnel handshake.
+      await pumpUntil(
+        tester,
+        () => find
+            .byKey(const Key('harness-connected-status'))
+            .evaluate()
+            .isNotEmpty,
+        maxFrames: 900,
+      );
+      expect(find.byKey(const Key('harness-method-tailcat')), findsOneWidget);
+      expect(find.byKey(const Key('harness-tailcat-field')), findsOneWidget);
+      expect(find.byKey(const Key('harness-connected-status')), findsOneWidget);
+      expect(find.text(l10n.assistantHarnessConnected), findsWidgets);
+      // The stored tailcat address is a capability: it must not be rendered.
+      final renderedCredentials = tester
+          .widgetList<EditableText>(find.byType(EditableText))
+          .map((field) => field.controller.text)
+          .where((text) => text.contains(pairing.address));
+      expect(
+        renderedCredentials,
+        isEmpty,
+        reason: 'the tailcat address must never reach a rendered field',
+      );
+      await _capture(tester, binding, 'harness_07_tailcat_settings');
+
+      // Back to the home surface, then open the same harness from the sidebar:
+      // the WebUI now arrives through the tunnel instead of a public link.
+      await _tapAppBarBack(tester);
+      await pumpUntil(
+        tester,
+        () => find.byType(ChatOwnerSettingsPage).evaluate().isNotEmpty,
+        maxFrames: 150,
+      );
+      await _settleRoute(tester);
+      await _tapAppBarBack(tester);
+      await pumpUntil(
+        tester,
+        () => find.byType(SettingsPage).evaluate().isNotEmpty,
+        maxFrames: 150,
+      );
+      await _settleRoute(tester);
+      await _tapAppBarBack(tester);
+      await pumpUntil(
+        tester,
+        () => find.byType(HomeMobileScaffold).evaluate().isNotEmpty,
+        maxFrames: 150,
+      );
+      await _settleRoute(tester);
+      final tailcatHome = tester.widget<HomeMobileScaffold>(
+        find.byType(HomeMobileScaffold),
+      );
+      tailcatHome.drawerController.jumpTo(1.0);
+      await pumpFrames(tester);
+      await _expandAssistantPicker(tester, l10n);
+      final tailcatRow = find.descendant(
+        of: find.byType(SideDrawer),
+        matching: find.text(l10n.assistantHarnessDefaultName),
+      );
+      expect(tailcatRow, findsOneWidget);
+      await tester.tap(tailcatRow);
+      await pumpUntil(
+        tester,
+        () => find.byType(HarnessWebPage).evaluate().isNotEmpty,
+        maxFrames: 200,
+      );
+      await _settleRoute(tester);
+      expect(find.byType(HarnessWebPage), findsOneWidget);
+      expect(find.byKey(const Key('harness-return-button')), findsOneWidget);
+      // The tunnel may still be opening (a fresh handshake) before the WebView
+      // exists; the loaded state is the progress strip disappearing or the
+      // failure state replacing it.
+      await pumpUntil(
+        tester,
+        () =>
+            find.byKey(const Key('harness-web-view')).evaluate().isNotEmpty &&
+            (find
+                    .byKey(const Key('harness-web-view-error'))
+                    .evaluate()
+                    .isNotEmpty ||
+                find
+                    .byKey(const Key('harness-web-view-loading'))
+                    .evaluate()
+                    .isEmpty),
+        maxFrames: 600,
+      );
+      final tailcatFailed = find
+          .byKey(const Key('harness-web-view-error'))
+          .evaluate()
+          .isNotEmpty;
+      final tailcatLoading = find
+          .byKey(const Key('harness-web-view-loading'))
+          .evaluate()
+          .isNotEmpty;
+      // Platform view on screen: the frame is evidenced by the device video,
+      // not by a captured image (see docs/e2e-android.md). Leave before
+      // asserting so a failure cannot end the test with the view still up.
+      await tester.tap(find.byKey(const Key('harness-return-button')));
+      await pumpUntil(
+        tester,
+        () => find.byType(HarnessWebPage).evaluate().isEmpty,
+        maxFrames: 150,
+      );
+      expect(find.byType(HarnessWebPage), findsNothing);
+      expect(
+        tailcatFailed,
+        isFalse,
+        reason: 'the live DSH WebUI must load through the tailcat tunnel',
+      );
+      expect(
+        tailcatLoading,
+        isFalse,
+        reason: 'the tailcat-backed WebUI must finish loading',
+      );
+    } else {
+      // Hermetic: the form itself is the contract. Switching the method must
+      // swap the field, and text that cannot be an address is rejected before
+      // any tunnel is attempted.
+      await _openHarnessSettingsFromHome(tester, l10n);
+      await tester.tap(find.byKey(const Key('harness-method-tailcat')));
+      await pumpFrames(tester);
+      expect(find.byKey(const Key('harness-tailcat-field')), findsOneWidget);
+      expect(find.byKey(const Key('harness-url-field')), findsNothing);
+      expect(
+        find.text(l10n.assistantHarnessTailcatAddressLabel),
+        findsOneWidget,
+      );
+      expect(
+        find.text(l10n.assistantHarnessTailcatAddressHelper),
+        findsOneWidget,
+      );
+      await _capture(tester, binding, 'harness_07_tailcat_settings');
+      await tester.enterText(
+        find.byKey(const Key('harness-tailcat-field')),
+        'not-a-tailcat-address',
+      );
+      await pumpFrames(tester);
+      await tester.tap(find.byKey(const Key('harness-confirm-button')));
+      await pumpUntil(
+        tester,
+        () => find
+            .text(l10n.assistantHarnessTailcatInvalidAddress)
+            .evaluate()
+            .isNotEmpty,
+        maxFrames: 30,
+      );
+      expect(
+        find.text(l10n.assistantHarnessTailcatInvalidAddress),
+        findsOneWidget,
+      );
+      // Leave without confirming: the invalid text is never stored, and this
+      // run keeps the seeded link connection.
+      await _waitForNotificationsToClear(tester);
+    }
+
     // --- Live endpoint contract: one whole prompt round trip ------------------
     if (live) {
       final answer = await _promptTheEndpoint(baseUrl: baseUrl, token: token);
@@ -422,6 +614,52 @@ Future<void> _openCreateMenu(
   expect(find.byType(HarnessSettingsPage), findsOneWidget);
 }
 
+/// Opens the harness assistant's connection page from the home surface.
+///
+/// [live] and hermetic runs both need to come back to this page after the
+/// embedded WebUI step; only the create flow above reaches it from the "+"
+/// menu. This walks the ordinary settings path instead: drawer, Settings,
+/// 对话对象, then the harness card.
+Future<void> _openHarnessSettingsFromHome(
+  WidgetTester tester,
+  AppLocalizations l10n,
+) async {
+  final home = tester.widget<HomeMobileScaffold>(
+    find.byType(HomeMobileScaffold),
+  );
+  home.drawerController.jumpTo(1.0);
+  await pumpFrames(tester);
+  final settingsButton = find.descendant(
+    of: find.byType(SideDrawer),
+    matching: find.byIcon(Lucide.Settings),
+  );
+  expect(settingsButton, findsOneWidget);
+  await tester.tap(settingsButton);
+  await pumpUntil(
+    tester,
+    () => find.byType(SettingsPage).evaluate().isNotEmpty,
+    maxFrames: 150,
+  );
+  await _settleRoute(tester);
+  await tester.tap(find.text(l10n.settingsPageChatOwners).first);
+  await pumpUntil(
+    tester,
+    () => find.byType(ChatOwnerSettingsPage).evaluate().isNotEmpty,
+    maxFrames: 150,
+  );
+  await _settleRoute(tester);
+  final harnessCard = find.byKey(const Key('harness-assistant-card'));
+  expect(harnessCard, findsOneWidget);
+  await tester.tap(harnessCard);
+  await pumpUntil(
+    tester,
+    () => find.byType(HarnessSettingsPage).evaluate().isNotEmpty,
+    maxFrames: 150,
+  );
+  await _settleRoute(tester);
+  expect(find.byType(HarnessSettingsPage), findsOneWidget);
+}
+
 /// Expands the sidebar's assistant section so the harness row is on screen.
 Future<void> _expandAssistantPicker(
   WidgetTester tester,
@@ -505,6 +743,34 @@ Future<String> _promptTheEndpoint({
   }
 }
 
+/// Fetches the ds-hu remote-access plugin's pairing once, through the operator
+/// session the rest of the live path already proved.
+Future<_TailcatPairing> _fetchTailcatPairing(
+  String baseUrl,
+  String token,
+) async {
+  final endpoint = await _DshOperator.connect(baseUrl: baseUrl, token: token);
+  try {
+    return await endpoint.tailcatPairing();
+  } finally {
+    endpoint.close();
+  }
+}
+
+/// The tailcat side of the plugin's status: where the tunneled WebUI lives.
+///
+/// The address is a capability, so a failed assertion must not print it; only
+/// the port is safe in [toString].
+class _TailcatPairing {
+  const _TailcatPairing({required this.address, required this.port});
+
+  final String address;
+  final int port;
+
+  @override
+  String toString() => 'TailcatPairing(port: $port, address: <redacted>)';
+}
+
 /// A minimal Remote API client for the acceptance scenario.
 ///
 /// This is deliberately test-side: it is how the scenario proves the endpoint
@@ -562,6 +828,55 @@ class _DshOperator {
       client.close(force: true);
       rethrow;
     }
+  }
+
+  /// Reads the ds-hu remote-access plugin's pairing from its HTTP route.
+  ///
+  /// The route is not JSON-RPC; it shares the operator cookie this client
+  /// redeemed. The plugin answers 404 when it is not installed, which is a
+  /// configuration failure of the E2E instance, not of the app.
+  Future<_TailcatPairing> tailcatPairing() async {
+    final uri = _base.replace(
+      path: _joinPath(_base.path, 'api/tailcat-remote'),
+    );
+    final request = await _client.getUrl(uri).timeout(_requestTimeout);
+    request.followRedirects = false;
+    request.headers.set(
+      HttpHeaders.cookieHeader,
+      _cookies.entries.map((e) => '${e.key}=${e.value}').join('; '),
+    );
+    final response = await request.close().timeout(_requestTimeout);
+    final body = await response
+        .transform(utf8.decoder)
+        .join()
+        .timeout(_requestTimeout);
+    if (response.statusCode == HttpStatus.notFound) {
+      throw StateError(
+        'the E2E DeepSeek Harness has no ds-hu remote-access plugin installed',
+      );
+    }
+    if (response.statusCode != HttpStatus.ok) {
+      throw StateError(
+        'the remote-access status answered HTTP ${response.statusCode}',
+      );
+    }
+    final decoded = jsonDecode(body);
+    if (decoded is! Map) {
+      throw StateError('the remote-access status is not an object');
+    }
+    final pairing = decoded['pairing'];
+    if (pairing is! Map) {
+      throw StateError('the remote-access status has no pairing');
+    }
+    final address = pairing['address'];
+    final port = pairing['port'];
+    if (address is! String || address.isEmpty) {
+      throw StateError('the remote-access pairing carries no address');
+    }
+    if (port is! int) {
+      throw StateError('the remote-access pairing carries no port');
+    }
+    return _TailcatPairing(address: address, port: port);
   }
 
   Future<Map<String, dynamic>> _call(

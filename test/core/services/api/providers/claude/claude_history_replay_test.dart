@@ -633,6 +633,44 @@ void main() {
       expect(jsonEncode(body), isNot(contains('"image"')));
     });
 
+    test('a picture-only assistant turn is dropped, not emptied', () async {
+      final dir = await Directory.systemTemp.createTemp(
+        'kelivo_claude_assistant_img_only_',
+      );
+      addTearDown(() async {
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
+      });
+      final file = File('${dir.path}/chart.png');
+      await file.writeAsBytes(const [1, 2, 3, 4]);
+
+      final body = await captureClaudeRequestBody(
+        config: claudeConfig(baseUrl: officialBaseUrl),
+        modelId: 'claude-sonnet-4-6',
+        messages: [
+          {'role': 'user', 'content': '画个图'},
+          {
+            'role': 'assistant',
+            'content': '',
+            multimodalInternalMediaPathsKey: [file.path],
+          },
+          {'role': 'user', 'content': '哪根柱子最高'},
+        ],
+      );
+
+      final messages = (body['messages'] as List).cast<Map>();
+      // The reply said nothing once its picture was dropped, and Anthropic
+      // rejects an empty text block.
+      expect(messages.map((message) => message['role']).toList(), [
+        'user',
+        'user',
+      ]);
+      expect(messages.first['content'], '画个图');
+      expect(messages.last['content'], '哪根柱子最高');
+      expect(jsonEncode(body), isNot(contains('"image"')));
+    });
+
     test('an image on the last assistant turn is not replayed', () async {
       final dir = await Directory.systemTemp.createTemp(
         'kelivo_claude_assistant_img_',

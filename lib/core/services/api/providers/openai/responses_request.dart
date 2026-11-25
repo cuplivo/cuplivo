@@ -82,7 +82,9 @@ Future<Map<String, dynamic>> buildOpenAIResponsesBody(
         input.addAll([
           for (final (index, item) in native.output.indexed)
             {
-              ...item,
+              // A compaction window can hold any item type, so it takes the
+              // same payload strip as a replayed history item.
+              ...withoutImagePayload(item),
               nativeCompactionWireKey: true,
               if ((m[nativeUserSourcesKey] as Map?)?[index.toString()]
                   case final String source)

@@ -12,6 +12,7 @@ import '../models/assistant.dart';
 import '../models/assistant_regex.dart';
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
+import '../models/conversation_prompt_settings.dart';
 import '../models/reasoning_request.dart';
 import '../providers/settings_provider.dart';
 import 'api/chat_api_service.dart';
@@ -285,6 +286,11 @@ class ProactiveCareMessageFlow {
   /// instruction injections + the world book entries the letter's own context
   /// activates + history + the care prompt as the final user turn, with the
   /// history tail-limited to the assistant's context window.
+  ///
+  /// [bookIds] is the conversation's own scoped selection when the assistant
+  /// lets a conversation override its world books; null follows the assistant's
+  /// active ids, an empty list selects none — the same contract as the chat
+  /// path's `WorldBookProvider.activeBooksFor`.
   Future<List<Map<String, dynamic>>> buildCareApiMessages({
     required Assistant assistant,
     required String modelId,
@@ -292,6 +298,7 @@ class ProactiveCareMessageFlow {
     required List<Map<String, dynamic>> history,
     required String carePrompt,
     required DateTime now,
+    List<String>? bookIds,
   }) async {
     final systemBlocks = <String>[];
     final persona = _buildPersonaPrompt(
@@ -337,16 +344,17 @@ class ProactiveCareMessageFlow {
     final bookStore = worldBookStore;
     if (bookStore != null) {
       try {
-        final activeIds = (await bookStore.getActiveIds(
-          assistantId: assistant.id,
-        )).toSet();
-        // The same selection the chat path makes
-        // (WorldBookProvider.activeBooksFor): a disabled book never
-        // participates, even while it is still listed in the assistant's active
-        // ids — disabling a book does not remove that binding.
+        // The chat path's selection (WorldBookProvider.activeBooksFor): the
+        // conversation's own list replaces the assistant's when it scopes one,
+        // and an empty list means none. A disabled book never participates,
+        // even while it is still listed in the active ids — disabling a book
+        // does not remove that binding.
+        final ids =
+            (bookIds ?? await bookStore.getActiveIds(assistantId: assistant.id))
+                .toSet();
         final books = [
           for (final book in await bookStore.getAll())
-            if (book.enabled && activeIds.contains(book.id)) book,
+            if (book.enabled && ids.contains(book.id)) book,
         ];
         // The activation rule the chat path uses: enabled book and entry,
         // constant entries, keyword/regex hits inside the entry's scan depth,
@@ -384,6 +392,16 @@ class ProactiveCareMessageFlow {
       },
     ];
   }
+
+  /// The world books a conversation has scoped for itself, or null when it
+  /// follows the assistant. Mirrors the chat path's `conversationScoped`
+  /// selection, where the conversation's list replaces the assistant's.
+  static List<String>? scopedWorldBookIds(
+    Assistant assistant,
+    Conversation conversation,
+  ) => assistant.allowConversationPromptInjection
+      ? ConversationPromptSettings.fromExtras(conversation.extras).worldBookIds
+      : null;
 
   /// The trailing [Assistant.contextMessageSize] conversation messages,
   /// starting on a user turn.
@@ -658,6 +676,7 @@ class ProactiveCareMessageFlow {
         history: history,
         carePrompt: carePrompt,
         now: DateTime.now(),
+        bookIds: scopedWorldBookIds(assistant, claimed),
       );
       final pendingReply = requestCareReply(
         config: model.config,

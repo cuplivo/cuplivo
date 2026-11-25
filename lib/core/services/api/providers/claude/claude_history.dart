@@ -385,7 +385,7 @@ class ClaudeHistory {
         while (turn.emitted < turn.responses.length) {
           emitResponse(turn);
         }
-        // With its images carried forward, an assistant message is plain text.
+        // The persisted assistant message aggregates the replayed turn's text.
         if (role == 'assistant' && m['tool_calls'] is! List) {
           foldTurnText(turn, m);
           turn = null;
@@ -446,6 +446,12 @@ class ClaudeHistory {
         role,
         isLast: i == lastUserIndex,
       );
+      // A reply that was nothing but a picture contributes no turn once the
+      // picture is dropped, and Anthropic rejects an empty text block — the
+      // same reason Gemini drops an empty `parts` list.
+      if (role == 'assistant' && _isEmptyContent(plainMessage['content'])) {
+        continue;
+      }
       RequestHistoryContext.mark(m, [plainMessage]);
       out.add(plainMessage);
     }
@@ -610,6 +616,14 @@ class ClaudeHistory {
         skipImageParsing: skipImageParsing,
       ) ||
       parseInternalMediaRefs(m[multimodalInternalMediaPathsKey]).isNotEmpty;
+
+  /// Whether a plain message carries no text at all, in either shape the
+  /// builder produces (a string, or a list of Anthropic blocks).
+  bool _isEmptyContent(Object? content) => switch (content) {
+    final String text => text.trim().isEmpty,
+    final List blocks => blocks.isEmpty,
+    _ => false,
+  };
 
   Future<Map<String, dynamic>> _plainMessage(
     Map<String, dynamic> m,

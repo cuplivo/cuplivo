@@ -8,6 +8,7 @@ import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/conversation_prompt_settings.dart';
 import 'package:Cuplivo/core/models/reasoning_request.dart';
 import 'package:Cuplivo/core/models/world_book.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
@@ -831,6 +832,97 @@ void main() {
       // the two-message window instead would suppress the entry for every letter.
       final system = (messages.first['content'] ?? '').toString();
       expect(system, contains('DELAYED-LORE'));
+    },
+  );
+
+  test(
+    'a conversation-scoped world book list replaces the assistant one',
+    () async {
+      final store = WorldBookStore(
+        BusinessPreferences(BusinessRepository(database)),
+      );
+      await store.save([
+        WorldBook(
+          id: 'assistant-book',
+          name: 'assistant',
+          entries: const [
+            WorldBookEntry(
+              id: 'assistant-entry',
+              content: 'ASSISTANT-LORE',
+              constantActive: true,
+            ),
+          ],
+        ),
+        WorldBook(
+          id: 'scoped-book',
+          name: 'scoped',
+          entries: const [
+            WorldBookEntry(
+              id: 'scoped-entry',
+              content: 'SCOPED-LORE',
+              constantActive: true,
+            ),
+          ],
+        ),
+      ]);
+      await store.setActiveIds(['assistant-book'], assistantId: 'a');
+
+      final flow = ProactiveCareMessageFlow(
+        chatService: chatService,
+        settings: settings,
+        worldBookStore: store,
+      );
+      Future<String> system(List<String>? bookIds) async {
+        final messages = await flow.buildCareApiMessages(
+          assistant: Assistant(id: 'a', name: 'A'),
+          modelId: 'gpt-test',
+          userNickname: 'User',
+          history: const [
+            {'role': 'user', 'content': 'm1'},
+            {'role': 'assistant', 'content': 'm2'},
+          ],
+          carePrompt: '主动找我聊天',
+          now: DateTime.now(),
+          bookIds: bookIds,
+        );
+        return (messages.first['content'] ?? '').toString();
+      }
+
+      expect(await system(null), contains('ASSISTANT-LORE'));
+      expect(await system(const ['scoped-book']), contains('SCOPED-LORE'));
+      expect(
+        await system(const ['scoped-book']),
+        isNot(contains('ASSISTANT-LORE')),
+      );
+      // An empty override is "no books", the way the chat path reads it.
+      expect(await system(const []), isNot(contains('ASSISTANT-LORE')));
+    },
+  );
+
+  test(
+    'the letter follows the assistant unless the conversation scopes books',
+    () {
+      final conversation = Conversation(
+        id: 'c',
+        title: 't',
+        extras: {
+          ConversationPromptSettings.worldBookIdsKey: ['scoped-book'],
+        },
+      );
+      expect(
+        ProactiveCareMessageFlow.scopedWorldBookIds(
+          Assistant(id: 'a', name: 'A', allowConversationPromptInjection: true),
+          conversation,
+        ),
+        ['scoped-book'],
+      );
+      expect(
+        ProactiveCareMessageFlow.scopedWorldBookIds(
+          Assistant(id: 'a', name: 'A'),
+          conversation,
+        ),
+        isNull,
+      );
     },
   );
 

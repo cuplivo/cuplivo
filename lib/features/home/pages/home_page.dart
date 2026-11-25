@@ -1658,11 +1658,10 @@ class _HomePageState extends State<HomePage>
       onVersionChange: (groupId, version) async {
         await _controller.setSelectedVersion(groupId, version);
       },
-      // Inside a group the round, not a reply, is what gets regenerated: the
-      // member replies carry no regenerate of their own.
-      onRegenerateMessage: _currentGroup() == null
-          ? (message) => _controller.regenerateAtMessage(message)
-          : null,
+      // A member's reply regenerates itself; the user turn above it regenerates
+      // its round. One call, and the controller decides which of the two it is.
+      onRegenerateMessage: (message) =>
+          _controller.regenerateAtMessage(message),
       onRetryWithoutImages: (message) =>
           _controller.regenerateAtMessage(message, omitImages: true),
       onSetContextStart: (message) async {

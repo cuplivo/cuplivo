@@ -20,6 +20,7 @@ void main() {
           ToolPermissionMode.allowAllExtrasKey: true,
           'subagent.depth': 0,
         },
+        levels: 1,
       );
 
       expect(spec.extras[WorkspaceBinding.keyId], 'ws-9');
@@ -39,6 +40,7 @@ void main() {
       final spec = buildChildSpec(
         parentConversationId: 'parent-1',
         parentExtras: const <String, dynamic>{},
+        levels: 1,
       );
 
       expect(spec.extras.keys, isNot(contains(WorkspaceBinding.keyId)));
@@ -46,6 +48,7 @@ void main() {
       expect(spec.extras[SubagentExtrasKeys.parent], 'parent-1');
       expect(spec.extras[SubagentExtrasKeys.root], 'parent-1');
       expect(spec.extras[SubagentExtrasKeys.depth], 1);
+      expect(spec.extras[SubagentExtrasKeys.levels], 1);
       expect(
         spec.extras[SubagentExtrasKeys.target],
         SubagentExtrasKeys.generalTarget,
@@ -56,14 +59,20 @@ void main() {
       final first = buildChildSpec(
         parentConversationId: 'parent-1',
         parentExtras: const <String, dynamic>{},
+        levels: 2,
       );
       final second = buildChildSpec(
         parentConversationId: 'child-1',
         parentExtras: first.extras,
+        levels: 1,
       );
 
       expect(first.depth, 1);
       expect(second.depth, 2);
+      // The budget travels with the conversation: the grandchild got what the
+      // child had left, not a number recomputed from the current settings.
+      expect(first.extras[SubagentExtrasKeys.levels], 2);
+      expect(second.extras[SubagentExtrasKeys.levels], 1);
       // A grandchild still names the conversation a user recognises.
       expect(second.extras[SubagentExtrasKeys.root], 'parent-1');
       expect(second.extras[SubagentExtrasKeys.parent], 'child-1');
@@ -77,6 +86,7 @@ void main() {
           parentConversationId: 'parent-1',
           parentExtras: const <String, dynamic>{},
           target: target.encode(),
+          levels: 1,
         );
 
         // One key, not two: nothing has to join an id to a kind.
@@ -185,27 +195,181 @@ void main() {
     });
   });
 
-  group('mayDelegate', () {
-    test('an ordinary conversation may delegate', () {
-      expect(mayDelegate(const <String, dynamic>{}), isTrue);
+  group('delegation depth', () {
+    Assistant assistant({int depth = 1, String id = 'a'}) =>
+        Assistant(id: id, name: id, subagentDepth: depth);
+
+    test('a root conversation carries its assistant ceiling', () {
+      // Depth counts levels below the conversation, the first child included.
+      expect(
+        delegationLevels(
+          delegator: assistant(depth: 1),
+          extras: const <String, dynamic>{},
+        ),
+        1,
+      );
+      expect(
+        delegationLevels(
+          delegator: assistant(depth: 3),
+          extras: const <String, dynamic>{},
+        ),
+        3,
+      );
     });
 
-    test('a conversation at the limit may not', () {
+    test('a child reads the number it was handed, not a fresh lookup', () {
+      // An assistant edited after the chain started must not re-price it.
+      final extras = <String, dynamic>{SubagentExtrasKeys.levels: 2};
       expect(
-        mayDelegate(const <String, dynamic>{SubagentExtrasKeys.depth: 1}),
+        delegationLevels(delegator: assistant(depth: 1), extras: extras),
+        2,
+      );
+    });
+
+    test('the child gets one level less, capped by its own assistant', () {
+      // Same assistant throughout: 3 asks for three levels, and gets them.
+      expect(childLevels(parentLevels: 3, child: assistant(depth: 3)), 2);
+      expect(childLevels(parentLevels: 2, child: assistant(depth: 3)), 1);
+      expect(childLevels(parentLevels: 1, child: assistant(depth: 3)), 0);
+      // A shallower target stops the chain where its own setting says — one
+      // level below itself — and a deeper one cannot raise what is left.
+      expect(childLevels(parentLevels: 3, child: assistant(depth: 1)), 1);
+      expect(childLevels(parentLevels: 3, child: assistant(depth: 2)), 2);
+    });
+
+    test('a chain of three is reachable with the default of every level', () {
+      final self = assistant(depth: 3);
+      var levels = delegationLevels(
+        delegator: self,
+        extras: const <String, dynamic>{},
+      );
+      final reached = <int>[];
+      while (levels >= 1) {
+        reached.add(levels);
+        levels = childLevels(parentLevels: levels, child: self);
+      }
+      // Three delegations, then the fourth conversation has nothing left.
+      expect(reached, <int>[3, 2, 1]);
+      expect(levels, 0);
+    });
+
+    test('mayDelegate is the same rule, read at one place', () {
+      expect(
+        mayDelegate(delegator: assistant(depth: 1), extras: const {}),
+        isTrue,
+      );
+      expect(
+        mayDelegate(
+          delegator: assistant(depth: 3),
+          extras: const <String, dynamic>{SubagentExtrasKeys.levels: 0},
+        ),
         isFalse,
       );
     });
 
-    test('a junk depth reads as an ordinary conversation', () {
+    test('a junk budget reads as the assistant ceiling', () {
       expect(
-        mayDelegate(const <String, dynamic>{SubagentExtrasKeys.depth: 'x'}),
-        isTrue,
+        delegationLevels(
+          delegator: assistant(depth: 2),
+          extras: const <String, dynamic>{SubagentExtrasKeys.levels: 'x'},
+        ),
+        2,
       );
       expect(
         parentDepth(const <String, dynamic>{SubagentExtrasKeys.depth: -3}),
         0,
       );
+    });
+
+    test('a stored budget above the ceiling is clamped, not obeyed', () {
+      expect(
+        delegationLevels(
+          delegator: assistant(depth: 3),
+          extras: const <String, dynamic>{SubagentExtrasKeys.levels: 99},
+        ),
+        kSubagentDepthMax,
+      );
+    });
+  });
+
+  group('escalation narrows down the chain', () {
+    SubagentEscalation chainOf(
+      SubagentEscalation inherited,
+      SubagentEscalation own,
+    ) {
+      final spec = buildChildSpec(
+        parentConversationId: 'parent-1',
+        parentExtras: <String, dynamic>{
+          SubagentExtrasKeys.escalation: inherited.name,
+        },
+        escalation: own,
+        levels: 1,
+      );
+      final stored = spec.extras[SubagentExtrasKeys.escalation] as String;
+      return SubagentEscalation.values.firstWhere((v) => v.name == stored);
+    }
+
+    test('the stricter of the two wins, in every combination', () {
+      // A child cannot grant itself more than the conversation that created it
+      // held: deny < ask < allow.
+      expect(
+        chainOf(SubagentEscalation.allow, SubagentEscalation.allow),
+        SubagentEscalation.allow,
+      );
+      expect(
+        chainOf(SubagentEscalation.allow, SubagentEscalation.ask),
+        SubagentEscalation.ask,
+      );
+      expect(
+        chainOf(SubagentEscalation.allow, SubagentEscalation.deny),
+        SubagentEscalation.deny,
+      );
+      expect(
+        chainOf(SubagentEscalation.ask, SubagentEscalation.allow),
+        SubagentEscalation.ask,
+      );
+      expect(
+        chainOf(SubagentEscalation.ask, SubagentEscalation.deny),
+        SubagentEscalation.deny,
+      );
+      expect(
+        chainOf(SubagentEscalation.deny, SubagentEscalation.allow),
+        SubagentEscalation.deny,
+      );
+    });
+
+    test('a root conversation has nothing to narrow against', () {
+      final spec = buildChildSpec(
+        parentConversationId: 'parent-1',
+        parentExtras: const <String, dynamic>{},
+        escalation: SubagentEscalation.allow,
+        levels: 1,
+      );
+      expect(
+        spec.extras[SubagentExtrasKeys.escalation],
+        SubagentEscalation.allow.name,
+      );
+    });
+
+    test('an unreadable chain policy asks, it does not fall back to allow', () {
+      // A value this build cannot read is not "no chain": the decision was made
+      // by an ancestor, and guessing upward would widen a consent somebody
+      // already narrowed. The other reader of this key answers `ask` too.
+      for (final broken in <Object?>['always', '', 3, true]) {
+        final spec = buildChildSpec(
+          parentConversationId: 'parent-1',
+          parentExtras: <String, dynamic>{
+            SubagentExtrasKeys.escalation: broken,
+          },
+          escalation: SubagentEscalation.allow,
+          levels: 1,
+        );
+        expect(
+          spec.extras[SubagentExtrasKeys.escalation],
+          SubagentEscalation.ask.name,
+          reason: 'unreadable $broken must not widen the chain',
+        );
+      }
     });
   });
 

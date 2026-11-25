@@ -6,7 +6,8 @@
 /// pin each rule without standing up the app.
 library;
 
-import '../../../core/models/assistant.dart' show Assistant, SubagentEscalation;
+import '../../../core/models/assistant.dart'
+    show Assistant, SubagentEscalation, kSubagentDepthMax, kSubagentDepthMin;
 import '../../../core/models/workspace_binding.dart';
 import '../../../utils/single_line_text.dart';
 import '../../../utils/utf16_safe_cut.dart';
@@ -45,6 +46,14 @@ abstract final class SubagentExtrasKeys {
   /// gained or lost the grant while the child ran would silently raise or
   /// withdraw a consent that was given for one delegation.
   static const String escalationCap = 'subagent.escalation.cap';
+
+  /// How many further delegation levels this conversation may still create.
+  ///
+  /// Written when the child is created from the delegating side's ceiling, and
+  /// read here rather than recomputed: an assistant that is later configured
+  /// shallower must not reach back and cut a chain that already started. A
+  /// conversation without the key is a root, and the ceiling is its assistant's.
+  static const String levels = 'subagent.levels';
 
   static const String generalTarget = SubagentTargetKeys.general;
 }
@@ -93,12 +102,6 @@ String assistantName(Assistant assistant) {
   return name.isEmpty ? assistant.id : name;
 }
 
-/// The deepest delegation allowed below a normal conversation.
-///
-/// 1 means "a subagent may not delegate again". A conversation at this depth
-/// does not get the tool at all, so the model never spends a call learning it.
-const int kMaxSubagentDepth = 1;
-
 /// What the child conversation inherits, or why it cannot be created.
 final class SubagentChildSpec {
   const SubagentChildSpec({required this.extras, required this.depth});
@@ -123,6 +126,7 @@ SubagentChildSpec buildChildSpec({
   SubagentEscalation escalation = SubagentEscalation.ask,
   bool delegatorHasFullAccess = false,
   String target = SubagentTargetKeys.general,
+  required int levels,
 }) {
   final parentBinding = WorkspaceBinding.fromExtras(parentExtras);
   final depth = parentDepth(parentExtras) + 1;
@@ -137,11 +141,48 @@ SubagentChildSpec buildChildSpec({
       SubagentExtrasKeys.parent: parentConversationId,
       SubagentExtrasKeys.root: root ?? parentConversationId,
       SubagentExtrasKeys.depth: depth,
+      SubagentExtrasKeys.levels: levels,
       SubagentExtrasKeys.target: target,
-      SubagentExtrasKeys.escalation: escalation.name,
+      SubagentExtrasKeys.escalation: _narrowEscalation(
+        _chainEscalation(parentExtras),
+        escalation,
+      ).name,
       SubagentExtrasKeys.escalationCap: delegatorHasFullAccess,
     },
   );
+}
+
+/// How many further levels a conversation at [extras] may still create.
+///
+/// A root conversation is its assistant's ceiling; a child was handed a number
+/// by the conversation that created it, and that number wins — a chain already
+/// under way is not re-priced because somebody edited an assistant afterwards.
+int delegationLevels({
+  required Assistant? delegator,
+  required Map<String, dynamic> extras,
+}) {
+  final granted = extras[SubagentExtrasKeys.levels];
+  if (granted is int && granted >= 0) {
+    return granted.clamp(0, kSubagentDepthMax);
+  }
+  return (delegator?.subagentDepth ?? kSubagentDepthMin).clamp(
+    kSubagentDepthMin,
+    kSubagentDepthMax,
+  );
+}
+
+/// How many further levels the child created by a conversation with
+/// [parentLevels] may create.
+///
+/// One level is spent on the child itself, and the child's own assistant gets
+/// the last word on how deep its own delegations go — which is why a chain
+/// handed to a shallower assistant stops there instead of running to the
+/// number the first assistant asked for.
+int childLevels({required int parentLevels, required Assistant child}) {
+  final remaining = parentLevels - 1;
+  final own = child.subagentDepth.clamp(kSubagentDepthMin, kSubagentDepthMax);
+  final levels = remaining < own ? remaining : own;
+  return levels < 0 ? 0 : levels;
 }
 
 /// The delegation depth of a conversation: 0 for an ordinary conversation.
@@ -151,8 +192,10 @@ int parentDepth(Map<String, dynamic> extras) {
 }
 
 /// Whether a conversation at [extras] may delegate at all.
-bool mayDelegate(Map<String, dynamic> extras) =>
-    parentDepth(extras) < kMaxSubagentDepth;
+bool mayDelegate({
+  required Assistant? delegator,
+  required Map<String, dynamic> extras,
+}) => delegationLevels(delegator: delegator, extras: extras) >= 1;
 
 /// Why a conversation may not delegate, or null when it may.
 ///
@@ -171,11 +214,51 @@ String? delegationBlockedFor({
   required Map<String, dynamic> extras,
   required bool isGroup,
   required bool isTemporary,
+  required Assistant? delegator,
 }) {
   if (isGroup) return 'group_conversation';
   if (isTemporary) return 'temporary_conversation';
-  if (!mayDelegate(extras)) return 'depth_limit';
+  if (!mayDelegate(delegator: delegator, extras: extras)) return 'depth_limit';
   return null;
+}
+
+/// What the conversation that delegated to [extras] settled on.
+///
+/// Null means "there is no chain": a conversation a user started, whose policy
+/// is the delegating assistant's own. A value that is present but unreadable is
+/// *not* that case — an enum renamed by a later build, or a hand-edited row,
+/// still stands for a decision somebody made, and answering "no chain" would let
+/// a nested delegation widen a consent an ancestor narrowed. It answers `ask`,
+/// the same default the other reader of this key uses
+/// (`conversation_tool_permissions.dart`).
+SubagentEscalation? _chainEscalation(Map<String, dynamic> extras) {
+  final stored = extras[SubagentExtrasKeys.escalation];
+  if (stored == null) return null;
+  for (final value in SubagentEscalation.values) {
+    if (value.name == stored) return value;
+  }
+  return SubagentEscalation.ask;
+}
+
+/// The stricter of two policies.
+///
+/// Escalation only ever narrows down a chain: a child cannot grant itself more
+/// than the conversation that created it held, or two levels of "always allow"
+/// would let a delegate talk its way into a consent the user gave to its parent
+/// alone.
+SubagentEscalation _narrowEscalation(
+  SubagentEscalation? inherited,
+  SubagentEscalation own,
+) {
+  if (inherited == null) return own;
+  const strictestFirst = [
+    SubagentEscalation.deny,
+    SubagentEscalation.ask,
+    SubagentEscalation.allow,
+  ];
+  final inheritedRank = strictestFirst.indexOf(inherited);
+  final ownRank = strictestFirst.indexOf(own);
+  return strictestFirst[inheritedRank < ownRank ? inheritedRank : ownRank];
 }
 
 /// The title a child conversation gets.

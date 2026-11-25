@@ -19452,14 +19452,22 @@ class AppLocalizationsRu extends AppLocalizations {
       'Выполнить одну задачу в копии этого чата, в том же рабочем пространстве.';
 
   @override
-  String get subagentConfigEnabled => 'Вкл.';
-
-  @override
   String get subagentConfigDepth => 'Глубина';
 
   @override
   String get subagentConfigDepthDescription =>
       'Сколько уровней подагентов может делегировать дальше';
+
+  @override
+  String get subagentConfigDepthOne => 'Субагент не может делегировать дальше';
+
+  @override
+  String get subagentConfigDepthTwo =>
+      'Субагент может делегировать ещё один уровень';
+
+  @override
+  String get subagentConfigDepthThree =>
+      'Субагент может делегировать ещё два уровня';
 
   @override
   String get subagentConfigModel => 'Модель';

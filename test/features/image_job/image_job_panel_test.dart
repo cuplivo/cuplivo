@@ -264,7 +264,7 @@ void main() {
     },
   );
 
-  test('the model row prefers the configured name over the raw id', () {
+  test('the model row prefers the configured name over the raw id', () async {
     expect(
       imageModelDisplayName(
         settings,
@@ -276,6 +276,28 @@ void main() {
     expect(
       imageModelDisplayName(settings, null, fallbackKey: 'openai::gpt-image-1'),
       'gpt-image-1',
+    );
+
+    await settings.setProviderConfig(
+      'openai',
+      ProviderConfig(
+        id: 'openai',
+        enabled: true,
+        name: 'OpenAI',
+        apiKey: 'k',
+        baseUrl: 'https://example.test/v1',
+        providerType: ProviderKind.openai,
+        modelOverrides: {
+          'gpt-image-1': {'name': 'Painter'},
+        },
+      ),
+    );
+    expect(
+      imageModelDisplayName(
+        settings,
+        const ModelBinding(providerId: 'openai', modelId: 'gpt-image-1'),
+      ),
+      'Painter',
     );
   });
 }

@@ -19144,14 +19144,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'Run one task in a copy of this chat, in the same workspace.';
 
   @override
-  String get subagentConfigEnabled => 'On';
-
-  @override
   String get subagentConfigDepth => 'Depth';
 
   @override
   String get subagentConfigDepthDescription =>
       'How many levels of subagents may delegate again.';
+
+  @override
+  String get subagentConfigDepthOne => 'A subagent cannot delegate again';
+
+  @override
+  String get subagentConfigDepthTwo => 'A subagent may delegate once more';
+
+  @override
+  String get subagentConfigDepthThree =>
+      'A subagent may delegate two more levels';
 
   @override
   String get subagentConfigModel => 'Model';

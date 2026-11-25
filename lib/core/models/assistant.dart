@@ -24,6 +24,14 @@ enum MemoryWriteScope {
 /// that conversation already has, and falls back to asking when it cannot.
 enum SubagentEscalation { ask, deny, allow }
 
+/// The shallowest and deepest chain a delegation from one assistant may build.
+///
+/// 1 is "a subagent may not delegate again", which is what every assistant had
+/// before this setting existed; 3 is two further levels. The ceiling is small on
+/// purpose: each level is a whole extra context billed to the same request.
+const int kSubagentDepthMin = 1;
+const int kSubagentDepthMax = 3;
+
 class Assistant {
   static const int defaultRecentChatsSummaryMessageCount = 5;
   static const int defaultMemoryOrganizeEveryNTurns = 1;
@@ -92,6 +100,15 @@ class Assistant {
   /// `target` parameter at all, so the tool schema a conversation sends is
   /// byte-for-byte the one it sent before this field existed.
   final List<String> subagentTargetIds;
+
+  /// How many levels of subagent this assistant's delegations may build,
+  /// counting the first child as level 1. 1 is "the subagent does not get the
+  /// tool", which is what every assistant did before the setting existed.
+  ///
+  /// It is a ceiling, not a promise: a delegation into an assistant whose own
+  /// depth is shallower stops at that assistant's number, because that
+  /// assistant's conversation is the one spending the tokens.
+  final int subagentDepth;
 
   /// What this assistant is for, in one or two sentences.
   ///
@@ -190,6 +207,7 @@ class Assistant {
     this.subagentModelId,
     this.subagentEscalation = SubagentEscalation.ask,
     this.subagentTargetIds = const <String>[],
+    this.subagentDepth = kSubagentDepthMin,
     this.description = '',
     this.defaultWorkspaceId,
     this.defaultWorkspaceSetup = DefaultWorkspaceSetup.automatic,
@@ -257,6 +275,7 @@ class Assistant {
     bool clearSubagentModelId = false,
     SubagentEscalation? subagentEscalation,
     List<String>? subagentTargetIds,
+    int? subagentDepth,
     String? description,
     String? defaultWorkspaceId,
     DefaultWorkspaceSetup? defaultWorkspaceSetup,
@@ -341,6 +360,10 @@ class Assistant {
           : (subagentModelId ?? this.subagentModelId),
       subagentEscalation: subagentEscalation ?? this.subagentEscalation,
       subagentTargetIds: subagentTargetIds ?? this.subagentTargetIds,
+      subagentDepth: (subagentDepth ?? this.subagentDepth).clamp(
+        kSubagentDepthMin,
+        kSubagentDepthMax,
+      ),
       description: description ?? this.description,
       defaultWorkspaceId: clearDefaultWorkspaceId
           ? null
@@ -435,6 +458,7 @@ class Assistant {
     'subagentModelId': subagentModelId,
     'subagentEscalation': subagentEscalation.name,
     'subagentTargetIds': subagentTargetIds,
+    'subagentDepth': subagentDepth,
     'description': description,
     'defaultWorkspaceId': defaultWorkspaceId,
     'defaultWorkspaceSetup': defaultWorkspaceSetup.name,
@@ -521,6 +545,10 @@ class Assistant {
     subagentTargetIds:
         (json['subagentTargetIds'] as List?)?.cast<String>() ??
         const <String>[],
+    subagentDepth: (json['subagentDepth'] as int? ?? kSubagentDepthMin).clamp(
+      kSubagentDepthMin,
+      kSubagentDepthMax,
+    ),
     description: (json['description'] as String?) ?? '',
     defaultWorkspaceId: json['defaultWorkspaceId'] as String?,
     defaultWorkspaceSetup:

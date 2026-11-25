@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/services/chat/chat_service.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../utils/platform_utils.dart';
 import '../services/subagent_coordinator.dart';
+import '../services/subagent_rules.dart' show SubagentExtrasKeys;
 
 /// Opens the list of this conversation's subagents.
 ///
@@ -44,7 +46,7 @@ Future<void> showSubagentPanel(
 /// One row, whichever side it came from: a live delegation this process started,
 /// or a result message that survived a restart.
 final class _PanelRow {
-  const _PanelRow({
+  _PanelRow({
     required this.childConversationId,
     required this.title,
     required this.startedAt,
@@ -91,6 +93,13 @@ final class _PanelRow {
   /// Who ran the task, when the delegation named somebody. Null for `general`
   /// and for every row reconstructed from a result message.
   final String? assistantName;
+
+  /// How many conversations this subagent started itself.
+  ///
+  /// The list stays 直系 — a grandchild is reached by opening the child — but a
+  /// row that has one says so, or a delegation that spent three contexts would
+  /// look exactly like one that spent two.
+  int descendants = 0;
 
   /// When the delegation started, which is also what orders the list.
   final DateTime startedAt;
@@ -214,21 +223,42 @@ class _SubagentPanelState extends State<_SubagentPanel> {
   ) {
     final known = <String>{};
     final rows = <_PanelRow>[];
+    final chat = context.read<ChatService?>();
+    final grandchildren = _childCountByParent(chat);
     for (final entry in coordinator?.entries ?? const <SubagentEntry>[]) {
       if (entry.parentConversationId != widget.conversationId) continue;
       known.add(entry.childConversationId);
-      rows.add(_PanelRow.fromEntry(entry));
+      rows.add(
+        _PanelRow.fromEntry(entry)
+          ..descendants = grandchildren[entry.childConversationId] ?? 0,
+      );
     }
-    final chat = context.read<ChatService?>();
     for (final message
         in chat?.getMessages(widget.conversationId) ?? const <ChatMessage>[]) {
       for (final part in subagentResultsIn(<ChatMessage>[message])) {
         if (!known.add(part.childConversationId)) continue;
-        rows.add(_PanelRow.fromPart(part, message.timestamp));
+        rows.add(
+          _PanelRow.fromPart(part, message.timestamp)
+            ..descendants = grandchildren[part.childConversationId] ?? 0,
+        );
       }
     }
     rows.sort((a, b) => b.startedAt.compareTo(a.startedAt));
     return rows;
+  }
+
+  /// How many conversations each parent started, from the extras every child
+  /// carries. One pass over the conversation list, not a query per row.
+  static Map<String, int> _childCountByParent(ChatService? chat) {
+    final counts = <String, int>{};
+    for (final conversation
+        in chat?.getAllConversations() ?? const <Conversation>[]) {
+      final parent = conversation.extras[SubagentExtrasKeys.parent];
+      if (parent is String && parent.isNotEmpty) {
+        counts.update(parent, (value) => value + 1, ifAbsent: () => 1);
+      }
+    }
+    return counts;
   }
 }
 
@@ -327,15 +357,18 @@ class _SubagentRow extends StatelessWidget {
 
   static String _elapsedText(AppLocalizations l10n, _PanelRow row) {
     final shown = row.shownDuration;
-    final duration = shown == null
-        ? ''
-        : l10n.subagentPanelElapsed(shown.inMinutes, shown.inSeconds % 60);
-    final who = row.assistantName?.trim() ?? '';
-    if (who.isEmpty) return duration;
-    if (duration.isEmpty) return who;
-    // `<assistant> · <duration>`: the same order as the card, so a named
+    final parts = <String>[
+      if ((row.assistantName?.trim() ?? '').isNotEmpty)
+        row.assistantName!.trim(),
+      if (shown != null)
+        l10n.subagentPanelElapsed(shown.inMinutes, shown.inSeconds % 60),
+      // 直系 rows only, but a row that started its own subagents says so: the
+      // list would otherwise read as the whole chain.
+      if (row.descendants > 0) '+${row.descendants}',
+    ];
+    // `<assistant> · <duration> · +N`: the same order as the card, so a named
     // delegation reads the same in both places.
-    return '$who · $duration';
+    return parts.join(' · ');
   }
 }
 

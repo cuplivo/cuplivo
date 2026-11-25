@@ -49,7 +49,10 @@ void main() {
           extras: const <String, dynamic>{
             WorkspaceBinding.keyId: 'ws-1',
             WorkspaceBinding.keyCwd: '/w',
-            SubagentExtrasKeys.depth: kMaxSubagentDepth,
+            SubagentExtrasKeys.depth: 1,
+            // What makes it a limit: the chain handed this conversation no
+            // levels to spend, whatever its assistant is configured at.
+            SubagentExtrasKeys.levels: 0,
           },
         ),
       });
@@ -193,6 +196,9 @@ void main() {
       expect(extras[SubagentExtrasKeys.parent], 'parent');
       expect(extras[SubagentExtrasKeys.root], 'parent');
       expect(extras[SubagentExtrasKeys.depth], 1);
+      // The assistant is at the default depth of one, so the child it just
+      // created has no levels left to spend.
+      expect(extras[SubagentExtrasKeys.levels], 0);
       // A grant is per conversation; the child never carries one.
       expect(
         extras.keys.toSet().intersection(
@@ -696,6 +702,82 @@ void main() {
       expect(cancelled, <String>[childId]);
       coordinator.dispose();
     });
+
+    test(
+      'stopping a subagent stops the one it started, deepest first',
+      () async {
+        // Three levels need an assistant that allows them: the default of one
+        // leaves the child no budget, and the second delegation is refused.
+        final deep = Assistant(
+          id: 'assistant-1',
+          name: 'A',
+          subagentDepth: kSubagentDepthMax,
+        );
+        final chat = _FakeChat(<String, Conversation>{
+          'parent': Conversation(
+            id: 'parent',
+            title: 'Chat',
+            extras: const <String, dynamic>{
+              WorkspaceBinding.keyId: 'ws-1',
+              WorkspaceBinding.keyCwd: '/w',
+            },
+          ),
+        });
+        final cancelled = <String>[];
+        final coordinator = SubagentCoordinator(
+          chat,
+          clock: _clock(),
+          pollInterval: const Duration(milliseconds: 1),
+        );
+        coordinator.attachHost(
+          SubagentHost(
+            turnStarter:
+                ({
+                  required conversationId,
+                  required assistant,
+                  required task,
+                  delegator,
+                  target,
+                }) async => const SubagentTurnStart.started(runId: 'run-1'),
+            enqueueResult:
+                ({
+                  required parentConversationId,
+                  required notice,
+                  required assistant,
+                  required followUp,
+                }) {},
+            cancelTurn: (conversationId) async => cancelled.add(conversationId),
+          ),
+        );
+
+        final first = await coordinator.begin(
+          parentConversationId: 'parent',
+          toolCallId: 'call-1',
+          task: 'x',
+          label: 'x',
+          assistant: deep,
+        );
+        final childId = (first as SubagentStarted).entry.childConversationId;
+
+        final second = await coordinator.begin(
+          parentConversationId: childId,
+          toolCallId: 'call-2',
+          task: 'y',
+          label: 'y',
+          assistant: deep,
+        );
+        final grandchildId =
+            (second as SubagentStarted).entry.childConversationId;
+        expect(second.entry.parentConversationId, childId);
+
+        // Stopping the middle row stops what it started, and only then itself:
+        // a cancelled subagent whose subagent kept running would report into a
+        // conversation nobody is watching.
+        await coordinator.cancelChild(childId);
+        expect(cancelled, <String>[grandchildId, childId]);
+        coordinator.dispose();
+      },
+    );
   });
 }
 

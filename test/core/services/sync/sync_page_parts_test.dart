@@ -117,22 +117,37 @@ void main() {
     final messageFamily = syncFamilyOfTable('message_rows');
     final partFamily = syncFamilyOfTable('message_part_rows');
 
-    // One row's wire size, so the page-1 budget holds exactly two of them.
+    // What one row costs the fill: its own bytes plus the parts that hold its
+    // text, which the page meters too — a fill that counts the row alone loads
+    // several times the budget and leaves the trim to fix it.
     final sample = await repository.syncReadMessageChunk('conv-p', limit: 2);
+    final sampleParts = await repository.syncReadPartRowsByIds('conv-p', [
+      for (final row in sample) row['id'] as String,
+    ]);
+    final partBytes = [
+      for (final row in sample)
+        sampleParts
+            .where((part) => part['revision_id'] == row['id'])
+            .fold<int>(0, (sum, part) => sum + wireBytesOf(part) + 1),
+    ];
     final rowBytes = [for (final row in sample) wireBytesOf(row) + 1];
     final conversationRow = await repository.syncReadWireConversationRow(
       'conv-p',
     );
     final conversationBytes = wireBytesOf(conversationRow);
-    // ignore: avoid_print
-    print('PROBE row wire bytes: $rowBytes, conversation: $conversationBytes');
 
     // Page 1: two rows only (a row budget that fits exactly two), and a page
     // budget loose enough that the trim pass never runs.
     final first = await dataPlane.readSubtreePage(
       'conv-p',
       after: null,
-      rowBudget: conversationBytes + rowBytes[0] + rowBytes[1] + 2,
+      rowBudget:
+          conversationBytes +
+          rowBytes[0] +
+          partBytes[0] +
+          rowBytes[1] +
+          partBytes[1] +
+          2,
       pageBytes: 100000,
       sentIds: const {},
     );

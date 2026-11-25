@@ -2988,7 +2988,18 @@ class SyncEngine implements SyncServerHandler {
             // then the state this device holds now — after the merge, so both
             // sides compose the same digest — restricted to the ids the
             // transfer named, so a row written here mid-session stays out of it.
-            final resumed = received.seeded || received.sawPartialIds;
+            // Only when the payload genuinely cannot describe the transfer:
+            // an earlier session's rows are missing, or the page named ids
+            // this progress never carried. A page that is merely smaller
+            // than the id set is the ordinary last page of a multi-page
+            // transfer, and the accumulated progress already holds every
+            // page — reading the whole conversation there would put its text
+            // back in memory once per transfer, on the receiving side.
+            final resumed =
+                received.seeded ||
+                received.declaredIds.any(
+                  (rowId) => !received.rows.containsKey(rowId),
+                );
             final local = resumed
                 ? await dataPlane.checkpointFromLocal(id)
                 : null;
@@ -4911,11 +4922,8 @@ class _TransferProgress {
   /// pages carried rows and families this session never sees again.
   bool seeded = false;
 
-  /// Every id the transfer named, from the page that ends it, and whether that
-  /// page carried fewer rows than it named — the mark of a transfer whose
-  /// earlier pages hold rows this one cannot describe.
+  /// Every id the transfer named, from the page that ends it.
   Set<String> declaredIds = const {};
-  bool sawPartialIds = false;
 
   /// Starts from the rows an earlier session's pages proved. Both sides do
   /// this, because the entry a completed transfer writes has to describe the
@@ -4951,9 +4959,6 @@ class _TransferProgress {
     }
     if (payload.ids.isNotEmpty) {
       declaredIds = {...rows.keys, ...payload.ids};
-      if (payload.ids.length > payload.rowsOf(_messageFamily).length) {
-        sawPartialIds = true;
-      }
     }
     if (payload.more) {
       this.after = after ?? this.after;

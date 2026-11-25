@@ -165,4 +165,107 @@ void main() {
           're-encodes the whole page',
     );
   });
+  test(
+    'a page is measured at its budget and its cursor is the last row kept',
+    () async {
+      final database = AppDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+      final repository = _CountingRepository(database);
+      await repository.ensureReady();
+      final chatService = ChatService(existingRepository: repository);
+      await chatService.init();
+      final dataPlane = SyncDataPlane(
+        repository: repository,
+        chatService: chatService,
+        businessRepository: BusinessRepository(database),
+      );
+
+      final messages = [
+        for (var index = 0; index < 40; index++)
+          ChatMessage(
+            id: 'conv-w-m${index.toString().padLeft(3, '0')}',
+            conversationId: 'conv-w',
+            role: index.isEven ? 'user' : 'assistant',
+            content: 'message $index ${'x' * 2000}',
+          ),
+      ];
+      await repository.putMigrationBatch(
+        conversations: [
+          Conversation(
+            id: 'conv-w',
+            title: 'conv-w',
+          ).copyWith(messageIds: [for (final message in messages) message.id]),
+        ],
+        messages: [
+          for (final (index, message) in messages.indexed)
+            (message: message, messageOrder: index),
+        ],
+        toolEventsByMessageId: const {},
+        geminiSignaturesByMessageId: const {},
+      );
+
+      // Two shapes. The first is the ordinary page: the fill meters the parts, so
+      // the page ends at the budget and nothing is trimmed. The second makes the
+      // trim do the work — a row budget far above the page one — because that is
+      // where a cursor taken from the rows *read* rather than *kept* steps over
+      // the rows it removed and makes the next page re-read them by id.
+      for (final trimIsDoingTheWork in [false, true]) {
+        final pageBytes = 12000;
+        final messageFamily = syncFamilyOfTable('message_rows');
+        final carried = <String>[];
+        String? cursor;
+        var pages = 0;
+        while (true) {
+          final page = await dataPlane.readSubtreePage(
+            'conv-w',
+            after: cursor,
+            rowBudget: trimIsDoingTheWork ? 1 << 20 : pageBytes,
+            pageBytes: pageBytes,
+            sentIds: carried.toSet(),
+          );
+          expect(page, isNotNull);
+          pages += 1;
+          final ids = [
+            for (final row in page!.payload.rowsOf(messageFamily))
+              row['id'] as String,
+          ];
+          expect(
+            conversationWireBytes(page.payload),
+            lessThanOrEqualTo(pageBytes),
+            reason:
+                'the fill meters the parts, so the page ends where its budget does '
+                'instead of loading several times that and trimming back',
+          );
+          if (page.nextAfter != null) {
+            expect(
+              page.nextAfter,
+              ids.reduce((a, b) => a.compareTo(b) > 0 ? a : b),
+              reason:
+                  'the cursor names the last row the page carried; one past it '
+                  'steps over rows that then have to be re-read by id',
+            );
+          }
+          carried.addAll(ids);
+          if (!page.payload.more) break;
+          cursor = page.nextAfter;
+          expect(
+            cursor,
+            isNotNull,
+            reason: 'a page that is not last has a cursor',
+          );
+          expect(pages, lessThan(200), reason: 'the loop must terminate');
+        }
+        expect(
+          carried.toSet(),
+          hasLength(messages.length),
+          reason: 'every row arrives',
+        );
+        expect(
+          carried.toSet(),
+          hasLength(carried.length),
+          reason: 'no row is carried twice',
+        );
+      }
+    },
+  );
 }

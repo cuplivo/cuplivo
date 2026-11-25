@@ -583,7 +583,7 @@ contradicts one of them is a bug, not a preference.
   stored per device pair.
 
 - **Session protocol**: a bounded six-beat run over pinned-TLS HTTP (REST-style JSON bodies,
-  binary endpoints for blobs and for workspace files): hello (protocol version **7**, schema
+  binary endpoints for blobs and for workspace files): hello (protocol version **11**, schema
   version, the initiator's listener port **and its own candidate addresses**, its clock reading, its
   data epoch, the deletions it has not seen confirmed, checkpoint summaries, and what each side could
   not apply last session) → negotiate (each side computes deltas) → delta exchange (conversation
@@ -598,12 +598,12 @@ contradicts one of them is a bug, not a preference.
   hashes it already has;
   the responder pulls back over the initiator's advertised listener, and the same reverse
   connection carries its workspace file pulls) → transactional apply + provider reload →
-  checkpoint commit on both sides. **One push and one fetch per session**, enforced from both sides: a
-  fetch that has not seen its push is refused (`push_required`), and a second push on a session that
-  already took one is refused too (`push_already_taken`) — the push beat writes the state the fetch
-  beat and the report are built from, while the counters a landing books into keep accumulating, so
-  answering a replay would replace the outcome and still count its bytes twice. The push and fetch
-  beats always run, even with nothing to send:
+  checkpoint commit on both sides. **A session opens with a push and its fetch needs one**, enforced
+  from both sides: a fetch that has not seen its push is refused (`push_required`), so the workspace
+  ledger cannot be persisted as empty. The push is one beat *per page* since ADR-0020, so a second
+  push is no longer a replay — the session's outcome is accumulated across the beats that carry it,
+  and `push_already_taken` is gone with the rule it enforced. The push and fetch beats always run,
+  even with nothing to send:
   they are also where the responder performs its own blob pull, including the retries its
   checkpoint still owes. Checkpoints also carry what is still owed (pending blobs), the
   skill-content baseline, the workspace file ledger and the peer's data epoch.

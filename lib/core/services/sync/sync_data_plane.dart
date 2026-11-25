@@ -285,8 +285,23 @@ class SyncDataPlane {
         limit: _kMessageChunk,
       );
       if (chunk.isEmpty) break;
+      // The prose lives in the parts, and it is most of a page: a fill that
+      // counts the rows alone loads four to five times the budget, and the
+      // trim then removes what should never have been read — encoding the
+      // lot once to measure it. Reading each chunk's parts here is one query
+      // per chunk and makes the page end where the budget does.
+      final chunkParts = await repository.syncReadPartRowsByIds(
+        conversationId,
+        [for (final row in chunk) row['id'] as String],
+      );
+      final partBytes = <String, int>{};
+      for (final part in chunkParts) {
+        final id = part['revision_id'] as String;
+        partBytes[id] = (partBytes[id] ?? 0) + wireBytesOf(part) + 1;
+      }
       for (final row in chunk) {
-        final bytes = wireBytesOf(row) + 1;
+        final bytes =
+            wireBytesOf(row) + 1 + (partBytes[row['id'] as String] ?? 0);
         if (prefix.isNotEmpty && fixed + bytes > rowBudget) {
           more = true;
           break;
@@ -431,11 +446,17 @@ class SyncDataPlane {
     }
 
     final payload = payloadFor(last);
-    // The cursor names the last id of the *ascending* run this page carried.
-    // A late row sorts below the resume point by definition, so taking the
-    // last entry's id would hand back a cursor behind where this page
-    // started — and the next page would re-read and re-send the prefix.
-    final cursorLast = prefix.isEmpty ? after : prefix.last['id'] as String;
+    // The cursor names the last id of the *ascending* run this page carried —
+    // carried, not read: the trim removes from the end of the run, and a
+    // cursor past the removed rows steps over them, so they can only come
+    // back as the next page's late set. A late row sorts below the resume
+    // point by definition, so it never decides the cursor either.
+    final keptPrefix = entries.length < prefix.length
+        ? entries.length
+        : prefix.length;
+    final cursorLast = keptPrefix == 0
+        ? after
+        : prefix[keptPrefix - 1]['id'] as String;
     return (
       payload: payload,
       nextAfter: last ? null : cursorLast,

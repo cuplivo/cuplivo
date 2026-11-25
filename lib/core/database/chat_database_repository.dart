@@ -6108,6 +6108,154 @@ FROM conversation_rows;
     String conversationId,
   ) => syncReadFamilyRows(syncFamilyOfTable('message_rows'), conversationId);
 
+  /// One page's worth of message rows, in id order, continuing after [after].
+  ///
+  /// The id is the cursor rather than `message_order`: the order column is
+  /// re-derived by every apply, so it moves under a reader, while a row's id
+  /// never does. What a page boundary costs is a timeline position — the carried
+  /// order still travels with each row and the transfer's last page re-derives
+  /// it.
+  Future<List<Map<String, dynamic>>> syncReadMessageChunk(
+    String conversationId, {
+    String? after,
+    required int limit,
+  }) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM message_rows WHERE conversation_id = ?'
+          '${after == null ? '' : ' AND id > ?'} ORDER BY id LIMIT ?;',
+          variables: <Variable<Object>>[
+            Variable<String>(conversationId),
+            if (after != null) Variable<String>(after),
+            Variable<int>(limit),
+          ],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  /// Every message id this conversation holds, in id order — the incoming set a
+  /// transfer's deletion oracle reads.
+  Future<List<String>> syncReadMessageIds(String conversationId) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT id FROM message_rows WHERE conversation_id = ? ORDER BY id;',
+          variables: [Variable<String>(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) row.read<String>('id')];
+  }
+
+  /// The full rows of [ids], for the messages a keyset cursor stepped over.
+  Future<List<Map<String, dynamic>>> syncReadMessagesByIds(
+    String conversationId,
+    List<String> ids,
+  ) async {
+    if (ids.isEmpty) return const [];
+    final out = <Map<String, dynamic>>[];
+    // Chunked because the id list is the one page argument not bounded by a byte
+    // budget: a pathological conversation can hold more late rows than SQLite
+    // takes host parameters.
+    const batchSize = 500;
+    for (var start = 0; start < ids.length; start += batchSize) {
+      final batch = ids.skip(start).take(batchSize).toList(growable: false);
+      final placeholders = List.filled(batch.length, '?').join(',');
+      final rows = await _db
+          .customSelect(
+            'SELECT * FROM message_rows WHERE conversation_id = ? '
+            'AND id IN ($placeholders) ORDER BY id;',
+            variables: <Variable<Object>>[
+              Variable<String>(conversationId),
+              for (final id in batch) Variable<String>(id),
+            ],
+          )
+          .get();
+      out.addAll([for (final row in rows) Map<String, dynamic>.from(row.data)]);
+    }
+    return out;
+  }
+
+  /// The message parts whose revision id falls in
+  /// `[fromRevisionId, toRevisionId]`.
+  ///
+  /// A range rather than an id list because a page's messages are contiguous in
+  /// id order by construction — the reader walks them in that same order, so the
+  /// parts of a page are exactly the parts of its range and the query stays an
+  /// index scan.
+  Future<List<Map<String, dynamic>>> syncReadPartRowsBetween(
+    String conversationId,
+    String fromRevisionId,
+    String toRevisionId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM message_part_rows WHERE conversation_id = ? '
+          'AND revision_id >= ? AND revision_id <= ? '
+          'ORDER BY revision_id, ordinal;',
+          variables: <Variable<Object>>[
+            Variable<String>(conversationId),
+            Variable<String>(fromRevisionId),
+            Variable<String>(toRevisionId),
+          ],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  /// The parts of [ids], for rows a keyset cursor stepped over.
+  ///
+  /// The range reader above cannot serve them: a message written during a
+  /// transfer sorts *below* the page that finally carries it, so its revision id
+  /// falls outside the page's own interval — and a page whose parts are read by
+  /// interval would lose every part it has, not only that one.
+  Future<List<Map<String, dynamic>>> syncReadPartRowsByIds(
+    String conversationId,
+    List<String> ids,
+  ) async {
+    if (ids.isEmpty) return const [];
+    final out = <Map<String, dynamic>>[];
+    const batchSize = 500;
+    for (var start = 0; start < ids.length; start += batchSize) {
+      final batch = ids.skip(start).take(batchSize).toList(growable: false);
+      final placeholders = List.filled(batch.length, '?').join(',');
+      final rows = await _db
+          .customSelect(
+            'SELECT * FROM message_part_rows WHERE conversation_id = ? '
+            'AND revision_id IN ($placeholders) ORDER BY revision_id, ordinal;',
+            variables: <Variable<Object>>[
+              Variable<String>(conversationId),
+              for (final id in batch) Variable<String>(id),
+            ],
+          )
+          .get();
+      out.addAll([for (final row in rows) Map<String, dynamic>.from(row.data)]);
+    }
+    return out;
+  }
+
+  /// The columns the sync merge reads, and nothing else: what a row is called,
+  /// when it was last written, where it currently sits, and the version-group
+  /// slot it occupies.
+  ///
+  /// The apply used to read whole rows here, which made receiving a conversation
+  /// cost that conversation's own size in Dart memory on top of the transaction —
+  /// the receiving half of the problem the sender's byte budget was shaped
+  /// around. No step of the apply reads a message's content: the rows that get
+  /// written are the incoming ones, and `SyncSubtreeApplyOutcome.messageRows` has
+  /// always been documented as these columns.
+  Future<List<Map<String, dynamic>>> syncReadMessageMeta(
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT id, updated_at, timestamp, message_order, group_id, version '
+          'FROM message_rows WHERE conversation_id = ?;',
+          variables: [Variable<String>(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
   /// The part rows of one conversation, in write order. The same reader the
   /// subtree uses; kept named for the tests that assert on a landed apply.
   Future<List<Map<String, dynamic>>> syncReadMessagePartRows(
@@ -6178,6 +6326,7 @@ FROM conversation_rows;
     required String myDeviceId,
     required String peerDeviceId,
     required Map<String, int> checkpointRows,
+    bool composeDigest = true,
   }) async {
     final conversationId = payload.conversation['id'] as String;
     return _db.transaction(() async {
@@ -6187,7 +6336,7 @@ FROM conversation_rows;
 
       final localConversation = await syncReadConversationRow(conversationId);
       final localMessages = {
-        for (final row in await syncReadMessageRows(conversationId))
+        for (final row in await syncReadMessageMeta(conversationId))
           row['id'] as String: row,
       };
       // The peer's in-flight generation is not running here: never adopt its
@@ -6342,6 +6491,12 @@ FROM conversation_rows;
         checkpointRows: checkpointRows,
         myDeviceId: myDeviceId,
         peerDeviceId: peerDeviceId,
+        // A page that is not the last one proves nothing about absence: the rows
+        // the transfer has not carried yet look exactly like rows the peer
+        // deleted, and running the oracle on them would erase the conversation
+        // one page at a time. The last page names every id the sender holds.
+        incomingIds: payload.more ? null : payload.ids.toSet(),
+        allowDeletes: !payload.more,
       );
 
       final finalRows = <String, Map<String, dynamic>>{...localMessages};
@@ -6382,8 +6537,29 @@ FROM conversation_rows;
             !upsertedIds.contains(entry.key) &&
             (entry.value['message_order'] as num).toInt() != order[entry.key],
       );
+      // The shift exists to make room: it moves every row above the final range
+      // so an incoming row can take a free slot. When every untouched row already
+      // sits on its final slot and no incoming row takes a slot another row holds,
+      // there is nothing to make room for and nothing to move — the ordinary
+      // append, which is what a page-per-beat transfer does on every page.
+      // Deciding this on the slots rather than on "did anything arrive" is what
+      // keeps a paged apply from re-pointing the whole conversation per page.
+      // Taken from the rows as stored, not as merged: an incoming row carries
+      // the slot it *wants*, so reading the merged map would report every row as
+      // already standing where it is about to be written — which is true only
+      // when nothing moves.
+      final currentSlots = <int, String>{
+        for (final entry in localMessages.entries)
+          if (finalRows.containsKey(entry.key))
+            (entry.value['message_order'] as num).toInt(): entry.key,
+      };
       final needsReorder =
-          plan.upserts.isNotEmpty || deletes.isNotEmpty || orderDrifted;
+          deletes.isNotEmpty ||
+          orderDrifted ||
+          upsertedIds.any((id) {
+            final holder = currentSlots[order[id]];
+            return holder != null && holder != id;
+          });
 
       if (needsReorder) {
         // Phase 1: move every existing row above the final range. The shift
@@ -6504,7 +6680,15 @@ FROM conversation_rows;
         // Inside the transaction, so this is the post-merge state and nothing
         // later: a checkpoint built from a re-read outside it could record a row
         // written after the apply as one the peer already has.
-        digest: await syncConversationDigest(conversationId),
+        //
+        // Only the initiator's `bothSend` arm reads it. The responder never
+        // does — its entries are composed from the payload that arrived — and
+        // the digest reads *every* family with `SELECT *`, so computing it on
+        // a page the caller cannot use costs the whole conversation's content
+        // per page, which is the memory the narrow read above removed.
+        digest: composeDigest
+            ? await syncConversationDigest(conversationId)
+            : null,
       );
     });
   }

@@ -57,8 +57,9 @@ int utf8LengthOf(String text) {
 /// business rows, the asset manifest, the skill hashes and the workspace tables.
 ///
 /// Measured as a batch with **no** subtrees, because that is the part
-/// [admitConversations] adds to. One function builds it, so the arithmetic
-/// [admitConversations] relies on cannot drift from what the sender serialises.
+/// a page carries whatever its conversation list turns out to be. One function
+/// builds it, so the arithmetic the page filler relies on cannot drift from
+/// what the sender serialises.
 int pushEnvelopeBytes({
   required SyncBusinessPayload business,
   required List<SyncBlobEntry> assets,
@@ -87,7 +88,7 @@ int pushEnvelopeBytes({
 ///
 /// [envelopeBytes] is the measured fixed part of the same push, and it makes the
 /// promise honest rather than paranoid. The fixed part is measured, not capped
-/// (ADR-0003): when it alone is past the budget, admission can admit nothing and
+/// (ADR-0003): when it alone is past the page size, the page carries it alone and
 /// the body *is* that part — a state only the receiving side's 256 MB cap may
 /// refuse. The bound then becomes "no larger than the fixed part", so a debug
 /// build does not fail a round release would have let the peer answer.
@@ -100,39 +101,12 @@ void assertPushFits(SyncDeltaBatch batch, int budget, {int? envelopeBytes}) {
   }
 }
 
-/// [planned] minus the conversations one push cannot carry, in plan order.
+/// How many bytes a page's own rows may use, once the fixed part the same body
+/// carries is taken out.
 ///
-/// [envelopeBytes] is [pushEnvelopeBytes] of the same push. The identity this
-/// rests on is exact: a body holding `k` subtrees is
-/// `envelope + Σ(size + 1) − 1` — the `+ 1` is each subtree's separating comma,
-/// the `− 1` the empty `[]` the envelope carried instead — so a list whose
-/// sizes add up to no more than `budgetBytes - envelopeBytes` cannot serialise
-/// past the budget. The bound is arithmetic, not headroom.
-///
-/// Order is the plan's, because a stable order is what makes "not this round,
-/// next round" predictable. An over-budget conversation is *skipped rather than
-/// ending the walk*: the conversations behind it still ride, and it is retried
-/// with its checkpoint untouched. One larger than [perConversationBytes] cannot
-/// ride in any round and is skipped the same way — that is the bound that keeps
-/// one huge conversation from displacing every other one, round after round.
-({List<SyncSubtreePayload> admitted, Set<String> omitted}) admitConversations({
-  required List<SyncSubtreePayload> planned,
-  required int envelopeBytes,
-  required int budgetBytes,
-  required int perConversationBytes,
-}) {
-  final admitted = <SyncSubtreePayload>[];
-  final omitted = <String>{};
-  var remaining = budgetBytes - envelopeBytes;
-  for (final subtree in planned) {
-    final id = subtree.conversation['id'] as String;
-    final bytes = conversationWireBytes(subtree) + 1;
-    if (bytes > perConversationBytes || bytes > remaining) {
-      omitted.add(id);
-      continue;
-    }
-    remaining -= bytes;
-    admitted.add(subtree);
-  }
-  return (admitted: admitted, omitted: omitted);
-}
+/// The fixed part is measured, never capped (ADR-0003): when it alone is past
+/// the page size, this answer is not positive and the page carries the fixed
+/// part alone — a state only the receiving side's [kSyncMaxBodyBytes] cap may
+/// refuse. A bound, not headroom: the caller fills rows until this runs out.
+int pageRowBudget({required int pageBytes, required int envelopeBytes}) =>
+    pageBytes - envelopeBytes;

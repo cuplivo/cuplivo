@@ -8,13 +8,14 @@ import '../shared/navigation/app_tools.dart';
 /// [values], so the rail and the stack cannot disagree about which page a
 /// button opens. Adding a tab is one value here plus one arm in the shell's
 /// page builder; a tool that forgets to pick a tab fails to compile.
-enum DesktopTab { chat, translate, storage, settings, markdownImage }
+enum DesktopTab { chat, translate, storage, settings, markdownImage, lanSync }
 
 /// The tab that shows [tool].
 DesktopTab desktopTabForTool(AppTool tool) => switch (tool) {
   AppTool.translate => DesktopTab.translate,
   AppTool.storage => DesktopTab.storage,
   AppTool.markdownImage => DesktopTab.markdownImage,
+  AppTool.lanSync => DesktopTab.lanSync,
 };
 
 /// Whether the desktop tab around [context] is the one on screen.

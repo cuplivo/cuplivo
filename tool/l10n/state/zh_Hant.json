@@ -5196,7 +5196,7 @@
   "lanSyncClosePairing": "9f3482c7373151f5301421aee95dec9981fb9416515e4ca062f087ab36033e64",
   "lanSyncPairedDevices": "35315b7842ea0b658a8e9db80ce2c22d5206b95901cd3ed03bcedb0fa0694bd9",
   "lanSyncWorkspaces": "e10b3c6e2c9369af78bca4a688b2394574b48d2aeb353d56469201d314a739b2",
-  "lanSyncWorkspaceTip": "423236567705f4f57274ddf0feebf99461bc6060b562b022f812ffb9c104ce66",
+  "lanSyncWorkspaceTip": "42632f84f42156de1a96eaf84047b4e6de0d038446804af09c92fb7cdeeed475",
   "lanSyncWorkspaceSyncing": "70a194548b8cc071f3dd35d3153fa266d05786d6b8cd878c5970a09f178348e9",
   "lanSyncWorkspaceStatusSyncing": "26d231ec526af00411fa1513d783849ac7333c70357353bded4ea9882406f283",
   "lanSyncWorkspaceStatusTooLarge": "589585234e153252c73f3ad025237e536cc211c4d399e0f05dd2febc75abe28b",
@@ -5578,5 +5578,8 @@
   "subagentEscalation": "9631fdb027a1a7078bf174697d09308eb0fbc1ca148015227dfe50b563a5bf6d",
   "subagentEscalationAsk": "12041e8ac786350d30dab2a3bb00995e31f6999c55e8316927eda09cca18494e",
   "subagentEscalationDeny": "514e60e62e82a698d85494c4d095ef81608ab58aac15eae9e159a904897d30da",
-  "subagentEscalationAllow": "cc0338efb94e37d217f6a0d2ae151051b59d18eb00bd19899da82d1b850a9e13"
+  "subagentEscalationAllow": "cc0338efb94e37d217f6a0d2ae151051b59d18eb00bd19899da82d1b850a9e13",
+  "lanSyncPhasePreparing": "f92d5df55d9622d5d9f96db9b4f883716a7eab8008464d95aa800a06face10ea",
+  "lanSyncPhaseSendingOf": "0a6e724144b0fa77d414b16f852863792410112ed677dfe23c235185397bfad6",
+  "lanSyncPhaseReceivingOf": "6869fcd9ab5e7614907af35d3ad24c13d0892a4e87c1f16500b539d639d45949"
 }

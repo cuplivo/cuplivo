@@ -439,7 +439,7 @@ master 已经合并生图 job（`3c7e9b2b9`）。它带来的不是"又一个功
 
 **review 修正（第三轮）**：
 
-- Gemini 要求 `contents` 在 user/model 之间交替。手递手会在工具结果后立刻接一条留言行，形成两个连续 `user`，Gemini 会 400 且永久卡住。新增 `mergeAdjacentGoogleTurns`：相邻同角色回合合并、parts 按序拼接，两个 builder 与每轮重写的 body 都走它；带单测。
+- Gemini 交替约束（review 提出）：核对后发现仓库既有的工具续聊形状本来就是 `user(functionResponse)` 紧跟 `user(text)`，四个测试锁定它、线上一直这样发；手递手没有改变这个形状。合并相邻同角色回合的改动因此**回滚**（会让这四个既有测试失败），评审结论记为「未证实」——真出现 400 再按窄条件处理。
 - 命名目标的子代理也要有 `send_message`：能不能委派是「它自己」的设置，能不能回复委派方不是。`buildToolDefinitions` 在 `isSubagent` 时无条件给出子 schema。
 - `send_message` / `interrupt` 的工具卡不再显示原始函数名，新增两个标题键（6 个 ARB + 指纹 + `gen-l10n`）。
 - 续聊时重置 `startedAt`，面板量的是这一段而不是总寿命。

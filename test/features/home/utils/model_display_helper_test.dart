@@ -204,6 +204,80 @@ void main() {
     expect(display.isConfigured, isTrue);
   });
 
+  group('modelDisplayName', () {
+    setUp(() async {
+      await settings.setProviderConfig(
+        'DirectorProvider',
+        ProviderConfig(
+          id: 'DirectorProvider',
+          enabled: true,
+          name: 'DirectorProvider',
+          apiKey: 'k',
+          baseUrl: 'https://example.test/v1',
+          providerType: ProviderKind.openai,
+          modelOverrides: {
+            'named': {'name': 'Fast Judge'},
+            'blank-name': {'name': '  '},
+            'aliased': {'apiModelId': 'upstream-id'},
+            'legacy-aliased': {'api_model_id': 'legacy-upstream'},
+            'named-alias': {'apiModelId': 'upstream-id', 'name': 'Fast Judge'},
+          },
+        ),
+      );
+    });
+
+    String nameOf(String modelId) => modelDisplayName(
+      settings,
+      providerKey: 'DirectorProvider',
+      modelId: modelId,
+    );
+
+    test('a model without an override is shown by its id', () {
+      expect(nameOf('plain'), 'plain');
+    });
+
+    test('a model of an unknown provider is shown by its id', () {
+      expect(
+        modelDisplayName(
+          settings,
+          providerKey: 'NoSuchProvider',
+          modelId: 'plain',
+        ),
+        'plain',
+      );
+    });
+
+    test('the name given on the provider outranks the id', () {
+      expect(nameOf('named'), 'Fast Judge');
+    });
+
+    test('a blank name counts as no name', () {
+      expect(nameOf('blank-name'), 'blank-name');
+    });
+
+    test('an alias without a name is shown by its upstream id', () {
+      expect(nameOf('aliased'), 'upstream-id');
+      expect(nameOf('legacy-aliased'), 'legacy-upstream');
+    });
+
+    test('the name outranks the upstream id it was aliased to', () {
+      expect(nameOf('named-alias'), 'Fast Judge');
+    });
+
+    test('getModelDisplayInfo shows the same name', () {
+      final display = getModelDisplayInfo(
+        settings,
+        conversation: conversationWithModel(),
+        assistant: assistantWithModel(
+          providerKey: 'DirectorProvider',
+          modelId: 'named',
+        ),
+      );
+
+      expect(display.modelDisplay, 'Fast Judge');
+    });
+  });
+
   group('resolveTitleModel', () {
     Conversation groupConversation() =>
         Conversation(title: 'Topic', extras: const {}).withGroupChatId('g1');

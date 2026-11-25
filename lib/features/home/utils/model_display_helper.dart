@@ -118,6 +118,30 @@ bool _isDecisionModel(
   return DecisionClient.canDecide(config, modelId);
 }
 
+/// The name a model is shown under: the name given to it on its provider,
+/// else the upstream id it was aliased to, else its raw id.
+///
+/// Callers that name a model by provider key and id go through here, so no
+/// two of them disagree about what a model is called.
+String modelDisplayName(
+  SettingsProvider settings, {
+  required String providerKey,
+  required String modelId,
+}) {
+  final override = settings
+      .getProviderConfig(providerKey)
+      .modelOverrides[modelId];
+  if (override is! Map) return modelId;
+  // Priority: override name > apiModelId > api_model_id > raw modelId
+  final name = (override['name'] as String?)?.trim();
+  if (name != null && name.isNotEmpty) return name;
+  final apiId = (override['apiModelId'] ?? override['api_model_id'])
+      ?.toString()
+      .trim();
+  if (apiId != null && apiId.isNotEmpty) return apiId;
+  return modelId;
+}
+
 /// Extracts model display information from settings, conversation and assistant.
 ///
 /// This consolidates the repeated pattern of resolving the active model and
@@ -142,25 +166,13 @@ ModelDisplayInfo getModelDisplayInfo(
   final cfg = settings.getProviderConfig(providerKey);
   final providerName = cfg.name.isNotEmpty ? cfg.name : providerKey;
 
-  // Extract model display name from overrides or use raw modelId
-  String modelDisplay = modelId;
-  final ov = cfg.modelOverrides[modelId] as Map?;
-  if (ov != null) {
-    // Priority: override name > apiModelId > api_model_id > raw modelId
-    final overrideName = (ov['name'] as String?)?.trim();
-    if (overrideName != null && overrideName.isNotEmpty) {
-      modelDisplay = overrideName;
-    } else {
-      final apiId = (ov['apiModelId'] ?? ov['api_model_id'])?.toString().trim();
-      if (apiId != null && apiId.isNotEmpty) {
-        modelDisplay = apiId;
-      }
-    }
-  }
-
   return ModelDisplayInfo(
     providerName: providerName,
-    modelDisplay: modelDisplay,
+    modelDisplay: modelDisplayName(
+      settings,
+      providerKey: providerKey,
+      modelId: modelId,
+    ),
     providerKey: providerKey,
     modelId: modelId,
   );

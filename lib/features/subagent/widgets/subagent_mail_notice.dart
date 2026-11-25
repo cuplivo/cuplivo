@@ -225,8 +225,11 @@ class _MailDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            // A Wrap, not a Row: three buttons with ru/tr labels do not fit
+            // 360 px, and an overflow here is a red stripe in the sheet.
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 4,
               children: [
                 TextButton.icon(
                   onPressed: () async {
@@ -239,7 +242,6 @@ class _MailDialog extends StatelessWidget {
                   icon: const Icon(Lucide.Copy, size: 15),
                   label: Text(l10n.subagentMailCopy),
                 ),
-                const SizedBox(width: 4),
                 TextButton.icon(
                   onPressed: () {
                     final coordinator = subagentCoordinatorOf(context);
@@ -249,7 +251,6 @@ class _MailDialog extends StatelessWidget {
                   icon: const Icon(Lucide.ExternalLink, size: 15),
                   label: Text(l10n.subagentMailOpenConversation),
                 ),
-                const SizedBox(width: 4),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(

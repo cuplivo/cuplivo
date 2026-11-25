@@ -1979,6 +1979,68 @@ void main() {
     );
   }
 
+  testWidgets('a handoff blocked by compression keeps the queued message', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      final conversation = await openConversation(controller);
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'history ' * 100,
+      );
+      final hold = Completer<String>();
+      var entered = false;
+      await service.contextCompression.start(
+        conversation.id,
+        CompressionRequest(
+          options: const CompressContextOptions(
+            mode: CompressContextLimitMode.unlimited,
+          ),
+          model: 'test',
+          generate: (_, _, _, _) async {
+            entered = true;
+            return TextGenerationResult(parts: [TextPart(await hold.future)]);
+          },
+          quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+        ),
+      );
+      await waitFor(() => entered, 'compression');
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'keep me')),
+        ChatInputSubmissionResult.queued,
+      );
+      expect(controller.currentQueuedInput!.input.text, 'keep me');
+
+      // The runner asks this at a step boundary. A handoff here would end the
+      // running turn and leave nothing that can start, so it must say no.
+      expect(
+        controller.debugViewModel.debugChatActions.takeHandoff!(
+          conversation.id,
+        ),
+        isFalse,
+      );
+
+      // And if one were taken anyway, a refused start must leave the message
+      // in the queue. Before the fix it was removed up front, so the rollback
+      // went into a list that was no longer in `_queue`: the composer chip
+      // disappeared and nothing retried.
+      final started = await controller
+          .debugViewModel
+          .debugChatActions
+          .onHandoffRequested!(conversation.id);
+      expect(started, isFalse);
+      expect(controller.currentQueuedInput!.input.text, 'keep me');
+
+      hold.complete('summary');
+      await waitFor(
+        () => !controller.chatController.isConversationLoading(conversation.id),
+        'compression to finish',
+      );
+    });
+  });
+
   testWidgets('a message queued during compression is released after it', (
     tester,
   ) async {

@@ -111,12 +111,25 @@ HarnessTailcatEndpoint? parseHarnessTailcatInput(String raw) {
 int? _portOfMapping(String token) {
   final parts = token.split(':');
   if (parts.isEmpty || parts.length > 3) return null;
-  for (final part in parts) {
+  int? portOf(String part) {
     final value = int.tryParse(part);
     if (value == null || value < 0 || value > 65535) return null;
+    return value;
   }
-  final remote = int.parse(parts.last);
-  if (remote < 1) return null;
+
+  int? remote;
+  switch (parts.length) {
+    case 1:
+      remote = portOf(parts[0]);
+    case 2:
+      remote = portOf(parts[1]);
+    case 3:
+      // `local:host:remote` names an exit node by host; only the ports are
+      // numeric, so the middle part is deliberately not parsed as one.
+      if (portOf(parts[0]) == null) return null;
+      remote = portOf(parts[2]);
+  }
+  if (remote == null || remote < 1) return null;
   return remote;
 }
 

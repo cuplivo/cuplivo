@@ -63,15 +63,21 @@ class HarnessTailcatTunnels {
       if (tunnel.remotePort == remotePort) return tunnel.localUri;
     }
 
-    await closeAddress(address);
-    final future = HarnessTailcatTunnel.open(
-      address,
-      remotePort: remotePort,
-      dialerFactory: _dialerFactory,
-    );
+    // Register the handshake before it starts, not after: the first await
+    // below yields the event loop, and a second caller arriving in that window
+    // must join this handshake instead of opening a tunnel of its own.
+    final future = _openTunnel(address, remotePort);
     _opening[address] = future;
     try {
       final tunnel = await future;
+      if (!identical(_opening[address], future)) {
+        // A newer request replaced this handshake while it ran (the address
+        // was re-pointed at another port): this tunnel belongs to nobody.
+        await tunnel.close();
+        throw const HarnessTailcatTunnelException(
+          HarnessTailcatTunnelFailure.tunnelUnavailable,
+        );
+      }
       if (_closed) {
         await tunnel.close();
         throw const HarnessTailcatTunnelException(
@@ -83,6 +89,24 @@ class HarnessTailcatTunnels {
     } finally {
       if (identical(_opening[address], future)) _opening.remove(address);
     }
+  }
+
+  /// Replaces the tunnel [address] has running, then opens the new one.
+  ///
+  /// Runs inside [ensureOpen]'s registered handshake, so the close and the open
+  /// are one step as far as concurrent callers are concerned. It must not touch
+  /// the registration itself: that future is this very handshake.
+  Future<HarnessTailcatTunnel> _openTunnel(
+    String address,
+    int remotePort,
+  ) async {
+    final previous = _open.remove(address);
+    if (previous != null) await previous.close();
+    return HarnessTailcatTunnel.open(
+      address,
+      remotePort: remotePort,
+      dialerFactory: _dialerFactory,
+    );
   }
 
   /// The loopback origin of an already open tunnel, for surfaces that only

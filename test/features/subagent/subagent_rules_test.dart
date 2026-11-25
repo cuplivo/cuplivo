@@ -404,6 +404,23 @@ void main() {
     });
   });
 
+  group('mail text', () {
+    test('names the sender for the model, from either side', () {
+      expect(
+        mailToChildText('  use YAML '),
+        'The delegator sent a message: use YAML',
+      );
+      expect(
+        mailToParentText(label: 'auth', text: ' found it '),
+        'Subagent auth sent a message: found it',
+      );
+      expect(
+        mailToParentText(label: '  ', text: 'x'),
+        'The subagent sent a message: x',
+      );
+    });
+  });
+
   group('resultBrief', () {
     test('carries the outcome, the child text and the conversation hint', () {
       final brief = resultBrief(

@@ -42,6 +42,8 @@ void main() {
       LocalToolNames.generateImage,
       LocalToolNames.delegate,
       LocalToolNames.awaitJob,
+      LocalToolNames.sendMessage,
+      LocalToolNames.interrupt,
     ]);
   });
 }

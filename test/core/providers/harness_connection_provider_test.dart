@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -6,6 +7,9 @@ import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/harness_connection_provider.dart';
 import 'package:Cuplivo/core/services/harness/harness_connection_probe.dart';
+import 'package:Cuplivo/core/services/harness/harness_tailcat_dialer.dart';
+import 'package:Cuplivo/core/services/harness/harness_tailcat_probe.dart';
+import 'package:Cuplivo/core/services/harness/harness_tailcat_tunnels.dart';
 
 import '../../support/business_test_harness.dart';
 
@@ -28,6 +32,42 @@ final class _ControllableProbe extends HarnessConnectionProbe {
     calls[call].complete(result);
   }
 }
+
+/// The tailcat half of the probe, controllable like [_ControllableProbe].
+final class _ControllableTailcatProbe extends HarnessTailcatProbe {
+  _ControllableTailcatProbe() : super(tunnels: HarnessTailcatTunnels());
+
+  final List<String> requestedAddresses = <String>[];
+  final List<int?> requestedPorts = <int?>[];
+  final List<Completer<HarnessConnectionResult>> calls =
+      <Completer<HarnessConnectionResult>>[];
+
+  @override
+  Future<HarnessConnectionResult> check(String rawInput, {int? remotePort}) {
+    requestedAddresses.add(rawInput);
+    requestedPorts.add(remotePort);
+    final completer = Completer<HarnessConnectionResult>();
+    calls.add(completer);
+    return completer.future;
+  }
+
+  void answer(int call, HarnessConnectionResult result) {
+    calls[call].complete(result);
+  }
+}
+
+/// A tunnel client that never dials: these tests only observe tunnel
+/// lifecycle, so the loopback listener is enough.
+final class _NoopDialer implements HarnessTailcatDialer {
+  @override
+  Future<Socket> connect(int port) async => throw UnimplementedError();
+
+  @override
+  Future<void> close() async {}
+}
+
+const String _tailcatAddress =
+    'tcAPpXUQeEXAMPLEaddressEXAMPLEaddressEXAMPLEaddressEXAMPLE00';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -293,6 +333,153 @@ void main() {
         expect((await pending).isConnected, isTrue);
         expect(notifications, 1);
       },
+    );
+  });
+  test('a tailcat-mode assistant is proved by the tailcat probe', () async {
+    final tailcatProbe = _ControllableTailcatProbe();
+    final provider = HarnessConnectionProvider(
+      assistants: assistants,
+      probe: probe,
+      tailcatProbe: tailcatProbe,
+    );
+    addTearDown(provider.dispose);
+    final tailcat = Assistant.harness(
+      id: 'tailcat-1',
+      name: 'Tailcat harness',
+      harnessConnectionMode: HarnessConnectionMode.tailcat,
+      harnessTailcatAddress: _tailcatAddress,
+      harnessTailcatPort: 14000,
+    );
+
+    final pending = provider.check(tailcat);
+
+    expect(provider.phaseOf(tailcat.id), HarnessConnectionPhase.checking);
+    expect(tailcatProbe.requestedAddresses, <String>[_tailcatAddress]);
+    expect(tailcatProbe.requestedPorts, <int?>[14000]);
+    expect(
+      probe.requestedUrls,
+      isEmpty,
+      reason: 'the link probe must not see a tailcat credential',
+    );
+
+    tailcatProbe.answer(0, const HarnessConnectionResult.connected());
+    expect((await pending).isConnected, isTrue);
+    expect(provider.phaseOf(tailcat.id), HarnessConnectionPhase.connected);
+  });
+
+  test('a link-mode assistant still uses the link probe', () async {
+    final tailcatProbe = _ControllableTailcatProbe();
+    final provider = HarnessConnectionProvider(
+      assistants: assistants,
+      probe: probe,
+      tailcatProbe: tailcatProbe,
+    );
+    addTearDown(provider.dispose);
+
+    final pending = provider.check(assistants.getById(linked.id)!);
+
+    expect(probe.requestedUrls, <String>[linked.harnessUrl!]);
+    expect(tailcatProbe.requestedAddresses, isEmpty);
+
+    probe.answer(0, const HarnessConnectionResult.connected());
+    expect((await pending).isConnected, isTrue);
+  });
+
+  test(
+    'ensureChecked probes a configured tailcat harness and skips a bare one',
+    () async {
+      final tailcatProbe = _ControllableTailcatProbe();
+      final provider = HarnessConnectionProvider(
+        assistants: assistants,
+        probe: probe,
+        tailcatProbe: tailcatProbe,
+      );
+      addTearDown(provider.dispose);
+      final configured = Assistant.harness(
+        id: 'tailcat-configured',
+        name: 'Configured',
+        harnessConnectionMode: HarnessConnectionMode.tailcat,
+        harnessTailcatAddress: _tailcatAddress,
+      );
+      final bare = Assistant.harness(
+        id: 'tailcat-bare',
+        name: 'Bare',
+        harnessConnectionMode: HarnessConnectionMode.tailcat,
+      );
+
+      provider.ensureChecked(<Assistant>[configured, bare, configured]);
+
+      expect(tailcatProbe.requestedAddresses, <String>[_tailcatAddress]);
+      expect(
+        provider.phaseOf('tailcat-configured'),
+        HarnessConnectionPhase.checking,
+      );
+      expect(provider.phaseOf('tailcat-bare'), HarnessConnectionPhase.unknown);
+
+      tailcatProbe.answer(0, const HarnessConnectionResult.connected());
+      await pumpEventQueue();
+      expect(
+        provider.phaseOf('tailcat-configured'),
+        HarnessConnectionPhase.connected,
+      );
+    },
+  );
+
+  test(
+    'a tailcat assistant on a build without a client fails as unsupported',
+    () async {
+      final provider = HarnessConnectionProvider(
+        assistants: assistants,
+        probe: probe,
+      );
+      addTearDown(provider.dispose);
+      final tailcat = Assistant.harness(
+        id: 'tailcat-unsupported',
+        name: 'Tailcat harness',
+        harnessConnectionMode: HarnessConnectionMode.tailcat,
+        harnessTailcatAddress: _tailcatAddress,
+      );
+
+      final result = await provider.check(tailcat);
+
+      expect(result.failure, HarnessConnectionFailure.tailcatUnsupported);
+      expect(
+        provider.failureOf(tailcat.id),
+        HarnessConnectionFailure.tailcatUnsupported,
+      );
+      expect(probe.requestedUrls, isEmpty);
+    },
+  );
+
+  test('deleting a tailcat assistant stops its tunnel', () async {
+    final tunnels = HarnessTailcatTunnels(dialer: (_) => _NoopDialer());
+    addTearDown(tunnels.closeAll);
+    final tailcatProbe = _ControllableTailcatProbe();
+    final provider = HarnessConnectionProvider(
+      assistants: assistants,
+      probe: probe,
+      tailcatProbe: tailcatProbe,
+      tailcatTunnels: tunnels,
+    );
+    addTearDown(provider.dispose);
+    final id = await assistants.addHarnessAssistant(name: 'Tailcat harness');
+    await assistants.updateAssistant(
+      assistants
+          .getById(id)!
+          .copyWith(
+            harnessConnectionMode: HarnessConnectionMode.tailcat,
+            harnessTailcatAddress: _tailcatAddress,
+          ),
+    );
+    final uri = await tunnels.ensureOpen(_tailcatAddress);
+    expect(uri.scheme, 'http');
+
+    expect(await assistants.deleteAssistant(id), isTrue);
+
+    expect(
+      tunnels.localUriFor(_tailcatAddress),
+      isNull,
+      reason: 'a tunnel nothing can open must not keep running',
     );
   });
 }

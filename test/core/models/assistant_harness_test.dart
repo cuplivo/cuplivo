@@ -182,4 +182,210 @@ void main() {
       );
     });
   });
+
+  group('Assistant.harness tailcat connection', () {
+    test('a tailcat harness carries its address and peer port', () {
+      final assistant = _tailcatHarness(port: 14000);
+
+      expect(assistant.kind, AssistantKind.deepSeekHarness);
+      expect(assistant.harnessConnectionMode, HarnessConnectionMode.tailcat);
+      expect(assistant.harnessTailcatAddress, _tailcatAddress);
+      expect(assistant.harnessTailcatPort, 14000);
+      expect(assistant.harnessUrl, isNull);
+      expect(assistant.hasHarnessConnection, isTrue);
+    });
+
+    test(
+      'the connection mode decides which credential counts as connected',
+      () {
+        // A link-mode assistant ignores a leftover tailcat address.
+        expect(
+          Assistant.harness(
+            id: 'h',
+            name: 'H',
+            harnessTailcatAddress: _tailcatAddress,
+          ).hasHarnessConnection,
+          isFalse,
+        );
+        // A tailcat-mode assistant ignores a leftover link.
+        expect(_tailcatHarness(harnessUrl: _link).hasHarnessConnection, isTrue);
+        expect(_tailcatHarness(address: null).hasHarnessConnection, isFalse);
+        expect(_tailcatHarness(address: '   ').hasHarnessConnection, isFalse);
+        expect(_harness(harnessUrl: _link).hasHarnessConnection, isTrue);
+        expect(_harness().hasHarnessConnection, isFalse);
+        expect(_local.hasHarnessConnection, isFalse);
+      },
+    );
+
+    test('kind and transport survive toJson/fromJson together', () {
+      final json = _tailcatHarness(port: 14000).toJson();
+      expect(json['kind'], 'deepSeekHarness');
+      expect(json['harnessConnectionMode'], 'tailcat');
+      expect(json['harnessTailcatAddress'], _tailcatAddress);
+      expect(json['harnessTailcatPort'], 14000);
+
+      final decoded = Assistant.fromJson(json);
+      expect(decoded.kind, AssistantKind.deepSeekHarness);
+      expect(decoded.harnessConnectionMode, HarnessConnectionMode.tailcat);
+      expect(decoded.harnessTailcatAddress, _tailcatAddress);
+      expect(decoded.harnessTailcatPort, 14000);
+      expect(decoded.harnessUrl, isNull);
+    });
+
+    test('payloads written before the tailcat field are link-mode', () {
+      final decoded = Assistant.fromJson({
+        'id': 'h',
+        'name': 'H',
+        'kind': 'deepSeekHarness',
+        'harnessUrl': _link,
+      });
+
+      expect(decoded.harnessConnectionMode, HarnessConnectionMode.publicLink);
+      expect(decoded.harnessTailcatAddress, isNull);
+      expect(decoded.harnessTailcatPort, 13080);
+      expect(decoded.hasHarnessConnection, isTrue);
+    });
+
+    test(
+      'an unknown transport falls back to link mode instead of losing the row',
+      () {
+        final decoded = Assistant.fromJson({
+          'id': 'h',
+          'name': 'H',
+          'kind': 'deepSeekHarness',
+          'harnessConnectionMode': 'carrier-pigeon',
+        });
+
+        expect(decoded.harnessConnectionMode, HarnessConnectionMode.publicLink);
+        expect(decoded.kind, AssistantKind.deepSeekHarness);
+      },
+    );
+
+    test('the peer port is normalized into a usable TCP port', () {
+      expect(
+        Assistant.fromJson({
+          'id': 'h',
+          'name': 'H',
+          'kind': 'deepSeekHarness',
+          'harnessTailcatPort': 0,
+        }).harnessTailcatPort,
+        13080,
+      );
+      expect(
+        Assistant.fromJson({
+          'id': 'h',
+          'name': 'H',
+          'kind': 'deepSeekHarness',
+          'harnessTailcatPort': -1,
+        }).harnessTailcatPort,
+        13080,
+      );
+      expect(
+        Assistant.fromJson({
+          'id': 'h',
+          'name': 'H',
+          'kind': 'deepSeekHarness',
+          'harnessTailcatPort': 70000,
+        }).harnessTailcatPort,
+        13080,
+      );
+      expect(
+        Assistant.fromJson({
+          'id': 'h',
+          'name': 'H',
+          'kind': 'deepSeekHarness',
+          'harnessTailcatPort': 8443,
+        }).harnessTailcatPort,
+        8443,
+      );
+    });
+
+    test('an empty or blank tailcat address is normalized to null', () {
+      expect(
+        Assistant.fromJson({
+          'id': 'h',
+          'name': 'H',
+          'kind': 'deepSeekHarness',
+          'harnessConnectionMode': 'tailcat',
+          'harnessTailcatAddress': '   ',
+        }).harnessTailcatAddress,
+        isNull,
+      );
+    });
+
+    test('saving a tailcat connection can retire the link in one copyWith', () {
+      final linked = _harness(harnessUrl: _link);
+      final tailcat = linked.copyWith(
+        harnessConnectionMode: HarnessConnectionMode.tailcat,
+        harnessTailcatAddress: _tailcatAddress,
+        harnessTailcatPort: 14000,
+        clearHarnessUrl: true,
+      );
+
+      expect(tailcat.harnessConnectionMode, HarnessConnectionMode.tailcat);
+      expect(tailcat.harnessTailcatAddress, _tailcatAddress);
+      expect(tailcat.harnessTailcatPort, 14000);
+      expect(tailcat.harnessUrl, isNull);
+      expect(tailcat.hasHarnessConnection, isTrue);
+    });
+
+    test('saving a link can retire the tailcat address in one copyWith', () {
+      final tailcat = _tailcatHarness();
+      final linked = tailcat.copyWith(
+        harnessConnectionMode: HarnessConnectionMode.publicLink,
+        harnessUrl: _link,
+        clearHarnessTailcatAddress: true,
+      );
+
+      expect(linked.harnessConnectionMode, HarnessConnectionMode.publicLink);
+      expect(linked.harnessUrl, _link);
+      expect(linked.harnessTailcatAddress, isNull);
+      expect(linked.harnessTailcatPort, 13080);
+      expect(linked.hasHarnessConnection, isTrue);
+    });
+
+    test('unrelated edits preserve mode, address and port', () {
+      final renamed = _tailcatHarness(port: 14000).copyWith(name: 'Renamed');
+
+      expect(renamed.name, 'Renamed');
+      expect(renamed.harnessConnectionMode, HarnessConnectionMode.tailcat);
+      expect(renamed.harnessTailcatAddress, _tailcatAddress);
+      expect(renamed.harnessTailcatPort, 14000);
+    });
+
+    test('a mixed list keeps one connection per assistant', () {
+      final decoded = Assistant.decodeList(
+        Assistant.encodeList([
+          _harness(harnessUrl: _link),
+          _tailcatHarness(port: 14000),
+        ]),
+      );
+
+      expect(decoded, hasLength(2));
+      expect(
+        decoded[0].harnessConnectionMode,
+        HarnessConnectionMode.publicLink,
+      );
+      expect(decoded[0].harnessUrl, _link);
+      expect(decoded[1].harnessConnectionMode, HarnessConnectionMode.tailcat);
+      expect(decoded[1].harnessTailcatAddress, _tailcatAddress);
+      expect(decoded[1].harnessTailcatPort, 14000);
+    });
+  });
 }
+
+const _tailcatAddress =
+    'tcAPpXUQeEXAMPLEaddressEXAMPLEaddressEXAMPLEaddressEXAMPLE00';
+
+Assistant _tailcatHarness({
+  String? address = _tailcatAddress,
+  int port = 13080,
+  String? harnessUrl,
+}) => Assistant.harness(
+  id: 'tailcat-harness',
+  name: 'Tailcat DeepSeek Harness',
+  harnessConnectionMode: HarnessConnectionMode.tailcat,
+  harnessTailcatAddress: address,
+  harnessTailcatPort: port,
+  harnessUrl: harnessUrl,
+);

@@ -482,4 +482,66 @@ void main() {
       reason: 'a tunnel nothing can open must not keep running',
     );
   });
+  test('an answer does not survive an edit to the stored link', () async {
+    final pending = connections.check(assistants.getById(linked.id)!);
+    probe.answer(0, const HarnessConnectionResult.connected());
+    await pending;
+    expect(connections.isConnected(linked.id), isTrue);
+
+    await assistants.updateAssistant(
+      assistants
+          .getById(linked.id)!
+          .copyWith(harnessUrl: 'https://dsh.example.com/other?token=other'),
+    );
+
+    expect(
+      connections.phaseOf(linked.id),
+      HarnessConnectionPhase.unknown,
+      reason: 'the answer described the previous link',
+    );
+    expect(connections.failureOf(linked.id), isNull);
+
+    final recheck = connections.check(assistants.getById(linked.id)!);
+    expect(
+      probe.requestedUrls.last,
+      'https://dsh.example.com/other?token=other',
+    );
+    probe.answer(1, const HarnessConnectionResult.connected());
+    expect((await recheck).isConnected, isTrue);
+  });
+
+  test(
+    'an answer does not survive a switch to the tailcat transport',
+    () async {
+      final tailcatProbe = _ControllableTailcatProbe();
+      final provider = HarnessConnectionProvider(
+        assistants: assistants,
+        probe: probe,
+        tailcatProbe: tailcatProbe,
+      );
+      addTearDown(provider.dispose);
+      final linkedId = linked.id;
+
+      final pending = provider.check(assistants.getById(linkedId)!);
+      probe.answer(0, const HarnessConnectionResult.connected());
+      await pending;
+      expect(provider.isConnected(linkedId), isTrue);
+
+      await assistants.updateAssistant(
+        assistants
+            .getById(linkedId)!
+            .copyWith(
+              harnessConnectionMode: HarnessConnectionMode.tailcat,
+              harnessTailcatAddress: _tailcatAddress,
+            ),
+      );
+
+      expect(provider.phaseOf(linkedId), HarnessConnectionPhase.unknown);
+      expect(
+        provider.failureOf(linkedId),
+        isNull,
+        reason: 'the link answer must not read as a tailcat rejection either',
+      );
+    },
+  );
 }

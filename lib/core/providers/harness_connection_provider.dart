@@ -53,6 +53,11 @@ class HarnessConnectionProvider extends ChangeNotifier {
   final HarnessTailcatTunnels? _tailcatTunnels;
   final Map<String, HarnessConnectionResult> _results =
       <String, HarnessConnectionResult>{};
+
+  /// The connection each stored answer was proved against. An assistant keeps
+  /// its id while its credential or transport changes, so the id alone cannot
+  /// say whether an answer still describes the row.
+  final Map<String, String> _answerKeys = <String, String>{};
   final Set<String> _checking = <String>{};
   final Map<String, int> _generations = <String, int>{};
   bool _disposed = false;
@@ -104,9 +109,19 @@ class HarnessConnectionProvider extends ChangeNotifier {
     if (_disposed || _generations[id] != generation) return result;
     _checking.remove(id);
     _results[id] = result;
+    _answerKeys[id] = _connectionKey(assistant);
     _notify();
     return result;
   }
+
+  static String _connectionKey(Assistant assistant) =>
+      switch (assistant.harnessConnectionMode) {
+        HarnessConnectionMode.publicLink =>
+          'link|${assistant.harnessUrl?.trim() ?? ''}',
+        HarnessConnectionMode.tailcat =>
+          'tailcat|${assistant.harnessTailcatAddress?.trim() ?? ''}'
+              '|${assistant.harnessTailcatPort}',
+      };
 
   /// The probe [assistant]'s connection mode uses. A tailcat-mode assistant
   /// on a build without the tailcat client gets a probe that always reports
@@ -141,21 +156,31 @@ class HarnessConnectionProvider extends ChangeNotifier {
 
   void forget(String assistantId) {
     _results.remove(assistantId);
+    _answerKeys.remove(assistantId);
     _checking.remove(assistantId);
     _generations.remove(assistantId);
   }
 
   void _prune() {
-    final live = <String>{
+    final live = <String, Assistant>{
       for (final assistant in _assistants.assistants)
-        if (assistant.isDeepSeekHarness) assistant.id,
+        if (assistant.isDeepSeekHarness) assistant.id: assistant,
     };
-    // A deleted assistant may leave an answer, an in-flight probe, or both.
-    final stale = <String>{
-      ..._results.keys,
-      ..._checking,
-      ..._generations.keys,
-    }.where((id) => !live.contains(id)).toList();
+    // A deleted assistant may leave an answer, an in-flight probe, or both; an
+    // edited one leaves an answer that describes the credential it used to
+    // have. Either way the answer is stale and the next surface re-proves.
+    final stale =
+        <String>{
+          ..._results.keys,
+          ..._answerKeys.keys,
+          ..._checking,
+          ..._generations.keys,
+        }.where((id) {
+          final assistant = live[id];
+          if (assistant == null) return true;
+          final key = _answerKeys[id];
+          return key != null && key != _connectionKey(assistant);
+        }).toList();
     final liveTailcatAddresses = <String>{
       for (final assistant in _assistants.assistants)
         if (assistant.isDeepSeekHarness &&

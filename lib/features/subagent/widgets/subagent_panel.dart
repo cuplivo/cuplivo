@@ -233,7 +233,6 @@ class _SubagentPanelState extends State<_SubagentPanel> {
           ..descendants = grandchildren[entry.childConversationId] ?? 0,
       );
     }
-    final chat = context.read<ChatService?>();
     // One delegation can write several result rows now (one per turn). The panel
     // shows the delegation, so the newest row is the one that describes it; the
     // old rows are the earlier turns of the same child.
@@ -241,9 +240,10 @@ class _SubagentPanelState extends State<_SubagentPanel> {
     for (final message
         in chat?.getMessages(widget.conversationId) ?? const <ChatMessage>[]) {
       for (final part in subagentResultsIn(<ChatMessage>[message])) {
-        persisted[part.childConversationId] =
-            _PanelRow.fromPart(part, message.timestamp)
-              ..descendants = grandchildren[part.childConversationId] ?? 0;
+        persisted[part.childConversationId] = _PanelRow.fromPart(
+          part,
+          message.timestamp,
+        )..descendants = grandchildren[part.childConversationId] ?? 0;
       }
     }
     for (final row in persisted.values) {

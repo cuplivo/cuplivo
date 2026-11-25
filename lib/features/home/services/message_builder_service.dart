@@ -46,7 +46,7 @@ import '../../../core/providers/world_book_provider.dart';
 import '../../../core/services/api/builtin_tools.dart';
 import '../../../core/services/api/message_authorship.dart';
 import '../../subagent/services/subagent_rules.dart'
-    show SubagentExtrasKeys, mailToChildText, mailToParentText;
+    show SubagentExtrasKeys, mailToChildText, mailToParentText, mayDelegate;
 import '../../../core/services/api/providers/claude/claude_container.dart';
 import '../../../core/services/api/providers/claude/claude_history.dart';
 import '../../../core/services/api/providers/claude/claude_thinking_recovery.dart';
@@ -2293,6 +2293,13 @@ class MessageBuilderService {
       identity.write(', delegated by "$parentTitle"');
     }
     identity.write(', at depth $depth.');
+    // The depth is the child's own budget, carried in its extras. A child handed
+    // levels may delegate again; one that was not must not be told otherwise.
+    final canDelegate = mayDelegate(delegator: null, extras: extras);
+    final delegateLine = canDelegate
+        ? '- The work may itself need a subagent: `delegate` is available, under '
+              'the same depth and permission rules.\n'
+        : '- You cannot delegate further.\n';
     return '<subagent_context>\n'
         'You are a subagent: this conversation was started by another '
         'conversation, the delegator, to carry out one task. The delegator\'s '
@@ -2313,7 +2320,7 @@ class MessageBuilderService {
         'what you did, what you found, what is still open. That conclusion is '
         'the result; the delegator does not receive your transcript, tool '
         'output or reasoning.\n'
-        '- You cannot delegate further.\n'
+        '$delegateLine'
         '</subagent_context>';
   }
 

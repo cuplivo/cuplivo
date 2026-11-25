@@ -220,3 +220,9 @@ Send a message to the conversation that delegated your task: a finding that chan
 - 命名目标的子代理无条件获得 `send_message`；`interrupt` 仍只属于委派方。
 - 两个新工具卡标题键；续聊重置 `startedAt`；手递手就绪判断加 `blocksSending`。
 
+### 13.4 rebase 到深度 1–3（2026-11-26）
+
+- 简报的「不能继续委派」改为读该会话的 `levels`；深度不再写死为 1。
+- 已知缺口：可继续委派的子代理仍只有向上回复的 `send_message`，没有 `interrupt`，无法管理自己的下一层——记为下一片。
+- 面板保留 master 的 `descendants` 计数，同时保持「同一子会话取最新结果行」。
+

@@ -24,6 +24,7 @@ import 'notification_service.dart';
 import 'proactive_care_conversation_policy.dart';
 import 'proactive_care_decision_tools.dart';
 import 'proactive_care_service.dart';
+import 'world_book_activation.dart';
 import 'world_book_store.dart';
 
 /// Sender signature for the silent decision request (injectable for tests).
@@ -281,9 +282,9 @@ class ProactiveCareMessageFlow {
   }
 
   /// Assembles the silent care request: persona system + memories +
-  /// instruction injections + world book entries + history + the care
-  /// prompt as the final user turn, tail-limited to the assistant's context
-  /// window.
+  /// instruction injections + the world book entries the letter's own context
+  /// activates + history + the care prompt as the final user turn, with the
+  /// history tail-limited to the assistant's context window.
   Future<List<Map<String, dynamic>>> buildCareApiMessages({
     required Assistant assistant,
     required String modelId,
@@ -329,29 +330,51 @@ class ProactiveCareMessageFlow {
       }
     }
 
+    // The letter's own window: the scan below and the request both use it, so
+    // an entry is never activated by text the letter cannot see.
+    final windowed = _windowedHistory(history, assistant);
+
     final bookStore = worldBookStore;
     if (bookStore != null) {
       try {
-        final books = await bookStore.getAll();
-        final activeIds = await bookStore.getActiveIds(
+        final activeIds = (await bookStore.getActiveIds(
           assistantId: assistant.id,
-        );
-        final entries = [
-          for (final b in books)
-            if (activeIds.contains(b.id))
-              for (final e in b.entries)
-                if (e.content.trim().isNotEmpty) e.content.trim(),
+        )).toSet();
+        // The same selection the chat path makes
+        // (WorldBookProvider.activeBooksFor): a disabled book never
+        // participates, even while it is still listed in the assistant's active
+        // ids — disabling a book does not remove that binding.
+        final books = [
+          for (final book in await bookStore.getAll())
+            if (book.enabled && activeIds.contains(book.id)) book,
         ];
-        if (entries.isNotEmpty) systemBlocks.add(entries.join('\n'));
+        // The activation rule the chat path uses: enabled book and entry,
+        // constant entries, keyword/regex hits inside the entry's scan depth,
+        // and its delay. Keyword scope is the window this letter carries; the
+        // delay clock is the whole conversation, the way the chat path counts
+        // it. Timed state is neither read nor written — the letter is a
+        // read-only request, so a sticky entry still needs its keyword here.
+        final activated = WorldBookActivation.evaluate(
+          books: books,
+          scanMessages: windowed,
+          history: history,
+        );
+        final contents = [
+          for (final entry in activated.entries)
+            if (entry.content.trim().isNotEmpty) entry.content.trim(),
+        ];
+        if (contents.isNotEmpty) systemBlocks.add(contents.join('\n'));
       } catch (e) {
         debugPrint('[ProactiveCare] World book injection failed: $e');
       }
     }
 
-    final apiMessages = <Map<String, dynamic>>[
+    return <Map<String, dynamic>>[
       if (systemBlocks.isNotEmpty)
         {'role': 'system', 'content': systemBlocks.join('\n\n')},
-      for (final m in history) Map<String, dynamic>.of(m),
+      // Copied like before: a silent request must not hand provider builders
+      // the caller's own map instances.
+      for (final message in windowed) Map<String, dynamic>.of(message),
       {
         'role': 'user',
         'content': ProactiveCareService.buildCareUserMessage(
@@ -360,25 +383,34 @@ class ProactiveCareMessageFlow {
         ),
       },
     ];
-
-    _applyMessageLimit(apiMessages, assistant);
-    return apiMessages;
   }
 
-  /// Keeps the trailing [Assistant.contextMessageSize] messages; the system
-  /// message (when first) is preserved.
-  static void _applyMessageLimit(
-    List<Map<String, dynamic>> apiMessages,
+  /// The trailing [Assistant.contextMessageSize] conversation messages,
+  /// starting on a user turn.
+  ///
+  /// The care prompt is the request's task, not a previous message, so it never
+  /// competes with this window (the old limit counted it, and at a window of 1
+  /// the whole instruction vanished). A silent background request keeps the
+  /// assistant's cap even when the interactive `limitContextMessages` switch is
+  /// off: nobody is watching a letter, so it must not replay an unbounded
+  /// history by itself.
+  static List<Map<String, dynamic>> _windowedHistory(
+    List<Map<String, dynamic>> history,
     Assistant assistant,
   ) {
-    final limit = assistant.contextMessageSize;
-    if (apiMessages.length <= limit) return;
-    final hasSystem = apiMessages.first['role'] == 'system';
-    final system = hasSystem ? apiMessages.first : null;
-    final tail = apiMessages.sublist(apiMessages.length - (limit - 1));
-    apiMessages
-      ..clear()
-      ..addAll([if (system != null) system, ...tail]);
+    final limit = assistant.contextMessageSize.clamp(
+      Assistant.minContextMessageSize,
+      Assistant.maxContextMessageSize,
+    );
+    if (history.length <= limit) return history;
+    var cut = history.length - limit;
+    // A reply without the turn it answers reads as if the assistant spoke
+    // first, and some protocols reject a conversation that opens on a model
+    // turn. Step back to the user turn, exactly like applyContextLimit.
+    while (cut > 0 && history[cut]['role'] != 'user') {
+      cut--;
+    }
+    return history.sublist(cut);
   }
 
   /// Sends the silent care request and returns the regex-transformed reply.

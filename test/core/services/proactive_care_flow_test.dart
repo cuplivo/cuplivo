@@ -9,11 +9,13 @@ import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/models/reasoning_request.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/core/services/proactive_care_decision_tools.dart';
 import 'package:Cuplivo/core/services/proactive_care_message_flow.dart';
 import 'package:Cuplivo/core/services/proactive_care_service.dart';
+import 'package:Cuplivo/core/services/world_book_store.dart';
 import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -697,6 +699,175 @@ void main() {
     );
     expect(msg, startsWith('写一封信'));
     expect(msg, contains(now.toIso8601String()));
+  });
+
+  test(
+    'care injects only the world book entries the context activates',
+    () async {
+      final store = WorldBookStore(
+        BusinessPreferences(BusinessRepository(database)),
+      );
+      await store.save([
+        WorldBook(
+          id: 'enabled-book',
+          name: 'enabled',
+          entries: const [
+            WorldBookEntry(
+              id: 'always',
+              content: 'CONST-LORE',
+              constantActive: true,
+            ),
+            WorldBookEntry(
+              id: 'hit',
+              content: 'KEYWORD-LORE',
+              keywords: ['晚饭'],
+            ),
+            WorldBookEntry(
+              id: 'miss',
+              content: 'UNMATCHED-LORE',
+              keywords: ['午饭'],
+            ),
+            WorldBookEntry(
+              id: 'off',
+              content: 'DISABLED-ENTRY',
+              enabled: false,
+              constantActive: true,
+            ),
+          ],
+        ),
+        WorldBook(
+          id: 'disabled-book',
+          name: 'old',
+          enabled: false,
+          entries: const [
+            WorldBookEntry(
+              id: 'old-entry',
+              content: 'OLD-DISABLED-BOOK-LORE',
+              constantActive: true,
+            ),
+          ],
+        ),
+      ]);
+      await store.setActiveIds([
+        'enabled-book',
+        'disabled-book',
+      ], assistantId: 'a');
+
+      final flow = ProactiveCareMessageFlow(
+        chatService: chatService,
+        settings: settings,
+        worldBookStore: store,
+      );
+      final messages = await flow.buildCareApiMessages(
+        assistant: Assistant(id: 'a', name: 'A'),
+        modelId: 'gpt-test',
+        userNickname: 'User',
+        history: [
+          {'role': 'user', 'content': '今天晚饭吃什么'},
+          {'role': 'assistant', 'content': '还没想好'},
+        ],
+        carePrompt: '主动找我聊天',
+        now: DateTime.now(),
+      );
+
+      final system = (messages.first['content'] ?? '').toString();
+      expect(system, contains('CONST-LORE'));
+      expect(system, contains('KEYWORD-LORE'));
+      expect(system, isNot(contains('UNMATCHED-LORE')));
+      expect(system, isNot(contains('DISABLED-ENTRY')));
+      expect(
+        system,
+        isNot(contains('OLD-DISABLED-BOOK-LORE')),
+        reason:
+            'a disabled book never participates, even while bound as active',
+      );
+    },
+  );
+
+  test(
+    'a delayed world book entry counts the conversation, not the window',
+    () async {
+      final store = WorldBookStore(
+        BusinessPreferences(BusinessRepository(database)),
+      );
+      await store.save([
+        WorldBook(
+          id: 'paced',
+          name: 'paced',
+          entries: const [
+            WorldBookEntry(
+              id: 'late',
+              content: 'DELAYED-LORE',
+              constantActive: true,
+              delay: 5,
+            ),
+          ],
+        ),
+      ]);
+      await store.setActiveIds(['paced'], assistantId: 'a');
+
+      final flow = ProactiveCareMessageFlow(
+        chatService: chatService,
+        settings: settings,
+        worldBookStore: store,
+      );
+      final messages = await flow.buildCareApiMessages(
+        assistant: Assistant(id: 'a', name: 'A', contextMessageSize: 2),
+        modelId: 'gpt-test',
+        userNickname: 'User',
+        history: const [
+          {'role': 'user', 'content': 'm1'},
+          {'role': 'assistant', 'content': 'm2'},
+          {'role': 'user', 'content': 'm3'},
+          {'role': 'assistant', 'content': 'm4'},
+          {'role': 'user', 'content': 'm5'},
+          {'role': 'assistant', 'content': 'm6'},
+        ],
+        carePrompt: '主动找我聊天',
+        now: DateTime.now(),
+      );
+
+      // The conversation is six messages old, so the delay has elapsed; counting
+      // the two-message window instead would suppress the entry for every letter.
+      final system = (messages.first['content'] ?? '').toString();
+      expect(system, contains('DELAYED-LORE'));
+    },
+  );
+
+  test('the care prompt is never part of the trimmed history window', () async {
+    final flow = ProactiveCareMessageFlow(
+      chatService: chatService,
+      settings: settings,
+    );
+    Future<List<Map<String, dynamic>>> care(int limit) =>
+        flow.buildCareApiMessages(
+          assistant: Assistant(id: 'a', name: 'A', contextMessageSize: limit),
+          modelId: 'gpt-test',
+          userNickname: 'User',
+          history: const [
+            {'role': 'user', 'content': 'm1'},
+            {'role': 'assistant', 'content': 'm2'},
+            {'role': 'user', 'content': 'm3'},
+            {'role': 'assistant', 'content': 'm4'},
+            {'role': 'user', 'content': 'm5'},
+            {'role': 'assistant', 'content': 'm6'},
+          ],
+          carePrompt: '主动找我聊天',
+          now: DateTime.now(),
+        );
+
+    // A window of one used to consume the care prompt itself, leaving an empty
+    // request (or a system-only one); either way the letter had no instruction.
+    final smallest = await care(1);
+    expect(smallest.length, greaterThanOrEqualTo(2));
+    expect(smallest.last['role'], 'user');
+    expect((smallest.last['content'] ?? '').toString(), contains('主动找我聊天'));
+
+    // The window starts on a user turn instead of opening on a model turn.
+    final three = await care(3);
+    expect(three.first['role'], 'user');
+    expect(three.first['content'], 'm3');
+    expect(three.last['content'], contains('主动找我聊天'));
   });
 
   test('historyFromMessages keeps completed user and assistant turns only', () {

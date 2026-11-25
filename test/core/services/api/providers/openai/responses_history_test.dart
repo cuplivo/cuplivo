@@ -40,6 +40,28 @@ Map<String, dynamic> _call(String id) => {
 };
 
 void main() {
+  test(
+    'a replayed image generation item keeps its reference, not its pixels',
+    () {
+      final item = responsesInputItem({
+        'role': 'assistant',
+        'content': '',
+        multimodalInternalResponsesItemKey: <String, dynamic>{
+          'type': 'image_generation_call',
+          'id': 'ig_123',
+          'status': 'completed',
+          'result': 'AQIDBA==',
+        },
+      });
+
+      expect(item['type'], 'image_generation_call');
+      expect(item['id'], 'ig_123');
+      expect(item['status'], 'completed');
+      expect(item.containsKey('result'), isFalse);
+      expect(jsonEncode(item), isNot(contains('AQIDBA==')));
+    },
+  );
+
   for (final terminal in [false, true]) {
     test(
       'Responses retains completed items at EOF: terminal=$terminal',

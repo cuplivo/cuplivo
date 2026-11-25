@@ -255,9 +255,11 @@ void main() {
           expect(jsonEncode(input).contains('unfinished'), isFalse);
           if (media == 'image') {
             expect(
-              (input.last['content'] as List).whereType<Map>(),
-              contains(equals({'type': 'input_image', 'image_url': imageUrl})),
+              jsonEncode(input).contains('input_image'),
+              isFalse,
+              reason: 'a picture the assistant produced is not replayed',
             );
+            expect(input.last['content'], 'Next?');
           }
           expect(requests.last['input'], [
             ...input,

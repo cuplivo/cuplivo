@@ -216,7 +216,7 @@ Send a message to the conversation that delegated your task: a finding that chan
 
 ### 13.3 第三轮 review（2026-11-25）
 
-- Gemini 交替约束：`mergeAdjacentGoogleTurns` 合并相邻同角色回合，两个 builder 与每轮 body 都应用；否则「工具结果 + 边界留言」会让 Gemini 永久 400。
+- Gemini 交替约束：评审说连续两条 `user` 会 400，但仓库既有的工具续聊形状（`user(functionResponse)` 紧跟 `user(text)`）就是这样，四个测试锁定它。合并相邻同角色回合的改动已回滚，等真有 400 再按窄条件处理。
 - 命名目标的子代理无条件获得 `send_message`；`interrupt` 仍只属于委派方。
 - 两个新工具卡标题键；续聊重置 `startedAt`；手递手就绪判断加 `blocksSending`。
 

@@ -101,4 +101,5 @@ internationalization.md
 /.clarity/
 # Tool caches redirected into the workspace during sandboxed runs.
 /.gh-cache/
+/.tmp/
 

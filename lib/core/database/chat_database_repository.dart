@@ -22,6 +22,7 @@ import '../../features/intelligent_ui/host/ui_source_map.dart';
 import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import '../models/composer_draft.dart';
 import 'composer_draft_store.dart';
+import 'conversation_owned_kinds.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -8120,15 +8121,17 @@ FROM conversation_rows;
           _db.conversationRows,
         )..where((t) => t.id.equals(id))).go();
         if (deleted == 0) return;
+        // The kinds are the delete's own list: the capture stages the documents
+        // plus the draft, and this removes the documents plus the one kind named
+        // as unrecoverable ([conversationDeletedKinds]). The rows are claimed by
+        // `id` — the column every reader of them uses, and the one the capture
+        // queries by. Claiming them by `owner_id` here would leave this the
+        // single place in the app where these rows have a second key, and the
+        // two keys agreeing would be a property of the four writers rather than
+        // of the rule.
         await (_db.delete(_db.extensionEntityRows)..where(
               (row) =>
-                  row.kind.isIn([
-                    ContextOperation.entityKind,
-                    'contextCompressionTask',
-                    CompressionConfig.conversationKind,
-                    ImageContextSettings.entityKind,
-                  ]) &
-                  row.ownerId.equals(id),
+                  row.kind.isIn(conversationDeletedKinds) & row.id.equals(id),
             ))
             .go();
         final now = DateTime.now().toUtc();
@@ -8431,8 +8434,24 @@ FROM conversation_rows;
 
   Future<void> _clearChatRows() async {
     genUiStates.invalidateAfterCommit(all: true);
+    // A bulk reset replaces the whole local state, so it removes the same rows a
+    // conversation's delete owns — from the rule those two read, not from a copy
+    // of it: a family added to [conversationDeletedKinds] is removed here as
+    // well instead of outliving a reset that claimed to replace everything.
+    // Beside it are the device-local composer rows this reset has always cleared;
+    // share receipts are not among them, because they outlive deletion until the
+    // native inbox acknowledges them, and that is unchanged here.
+    final kinds = <String>[
+      ComposerDraftStore.kind,
+      ComposerDraftStore.entryKind,
+      ComposerDraftStore.privateFileKind,
+      ComposerDraftStore.publishedFileKind,
+      ...conversationDeletedKinds,
+    ];
     await _db.customStatement(
-      "DELETE FROM extension_entity_rows WHERE kind IN ('composerDraft','composerNewEntry','composerPrivateFile','composerPublishedFile','conversationContext','contextCompressionTask','conversationImageContext','conversationCompression')",
+      'DELETE FROM extension_entity_rows '
+      'WHERE kind IN (${List.filled(kinds.length, '?').join(', ')});',
+      kinds,
     );
     await _db.delete(_db.conversationMcpServerRows).go();
     await _db.delete(_db.messageRows).go();

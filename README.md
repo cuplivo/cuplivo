@@ -36,14 +36,15 @@ Cuplivo goes beyond chat. Models can search the web, call MCP servers, follow sk
 
 Conversations, settings and files are stored locally. Cuplivo has no account system of its own; back up to WebDAV or S3-compatible storage whenever you choose.
 
-## ✨ What's new in 4.8
+## ✨ What's new in 5.0
 
-- **An illustration where the model wrote it** — a separate drawing model is called from inside a normal reply, and the picture is drawn on the line the model wrote rather than appended at the end.
-- **A subagent for a job that stands alone** — the task runs in its own conversation, with the same assistant and workspace, and reports back while the main chat keeps going.
-- **A decision model picks the next speaker** — a group chat's director can be a decision model, a fourth model type beside chat, embedding and image.
-- **LAN sync, larger and stricter** — protocol 10, so update every device before syncing: an MCP server can be held on one device with **This device only**, a conversation too large for one push waits its turn instead of failing every round, and a conversation's documents now travel with it.
+- **Remote sync, experimental** — two devices that are not on the same network sync through an embedded tailcat WireGuard tunnel: direct peer-to-peer when NAT traversal succeeds, Tailscale's public DERP relays otherwise, with no account and no port forwarding.
+- **A remote DeepSeek Harness as an assistant** — a DSH instance sits beside your local assistants and the chat page opens its own WebUI in a WebView, reached through a tokenized public link or through a tailnet address published by the `@ds-hu/dsh-tailcat-remote` plugin.
+- **A subagent can name its target** — a delegation can go to another assistant and inherit its prompt and model configuration, run up to three levels deep, and message the delegating side in both directions while it works.
+- **A group chat rewrites one reply** — a single member's answer regenerates with the same ↻ as a one-to-one chat, and the rest of the round is left alone.
+- **LAN sync protocol 11** — both ends must be updated: the conversation and workspace hard caps are gone, and a transfer resumes where its last page stopped.
 
-The [changelog](CHANGELOG.md) carries 4.7 and everything before it.
+The [changelog](CHANGELOG.md) carries 4.8 and everything before it.
 
 ## ✨ Since 4.0
 
@@ -146,6 +147,7 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 - **Environment variables** shared by all workspaces, with controls that keep their values out of command output.
 - **Skills**: import skills (a folder with a `SKILL.md`) from pasted Markdown, a `.md` or `.zip` file, or a GitHub URL. Enable them per assistant or per conversation. The bundled *skill-creator* skill helps the model write new ones.
 - **MCP**: connect Model Context Protocol servers over Streamable HTTP, SSE or STDIO, with OAuth sign-in, JSON import, per-tool approval and a built-in fetch server. STDIO servers run natively on desktop and inside the Linux sandbox on mobile.
+- **Subagents**: the model can hand a self-contained job to a subagent — its own conversation, the delegating assistant's workspace, optionally a different assistant, model and depth (up to three levels). It does not block the reply, can be messaged in both directions while it runs, and reports back into the parent conversation.
 - **Ask user**: the model can pause to ask you multiple-choice or open questions, then continue with your answers.
 - **Device tools**: time, clipboard, calculator and text-to-speech on every platform; calendar and location on Android and iOS; screen time on Android; weather, reminders and Apple Health data on iOS.
 - **Scheduled tasks**: run a prompt with a chosen assistant on a schedule, such as a morning briefing. Results are saved as conversations. Available on Android and desktop.
@@ -153,6 +155,7 @@ The [User Guide](https://kelivo.psycheas.top/guide) (Chinese) covers providers, 
 ### 🧩 Assistants, Memory and Context
 
 - **Assistants**: each assistant has its own model, system prompt with template variables, preset messages, sampling parameters, context limit, custom request, tools, MCP servers, skills, default workspace, quick phrases, regex replacement rules, avatar and chat background. Organize assistants with tags.
+- **Remote assistants**: a DeepSeek Harness instance reachable over a tokenized public link or a tailcat tunnel can be used as an assistant — the chat page opens its own WebUI, with Cuplivo's back bar above it. It is kept out of the surfaces that assume a local model (group chat members, scheduled tasks, memory and proactive care) and can be deleted at any time; the last local assistant stays protected.
 - **Long-term memory**: with auto-organize turned on, a background pipeline decides after each conversation what is worth remembering, then extracts, deduplicates and merges it into four types: identity, workflow, voice and instructions. Memories can be global or limited to one assistant. You can browse, edit and archive every memory, maintain a structured user profile, and inspect each background run step by step. Injected memories stay stable so prompt caching keeps working.
 - **World books**: entries triggered by keywords or regular expressions, injected at a configurable position, role and depth.
 - **Instruction injection**: reusable prompt cards, such as the built-in Learning Mode, applied before you send a message.

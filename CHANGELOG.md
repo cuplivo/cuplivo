@@ -2,22 +2,32 @@
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-11-26
+
 ### Added
 
-- **Remote sync (experimental)**: the sync panel gains a remote mode beside LAN sync — two devices on different networks sync through an embedded tailcat WireGuard tunnel, directly peer-to-peer when NAT traversal succeeds and over Tailscale's public DERP relays otherwise, with no account and no port forwarding. A device keeps a fixed remote identity, so its remote address is stable across restarts; **Reset key** rotates that address, so peers reachable only remotely must pair again, while the pairing records and their LAN addresses are kept. This is a new transport over the same sync protocol, not a protocol of its own: pairing is still a QR code or an address plus a six-digit code. A pair already made on the LAN needs no second pairing: once both sides run remote sync, the next session exchanges remote addresses by itself. Remote sync needs macOS 13.0, iOS 15, Android 7.0 (API 24), Windows x64 or Linux glibc 2.28+ (Windows builds are x64 only), and adds about 6 MB compressed (14–17 MB uncompressed) per bundled architecture. The panel's About section explains the tailcat/WireGuard path and the relay fallback, and states that relays see connection metadata only; the public relay is rate-limited, has no SLA, and may be far away in mainland China. See `docs/adr/0021-remote-sync-over-tailcat.md`.
+- **Experimental remote sync**: devices sync through a tailcat WireGuard tunnel even when they are not on the same network — NAT traversal first, the official relay as the fallback, with no account (#1111 by @Pheobe-Southwood)
+- **Experimental DSH remote control**: a remote DeepSeek Harness instance can act as an assistant, rendered in a WebView, reached through a tokenized public link or, with `@ds-hu/dsh-tailcat-remote` installed on the DSH, through a tailnet address (#1119 by @Pheobe-Southwood)
+- **A subagent can be delegated to a named assistant**: the v3 capability comes back — besides the general subagent, a delegation can go to another assistant and inherit its prompt and model configuration (#1115 by @cup113)
+- **Messaging between agents**: the subagent tools gain `send_message` and `interrupt` (#1121 by @cup113)
+- Subagent depth is selectable from 1 to 3 (#1122 by @cup113)
 
 ### Changed
 
-- **macOS 12 is no longer supported**: the remote-sync native library needs macOS 13, so the macOS deployment target moves from 12.0 to 13.0 (Podfile and Xcode project) and macOS 13.0 is the new minimum.
-- **The LAN Sync settings page is now Convenient Sync**: a segmented control switches between **LAN Sync** (the default) and **Remote Sync (Experimental)**; the LAN panel itself is unchanged.
-
-- **LAN sync sends a conversation in pages instead of leaving it behind**: a conversation larger than one request now crosses in as many pages as it needs, so the single-conversation ceiling is gone — and with it the "did not fit this round" row, because nothing is left behind any more. The transfer pauses at a page, remembers where it stopped in the peer checkpoint, and resumes there (LAN sync protocol 11: update every device before syncing)
-- **The sync card says what it is doing**: reading and packing has its own phase instead of hiding under "comparing data", sending and receiving name a count and the bytes already moved, and a thin bar appears only when the phase has something to count
-- **A workspace is bounded by its file count, not its size**: the 200 MB cap is gone. A workspace's files cross one at a time, staged and renamed, so a large workspace is a long transfer rather than a refusal
+- **LAN sync protocol v11**: both ends must be upgraded before syncing again. The conversation and workspace hard caps are gone, and resumption and progress reporting are filled out (#1116 by @cup113)
+- **The message queue changed**: the default is now steer — besides the end of an assistant reply, a tool call ending also inserts the queued message, which is what long workflows and subagents need (#1121 by @cup113)
+- **macOS 12 and below are no longer supported**: tailcat requires macOS 13, so macOS 13.0 is the new minimum (#1111 by @Pheobe-Southwood)
+- The installer grows: bundling tailcat's native libraries adds about 6 MB per architecture (#1111 by @Pheobe-Southwood)
+- The LAN Sync settings entry is renamed **Convenient Sync**: it now also carries remote sync (#1111 by @Pheobe-Southwood)
 
 ### Fixed
 
-- **A page that is not the last one can no longer look like a deletion**: the receiver only reads absence as a peer deletion against the sender's full row set, which the last page carries, so the rows a later page holds are never erased by an earlier one
+- The PDF export button returns to upstream's placement and shows progress, which makes exporting a PDF on a phone a better experience (#1118 by @cup113)
+- A drawing tool's picture is no longer injected automatically: the model fetches it through the tool when it wants it, so a finished picture is no longer injected as the user and pollutes the context (#1124 by @cup113)
+- Their Letter evaluates the world book when it builds the request: entries that are not active in a normal conversation are no longer injected (#1124 by @cup113)
+- A group chat can regenerate a single assistant reply (#1123 by @cup113)
+- Subagents, the group director and drawing show the model's name rather than its ID (#1123 by @cup113)
+- The subagent settings rows are restyled to match drawing (#1122 by @cup113)
 
 ## [4.8.0] - 2026-11-22
 

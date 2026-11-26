@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>结果行何时出现：interrupt 立即返回</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0E0E11; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; color: #E8E8EA; }
+  .wrap { max-width: 620px; margin: 0 auto; padding: 26px 18px 48px; }
+  h1 { font-size: 17px; margin: 0 0 6px; }
+  .lede { color: #9A9AA2; font-size: 13px; line-height: 1.7; margin: 0 0 22px; }
+  .rule { border-left: 3px solid #4A4A55; padding: 10px 14px; background: #17171B; border-radius: 0 10px 10px 0; font-size: 14px; line-height: 1.7; margin: 0 0 26px; }
+  h2 { font-size: 13px; color: #9A9AA2; letter-spacing: .05em; margin: 26px 0 10px; font-weight: 600; }
+  .phone { max-width: 420px; background: #141417; border: 1px solid #232327; border-radius: 18px; padding: 14px 14px 8px; }
+  .thread { display: flex; flex-direction: column; gap: 14px; }
+  .bubble { align-self: flex-end; max-width: 80%; background: #2A2A30; padding: 9px 13px; border-radius: 15px; font-size: 14px; line-height: 1.55; }
+  .assistant { font-size: 14px; line-height: 1.65; }
+  .meta { display: flex; align-items: center; gap: 7px; color: #8E8E96; font-size: 11.5px; margin-bottom: 5px; }
+  .avatar { width: 20px; height: 20px; border-radius: 50%; background: #2E3350; }
+  .divider { display: flex; align-items: center; gap: 10px; height: 28px; color: #8E8E96; font-size: 12.5px; }
+  .divider .line { flex: 1; height: 1px; background: #33333A; }
+  .divider .label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .tool { border: 1px solid #2A2A31; background: #17171B; border-radius: 12px; padding: 10px 12px; font-size: 12.5px; line-height: 1.6; color: #C9C9D0; }
+  .tool .name { display: flex; align-items: center; gap: 7px; color: #9A9AA2; font-size: 12px; margin-bottom: 6px; }
+  .tool code { display: block; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, Consolas, monospace; color: #B9C8FF; font-size: 12px; }
+  .none { color: #6E6E76; font-size: 12.5px; font-style: italic; }
+  pre { background: #121216; border: 1px solid #26262C; border-radius: 12px; padding: 14px; overflow: auto; font-size: 12.5px; line-height: 1.65; color: #D6D6DC; }
+  .k { color: #9DB4FF; } .c { color: #7E7E86; } .s { color: #B5D6A0; }
+  .note { color: #8E8E96; font-size: 12.5px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>结果行何时出现</h1>
+  <p class="lede">分隔线不是“子代理结束了”的装饰，它只负责把模型还不知道的结果送进对话。模型已经通过工具调用拿到结果时，它不该出现。</p>
+
+  <div class="rule">
+    规则：<strong>结果行只在模型没有通过工具调用拿到结果时出现。</strong><br>
+    <code>delegate</code> 异步跑完 → 出现；<code>await_job</code> 拿到结论 → 不出现；<code>interrupt</code> 自己叫停 → 不出现。
+  </div>
+
+  <h2>① delegate 异步完成：出现</h2>
+  <div class="phone"><div class="thread">
+    <div><div class="meta"><div class="avatar"></div><span>deepseek-flash</span><span>12:57:45</span></div>
+      <div class="assistant">我已经派了一个子代理去做这件事，完成后我把结果整理给你。</div></div>
+    <div class="divider"><div class="line"></div><div class="label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8E8E96" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.2 2.2 4.8-5"/></svg>
+      子代理已完成 · 工作区文件探索</div><div class="line"></div></div>
+  </div></div>
+
+  <h2>② await_job 拿到结论：不出现</h2>
+  <div class="phone"><div class="thread">
+    <div><div class="meta"><div class="avatar"></div><span>deepseek-flash</span><span>12:58:02</span></div>
+      <div class="assistant">我等它，拿到结论就直接回答你。</div></div>
+    <div class="tool"><div class="name">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9AA2" stroke-width="1.8"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+      await_job · 结果</div>
+      <code>{ "status": "completed", "payload": { "text": "工作区根目录有 12 个文件…" } }</code></div>
+    <div class="none">没有分隔线：结果已经在上面这张工具卡里。</div>
+  </div></div>
+
+  <h2>③ interrupt：不出现</h2>
+  <div class="phone"><div class="thread">
+    <div><div class="meta"><div class="avatar"></div><span>deepseek-flash</span><span>12:58:20</span></div>
+      <div class="assistant">它跑偏了，我先让它停下来。</div></div>
+    <div class="tool"><div class="name">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9AA2" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      interrupt · 结果</div>
+      <code>{ "status": "accepted", "job_id": "child-7" }</code></div>
+    <div class="none">没有分隔线：停止是模型自己发起的，它知道自己停了。</div>
+  </div></div>
+
+  <h2>伪代码</h2>
+<pre><span class="c">// 协调器：结算一段</span>
+_finish(entry, phase, reason):
+  brief = <span class="k">最后一行的非空助手文本</span>
+
+  <span class="k">if</span> entry.waiters > 0:        <span class="c">// await_job 正等着，结果由它带回</span>
+      <span class="k">return</span>                    <span class="c">// 不写行、不唤醒</span>
+
+  <span class="k">if</span> entry.stoppedByModel:     <span class="c">// interrupt 发起的停止</span>
+      <span class="k">return</span>                    <span class="c">// 不写行、不唤醒</span>
+
+  write_row(outcome: phase, brief: brief)   <span class="c">// 只有这里写分隔线</span>
+  <span class="k">if</span> phase <span class="k">in</span> {completed, failed}:
+      enqueue_follow_up()        <span class="c">// 让父对话接着读它</span>
+
+<span class="c">// interrupt 的返回值：只确认收到，不等待</span>
+interrupt(job_id):
+  entry.stoppedByModel = <span class="s">true</span>
+  cancel(entry.child)
+  <span class="k">return</span> { status: <span class="s">"accepted"</span>, job_id }
+</pre>
+
+  <p class="note">代价：模型知道“停了”，但不知道停下前它写到了哪一步；那部分只留在子会话里，点开才看得到。分隔线与结果行不再负责“停止”这件事。</p>
+</div>
+</body>
+</html>

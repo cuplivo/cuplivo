@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 失败态 UI（取消 / 失败 / 中断 / 等人）</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:60em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  h2.sec{font-size:13px;letter-spacing:.04em;color:var(--muted);font-weight:600;
+         margin:26px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .grid{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .chat{background:var(--bg);padding:12px 0 8px;min-height:120px}
+  .msg{padding:0 16px}
+  .body{font-size:15px;line-height:1.6;margin:0}
+  .body.small{font-size:14.5px;color:rgba(32,32,32,.68)}
+  .stripwrap{background:var(--bg);padding:2px 10px 0}
+  .strip{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 6px;border-radius:8px;
+         color:rgba(32,32,32,.6)}
+  .strip .ic{width:14px;height:14px;flex:none}
+  .strip .txt{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;
+              overflow:hidden;text-overflow:ellipsis}
+  .strip .txt b{font-weight:600;color:rgba(32,32,32,.78);font-variant-numeric:tabular-nums}
+  .strip .chev{width:14px;height:14px;flex:none;opacity:.7}
+  .composerwrap{background:var(--bg);padding:0 10px 10px}
+  .capsule{background:rgba(252,252,253,.92);border-radius:20px;
+           border:1px solid rgba(20,20,25,.14);padding:10px 10px 6px;
+           box-shadow:0 6px 18px rgba(20,20,25,.06)}
+  .field{font-size:15px;color:rgba(32,32,32,.45);padding:1px 2px 12px;min-height:34px}
+  .bar{display:flex;align-items:center;gap:8px}
+  .bar .left{display:flex;align-items:center;gap:8px;flex:1}
+  .bar .right{display:flex;align-items:center;gap:8px;flex:none}
+  .btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+       border-radius:8px;color:rgba(32,32,32,.62)}
+  .btn svg{width:20px;height:20px}
+  .sendbtn{width:32px;height:32px;border-radius:50%;background:var(--primary);
+           display:flex;align-items:center;justify-content:center;flex:none}
+  .sendbtn svg{width:18px;height:18px}
+  /* dividers */
+  .divider{height:28px;display:flex;align-items:center;gap:8px;margin:9px 16px}
+  .divider .ln{flex:1;height:1px;background:rgba(20,20,25,.10)}
+  .divider .lbl{display:flex;align-items:center;gap:6px;font-size:12.5px;
+                color:rgba(32,32,32,.6);white-space:nowrap;max-width:84%;
+                overflow:hidden;text-overflow:ellipsis}
+  .divider .lbl .ic{width:14px;height:14px;flex:none}
+  .divider .chev{width:14px;height:14px;color:rgba(32,32,32,.45);flex:none}
+  .divider.bad .lbl{color:rgba(32,32,32,.58)}
+  .divider.bad .lbl .ic{color:#B4453C}
+  /* panel */
+  .panel{background:var(--card);padding:0 0 8px}
+  .phead{font-size:12px;color:var(--muted);padding:10px 14px 6px}
+  .prow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line-soft)}
+  .prow .ic{width:18px;height:18px;flex:none;color:var(--primary);opacity:.85}
+  .prow .txt{flex:1;min-width:0}
+  .prow .txt .n{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .txt .s{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .prow .st{display:flex;align-items:center;gap:5px;font-size:11.5px;flex:none}
+  .prow .st svg{width:13px;height:13px}
+  .st.need{color:var(--primary)}
+  .st.run{color:rgba(32,32,32,.62)}
+  .st.done{color:var(--muted)}
+  .st.bad{color:#B4453C}
+  .cap{font-size:12px;color:var(--muted);padding:10px 12px 0;line-height:1.6}
+  .cap b{color:var(--ink);font-weight:600}
+  .notes{flex:1 1 320px;min-width:280px;max-width:560px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  .quiet{border:1px dashed rgba(20,20,25,.22);border-radius:14px;padding:14px 16px;margin:0 0 22px;
+         background:rgba(20,20,25,.015)}
+  .quiet .h{font-size:12px;letter-spacing:.04em;color:var(--muted);margin:0 0 10px;font-weight:600}
+  h3{font-size:13px;font-weight:650;margin:0 0 6px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 失败态 UI · 非阻塞轮</p>
+  <h1>四种不好的结局，各说一句话</h1>
+  <p class="lede">形状不变：条只报「还需要你什么」，终态一律走分隔线；三种结束都用同一行、只换图标和动词。唯一要你定的是<b>失败要不要唤醒</b>——不唤醒，失败就只有一行字；唤醒，主代理会替你说一句「它没做成，原因是…」。</p>
+
+  <h2 class="sec">① 条：只留「还需要你」的，终态一律让位</h2>
+  <div class="grid">
+    <div class="phone">
+      <div class="chat" style="padding-top:6px">
+        <div class="msg"><p class="body small">…发布清单我先看，那边我派了两个。</p></div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 015 1c0 1.7-2.5 2-2.5 3.6M12 17h.01"/></svg>
+          <span class="txt">2 个子代理（<b>1 个等你回答</b>）</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composerwrap" style="padding-top:2px">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h3>条的三个副本</h3>
+      <ul>
+        <li><code>子代理运行中 (13.3s) 修复 test/auth</code> — 有在跑的。</li>
+        <li><code>2 个子代理（1 个等你回答）</code> — 有需要你动手的，<b>它优先显示</b>，哪怕另一个还在跑。</li>
+        <li><code>2 个子代理（1 个等待批准）</code> — 同一句话，换个动词。</li>
+      </ul>
+      <p class="note"><b>失败 / 取消 / 中断一律从条上消失。</b>条只回答一个问题：还有没有事需要你。终态归分隔线——它已经在时间线上占了一行，条再报一遍就是两处说一件事。</p>
+    </div>
+  </div>
+
+  <h2 class="sec">② 分隔线：同一行，只换图标和动词</h2>
+  <div class="grid">
+    <div class="phone">
+      <div class="chat" style="padding:10px 0">
+        <div class="divider">
+          <span class="ln"></span>
+          <span class="lbl">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            子代理完成 · 修掉 test/auth 的三个用例
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </span>
+          <span class="ln"></span>
+        </div>
+
+        <div class="divider bad">
+          <span class="ln"></span>
+          <span class="lbl">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+            子代理失败 · 改登录页文案
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </span>
+          <span class="ln"></span>
+        </div>
+
+        <div class="divider">
+          <span class="ln"></span>
+          <span class="lbl">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+            子代理已取消 · 整理发布清单
+          </span>
+          <span class="ln"></span>
+        </div>
+
+        <div class="divider">
+          <span class="ln"></span>
+          <span class="lbl">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6M12 3l3 3M12 3L9 6"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg>
+            子代理已中断 · 跑测试
+          </span>
+          <span class="ln"></span>
+        </div>
+      </div>
+      <div class="cap">四种：完成（勾）/ 失败（感叹）/ 取消（叉）/ 中断（断线）。<b>只有失败那条用红</b>，其余保持中性灰——取消和中断不是错误，是用户或系统让它停的。</div>
+      </div>
+
+    <div class="notes">
+      <h3>为什么失败用红、取消不用</h3>
+      <p class="note">红色是「事情没做成」的信号；用户按了 Stop 不该被红字追责。中断同理——进程被杀是环境的事，不是这个任务的错。</p>
+      <p class="note"><b>点开去哪里：</b>四种都进面板那一条；子会话里有完整的现场（失败原因在它自己的时间线上，那里本来就显示错误）。</p>
+      <p class="note"><b>失败的分隔线不带原因。</b>一行 12.5px 塞不下「HTTP 502 upstream timeout」，而且原因要跟着改动文件一起读才明白——那属于子会话。</p>
+    </div>
+  </div>
+
+  <h2 class="sec">③ 面板：四行，动词在右边</h2>
+  <div class="grid">
+    <div class="phone">
+      <div class="panel">
+        <div class="phead">按开始时间，新的在上面</div>
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">改哪个标题</div><div class="s">登录页重构 · 2 分 10 秒</div></div>
+          <span class="st need">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 9a2.6 2.6 0 015 1c0 1.7-2.5 2-2.5 3.6M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+            等你回答
+          </span>
+        </div>
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">改登录页文案</div><div class="s">登录页重构 · 40 秒</div></div>
+          <span class="st bad">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+            失败
+          </span>
+        </div>
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">整理发布清单</div><div class="s">登录页重构 · 18 秒</div></div>
+          <span class="st done">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+            已取消
+          </span>
+        </div>
+        <div class="prow" style="border-bottom:none">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">跑测试</div><div class="s">登录页重构 · 4 分 12 秒</div></div>
+          <span class="st done">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6M12 3l3 3M12 3L9 6"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg>
+            已中断
+          </span>
+        </div>
+      </div>
+      <div class="cap">「已中断」在重启之后出现——它不是猜的：启动清理已经把那条 run 落成 <code>interrupted</code>（<code>errorCode = app_restart</code>）。</div>
+    </div>
+
+    <div class="notes">
+      <h3>取消 / 中断之后能不能再来一次</h3>
+      <p class="note"><b>v1 不给重试按钮。</b>失败、取消、中断都只留现场：点进子会话看它做到哪，然后<b>在父对话里再说一句</b>——`delegate` 是模型的决定，重试也该是它的决定，不是一个卡上的按钮。</p>
+      <p class="note">这也避免了一个坑：卡上的「重试」要处理「重试用的是哪个模型、哪个工作区、算不算同一个 job」——那套问题在 v3 里已经养过一次。</p>
+    </div>
+  </div>
+
+  <h2 class="sec">④ 要你定的那一件：失败要不要唤醒</h2>
+  <div class="quiet">
+    <p class="h">A · 失败也唤醒（推荐）：分隔线之后，主代理说一句</p>
+    <p class="note" style="margin-bottom:8px">「派出去改文案的那个回来了，没做成：上游 502，重试两次都超时。要我换个思路自己改吗？」——用户不用点任何东西就知道发生了什么，并且能直接回答。</p>
+    <p class="note" style="margin-bottom:0"><b>代价：</b>每次失败也多一轮生成；而且主代理可能把「失败」说得像「部分成功」——工具描述里得写死「失败就直说失败，别替它圆场」。</p>
+  </div>
+  <div class="quiet">
+    <p class="h">B · 不唤醒：只有一行「子代理失败 · 改登录页文案」</p>
+    <p class="note" style="margin-bottom:0">省一轮钱，也不打扰。但用户如果没注意那条线，就会以为事情还在做——这和你第 7 轮纠正过的问题是同一个。</p>
+  </div>
+
+  <section>
+    <h2>这一版定下的（其余四项）</h2>
+    <ul>
+      <li>条只留「需要你」的状态；失败 / 取消 / 中断一律从条上消失。</li>
+      <li>分隔线四种形态同一行：完成 / 失败 / 取消 / 中断，只换图标和动词；<b>只有失败用红</b>。</li>
+      <li>面板动词在右，颜色只区分「要你动手」与「已结束」。</li>
+      <li>不给重试按钮：重来是模型的决定，在父对话里再说一句就是。</li>
+      <li>「已中断」读的是启动清理落下的 <code>interrupted</code>，不是「读不到就算中断」。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li><b>失败原因藏在两级之下</b>（分隔线 → 面板 → 子会话），急的人要连点两次。</li>
+      <li><b>取消与失败在视觉上差别很小</b>（一个红、一个灰），只看颜色分不出来。</li>
+      <li><b>没有重试</b>：用户得自己组织一句话让模型再派一次，而模型可能不派。</li>
+      <li>若选 A，失败也会花一轮钱；若选 B，失败可能被读者划过去。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>这一轮只定一件事：</b>子代理失败时，要不要唤醒主代理在主对话里说一句（A，推荐），还是只留一行「子代理失败 · label」（B）。<b>其余四项</b>（条只留需要你的、四种分隔线、撤掉重试、「已中断」读落库事实）如果你没有异议，我就按这个实现。</p>
+
+</main>
+</body>
+</html>

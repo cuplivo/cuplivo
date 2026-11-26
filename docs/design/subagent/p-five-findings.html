@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 第五次实测的五个问题</title>
+<style>
+  :root{
+    --bg:#0b0c0f;--card:#15171c;--card2:#1b1e25;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34);
+    --primary:#7aa2ff;--warn:#e0a34a;--err:#e06a6a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:28px 20px 48px}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:19px;font-weight:600;margin:0 0 6px}
+  .lede{color:var(--muted);font-size:12.5px;margin:0 0 26px}
+  h2{font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--dim);
+    text-transform:uppercase;margin:30px 0 12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px}
+  .page{background:var(--card2);border-radius:10px;padding:14px 12px;margin:10px 0 0}
+  .bub{background:rgba(122,162,255,.14);border-radius:12px;padding:9px 12px;
+    font-size:13px;margin:0 0 14px;max-width:88%}
+  .divider{display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--muted);font-size:12.5px}
+  .divider .ln{flex:1;height:.5px;background:rgba(255,255,255,.12)}
+  .reply{font-size:13px;padding:0 2px 2px}
+  .reply .who{color:var(--muted);font-size:11.5px;margin-bottom:3px}
+  .cap{color:var(--muted);font-size:12px;margin:10px 0 0}
+  .cap b{color:var(--fg);font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:4px 0 0}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:500;font-size:11.5px}
+  td:first-child{color:var(--muted);white-space:nowrap}
+  code{background:rgba(255,255,255,.07);border-radius:4px;padding:1px 5px;font-size:12px}
+  ol.num{margin:0;padding-left:20px}
+  ol.num li{margin:9px 0}
+  ol.num b{font-weight:600}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;
+    background:rgba(255,255,255,.07);color:var(--muted);margin-left:6px;vertical-align:1px}
+  .tag.bug{background:rgba(224,106,106,.16);color:#f0a0a0}
+  .ok{color:#8fd39a}
+  .row2{display:flex;align-items:center;gap:10px;padding:9px 0}
+  .row2 + .row2{border-top:1px solid var(--line)}
+  .row2 .t{flex:1;font-size:13.5px}
+  .row2 .sub{padding-left:42px;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
+  .chev{color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>子代理 · 第五次实测的五个问题</h1>
+<p class="lede">五个里四个是我实现走了样，一个是我这一轮改出来的回归。下面是落地方式，只有导出/分享那一条需要你拍板。</p>
+
+<h2>① 需要拍板：导出与分享里的结果行</h2>
+<div class="card">
+  <div class="page">
+    <div class="bub">派个子代理去把 test/auth 里挂掉的三个用例修掉。</div>
+    <div class="divider"><span class="ln"></span>子代理完成 · auth<span class="ln"></span></div>
+    <div class="reply">
+      <div class="who">Cuplivo · GPT-5</div>
+      三个用例都过了。根因是 token 过期后本地缓存没清。
+    </div>
+  </div>
+  <p class="cap">导出/分享里同样画这条 <b>28px 分隔线</b>，<b>不</b>把子代理的结论原文贴进来——结论已经在助手那句话里了。这样截图、PDF、Markdown 三种导出看到的是同一件事：<b>这里发生过一次委托</b>，而不是「用户发了一条奇怪的消息」。</p>
+</div>
+
+<h2>② 工具箱那一行：和绘图同款的分离两行</h2>
+<div class="card">
+  <div class="row2">
+    <span>子代理</span>
+    <span class="chev">›</span>
+  </div>
+  <div class="row2" style="border:0;padding:0 0 9px">
+    <div class="sub" style="padding-left:42px">继承本助手 · 深度 1 <span class="chev">›</span></div>
+    <div style="flex:1"></div>
+  </div>
+  <p class="cap">上面是行，下面是一条<b>独立缩进的子行</b>（和绘图下面那行「模型 · qwen-image」同一个位置、同一个字号），不是挤在一个 56px 的瓦片里。点两处都开弹窗。</p>
+</div>
+
+<h2>③ 其余三条：照此修，不用选</h2>
+<div class="card">
+  <ol class="num">
+    <li><b>审批中被当成「没在跑」</b><span class="tag">实现走样</span><br>
+      子代理停下来等工具批准时，运行状态是 <code>waitingTool</code>，我的 watcher 把它当成了「不在跑」。改成：它仍然算活着，条上写「等你批准」。</li>
+    <li><b>批准之后图标不消失</b><span class="tag">同一处</span><br>
+      批准后回到 <code>running</code>，条恢复「运行中（…）」并继续计时；结束才消失。图标跟着状态走，不自己留痕。</li>
+    <li><b>不调用 <code>await_job</code> 也不唤醒了</b><span class="tag bug">我这轮改出来的回归</span><br>
+      为修「双重触发」我加了「结果必须是最后一条消息」的前置判断，而它读的是窗口缓存，新写的那条不在里面——于是所有唤醒都被挡掉了。正式改法：<b>只按「这一轮有没有人在等」判断</b>（有人等，等的人自己会答），把那个位置判断删掉。</li>
+  </ol>
+</div>
+
+<h2>④ 状态表（改完应当如此）</h2>
+<div class="card">
+  <table>
+    <tr><th>子代理</th><th>输入框上那条</th><th>面板右栏</th><th>分隔线</th></tr>
+    <tr><td>在跑</td><td>子代理运行中（…）</td><td>运行中</td><td>—</td></tr>
+    <tr><td>等你回答</td><td>子代理在等你回答 · 标题</td><td>等你回答</td><td>—</td></tr>
+    <tr><td>等你批准</td><td>子代理在等你批准 · 标题</td><td>等待批准</td><td>—</td></tr>
+    <tr><td>完成</td><td>消失</td><td>已完成</td><td>子代理完成 · 标题</td></tr>
+    <tr><td>失败</td><td>消失</td><td>失败</td><td>子代理失败 · 标题（红）</td></tr>
+    <tr><td>取消 / 中断</td><td>消失</td><td>已取消 / 已中断</td><td>子代理已取消 / 已中断</td></tr>
+  </table>
+  <p class="cap">唤醒只在<b>完成</b>和<b>失败</b>；<b>且</b>只有没人正在等这次结果时才唤醒。</p>
+</div>
+
+</div>
+</body>
+</html>

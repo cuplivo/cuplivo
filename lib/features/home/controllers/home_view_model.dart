@@ -20,7 +20,6 @@ import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/models/chat_message.dart';
-import '../../../core/models/group_chat.dart';
 import '../../../core/models/queued_turn.dart';
 import '../../../core/models/compress_context_options.dart';
 import '../../../core/models/conversation.dart';
@@ -153,6 +152,10 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onMessagesChanged = _onMessagesChanged;
     _chatActions.onSendPairAppended = () => onScrollToBottom?.call();
     _chatActions.onLoadingChanged = _onLoadingChanged;
+    // Steer: a message that arrives while the turn runs ends it at the next step
+    // boundary and starts the next one, instead of waiting for the reply to end.
+    _chatActions.takeHandoff = _hasHandoffReady;
+    _chatActions.onHandoffRequested = _startHandoffSegment;
     _chatActions.onContentUpdated = _onContentUpdated;
     _chatActions.onStreamError = _onStreamError;
     _chatActions.onContextOverflow = (message, error, originalParts) {
@@ -189,7 +192,7 @@ class HomeViewModel extends ChangeNotifier {
         _estimateCompressedContext;
     _chatService.contextCompression.addListener(_onCompressionChanged);
     _chatService.contextCompression.onContextChangeFinished = (id, applied) {
-      if (!applied && _queuedInputs.containsKey(id)) {
+      if (!applied && _hasQueued(id)) {
         if (_pausedQueuedInputs.add(id)) {
           _chatService.contextCompression.refreshInputStatus();
         }
@@ -222,9 +225,56 @@ class HomeViewModel extends ChangeNotifier {
 
   @visibleForTesting
   ChatActions get debugChatActions => _chatActions;
-  final Map<String, QueuedChatInput> _queuedInputs = {};
+
+  /// One FIFO per conversation: a message the user queued and a finished
+  /// delegation's result wait in the same line, in arrival order.
+  final Map<String, List<QueuedTurn>> _queue = {};
+
+  bool _hasQueued(String conversationId) =>
+      _queue[conversationId]?.isNotEmpty ?? false;
   final Set<String> _drainingQueuedInputs = {};
   final Set<String> _pausedQueuedInputs = {};
+
+  /// Mail rows a delegation wrote that no turn has read yet, oldest first.
+  ///
+  /// The row is already persisted when it lands here (the coordinator writes it),
+  /// so this is only the delivery side: a turn starts from the row as soon as the
+  /// conversation can generate, at a step boundary or at the end of the turn.
+  final Map<String, List<ChatMessage>> _mailInbox = {};
+
+  bool _hasPendingMail(String conversationId) =>
+      _mailInbox[conversationId]?.isNotEmpty ?? false;
+
+  bool hasPendingMail(String conversationId) => _hasPendingMail(conversationId);
+
+  bool isConversationBusy(String conversationId) =>
+      _isConversationBusy(conversationId);
+
+  ChatMessage? _takeMail(String conversationId) {
+    final list = _mailInbox[conversationId];
+    if (list == null || list.isEmpty) return null;
+    final first = list.removeAt(0);
+    if (list.isEmpty) _mailInbox.remove(conversationId);
+    return first;
+  }
+
+  void _putMailBack(String conversationId, ChatMessage message) {
+    final list = _mailInbox.putIfAbsent(conversationId, () => []);
+    list.insert(0, message);
+  }
+
+  /// One mail row from a delegation. The row is already persisted; this only
+  /// queues the turn that reads it.
+  void enqueueMail({
+    required String conversationId,
+    required ChatMessage message,
+  }) {
+    _mailInbox.putIfAbsent(conversationId, () => []).add(message);
+    notifyListeners();
+    unawaited(refreshTimelineAfterExternalWrite(conversationId));
+    unawaited(_drainQueuedInputIfReady(conversationId));
+  }
+
   final Map<String, String> _compressionStates = {};
 
   /// Conversations whose title request is in flight, so two finishes in a row
@@ -265,7 +315,7 @@ class HomeViewModel extends ChangeNotifier {
     }
     final config = settings.getProviderConfig(model.providerKey!);
     final messages = List<ChatMessage>.of(history);
-    final queued = _queuedInputs[id];
+    final queued = _queue[id]?.whereType<QueuedUserInput>().firstOrNull;
     if (queued != null) {
       messages.add(
         ChatMessage(
@@ -316,7 +366,7 @@ class HomeViewModel extends ChangeNotifier {
             _pausedQueuedInputs.remove(task.conversationId) || queueChanged;
         unawaited(_drainQueuedInputIfReady(task.conversationId));
       } else if ((task.phase == CompressionPhase.review || !task.active) &&
-          _queuedInputs.containsKey(task.conversationId)) {
+          _hasQueued(task.conversationId)) {
         queueChanged =
             _pausedQueuedInputs.add(task.conversationId) || queueChanged;
       }
@@ -415,8 +465,13 @@ class HomeViewModel extends ChangeNotifier {
         !_chatActions.isStopping(cid);
   }
 
-  QueuedChatInput? get currentQueuedInput =>
-      _queuedInputs[currentConversation?.id];
+  /// The head of the queue, when it is the user's own message: the composer
+  /// shows that one and can cancel it. A delegation's result is never shown in
+  /// the composer — it says so on the strip instead.
+  QueuedUserInput? get currentQueuedInput {
+    final head = _queue[currentConversation?.id]?.firstOrNull;
+    return head is QueuedUserInput ? head : null;
+  }
 
   final FileProcessingIndicatorController _fileProcessingIndicator =
       FileProcessingIndicatorController();
@@ -988,19 +1043,15 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     final activeConversation = sourceConversation ?? currentConversation!;
-    _queuedInputs.removeWhere(
-      (id, _) => _chatService.getConversation(id) == null,
-    );
-    if (_queuedInputs.containsKey(activeConversation.id)) {
-      return ChatInputSubmissionResult.rejected;
-    }
+    _queue.removeWhere((id, _) => _chatService.getConversation(id) == null);
     if (_isConversationBusy(activeConversation.id) ||
         _chatService.contextCompression.blocksSending(activeConversation.id)) {
-      _queuedInputs[activeConversation.id] = QueuedChatInput(
-        conversationId: activeConversation.id,
-        input: _cloneInput(input),
+      // Queue it behind whatever is already waiting: a second message while the
+      // conversation is busy is an ordinary thing to do, and it takes its turn
+      // after the first rather than replacing it.
+      enqueueQueuedTurn(
+        QueuedUserInput(activeConversation.id, _cloneInput(input)),
       );
-      notifyListeners();
       return ChatInputSubmissionResult.queued;
     }
 
@@ -1010,13 +1061,148 @@ class HomeViewModel extends ChangeNotifier {
         : ChatInputSubmissionResult.rejected;
   }
 
+  /// Puts [turn] at the end of its conversation's queue and tries to drain it.
+  ///
+  /// The only entry point: the user's messages and a delegation's result go
+  /// through the same line, so there is one order and one place that decides
+  /// when a turn may land.
+  void enqueueQueuedTurn(QueuedTurn turn) {
+    (_queue[turn.conversationId] ??= <QueuedTurn>[]).add(turn);
+    notifyListeners();
+    unawaited(_drainQueuedInputIfReady(turn.conversationId));
+  }
+
+  /// Whether the turn running in [conversationId] should end at its next step
+  /// boundary.
+  ///
+  /// Mail comes first: a delegation's message is what the turn exists to serve.
+  /// A queued user message is the same rule from the composer's side. A finished
+  /// delegation's notice is not: it is a result, and a result waits for the turn
+  /// to end rather than interrupting it.
+  bool _hasHandoffReady(String conversationId) {
+    // A handoff ends the running turn, so the next one must be able to start.
+    // A paused queue, a compression review and a group round in flight all make
+    // the follow-up refuse, and the reply would end on its tool results with
+    // nothing after it. These checks cover the mail branch too, which used to
+    // return before them.
+    if (_pausedQueuedInputs.contains(conversationId)) return false;
+    if (_chatService.contextCompression.blocksSending(conversationId)) {
+      return false;
+    }
+    if (_chatActions.isGroupRoundLoading(conversationId)) return false;
+    if (_hasPendingMail(conversationId)) return true;
+    final head = _queue[conversationId]?.firstOrNull;
+    return head is QueuedUserInput;
+  }
+
+  /// Starts the turn a handoff ended the previous one for.
+  ///
+  /// Returns false when nothing could start, in which case the caller clears the
+  /// loading flag and the waiting message is picked up by the normal drain at the
+  /// end of the turn.
+  Future<bool> _startHandoffSegment(String conversationId) async {
+    if (_drainingQueuedInputs.contains(conversationId)) return false;
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) return false;
+    _drainingQueuedInputs.add(conversationId);
+    notifyListeners();
+    try {
+      final mail = _takeMail(conversationId);
+      if (mail != null) {
+        try {
+          final started = await _startMailTurn(conversation, mail);
+          if (!started) _putMailBack(conversationId, mail);
+          return started;
+        } catch (_) {
+          // The row is in the transcript either way; the inbox keeps the
+          // delivery so the next drain tries again.
+          _putMailBack(conversationId, mail);
+          return false;
+        }
+      }
+      final queue = _queue[conversationId];
+      if (queue == null || queue.isEmpty) return false;
+      final head = queue.first;
+      if (head is! QueuedUserInput) return false;
+      // The head stays in the queue until the turn actually starts. Removing it
+      // up front detaches the list from `_queue`, so a failed start has nowhere
+      // to put the message back: the composer chip disappears and the drain
+      // finds nothing. `_drainingQueuedInputs` keeps the drain off this head for
+      // the length of the await, so it cannot be delivered twice.
+      try {
+        final delivered = await _sendMessageToConversation(
+          head.input,
+          conversation,
+        );
+        if (!delivered) return false;
+        _dropQueuedHead(conversationId, head);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    } finally {
+      _drainingQueuedInputs.remove(conversationId);
+      notifyListeners();
+    }
+  }
+
+  /// Drops [head] from the queue, and only if it is still the head.
+  ///
+  /// A new message may have been appended while the previous one was starting;
+  /// this removes the one that started, not whatever is at the front now.
+  void _dropQueuedHead(String conversationId, QueuedUserInput head) {
+    final queue = _queue[conversationId];
+    if (queue == null || queue.isEmpty || !identical(queue.first, head)) {
+      return;
+    }
+    queue.removeAt(0);
+    if (queue.isEmpty) _queue.remove(conversationId);
+  }
+
+  /// Runs one turn from a mail row that is already in the transcript.
+  Future<bool> _startMailTurn(
+    Conversation conversation,
+    ChatMessage mail,
+  ) async {
+    final assistant = _contextProvider
+        .read<AssistantProvider>()
+        .resolveConversationAssistant(conversation.assistantId);
+    final outcome = await _chatActions.regenerateAtMessage(
+      message: mail,
+      conversation: conversation,
+      assistantOverride: assistant,
+      preserveFollowingMessages: true,
+      scheduled: true,
+      scheduledNotify: false,
+      scheduledPreview: false,
+      handoff: true,
+    );
+    return outcome.success;
+  }
+
+  /// Tries to deliver every conversation's queue head.
+  ///
+  /// Called when the app comes back to the front: a drain that refused while the
+  /// app was backgrounded has no other trigger to return to.
+  void drainAllQueuedTurns() {
+    for (final conversationId in {..._queue.keys, ..._mailInbox.keys}) {
+      unawaited(_drainQueuedInputIfReady(conversationId));
+    }
+  }
+
   ChatInputData? cancelCurrentQueuedInput() {
     final queued = currentQueuedInput;
     if (queued == null ||
         _drainingQueuedInputs.contains(queued.conversationId)) {
       return null;
     }
-    _queuedInputs.remove(queued.conversationId);
+    final queue = _queue[queued.conversationId];
+    if (queue == null) return null;
+    // Only the head: cancelling the chip cancels the message it shows. A second
+    // queued message keeps its place — the queue holds several now, and dropping
+    // the ones the user never saw would lose them silently.
+    queue.remove(queued);
+    if (queue.isEmpty) _queue.remove(queued.conversationId);
     _pausedQueuedInputs.remove(queued.conversationId);
     _chatService.contextCompression.refreshInputStatus();
     notifyListeners();
@@ -1209,46 +1395,134 @@ class HomeViewModel extends ChangeNotifier {
     );
   }
 
+  /// Delivers the head of [conversationId]'s queue, if it may land now.
+  ///
+  /// Only the head: one turn at a time keeps the order, and a user message that
+  /// fails stays at the head (paused) instead of being skipped or lost. The
+  /// background check belongs here rather than at the delegation: a generation
+  /// that starts while the OS holds the isolate frozen is terminalised by the
+  /// startup sweep, and the user comes back to an extra interrupted reply.
   Future<void> _drainQueuedInputIfReady(String conversationId) async {
     if (_drainingQueuedInputs.contains(conversationId) ||
         _pausedQueuedInputs.contains(conversationId) ||
         _chatService.contextCompression.blocksSending(conversationId)) {
       return;
     }
-    final queued = _queuedInputs[conversationId];
+    final background = MobileBackgroundCoordinator.instance;
+    await background.initialize();
+    // Re-read after the await: the registration below is no longer synchronous
+    // with the guard, so two dispatches in one turn of the event loop would both
+    // take the same head.
+    if (_drainingQueuedInputs.contains(conversationId) ||
+        _pausedQueuedInputs.contains(conversationId)) {
+      return;
+    }
+    if (!background.isForeground) return;
     final conversation = _chatService.getConversation(conversationId);
-    if (queued == null || conversation == null) return;
+    if (conversation == null) return;
     if (_isConversationBusy(conversationId)) return;
+    // A delegation's mail goes before the user's queue: it is the message the
+    // finished step was waiting on, and the queue head behind it keeps its turn.
+    final mail = _takeMail(conversationId);
+    if (mail != null) {
+      _drainingQueuedInputs.add(conversationId);
+      notifyListeners();
+      try {
+        final started = await _startMailTurn(conversation, mail);
+        if (!started) _putMailBack(conversationId, mail);
+      } catch (_) {
+        _putMailBack(conversationId, mail);
+      } finally {
+        _drainingQueuedInputs.remove(conversationId);
+        notifyListeners();
+      }
+      return;
+    }
+    final queue = _queue[conversationId];
+    if (queue == null || queue.isEmpty) return;
 
+    final turn = queue.first;
     _drainingQueuedInputs.add(conversationId);
-    _queuedInputs.remove(conversationId);
     notifyListeners();
 
-    final input = queued.input;
     final drafts = _chatService.composerDrafts;
-    drafts?.submitting.add(conversationId);
+    // A queued message submits its own draft snapshot; anything else must leave
+    // the composer exactly as the user left it.
+    if (turn is QueuedUserInput) drafts?.submitting.add(conversationId);
     try {
-      final success = await _sendMessageToConversation(input, conversation);
-      if (!success && _chatService.getConversation(conversationId) != null) {
-        _queuedInputs[conversationId] = queued;
+      final delivered = switch (turn) {
+        QueuedUserInput() => await _sendMessageToConversation(
+          turn.input,
+          conversation,
+        ),
+        QueuedSubagentResult() => await _deliverSubagentResult(turn),
+      };
+      // A delegation's result is dequeued even when its follow-up could not
+      // start: the row is already written, so keeping it at the head would block
+      // every later turn behind something the user cannot see or cancel.
+      if (delivered || turn is QueuedSubagentResult) {
+        queue.removeAt(0);
+        if (queue.isEmpty) _queue.remove(conversationId);
+      } else if (turn is QueuedUserInput &&
+          _chatService.getConversation(conversationId) != null) {
+        // Only the user's own message pauses the queue: it is the one the
+        // composer can show and cancel, so a person can unstick it.
         _pausedQueuedInputs.add(conversationId);
       }
     } catch (_) {
-      final submission = input.draftSubmission;
+      final submission = turn is QueuedUserInput
+          ? turn.input.draftSubmission
+          : null;
       if (drafts != null &&
           submission != null &&
           await drafts.wasSubmitted(submission.id)) {
+        queue.removeAt(0);
         await drafts.finishSubmission(submission);
+      } else if (turn is QueuedSubagentResult) {
+        // A thrown delivery cannot be resumed by a person: its row is already
+        // written and the composer can neither show nor cancel it. Leaving it at
+        // the head would strand every message queued behind it, so it leaves and
+        // the next turn reads the divider from the context.
+        queue.removeAt(0);
+        if (queue.isEmpty) _queue.remove(conversationId);
       } else if (_chatService.getConversation(conversationId) != null) {
-        _queuedInputs[conversationId] = queued;
         _pausedQueuedInputs.add(conversationId);
       }
     } finally {
-      drafts?.submissionIdle(conversationId);
+      if (turn is QueuedUserInput) drafts?.submissionIdle(conversationId);
       _drainingQueuedInputs.remove(conversationId);
       _chatService.contextCompression.refreshInputStatus();
       notifyListeners();
     }
+  }
+
+  /// A finished delegation lands as one unit: its notice row, then the turn that
+  /// reads it. Half of it would be a divider with no answer, or an answer with no
+  /// divider.
+  Future<bool> _deliverSubagentResult(QueuedSubagentResult turn) async {
+    final notice = turn.notice;
+    // Idempotent: the coordinator already wrote it when the child finished, so
+    // the row survives a process killed while the app was in the background.
+    await _chatService.addMessageDirectly(notice.conversationId, notice);
+    // Only the conversation that received the row: reloading whichever one is on
+    // screen rebuilds a window that did not change.
+    await refreshTimelineAfterExternalWrite(notice.conversationId);
+    if (!turn.followUp) return true;
+    final conversation = _chatService.getConversation(notice.conversationId);
+    if (conversation == null) return true;
+    final outcome = await regenerateScheduledMessage(
+      message: notice,
+      conversation: conversation,
+      assistant: turn.assistant,
+      scheduledNotify: false,
+      scheduledPreview: false,
+    );
+    if (!outcome.success) {
+      // The row stays and the turn leaves the queue, so nothing retries — which
+      // leaves the user reading "子代理完成 · X" followed by silence. Say why.
+      onWarning?.call('subagent_follow_up_failed');
+    }
+    return outcome.success;
   }
 
   /// Regenerate response at a specific message.
@@ -1335,6 +1609,34 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     return true;
+  }
+
+  /// Stops the generation running in [conversationId], whichever conversation
+  /// that is. Used by the subagent coordinator when the parent's turn — and with
+  /// it the work it delegated — is cancelled.
+  Future<void> cancelGenerationOf(String conversationId) =>
+      _chatActions.cancelStreamingById(conversationId);
+
+  /// Reloads the visible timeline after something outside the chat flow wrote a
+  /// row into the open conversation.
+  ///
+  /// The timeline rebuilds on `externalWriteRevision`, which only the chat flow
+  /// bumps; a background writer has to ask for the reload itself. Scheduling
+  /// publishing does the same thing for the same reason.
+  ///
+  /// [conversationId] narrows it to the conversation the row belongs to: a write
+  /// to some other chat must not rebuild the window on screen.
+  Future<void> refreshTimelineAfterExternalWrite([
+    String? conversationId,
+  ]) async {
+    if (conversationId != null && currentConversation?.id != conversationId) {
+      return;
+    }
+    try {
+      await _chatController.refreshTimelineAfterMutation();
+    } catch (_) {
+      // The next navigation re-reads the window anyway.
+    }
   }
 
   /// Cancel the active streaming.
@@ -2173,7 +2475,7 @@ class HomeViewModel extends ChangeNotifier {
         request,
       );
       if (task.phase != CompressionPhase.completed) {
-        if (_queuedInputs.containsKey(id) && _pausedQueuedInputs.add(id)) {
+        if (_hasQueued(id) && _pausedQueuedInputs.add(id)) {
           _chatService.contextCompression.refreshInputStatus();
         }
         onError?.call(task.error ?? 'compression_incomplete');

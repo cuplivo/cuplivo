@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>深度 · 只读 1</title>
+<style>
+  :root{--bg:#0b0c0f;--card:#15171c;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34);--primary:#7aa2ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:26px 20px 44px}
+  .wrap{max-width:600px;margin:0 auto}
+  h1{font-size:17px;font-weight:600;margin:0 0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .srow{display:flex;align-items:center;gap:10px;padding:11px 2px;font-size:13.5px}
+  .srow + .srow{border-top:1px solid var(--line)}
+  .srow .t{flex:1}
+  .srow .val{color:var(--muted);font-size:13px}
+  .srow .chev{color:var(--dim);font-size:12px}
+  .srow .sub{color:var(--muted);font-size:11.5px;margin-top:1px}
+  .cap{color:var(--muted);font-size:12px;margin:12px 0 0}
+  .cap b{color:var(--fg);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>深度 · 只读 1</h1>
+<div class="card">
+  <div class="srow"><span class="t">开启</span><span class="val">开</span></div>
+  <div class="srow">
+    <div style="flex:1">
+      <div class="t">深度</div>
+      <div class="sub">允许子代理再派子代理的层数</div>
+    </div>
+    <span class="val">1</span>
+  </div>
+  <div class="srow"><span class="t">模型</span><span class="val">继承本助手</span><span class="chev">›</span></div>
+  <div class="srow"><span class="t">子代理提权访问</span><span class="val">询问</span><span class="chev">›</span></div>
+</div>
+<p class="cap">深度这一行<b>没有 chevron、点不动</b>：值是 1，说明句照样写「允许子代理再派子代理的层数」。<br>
+子代理拿到 <code>delegate</code> 也调不动——深度到了就没有这个工具，模型不会白花一次调用。</p>
+<p class="cap">代价：弹窗里有一样<b>看得见、改不了</b>的东西。等嵌套设计定了，它才长出 chevron。</p>
+</div>
+</body>
+</html>

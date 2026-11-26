@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>变体 F — 结果是一条回复，带「子代理」标签</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:58em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .phone.narrow{width:300px}
+  .phone.crop{align-self:flex-end}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .title{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 10px}
+  .row{display:flex;justify-content:flex-end;padding:20px 16px 6px}
+  .bubble{max-width:80%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 16px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .msg-head .tag{font-size:11px;color:var(--primary);background:rgba(77,92,146,.10);
+                 border-radius:4px;padding:1px 5px;line-height:1.5}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .body + .body{margin-top:10px}
+  .toolcard{margin:10px 0 6px;border-radius:16px;padding:12px 16px 12px;
+            background:rgba(77,92,146,.10);display:flex;align-items:center;gap:10px}
+  .toolcard .ic{width:18px;height:18px;color:var(--primary);flex:none;opacity:.85}
+  .toolcard .ttl{font-size:14px;color:var(--ink);flex:1;min-width:0;
+                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .toolcard .meta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+  .openlink{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--primary);
+            margin:8px 0 2px}
+  .openlink .ic{width:13px;height:13px}
+  .stripwrap{background:var(--bg);padding:2px 8px 0}
+  .strip{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 8px;border-radius:8px;
+         color:rgba(32,32,32,.6)}
+  .strip .ic{width:14px;height:14px;flex:none}
+  .strip .txt{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;
+              overflow:hidden;text-overflow:ellipsis;
+              background:linear-gradient(100deg,rgba(32,32,32,.55) 30%,rgba(32,32,32,.95) 50%,rgba(32,32,32,.55) 70%);
+              background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+              animation:sheen 2.6s linear infinite}
+  @keyframes sheen{0%{background-position:120% 0}100%{background-position:-40% 0}}
+  .strip .chev{width:14px;height:14px;flex:none;opacity:.7}
+  .composer{padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line-soft);
+            display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:36px;border-radius:18px;border:1px solid var(--line);display:flex;
+         align-items:center;padding:0 12px;font-size:14px;color:rgba(32,32,32,.4);background:var(--card)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;
+        align-items:center;justify-content:center;flex:none}
+  .drawer{background:var(--card);padding:6px 0 14px}
+  .dhead{display:flex;align-items:center;gap:10px;padding:10px 14px 12px}
+  .dhead .avatar{width:34px;height:34px}
+  .dhead .who{flex:1}
+  .dhead .who .n{font-size:14px;font-weight:600}
+  .dhead .who .s{font-size:11px;color:var(--muted)}
+  .dsearch{margin:0 12px 12px;height:32px;border-radius:10px;background:rgba(20,20,25,.045);
+           display:flex;align-items:center;padding:0 10px;font-size:13px;color:var(--muted);gap:6px}
+  .dgroup{font-size:12px;font-weight:600;color:var(--primary);padding:8px 14px 4px}
+  .drow{display:flex;align-items:center;gap:8px;padding:10px 14px}
+  .drow .n{font-size:15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .drow .tag{font-size:11px;color:var(--primary);flex:none}
+  .drow .tm{font-size:11px;color:rgba(32,32,32,.4);flex:none}
+  .dim{background:rgba(20,20,25,.28)}
+  .dlg{margin:26px 12px 12px;background:var(--card);border-radius:14px;overflow:hidden;
+       box-shadow:0 12px 30px rgba(20,20,25,.18)}
+  .dlg h3{margin:0;padding:14px 14px 10px;font-size:15px;font-weight:600}
+  .dlg p.sub{margin:0;padding:0 14px 12px;font-size:12px;color:var(--muted);line-height:1.5}
+  .srow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--line-soft)}
+  .srow .txt{flex:1;min-width:0}
+  .srow .txt .n{font-size:14px}
+  .srow .txt .s{font-size:11.5px;color:var(--muted)}
+  .srow .val{font-size:13px;color:var(--muted);flex:none}
+  .sw{width:40px;height:24px;border-radius:12px;background:var(--primary);position:relative;flex:none}
+  .sw::after{content:"";position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;
+             background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .chev{width:14px;height:14px;color:rgba(32,32,32,.3);flex:none}
+  .notes{flex:1 1 320px;min-width:280px;max-width:540px}
+  .timeline{margin:0 0 14px;border-left:2px solid var(--line);padding-left:12px}
+  .tl{font-size:12.5px;line-height:1.6;color:var(--muted);margin:0 0 7px}
+  .tl b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){
+    .page{padding:18px 10px 44px}
+    .phone,.phone.narrow{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第 3 轮（D 的修订）· 变体 F · 结果是一条回复</p>
+  <h1>结果是一条回复，带「子代理」标签</h1>
+  <p class="lede">结论以一条完整回复的形态落进父会话：同一个助手的头像和名字，后面跟一个 <code>子代理</code> 标签，正文就是结论。wire 上它仍然是 <code>user</code> 轮次——界面说「它说了」，模型看到的是「一条给你的通知」，群聊里早就是这种不对称。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">登录页重构</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="row">
+          <div class="bubble">test 里有三个红的，能修就修；另外看看这次发布能不能上。</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">21:07</div>
+            </div>
+          </div>
+
+          <p class="body">先派一个人去修 <code>test/auth</code>，我这边看发布清单。</p>
+
+          <div class="toolcard">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+            <span class="ttl">委派子代理 · 修复 test/auth 的三个用例</span>
+            <span class="meta">1 分 52 秒</span>
+          </div>
+
+          <div class="toolcard">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+            <span class="ttl">读取文件 · CHANGELOG.md</span>
+            <span class="meta">21:08</span>
+          </div>
+
+          <p class="body">发布清单里还剩一个阻塞项：<code>pubspec.lock</code> 没跟 <code>pubspec.yaml</code> 一起提交。</p>
+
+          <p class="body" style="color:rgba(32,32,32,.55);font-size:14.5px">我这边先不动手，免得和它改同一批文件。</p>
+        </div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">21:09</div>
+            </div>
+            <span class="tag">子代理</span>
+          </div>
+
+          <p class="body">三个用例都过了。根因是 token 过期后本地缓存没清，连带失败的那个也一起好了。改动在 <code>session_guard.dart</code> 与 <code>session_test.dart</code>。</p>
+
+          <span class="openlink">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+            打开子代理会话
+          </span>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="input">发消息…</div>
+        <div class="send">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="timeline">
+        <p class="tl"><b>21:07</b> 派出去，父回合继续；工具卡是普通的一行，不覆写</p>
+        <p class="tl"><b>21:08</b> 父代理自己读 CHANGELOG，两件事并行</p>
+        <p class="tl"><b>21:09</b> 子代理结束 → 排队 → 在 <b>tool call 结束后的 step 边界</b>插入 → 父模型这一轮的下一请求就带着它</p>
+      </div>
+      <p class="note"><b>同一助手、另一个会话。</b>头像和名字解析到父会话的助手（<code>message_list_view.dart:2180-2188</code> 的 <code>senderId</code> → <code>Assistant</code>），<code>子代理</code> 标签说明这句话是在哪说的。这也正好解释了为什么它算「同一件事的两段」而不是两个人在聊。</p>
+      <p class="note"><b>父模型的下一轮会看见两段：</b>它自己写的「我先不动手…」，和这段通知。所以工具描述里要写清楚：派出去之后不要说「我马上做」。</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="phone narrow crop">
+      <div class="chat" style="padding-top:14px">
+        <div class="msg" style="padding-bottom:0">
+          <p class="body" style="font-size:14.5px;color:rgba(32,32,32,.7)">…发布清单我先看，你那边修好了说一声。</p>
+        </div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <span class="txt">子代理 · 正在跑 test/auth</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="input">发消息…</div>
+        <div class="send">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>运行中的样子：输入框上方一条</h2>
+      <p class="note">和 <code>ContextTaskBar</code> 同一个位置、同一组数值（<code>context_operations_panel.dart:53-114</code>）：透明底、H8 / V4、14px 图标 + 8 + 13px 500 文字 + 4 + <code>chevronRight</code>，最小高 36（桌面 20），运行中走 <code>ThinkingSheen</code> 的扫光，跑完整条消失。</p>
+      <p class="note">它回答的只有一件事：还有人在替你干活。点开是子代理面板（运行中 / 等你回答 / 最近完成）。</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="phone narrow">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        <div class="title">对话</div>
+        <span style="width:20px"></span>
+      </div>
+      <div class="drawer">
+        <div class="dhead">
+          <span class="avatar">慢</span>
+          <div class="who"><div class="n">慢下来</div><div class="s">GPT-5 · 12 个对话</div></div>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="dsearch">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          搜索对话
+        </div>
+        <div class="dgroup">今天</div>
+        <div class="drow"><span class="n">登录页重构</span><span class="tm">21:09</span></div>
+        <div class="drow"><span class="n">修复 test/auth 的三个用例</span><span class="tag">子代理</span><span class="tm">21:09</span></div>
+        <div class="drow"><span class="n">周报怎么写</span><span class="tm">18:20</span></div>
+        <div class="dgroup">昨天</div>
+        <div class="drow"><span class="n">旅行计划</span><span class="tm">周二</span></div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="dim">
+        <div class="dlg">
+          <h3>子代理</h3>
+          <p class="sub">在本会话自己的工作区里派一个分身去做完一件任务。</p>
+          <div class="srow"><div class="txt"><div class="n">开启</div></div><div class="sw"></div></div>
+          <div class="srow"><div class="txt"><div class="n">深度</div><div class="s">1 · 只允许直系子级</div></div><div class="val">1</div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="srow"><div class="txt"><div class="n">模型</div><div class="s">继承本助手</div></div><div class="val">继承</div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="srow"><div class="txt"><div class="n">完成后</div><div class="s">落一条消息，不额外跑一轮</div></div><div class="val">通知</div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>侧边栏与配置（与你说的对齐）</h2>
+      <p class="note"><b>侧边栏是单行。</b><code>_ChatTile</code> 只有标题 + 小标签 + 时间（<code>side_drawer.dart:4987-5022</code>），没有头像、没有预览行。<code>子代理</code> 三个字放在 <code>composerDraftLabel</code> 那个位置（11px、<code>cs.primary</code>）。</p>
+      <p class="note"><b>配置收成一个入口。</b>工具箱里一行带概要，点进去是这个弹窗；深度 / 模型 / 完成后都在弹窗里，不铺子行。</p>
+      <p class="note"><b>图标 <code>Lucide.Bot</code></b>（<code>lucide_adapter.dart:33</code>）。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>消息身份：群聊那套「作者」机制，不用新造</h2>
+    <p class="note">你问的 user 消息 + extra body，仓库里已经跑着一份：群聊把别人的发言存成 <code>role: 'user'</code> + <code>senderId</code>，序列化时打 <code>_groupPeerSender</code>（<code>message_builder_service.dart:653-665</code>），由 <code>isUserInputMessage</code> 统一排除在「用户自己的话」之外（<code>request_image_context.dart:35-49</code>）——附件、图片、修订 id、「最后一条用户消息」全走这一个谓词。</p>
+    <ul>
+      <li>存：<code>role: 'user'</code>、<code>senderId: 父助手.id</code>、id = <code>subagent-result:&lt;childId&gt;</code>（幂等，重复投递天然去重）。</li>
+      <li>发：wire 上是 <code>user</code> + 内部标记，provider 出站前剥掉（<code>chat_completions_api.dart:368</code>）。</li>
+      <li>不接管修订 id / 附件 / 「最后一条用户消息」——那个 <code>else if</code> 链里加一个分支。</li>
+      <li>因为 <code>senderId</code> 指向本助手，界面就自然解析出同一个头像和名字；标签由 id 前缀判定。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li>结论就在时间线上，不用点开任何东西——这是选 D 的全部意义。</li>
+      <li>它不是「父助手说的话」：标签 + 独立消息说明它来自子会话，父模型收到的是 user 轮次。</li>
+      <li>时间线里 <code>delegate</code> 仍是普通工具卡；运行态在输入框上方；侧边栏单行 + 标签；配置一个入口。</li>
+      <li>父还在跑时，排队到当前 tool call 结束、在 step 边界插入。</li>
+      <li><code>ask_user</code> 不禁用：子会话能交互，它在那里等回答。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li><b>两段话的观感。</b>父助手刚说「我先不动手」，紧接着又冒出一段结论；用户要自己把它读成「同一件事的两段」。</li>
+      <li><b>父会话被打断一次。</b>结果插在当前回合中间时，父助手的叙述会被切开——它得在下一轮里接上。</li>
+      <li><b>界面说「助手说了」，wire 上说「用户发的」。</b>这套不对称群聊里已有，但在这里是新的，注释得写清楚。</li>
+      <li><b>可编辑/可重试的语义要拦。</b>这条消息不是用户写的，编辑和重试都要藏起来，否则改一条子代理的结论会让父模型困惑。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>ask_user 与审批：异步之后不用禁了</h2>
+    <p class="note">上一版写「禁用 <code>ask_user</code>」，前提是 wait-only（父会话被挡着）。异步之后这个前提没了：<code>ask_user</code> 在子会话里就是一张普通提问卡，子轮次停在那里等，父会话早就往下走了；审批卡同理（<code>_matchingApprovalRequest</code> 按 conversationId + toolCallId 匹配）。<b>父侧只需一个「它在等你回答」的状态</b>，不做透传——透传要在父会话再造一张卡，还得回答「父回合已经结束了，这张卡算谁的」。</p>
+    <p class="note">代价：没人打开子会话，它就停着，不花钱也不产出，父侧的条会一直显示它在等。</p>
+  </section>
+
+  <p class="closing"><b>两个变体共用：</b>普通工具卡 + 输入框上方条 + 侧边栏单行标签 + 配置弹窗、wire 上是 <code>user</code> + 标记、排队到 step 边界插入、<code>ask_user</code> 不禁用。<b>这个变体唯一要你定的：</b>结论画成一条回复（F），还是一条分隔线（E）。</p>
+
+</main>
+</body>
+</html>

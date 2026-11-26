@@ -1,4 +1,5 @@
 import 'package:Cuplivo/core/models/conversation_mcp_settings.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show Tristate;
@@ -332,6 +333,10 @@ void main() {
           );
         }
         expect(row, findsOneWidget);
+        // The local group grew: `scrollUntilVisible` stops as soon as the row is
+        // built, which can leave its centre under the fold.
+        await tester.ensureVisible(row);
+        await tester.pumpAndSettle();
         await tester.tap(row);
         await tester.pumpAndSettle();
         expect(
@@ -344,6 +349,8 @@ void main() {
           'images',
           const ImageContextSettings(),
         );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(row);
         await tester.pumpAndSettle();
         await tester.tap(row);
         await tester.pumpAndSettle();
@@ -850,6 +857,250 @@ void main() {
     expect(find.byType(WorkspaceSection), findsOneWidget);
     expect(find.text(workspace.name), findsOneWidget);
   });
+
+  // The subagent sub-row and the config behind it call the model what its
+  // provider calls it — the name the picker listed — not by the id stored on
+  // the assistant.
+  for (final desktop in [false, true]) {
+    testWidgets('the subagent row names its model, desktop=$desktop', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        await settings.setProviderConfig(
+          'openai',
+          ProviderConfig(
+            id: 'openai',
+            enabled: true,
+            name: 'OpenAI',
+            baseUrl: 'https://api.openai.com/v1',
+            apiKey: 'sk-test',
+            models: const ['gpt-image-1'],
+            modelOverrides: {
+              'gpt-image-1': {'name': 'Painter'},
+            },
+          ),
+        );
+        final current = assistants.getById(assistantId)!;
+        await assistants.updateAssistant(
+          current.copyWith(
+            localToolIds: const [
+              LocalToolNames.delegate,
+              LocalToolNames.awaitJob,
+            ],
+            subagentModelProvider: 'openai',
+            subagentModelId: 'gpt-image-1',
+          ),
+        );
+      });
+      final l10n = await pumpSheet(tester, desktop: desktop);
+      await tester.pumpAndSettle();
+      // The local tools group starts folded on a phone.
+      if (!desktop) {
+        await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+        await tester.pumpAndSettle();
+      }
+
+      final byName = find.text(l10n.subagentConfigSummary('Painter', 1));
+      if (byName.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          byName,
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
+      expect(byName, findsOneWidget);
+      expect(
+        find.text(l10n.subagentConfigSummary('gpt-image-1', 1)),
+        findsNothing,
+      );
+
+      // The config's 模型 row shows the same name.
+      await tester.tap(byName);
+      await tester.pumpAndSettle();
+      expect(find.text('Painter'), findsOneWidget);
+      expect(find.text('gpt-image-1'), findsNothing);
+    });
+  }
+
+  // 子代理 is the same two lines as 绘图: the row is the switch, and the summary
+  // under it is the only way into the dialog — and it only exists while on.
+  for (final desktop in [false, true]) {
+    testWidgets('the subagent row is the switch, desktop=$desktop', (
+      tester,
+    ) async {
+      final l10n = await pumpSheet(tester, desktop: desktop);
+      await tester.pumpAndSettle();
+      if (!desktop) {
+        await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> reveal(Finder finder) async {
+        if (finder.evaluate().isNotEmpty) return;
+        await tester.scrollUntilVisible(
+          finder,
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
+
+      final row = find.text(localToolTitle(l10n, LocalToolNames.delegate));
+      final summary = find.text(
+        l10n.subagentConfigSummary(l10n.subagentConfigModelInherit, 1),
+      );
+      await reveal(row);
+
+      // Off: no second line, and nothing to configure.
+      expect(summary, findsNothing);
+      expect(find.text(l10n.subagentConfigDepth), findsNothing);
+
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(
+        assistants.getById(assistantId)!.localToolIds,
+        containsAll(<String>[LocalToolNames.delegate, LocalToolNames.awaitJob]),
+        reason: 'the switch writes the pair, so the count and the tools agree',
+      );
+      // The row toggled; it did not open a dialog.
+      expect(find.text(l10n.subagentConfigDepth), findsNothing);
+
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pumpAndSettle();
+      await reveal(summary);
+      expect(summary, findsOneWidget);
+
+      // The summary is the way in, and the dialog adds no switch of its own:
+      // the only switch in the tree is 绘图's, out on the sheet behind it.
+      final switchesBefore = find.byType(IosSwitch).evaluate().length;
+      await tester.tap(summary);
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.subagentConfigDepth), findsOneWidget);
+      expect(find.byType(IosSwitch).evaluate().length, switchesBefore);
+    });
+  }
+
+  // The other direction: with the pair already on, the same row turns it off
+  // and the summary folds away with it.
+  for (final desktop in [false, true]) {
+    testWidgets('the switch turns the subagent back off, desktop=$desktop', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        final current = assistants.getById(assistantId)!;
+        await assistants.updateAssistant(
+          current.copyWith(
+            localToolIds: const [
+              LocalToolNames.delegate,
+              LocalToolNames.awaitJob,
+            ],
+          ),
+        );
+      });
+      final l10n = await pumpSheet(tester, desktop: desktop);
+      await tester.pumpAndSettle();
+      if (!desktop) {
+        await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+        await tester.pumpAndSettle();
+      }
+
+      final row = find.text(localToolTitle(l10n, LocalToolNames.delegate));
+      final summary = find.text(
+        l10n.subagentConfigSummary(l10n.subagentConfigModelInherit, 1),
+      );
+      if (summary.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          summary,
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
+      expect(summary, findsOneWidget);
+
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(
+        assistants.getById(assistantId)!.localToolIds,
+        isNot(contains(LocalToolNames.delegate)),
+      );
+      expect(
+        assistants.getById(assistantId)!.localToolIds,
+        isNot(contains(LocalToolNames.awaitJob)),
+      );
+
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pumpAndSettle();
+      expect(summary, findsNothing);
+      expect(find.text(l10n.subagentConfigDepth), findsNothing);
+    });
+  }
+
+  // 深度 was a read-only number while nesting past one level was open; it is a
+  // choice of 1–3 now, and the pick is stored on the assistant.
+  for (final desktop in [false, true]) {
+    testWidgets(
+      'the depth row offers 1–3 and keeps the pick, desktop=$desktop',
+      (tester) async {
+        await tester.runAsync(() async {
+          final current = assistants.getById(assistantId)!;
+          await assistants.updateAssistant(
+            current.copyWith(
+              localToolIds: const [
+                LocalToolNames.delegate,
+                LocalToolNames.awaitJob,
+              ],
+            ),
+          );
+        });
+        final l10n = await pumpSheet(tester, desktop: desktop);
+        await tester.pumpAndSettle();
+        if (!desktop) {
+          await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+          await tester.pumpAndSettle();
+        }
+
+        final summary = find.text(
+          l10n.subagentConfigSummary(l10n.subagentConfigModelInherit, 1),
+        );
+        if (summary.evaluate().isEmpty) {
+          await tester.scrollUntilVisible(
+            summary,
+            250,
+            scrollable: find.byType(Scrollable).first,
+          );
+        }
+        await tester.tap(summary);
+        await tester.pumpAndSettle();
+
+        // The row states the current value, and its description says what the
+        // number counts.
+        expect(find.text(l10n.subagentConfigDepth), findsOneWidget);
+        expect(find.text(l10n.subagentConfigDepthDescription), findsOneWidget);
+
+        await tester.tap(find.text(l10n.subagentConfigDepth));
+        await tester.pumpAndSettle();
+        // Every choice carries the sentence that says what it means.
+        expect(find.text(l10n.subagentConfigDepthOne), findsOneWidget);
+        expect(find.text(l10n.subagentConfigDepthTwo), findsOneWidget);
+        expect(find.text(l10n.subagentConfigDepthThree), findsOneWidget);
+
+        await tester.tap(find.text(l10n.subagentConfigDepthTwo));
+        await tester.pumpAndSettle();
+        expect(assistants.getById(assistantId)!.subagentDepth, 2);
+
+        // AssistantProvider notifies after persisting, which needs real time.
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.subagentConfigDepthTwo), findsNothing);
+        expect(find.text('2'), findsWidgets);
+      },
+    );
+  }
 
   // 绘图 is the one local tool with a second level: the row only turns it on or
   // off, and what it draws with grows underneath. Three states, two shells.

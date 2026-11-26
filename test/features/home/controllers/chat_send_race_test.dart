@@ -1999,7 +1999,69 @@ void main() {
     );
   }
 
-  testWidgets('compression reuses one existing queued input per conversation', (
+  testWidgets('a handoff blocked by compression keeps the queued message', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      final conversation = await openConversation(controller);
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'history ' * 100,
+      );
+      final hold = Completer<String>();
+      var entered = false;
+      await service.contextCompression.start(
+        conversation.id,
+        CompressionRequest(
+          options: const CompressContextOptions(
+            mode: CompressContextLimitMode.unlimited,
+          ),
+          model: 'test',
+          generate: (_, _, _, _) async {
+            entered = true;
+            return TextGenerationResult(parts: [TextPart(await hold.future)]);
+          },
+          quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+        ),
+      );
+      await waitFor(() => entered, 'compression');
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'keep me')),
+        ChatInputSubmissionResult.queued,
+      );
+      expect(controller.currentQueuedInput!.input.text, 'keep me');
+
+      // The runner asks this at a step boundary. A handoff here would end the
+      // running turn and leave nothing that can start, so it must say no.
+      expect(
+        controller.debugViewModel.debugChatActions.takeHandoff!(
+          conversation.id,
+        ),
+        isFalse,
+      );
+
+      // And if one were taken anyway, a refused start must leave the message
+      // in the queue. Before the fix it was removed up front, so the rollback
+      // went into a list that was no longer in `_queue`: the composer chip
+      // disappeared and nothing retried.
+      final started = await controller
+          .debugViewModel
+          .debugChatActions
+          .onHandoffRequested!(conversation.id);
+      expect(started, isFalse);
+      expect(controller.currentQueuedInput!.input.text, 'keep me');
+
+      hold.complete('summary');
+      await waitFor(
+        () => !controller.chatController.isConversationLoading(conversation.id),
+        'compression to finish',
+      );
+    });
+  });
+
+  testWidgets('a message queued during compression is released after it', (
     tester,
   ) async {
     final controller = await pumpHarness(tester);
@@ -2031,10 +2093,9 @@ void main() {
         await controller.sendMessage(ChatInputData(text: 'queued A')),
         ChatInputSubmissionResult.queued,
       );
-      expect(
-        await controller.sendMessage(ChatInputData(text: 'second A')),
-        ChatInputSubmissionResult.rejected,
-      );
+      // One queued message per conversation is the shape this test needs; the
+      // queue holds several now, and a second one here would add a third request
+      // the assertions below are not written for.
       expect(controller.currentQueuedInput!.input.text, 'queued A');
       final b = await openConversation(controller);
       await service.addMessage(
@@ -2544,6 +2605,55 @@ void main() {
     // Unmount before the temp directory goes away: the controller closes
     // its database asynchronously in dispose, and Windows refuses to
     // unlink it until then.
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('two queued messages are released in the order they arrived', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      final convo = await openConversation(controller);
+      await service.addMessage(
+        conversationId: convo.id,
+        role: 'user',
+        content: 'history ' * 100,
+      );
+      final hold = Completer<String>();
+      var entered = false;
+      await service.contextCompression.start(
+        convo.id,
+        CompressionRequest(
+          options: const CompressContextOptions(
+            mode: CompressContextLimitMode.unlimited,
+          ),
+          model: 'test',
+          generate: (_, _, _, _) async {
+            entered = true;
+            return TextGenerationResult(parts: [TextPart(await hold.future)]);
+          },
+          quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+        ),
+      );
+      await waitFor(() => entered, 'compression started');
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'first queued')),
+        ChatInputSubmissionResult.queued,
+      );
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'second queued')),
+        ChatInputSubmissionResult.queued,
+      );
+      // The chip shows the head; the second waits behind it rather than
+      // replacing it.
+      expect(controller.currentQueuedInput!.input.text, 'first queued');
+      hold.complete('summary');
+      await waitFor(() => streamRequestCount == 1, 'first released');
+      expect(jsonEncode(streamRequests.first), contains('first queued'));
+      await waitFor(() => streamRequestCount == 2, 'second released');
+      expect(jsonEncode(streamRequests.last), contains('second queued'));
+    });
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 

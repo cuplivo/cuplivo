@@ -24,6 +24,7 @@ import '../features/home/services/local_tool_labels.dart';
 import '../features/home/services/local_tool_toggle.dart';
 import '../features/home/services/local_tools_service.dart';
 import '../features/image_job/widgets/image_model_subrow.dart';
+import '../features/subagent/widgets/subagent_config_sheet.dart';
 import '../core/models/assistant.dart';
 import '../features/group_chat/widgets/group_member_strip.dart';
 import '../features/home/utils/model_display_helper.dart';
@@ -438,6 +439,57 @@ class _ToolsContent extends StatelessWidget {
       );
       for (final id in localToolIds) {
         final isEnabled = enabledLocalTools.contains(id);
+        // 子代理 follows 绘图 exactly: the row is the switch, and the indented
+        // summary under it is the way into the dialog while it is on. With it
+        // off there is nothing below — the popover never offers a second
+        // control for the same decision.
+        if (id == LocalToolNames.delegate) {
+          final assistant = a;
+          rows.add(
+            (context) => _RowItem(
+              leading: Icon(
+                localToolIcon(id),
+                size: 16,
+                color: isEnabled ? cs.primary : cs.onSurface,
+              ),
+              label: localToolTitle(l10n, id),
+              selected: isEnabled,
+              onTap: () => unawaited(
+                setSubagentEnabled(
+                  hostContext,
+                  assistant: assistant,
+                  value: !isEnabled,
+                ),
+              ),
+            ),
+          );
+          if (isEnabled) {
+            rows.add(
+              (context) => ImageModelSubRow(
+                label: subagentSummary(
+                  context,
+                  AppLocalizations.of(context)!,
+                  assistant,
+                ),
+                configured: true,
+                inset: 36,
+                height: 30,
+                fontSize: 12,
+                onTap: () {
+                  onDone();
+                  unawaited(
+                    showSubagentConfig(
+                      hostContext,
+                      assistantId: assistantId,
+                      conversationId: conversationId,
+                    ),
+                  );
+                },
+              ),
+            );
+          }
+          continue;
+        }
         rows.add(
           (context) => _RowItem(
             leading: Icon(

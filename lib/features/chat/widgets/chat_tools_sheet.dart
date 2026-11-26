@@ -33,6 +33,7 @@ import 'tools_sheet_row.dart';
 import 'image_recall_control.dart';
 import '../../image_job/widgets/image_model_subrow.dart';
 import '../../group_chat/widgets/group_member_strip.dart';
+import '../../subagent/widgets/subagent_config_sheet.dart';
 import '../../mcp/widgets/mcp_server_avatar.dart';
 import '../../mcp/widgets/mcp_tool_connection_status.dart';
 import '../../mcp/utils/mcp_tool_groups.dart';
@@ -546,6 +547,62 @@ class _LocalToolsGroup extends StatelessWidget {
                     value: value,
                   ),
                 ),
+              )
+            else if (id == LocalToolNames.delegate)
+              // 子代理 is the same two lines as 绘图, with the same grammar: the
+              // row is a switch, and the summary underneath is the way into the
+              // dialog while it is on. With it off the second line folds away,
+              // exactly as the drawing row's does.
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ToolsSheetRow(
+                    key: ChatToolsSheet.localToolKey(LocalToolNames.delegate),
+                    icon: localToolIcon(LocalToolNames.delegate),
+                    label: localToolTitle(l10n, LocalToolNames.delegate),
+                    selected: enabled.contains(id),
+                    trailing: IosSwitch(
+                      value: enabled.contains(id),
+                      semanticLabel: localToolTitle(l10n, id),
+                      onChanged: (value) => unawaited(
+                        setSubagentEnabled(
+                          context,
+                          assistant: assistant,
+                          value: value,
+                        ),
+                      ),
+                    ),
+                    onTap: () => unawaited(
+                      setSubagentEnabled(
+                        context,
+                        assistant: assistant,
+                        value: !enabled.contains(id),
+                      ),
+                    ),
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: enabled.contains(id)
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: ImageModelSubRow(
+                              label: subagentSummary(context, l10n, assistant),
+                              configured: true,
+                              onTap: () => unawaited(
+                                showSubagentConfig(
+                                  context,
+                                  assistantId: assistant.id,
+                                  conversationId: conversationId,
+                                ),
+                              ),
+                            ),
+                          )
+                        : const SizedBox(width: double.infinity, height: 0),
+                  ),
+                ],
               )
             else
               ToolsSheetRow(

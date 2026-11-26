@@ -1,4 +1,4 @@
-# ADR-0020: Remote sync over tailcat — a second transport under the same sync engine
+# ADR-0021: Remote sync over tailcat — a second transport under the same sync engine
 
 **Status:** Proposed (2026-11), ships as experimental
 **Deciders:** cuplivo
@@ -8,7 +8,7 @@
 [ADR-0003](0003-lan-sync-architecture.md) built LAN sync as one engine plus one transport: a TLS
 HTTP listener on the sync port, a per-device self-signed certificate whose SHA-256 **is** the
 deviceId, QR/PIN pairing that pins that certificate, and a symmetric, deterministic merge that
-never asks which side wins. Protocol 10 carries conversations, business rows, blobs, skills and
+never asks which side wins. Protocol 11 carries conversations, business rows, blobs, skills and
 workspace content between a user's own devices. The feature assumes the two devices are on the
 same network: addresses are enumerated from local interfaces, paired endpoints are LAN endpoints,
 and a session is a foreground round or a manual push.

@@ -204,6 +204,57 @@ void main() {
     expect(display.isConfigured, isTrue);
   });
 
+  group('modelDisplayName', () {
+    setUp(() async {
+      await settings.setProviderConfig(
+        'Named',
+        ProviderConfig(
+          id: 'Named',
+          enabled: true,
+          name: 'Named',
+          apiKey: 'k',
+          baseUrl: 'https://example.test/v1',
+          providerType: ProviderKind.openai,
+          modelOverrides: {
+            'aliased': {'name': '  Friendly  '},
+            'remapped': {'apiModelId': 'upstream-remapped'},
+            'blank-name': {'name': ' ', 'api_model_id': 'upstream-blank'},
+            'broken': 'not a map',
+          },
+        ),
+      );
+    });
+
+    test("the provider's name for a model outranks every other source", () {
+      expect(modelDisplayName(settings, 'Named', 'aliased'), 'Friendly');
+    });
+
+    test('a remapped model is called by the id it is sent upstream as', () {
+      expect(
+        modelDisplayName(settings, 'Named', 'remapped'),
+        'upstream-remapped',
+      );
+      expect(
+        modelDisplayName(settings, 'Named', 'blank-name'),
+        'upstream-blank',
+      );
+    });
+
+    test('nothing to go on keeps the raw id', () {
+      expect(modelDisplayName(settings, 'Named', 'plain'), 'plain');
+      expect(modelDisplayName(settings, 'gone', 'plain'), 'plain');
+      expect(modelDisplayName(settings, 'Named', 'broken'), 'broken');
+    });
+
+    test('getModelDisplayInfo reads the same name', () {
+      final display = getModelDisplayInfo(
+        settings,
+        assistant: assistantWithModel(providerKey: 'Named', modelId: 'aliased'),
+      );
+      expect(display.modelDisplay, 'Friendly');
+    });
+  });
+
   group('resolveTitleModel', () {
     Conversation groupConversation() =>
         Conversation(title: 'Topic', extras: const {}).withGroupChatId('g1');

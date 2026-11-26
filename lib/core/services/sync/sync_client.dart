@@ -86,7 +86,7 @@ class SyncHelloOutcome {
 }
 
 /// mTLS HTTP client for sync: direct against a LAN endpoint, tunneled through
-/// tailcat against a remote one (ADR-0020).
+/// tailcat against a remote one (ADR-0021).
 ///
 /// The client pins the peer's certificate by hash: for a paired device the
 /// presented certificate's SHA-256 must equal the stored deviceId, or the
@@ -539,7 +539,7 @@ class SyncClientSession {
 
   /// Whether this session crosses the tailcat tunnel. Every request carries
   /// the server's remote marker so a peer does not remember its relay's
-  /// loopback source as this device's address (ADR-0020).
+  /// loopback source as this device's address (ADR-0021).
   final bool remote;
 
   /// One authenticated liveness probe: a request answered with a bare 204.

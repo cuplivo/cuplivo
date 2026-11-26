@@ -229,7 +229,7 @@ enum _Route { ping, pair, hello, subtrees, revoke, workspaceFile, blob }
 ///
 /// One listener serves both pairing and sync routes, authenticated in two
 /// layers (a remote session's bytes arrive through the tailcat relay and are
-/// handed to this same listener — ADR-0020):
+/// handed to this same listener — ADR-0021):
 ///
 /// - **Server → client**: the listener presents this device's self-signed
 ///   certificate, and the client pins it (SHA-256 of the DER must equal the
@@ -279,7 +279,7 @@ class SyncServer {
   static const deviceHeader = 'x-cuplivo-device';
   static const tokenHeader = 'x-cuplivo-token';
 
-  /// Set by a remote session's client on every request (ADR-0020).
+  /// Set by a remote session's client on every request (ADR-0021).
   ///
   /// A remote connection arrives through this device's own tailcat relay, so
   /// its socket comes from loopback — not from where the peer is. Without the
@@ -1304,21 +1304,6 @@ class SyncRequestRefusal implements Exception {
   const SyncRequestRefusal.sessionMissing()
     : statusCode = HttpStatus.conflict,
       error = 'sync_session_missing';
-
-  /// A second push beat on a session that already took one.
-  ///
-  /// Every session is *one* push followed by one fetch, and the fetch beat
-  /// enforces its half of that ([pushRequired]); this is the other half. The
-  /// push beat writes the session's outcome — the workspace ledger, the blob
-  /// retry set, the business payload and its apply — while the counters a later
-  /// push landing books into keep accumulating, so answering a replay would
-  /// replace the outcome the report is built from and still count the bytes
-  /// twice. A client that retries a request it never got an answer for cannot be
-  /// told apart from a replay here, and a re-sent push re-runs every apply; the
-  /// honest answer is that the session already has its push.
-  const SyncRequestRefusal.pushAlreadyTaken()
-    : statusCode = HttpStatus.conflict,
-      error = 'push_already_taken';
 
   final int statusCode;
   final String error;

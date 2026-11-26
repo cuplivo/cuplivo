@@ -8,7 +8,7 @@ import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The `x-cuplivo-remote` marker (ADR-0020, decision 7): a remote session
+/// The `x-cuplivo-remote` marker (ADR-0021, decision 7): a remote session
 /// arrives through this device's own tailcat relay, so the socket's source is
 /// loopback and says nothing about the peer. The server turns the marker into
 /// "no source hint", and the peer's advertised candidates carry the return

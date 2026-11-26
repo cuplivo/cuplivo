@@ -24,7 +24,7 @@ const String _tailcatLearnMoreUrl = 'https://tailscale.com/tailcat';
 /// Where a DERP-server offer or any other feedback lands: the project's issues.
 const String _projectFeedbackUrl = 'https://github.com/cuplivo/cuplivo';
 
-/// The experimental remote sync half of the sync settings (ADR-0020).
+/// The experimental remote sync half of the sync settings (ADR-0021).
 ///
 /// Its five sections, in order: this device and its remote listener, the pairing
 /// entry, the devices that have a remote endpoint, the remote key, and what the

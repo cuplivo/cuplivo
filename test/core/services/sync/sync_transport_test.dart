@@ -4,7 +4,7 @@ import 'package:Cuplivo/core/services/sync/sync_transport.dart';
 import 'package:Cuplivo/core/services/sync/tailcat_remote_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The seam between LAN sync and the tailcat tunnel (ADR-0020, decisions 3 and
+/// The seam between LAN sync and the tailcat tunnel (ADR-0021, decisions 3 and
 /// 7): a remote endpoint is a `tcat:<address>` token in the endpoint vocabulary
 /// the LAN path already has, and only the sync client's dial path treats it
 /// differently.

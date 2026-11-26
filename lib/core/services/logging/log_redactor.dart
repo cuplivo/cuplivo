@@ -80,7 +80,7 @@ class LogRedactor {
   );
 
   /// A tailcat endpoint host embeds a device's remote address, which is the
-  /// capability to reach it (ADR-0020). The sync code scrubs the lines it
+  /// capability to reach it (ADR-0021). The sync code scrubs the lines it
   /// writes itself; this net catches a print that bypasses that scrub, because
   /// the persisted log file is what users attach to bug reports.
   static final RegExp _tailcatHostRe = RegExp(

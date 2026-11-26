@@ -134,7 +134,7 @@ class SyncWorkspaceSummary {
   final int fileCount;
   final int totalBytes;
 
-  /// Over the file or byte cap: this workspace's content is not synced at all,
+  /// Over the file cap: this workspace's content is not synced at all,
   /// and its figures are lower bounds.
   final bool truncated;
 
@@ -194,7 +194,7 @@ bool shouldAutoSyncNow(DateTime now, DateTime? lastRoundAt) {
 }
 
 /// UI-facing state of the sync engine: LAN (ADR-0003) and the tailcat remote
-/// listener that sits underneath it (ADR-0020).
+/// listener that sits underneath it (ADR-0021).
 ///
 /// The engine is transport + session logic; this provider owns its lifecycle:
 /// start the listener with the app, keep the peer list the panels show in
@@ -264,7 +264,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final TailcatRemoteService Function(Directory directory)
   _remoteServiceFactory;
 
-  /// Remote sync (ADR-0020): the tailcat runtime, created once the sync
+  /// Remote sync (ADR-0021): the tailcat runtime, created once the sync
   /// directory is known. Null before start and on a platform without tailcat
   /// (web).
   TailcatRemoteService? _remote;
@@ -870,7 +870,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // ---- remote (tailcat, ADR-0020) ----
+  // ---- remote (tailcat, ADR-0021) ----
 
   /// Starts the remote listener when it is down; idempotent. The remote tab
   /// calls this when it becomes visible, so opening the tab is the whole
@@ -1020,7 +1020,7 @@ class SyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     } catch (error) {
       // The dialog shows this detail. A type name is enough to tell a bug
       // report what failed; the exception text is not rendered because it may
-      // name the peer's remote address (ADR-0020 keeps it out of the UI).
+      // name the peer's remote address (ADR-0021 keeps it out of the UI).
       return SyncPairOutcome.failure('unknown', error.runtimeType.toString());
     }
   }

@@ -228,10 +228,28 @@ paths). Before editing one:
 
 Several packages live under `dependencies/` and are referenced by path in `pubspec.yaml` (e.g. `markstream`, `mcp_client`, `flutter_tts`, `flutter_math_fork`, `downsize`). The analyzer excludes `dependencies/flutter_math_fork/**` and `dependencies/flutter_tts/**`.
 
+## Localization gate
+
+`tool/l10n/translate.py check` is the gate CI runs (`pr-check.yml`), and it works locally in a couple of minutes for all four locales. Run it after touching `lib/l10n/`; it fails on a key without an `@key.description`, a stale fingerprint in `tool/l10n/state/`, a key set that differs from English, a stale `zh_Hans` alias, or a broken ICU message.
+
+```bash
+flutter pub get --directory tool/l10n     # once per worktree; revert the pubspec.lock rewrite
+python tool/l10n/translate.py check
+```
+
+The Dart SDK needs a writable profile here, because it writes `%APPDATA%\.dart-tool` on every start and dies with `errno = 5` when it cannot — the tool names that cause when it happens:
+
+```powershell
+$env:APPDATA = "$PWD\.tmp\dart"; $env:LOCALAPPDATA = "$PWD\.tmp\dart-local"; python tool/l10n/translate.py check
+```
+
+It invokes the SDK's own `bin/cache/dart-sdk/bin/dart` rather than the `bin/dart` wrapper, and bounds every SDK call with a timeout: the wrapper takes `bin/cache/flutter.bat.lock` first and retries that lock forever where `bin/cache` is read-only, so it turns a missing report into a hang.
+
 ## Useful commands
 
 ```bash
 flutter pub get                             # install dependencies
 flutter gen-l10n                            # regenerate l10n files
+python tool/l10n/translate.py check          # localization gate (see above)
 dart run build_runner build                 # regenerate Drift code
 ```

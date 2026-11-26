@@ -6,11 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/sync_payload.dart';
 
-/// What one push can carry: the byte count the receiver sees, and the
-/// conversations a round admits against it.
+/// What one page can carry: the byte count the receiver sees, and how many rows
+/// a page's budget leaves room for.
 ///
-/// The fixtures are bytes, not megabytes: the admission rule takes the budget
-/// as an argument, so the state table is the same arithmetic at any scale.
+/// The fixtures are bytes, not megabytes: the budget is an argument, so the
+/// state table is the same arithmetic at any scale.
 void main() {
   SyncSubtreePayload titled(String id, int titleLength, {String fill = 'x'}) =>
       subtreePayload(conversation: {'id': id, 'title': fill * titleLength});
@@ -53,8 +53,10 @@ void main() {
     );
   });
 
-  test('an admitted batch serialises inside the budget, by construction', () {
-    final planned = [titled('a', 10), titled('b', 20), titled('c', 30)];
+  test('a page built from its row budget serialises inside it', () {
+    // The identity the page builder rests on: a body holding `k` subtrees is
+    // `envelope + Σ(size + 1) − 1`. A push page carries one subtree, so the
+    // arithmetic is the same at any page size.
     const business = SyncBusinessPayload();
     final envelope = pushEnvelopeBytes(
       business: business,
@@ -62,40 +64,42 @@ void main() {
       skillHashes: const {},
       workspaceFiles: const {},
     );
-    final budget = envelope + 1000;
+    const pageBytes = 4096;
+    final room = pageRowBudget(pageBytes: pageBytes, envelopeBytes: envelope);
+    expect(room, pageBytes - envelope);
 
-    final outbound = admitConversations(
-      planned: planned,
-      envelopeBytes: envelope,
-      budgetBytes: budget,
-      perConversationBytes: budget,
-    );
-    expect(outbound.admitted, hasLength(3), reason: 'all three fit');
-
-    final body = SyncDeltaBatch(outbound.admitted, business: business);
-    expect(
-      wireBytesOf(body.toJson()),
-      lessThanOrEqualTo(budget),
-      reason: 'envelope + Σ(size + 1) − 1 is the whole body',
-    );
-    expect(wireBytesOf(body.toJson()), ledgerSum(outbound.admitted, envelope));
+    final page = [titled('a', 10), titled('b', 20)];
+    final body = SyncDeltaBatch(page, business: business);
+    expect(wireBytesOf(body.toJson()), lessThanOrEqualTo(pageBytes));
+    expect(wireBytesOf(body.toJson()), ledgerSum(page, envelope));
   });
 
-  test('the batch about to be sent is checked against the budget', () {
-    // What the engine asserts on the real push: the list measured and the list
-    // sent are the same list, and one function answers for both.
+  test(
+    'a fixed part larger than the page leaves no room, and is not clipped',
+    () {
+      // ADR-0003: the fixed part is measured, not capped. A page whose envelope
+      // alone is past the page size carries the envelope alone — only the
+      // receiving side's body cap may refuse it — so the answer goes non-positive
+      // rather than pretending there is room.
+      expect(pageRowBudget(pageBytes: 100, envelopeBytes: 100), 0);
+      expect(pageRowBudget(pageBytes: 100, envelopeBytes: 300), -200);
+    },
+  );
+
+  test('the page about to be sent is checked against the page budget', () {
+    // What the engine asserts on the real push: the rows measured and the rows
+    // sent are the same rows, and one function answers for both.
     final batch = SyncDeltaBatch([titled('a', 10), titled('b', 20)]);
     final bytes = wireBytesOf(batch.toJson());
     expect(() => assertPushFits(batch, bytes), returnsNormally);
     expect(
       () => assertPushFits(batch, bytes - 1),
       throwsStateError,
-      reason: 'one byte over the budget is a refused round on the peer',
+      reason: 'one byte over the page is a refused beat on the peer',
     );
-    // The documented edge: the fixed part alone is past the budget, so admission
-    // admitted nothing and the body *is* that part. Only the receiver's cap may
-    // refuse it, so the guard's bound becomes the fixed part — a debug build
-    // must not fail a round release would have let the peer answer.
+    // The documented edge: the fixed part alone is past the page, so the page
+    // carries nothing but that part. A debug build must not fail a beat release
+    // would have let the peer answer.
     expect(
       () => assertPushFits(batch, 1, envelopeBytes: bytes + 1),
       returnsNormally,
@@ -106,66 +110,14 @@ void main() {
     expect(
       () => assertPushFits(batch, 1, envelopeBytes: bytes - 1),
       throwsStateError,
-      reason: 'and once the envelope fits, the budget is the bound again',
+      reason: 'and once the envelope fits, the page budget is the bound again',
     );
-  });
-
-  test(
-    'a conversation larger than the per-conversation cap rides in no round',
-    () {
-      final planned = [titled('small', 1), titled('huge', 400)];
-      final outbound = admitConversations(
-        planned: planned,
-        envelopeBytes: 0,
-        budgetBytes: 100000,
-        perConversationBytes: 300,
-      );
-      expect(outbound.admitted.map((s) => s.conversation['id']), ['small']);
-      expect(outbound.omitted, {'huge'});
-    },
-  );
-
-  test('an over-budget conversation does not end the walk', () {
-    // The huge one comes first, in plan order. The two behind it must still
-    // ride: "not this round" is not "not ever", and a list that stopped at the
-    // first refusal would starve everything after it, for good.
-    final planned = [titled('huge', 900), titled('b', 5), titled('c', 5)];
-    final outbound = admitConversations(
-      planned: planned,
-      envelopeBytes: 0,
-      budgetBytes: 900,
-      perConversationBytes: 100000,
-    );
-    expect(outbound.admitted.map((s) => s.conversation['id']), ['b', 'c']);
-    expect(outbound.omitted, {'huge'});
-  });
-
-  test('the boundary is the byte: one that fits rides, one more does not', () {
-    final subtree = titled('c', 20);
-    final size = conversationWireBytes(subtree);
-    final planned = [subtree];
-
-    final exact = admitConversations(
-      planned: planned,
-      envelopeBytes: 0,
-      budgetBytes: size + 1,
-      perConversationBytes: size + 1,
-    );
-    expect(exact.admitted, hasLength(1), reason: 'size + comma is the cost');
-
-    final oneShort = admitConversations(
-      planned: planned,
-      envelopeBytes: 0,
-      budgetBytes: size,
-      perConversationBytes: size + 1,
-    );
-    expect(oneShort.omitted, {'c'});
   });
 
   test('CJK bytes decide, not Dart length', () {
-    // The conversation's code-unit length fits the budget; its UTF-8 length
-    // does not. A budget counted in characters would admit it and the receiver
-    // would still answer 413.
+    // The page's code-unit length fits the budget; its UTF-8 length does not. A
+    // budget counted in characters would pack it and the receiver would still
+    // answer 413.
     final subtree = subtreePayload(
       conversation: {'id': 'cjk', 'title': '会' * 300},
     );
@@ -173,14 +125,12 @@ void main() {
     final bytes = conversationWireBytes(subtree);
     expect(bytes, greaterThan(characters * 2));
 
-    final outbound = admitConversations(
-      planned: [subtree],
-      envelopeBytes: 0,
-      budgetBytes: characters + 10,
-      perConversationBytes: characters + 10,
+    final room = pageRowBudget(pageBytes: characters + 10, envelopeBytes: 0);
+    expect(
+      bytes + 1,
+      greaterThan(room),
+      reason: 'a character-counted page would pack a body the peer refuses',
     );
-    expect(outbound.admitted, isEmpty);
-    expect(outbound.omitted, {'cjk'});
   });
 
   test('the envelope carries the business, asset and workspace faces', () {
@@ -215,9 +165,36 @@ void main() {
     );
     expect(loaded, greaterThan(empty));
   });
+
+  test('a page says whether it is the last one, and the last names its ids', () {
+    // An intermediate page proves what it carries and nothing about absence, so
+    // it must not carry an id set at all: a reader that found an empty one would
+    // conclude the sender holds nothing and delete the conversation.
+    final first = SyncSubtreePayload(
+      conversation: const {'id': 'c'},
+      more: true,
+    );
+    final firstJson = first.toJson();
+    expect(firstJson['more'], isTrue);
+    expect(firstJson.containsKey('ids'), isFalse);
+
+    final last = SyncSubtreePayload(
+      conversation: const {'id': 'c'},
+      ids: const ['m1', 'm2'],
+    );
+    final lastJson = last.toJson();
+    expect(lastJson.containsKey('more'), isFalse);
+    expect(lastJson['ids'], ['m1', 'm2']);
+
+    final round = SyncSubtreePayload.fromJson(
+      (jsonDecode(jsonEncode(lastJson)) as Map).cast<String, dynamic>(),
+    );
+    expect(round.more, isFalse);
+    expect(round.ids, ['m1', 'm2']);
+  });
 }
 
-/// The byte count the batch *should* be, from the parts the admission measured:
+/// The byte count the page *should* be, from the parts it was assembled out of:
 /// `envelope + Σ(size + 1) − 1`.
 int ledgerSum(List<SyncSubtreePayload> subtrees, int envelope) =>
     envelope +

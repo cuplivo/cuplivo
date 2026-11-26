@@ -10,7 +10,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'acceptance_support.dart';
 
-/// Acceptance scenario for the Convenient Sync page (ADR-0020): the renamed
+/// Acceptance scenario for the Convenient Sync page (ADR-0021): the renamed
 /// entry opens a page whose segments switch between the untouched LAN panel and
 /// the new remote panel.
 ///

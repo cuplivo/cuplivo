@@ -17,7 +17,7 @@ import '../../scan/pages/qr_scan_page.dart';
 import '../sync_messages.dart';
 import 'sync_pairing_dialogs.dart' show PairingQrImage, canScanPairingQr;
 
-/// The remote pairing surface (ADR-0020): the tailcat counterpart of the LAN
+/// The remote pairing surface (ADR-0021): the tailcat counterpart of the LAN
 /// pairing dialogs.
 ///
 /// Showing side: the QR that carries this device's remote address, the one-shot

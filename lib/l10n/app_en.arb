@@ -461,6 +461,22 @@
   "assistantEditMaxTokensTitle": "Max Tokens",
   "assistantEditMaxTokensDescription": "Leave empty for unlimited",
   "assistantEditMaxTokensHint": "Unlimited",
+  "assistantEditDescriptionTitle": "Description",
+  "@assistantEditDescriptionTitle": {
+    "description": "Label of the row that holds what this assistant is for. Read by delegation targets and the group chat director, never shown in the chat itself."
+  },
+  "assistantEditDescriptionTip": "Only read when scheduling group chats and subagents. Leave it empty if you use neither.",
+  "@assistantEditDescriptionTip": {
+    "description": "Says who reads the description and that it is optional. Shown behind the row's help icon and under the field."
+  },
+  "assistantEditDescriptionHint": "e.g. Write SQL from a request and explain the query plan",
+  "@assistantEditDescriptionHint": {
+    "description": "Placeholder inside the description field; teaches what to write (what it does, not who it is)."
+  },
+  "assistantEditDescriptionSet": "Set",
+  "@assistantEditDescriptionSet": {
+    "description": "Value of the description row when one is written; the row does not preview the text because any useful preview would push the label off a phone."
+  },
   "assistantEditChatBackgroundTitle": "Chat Background",
   "assistantEditChatBackgroundDescription": "Set a background image for this assistant",
   "assistantEditChooseImageButton": "Choose Image",
@@ -1407,6 +1423,18 @@
       }
     },
     "description": "Tool-call title for a delegation; {label} is the model's short name for the job."
+  },
+  "chatMessageWidgetDelegateTo": "Delegate {assistant}: {label}",
+  "@chatMessageWidgetDelegateTo": {
+    "placeholders": {
+      "assistant": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Tool-call title for a delegation the model handed to another assistant; {assistant} is that assistant's name and {label} the short name for the job."
   },
   "subagentResultCompleted": "Subagent finished",
   "@subagentResultCompleted": {
@@ -22302,10 +22330,6 @@
   "@chatMessageWidgetReplySelection": {
     "description": "Item in the text-selection context menu that replies to the selected text with it quoted."
   },
-  "chatSelectionExportPdf": "PDF",
-  "@chatSelectionExportPdf": {
-    "description": "Action in the chat selection bar that exports the selected messages as a PDF document."
-  },
   "messageExportSheetUser": "User",
   "@messageExportSheetUser": {
     "description": "Role label printed for the user's own messages in an exported transcript."
@@ -22445,6 +22469,10 @@
   "pdfExportResultDone": "Done",
   "@pdfExportResultDone": {
     "description": "Button that closes the PDF export result dialog."
+  },
+  "pdfExportResultSave": "Save PDF",
+  "@pdfExportResultSave": {
+    "description": "Primary button on the panel that offers a finished PDF; it opens the system save picker."
   },
   "sideDrawerMenuCopyLink": "Copy Link",
   "@sideDrawerMenuCopyLink": {
@@ -23077,7 +23105,7 @@
   "@lanSyncWorkspaces": {
     "description": "Section header listing the workspace folders whose files sync to the other devices."
   },
-  "lanSyncWorkspaceTip": "Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don't sync their files. A workspace's record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.",
+  "lanSyncWorkspaceTip": "Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files don't sync their files. A workspace's record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.",
   "@lanSyncWorkspaceTip": {
     "description": "Help text for that section, explaining which folders are skipped, the size limits, and that the switch only governs files while the folder's record always syncs."
   },
@@ -23200,6 +23228,18 @@
   "lanSyncPhaseExchanging": "Comparing data…",
   "@lanSyncPhaseExchanging": {
     "description": "Progress line during a sync while both devices compare what they hold."
+  },
+  "lanSyncPhasePreparing": "Preparing…",
+  "@lanSyncPhasePreparing": {
+    "description": "Progress line during a sync while this device reads its own rows and packs them into pages; no traffic is on the wire yet."
+  },
+  "lanSyncPhaseSendingOf": "Sending {done}/{total} · {bytes}",
+  "@lanSyncPhaseSendingOf": {
+    "description": "Progress line while pages are pushed to the other device: done and total count conversations finished and planned, bytes is how much has been sent."
+  },
+  "lanSyncPhaseReceivingOf": "Receiving {done}/{total} · {bytes}",
+  "@lanSyncPhaseReceivingOf": {
+    "description": "Progress line while the other device's changes are fetched: done and total count conversations finished and requested, bytes is how much has arrived."
   },
   "lanSyncPhaseSending": "Sending changes…",
   "@lanSyncPhaseSending": {
@@ -23328,10 +23368,6 @@
   "lanSyncReportWorkspacesOmitted": "{count} workspaces not syncing files",
   "@lanSyncReportWorkspacesOmitted": {
     "description": "Sync report count of workspaces whose files were not synced at all; count is that number."
-  },
-  "lanSyncReportConversationsOmittedForSize": "{count} conversations did not fit in this push",
-  "@lanSyncReportConversationsOmittedForSize": {
-    "description": "Sync report count of conversations this device left out of a push because the round's byte budget had no room for them. Most are ordinary conversations that ride in the next session; only a conversation larger than the single-conversation limit has to be pulled by the other device instead. Nothing was deleted. count is that number of conversations."
   },
   "lanSyncReportWorkspacesKept": "{count} workspace folders kept on disk (switched off, or holding unsynced files)",
   "@lanSyncReportWorkspacesKept": {
@@ -24682,10 +24718,6 @@
   "@subagentConfigSubtitle": {
     "description": "One sentence above the three settings, saying what delegating does in this conversation."
   },
-  "subagentConfigEnabled": "On",
-  "@subagentConfigEnabled": {
-    "description": "Label of the switch that turns delegation on for this assistant."
-  },
   "subagentConfigDepth": "Depth",
   "@subagentConfigDepth": {
     "description": "Label of the row that states how deep delegation may go."
@@ -24693,6 +24725,18 @@
   "subagentConfigDepthDescription": "How many levels of subagents may delegate again.",
   "@subagentConfigDepthDescription": {
     "description": "Explains the depth option itself, not its current value."
+  },
+  "subagentConfigDepthOne": "A subagent cannot delegate again",
+  "@subagentConfigDepthOne": {
+    "description": "Depth choice 1: the chain stops at the first subagent."
+  },
+  "subagentConfigDepthTwo": "A subagent may delegate once more",
+  "@subagentConfigDepthTwo": {
+    "description": "Depth choice 2: one further level below the first subagent."
+  },
+  "subagentConfigDepthThree": "A subagent may delegate two more levels",
+  "@subagentConfigDepthThree": {
+    "description": "Depth choice 3: two further levels below the first subagent."
   },
   "subagentConfigModel": "Model",
   "@subagentConfigModel": {
@@ -24705,6 +24749,62 @@
   "subagentConfigModelInherit": "Follow this assistant",
   "@subagentConfigModelInherit": {
     "description": "The model value shown when delegations follow the assistant, and the matching choice in the model picker."
+  },
+  "subagentConfigTargets": "Delegation targets",
+  "@subagentConfigTargets": {
+    "description": "Label of the row that picks which assistants a delegation may name, and the title of the picker it opens."
+  },
+  "subagentConfigTargetsDescription": "Assistants that can work as subagents.",
+  "@subagentConfigTargetsDescription": {
+    "description": "Explains the targets option itself, not its current value."
+  },
+  "subagentConfigTargetsSelf": "This assistant",
+  "@subagentConfigTargetsSelf": {
+    "description": "Value of the delegation targets row when no other assistant is selected; also the label of the fixed row in the picker."
+  },
+  "subagentConfigTargetsSelfPlus": "This assistant + {count}",
+  "@subagentConfigTargetsSelfPlus": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    },
+    "description": "Value of the delegation targets row, counting the other assistants that may be named; the row never shows a single name because it would be clipped."
+  },
+  "subagentConfigTargetsSelfSection": "Delegating to your own assistant is always possible",
+  "@subagentConfigTargetsSelfSection": {
+    "description": "Heading above the fixed picker row that says delegating to your own assistant always works."
+  },
+  "subagentConfigTargetsSelfCaption": "Same assistant, same model, same tools",
+  "@subagentConfigTargetsSelfCaption": {
+    "description": "Second line of the fixed picker row: what a copy of the delegating assistant inherits."
+  },
+  "subagentConfigTargetsAlways": "Always",
+  "@subagentConfigTargetsAlways": {
+    "description": "Trailing word on the fixed picker row, explaining why it cannot be unticked."
+  },
+  "subagentConfigTargetsOthersSection": "Also available by name",
+  "@subagentConfigTargetsOthersSection": {
+    "description": "Heading above the selectable assistants in the delegation target picker."
+  },
+  "subagentConfigTargetsFooter": "Nobody ticked means delegations go to yourself only.",
+  "@subagentConfigTargetsFooter": {
+    "description": "Bottom line of the delegation target picker: what an empty selection means."
+  },
+  "subagentConfigSummaryWithTargets": "{model} · targets {targets} · depth {depth}",
+  "@subagentConfigSummaryWithTargets": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "int"
+      },
+      "depth": {
+        "type": "int"
+      }
+    },
+    "description": "Second line of the subagent toolbox row when some assistants may be named."
   },
   "subagentConfigSummary": "{model} · depth {depth}",
   "@subagentConfigSummary": {

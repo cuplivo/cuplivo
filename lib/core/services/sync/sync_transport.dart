@@ -97,7 +97,7 @@ String redactEndpointText(String text) {
 typedef SyncUriEndpoint = ({String host, int port});
 
 /// The seam between the LAN sync client (ADR-0003) and the tailcat tunnel
-/// (ADR-0020).
+/// (ADR-0021).
 ///
 /// The sync client keeps speaking HTTPS to `host:port`; a remote endpoint is
 /// the one case whose stored host is not a network address. The transport maps

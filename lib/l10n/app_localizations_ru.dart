@@ -1065,6 +1065,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String get assistantEditMaxTokensHint => 'Без ограничений';
 
   @override
+  String get assistantEditDescriptionTitle => 'Описание';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      'Читается только при планировании групповых чатов и делегировании. Оставьте пустым, если этим не пользуетесь.';
+
+  @override
+  String get assistantEditDescriptionHint =>
+      'напр. Писать SQL по запросу и объяснять план запроса';
+
+  @override
+  String get assistantEditDescriptionSet => 'Заполнено';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Фон чата';
 
   @override
@@ -2954,6 +2968,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String chatMessageWidgetDelegate(String label) {
     return 'Поручить субагенту: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return 'Делегировать $assistant: $label';
   }
 
   @override
@@ -17448,9 +17467,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatMessageWidgetReplySelection => 'Ответить';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => 'Пользователь';
 
   @override
@@ -17568,6 +17584,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => 'Готово';
+
+  @override
+  String get pdfExportResultSave => 'Сохранить PDF';
 
   @override
   String get sideDrawerMenuCopyLink => 'Копировать ссылку';
@@ -18094,7 +18113,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      'Папки контроля версий и зависимостей/сборки пропускаются ради экономии времени. Рабочие области с более чем 2000 файлов или 200 МБ свои файлы не синхронизируют. Запись рабочей области синхронизируется всегда — переключатель управляет только её файлами: папка с выключенным переключателем не отправляется, и синхронизация никогда её не удаляет.';
+      'Папки контроля версий и зависимостей/сборки пропускаются ради экономии времени. Рабочие области с более чем 2000 файлов свои файлы не синхронизируют. Запись рабочей области синхронизируется всегда — переключатель управляет только её файлами: папка с выключенным переключателем не отправляется, и синхронизация никогда её не удаляет.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -18206,6 +18225,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => 'Сравнение данных…';
+
+  @override
+  String get lanSyncPhasePreparing => 'Подготовка…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return 'Отправка $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return 'Получение $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => 'Отправка изменений…';
@@ -18345,11 +18377,6 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return 'Рабочих областей без синхронизации файлов: $count';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return 'Не вошло в эту отправку чатов: $count';
   }
 
   @override
@@ -19433,14 +19460,22 @@ class AppLocalizationsRu extends AppLocalizations {
       'Выполнить одну задачу в копии этого чата, в том же рабочем пространстве.';
 
   @override
-  String get subagentConfigEnabled => 'Вкл.';
-
-  @override
   String get subagentConfigDepth => 'Глубина';
 
   @override
   String get subagentConfigDepthDescription =>
       'Сколько уровней подагентов может делегировать дальше';
+
+  @override
+  String get subagentConfigDepthOne => 'Субагент не может делегировать дальше';
+
+  @override
+  String get subagentConfigDepthTwo =>
+      'Субагент может делегировать ещё один уровень';
+
+  @override
+  String get subagentConfigDepthThree =>
+      'Субагент может делегировать ещё два уровня';
 
   @override
   String get subagentConfigModel => 'Модель';
@@ -19451,6 +19486,49 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get subagentConfigModelInherit => 'Как у этого ассистента';
+
+  @override
+  String get subagentConfigTargets => 'Цели делегирования';
+
+  @override
+  String get subagentConfigTargetsDescription =>
+      'Помощники, которые могут работать как подагенты';
+
+  @override
+  String get subagentConfigTargetsSelf => 'Этот помощник';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return 'Этот помощник + $count';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection =>
+      'Поручить своему помощнику можно всегда';
+
+  @override
+  String get subagentConfigTargetsSelfCaption =>
+      'Тот же помощник, та же модель, те же инструменты';
+
+  @override
+  String get subagentConfigTargetsAlways => 'Всегда';
+
+  @override
+  String get subagentConfigTargetsOthersSection =>
+      'Также можно указать по имени';
+
+  @override
+  String get subagentConfigTargetsFooter =>
+      'Если никого не отметить, задачи будет выполнять только ваш помощник.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · целей $targets · глубина $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {

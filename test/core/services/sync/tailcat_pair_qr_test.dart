@@ -5,7 +5,7 @@ import 'package:Cuplivo/core/services/sync/sync_transport.dart';
 import 'package:Cuplivo/core/services/sync/tailcat_pair_qr.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The remote pairing code (ADR-0020, decision 6): a separate scheme from the
+/// The remote pairing code (ADR-0021, decision 6): a separate scheme from the
 /// LAN QR on purpose, because an old build must answer "not a sync code" rather
 /// than misread it, and the remote address it carries is a capability.
 ///

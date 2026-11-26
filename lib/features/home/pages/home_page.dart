@@ -1358,7 +1358,6 @@ class _HomePageState extends State<HomePage>
       hasMultiVersionSelection:
           _controller.selectedMessagesIncludeMultipleVersions,
       onShare: _controller.exportSelectedMessages,
-      onExportPdf: _controller.exportSelectedAsPdf,
       onDeleteCurrentVersions: () {
         unawaited(
           _handleDeleteSelectedMessages(context, deleteAllVersions: false),
@@ -1659,11 +1658,18 @@ class _HomePageState extends State<HomePage>
       onVersionChange: (groupId, version) async {
         await _controller.setSelectedVersion(groupId, version);
       },
-      // Inside a group the round, not a reply, is what gets regenerated: the
-      // member replies carry no regenerate of their own.
-      onRegenerateMessage: _currentGroup() == null
-          ? (message) => _controller.regenerateAtMessage(message)
-          : null,
+      // A member's reply regenerates itself; the user turn above it regenerates
+      // its round. One call, and the controller decides which of the two it is.
+      onRegenerateMessage: (message) =>
+          _controller.regenerateAtMessage(message),
+      // A reply whose author is gone has nobody to ask again. The row hides the
+      // action rather than offering one that cannot run.
+      canRegenerateMessage: (message) {
+        if (message.role != 'assistant' || _currentGroup() == null) return true;
+        final senderId = message.senderId;
+        return senderId != null &&
+            context.read<AssistantProvider>().getById(senderId) != null;
+      },
       onRetryWithoutImages: (message) =>
           _controller.regenerateAtMessage(message, omitImages: true),
       onSetContextStart: (message) async {

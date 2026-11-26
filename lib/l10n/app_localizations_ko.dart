@@ -1017,6 +1017,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get assistantEditMaxTokensHint => '무제한';
 
   @override
+  String get assistantEditDescriptionTitle => '설명';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      '그룹 채팅과 하위 에이전트 조정 시에만 참고됩니다. 이 기능을 쓰지 않으면 비워 두세요.';
+
+  @override
+  String get assistantEditDescriptionHint => '예: 요구 사항을 SQL로 작성하고 실행 계획 설명';
+
+  @override
+  String get assistantEditDescriptionSet => '작성됨';
+
+  @override
   String get assistantEditChatBackgroundTitle => '채팅 배경';
 
   @override
@@ -2844,6 +2857,11 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String chatMessageWidgetDelegate(String label) {
     return '서브에이전트 파견: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '$assistant에게 위임: $label';
   }
 
   @override
@@ -16636,9 +16654,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get chatMessageWidgetReplySelection => '답장';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '사용자';
 
   @override
@@ -16753,6 +16768,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => '완료';
+
+  @override
+  String get pdfExportResultSave => 'PDF 저장';
 
   @override
   String get sideDrawerMenuCopyLink => '링크 복사';
@@ -17256,7 +17274,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '시간을 아끼려고 버전 관리와 의존성/빌드 폴더는 건너뛰어요. 파일이 2,000개를 넘거나 200 MB가 넘는 작업 공간은 파일을 동기화하지 않아요. 작업 공간 기록은 항상 동기화되며 스위치는 파일만 제어해요. 스위치가 꺼진 폴더는 전송되지 않고 동기화로 삭제되지도 않아요.';
+      '시간을 아끼려고 버전 관리와 의존성/빌드 폴더는 건너뛰어요. 파일이 2,000개를 넘는 작업 공간은 파일을 동기화하지 않아요. 작업 공간 기록은 항상 동기화되며 스위치는 파일만 제어해요. 스위치가 꺼진 폴더는 전송되지 않고 동기화로 삭제되지도 않아요.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -17365,6 +17383,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => '데이터 비교 중…';
+
+  @override
+  String get lanSyncPhasePreparing => '준비 중…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '보내는 중 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '받는 중 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '변경 사항 보내는 중…';
@@ -17504,11 +17535,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String lanSyncReportWorkspacesOmitted(Object count) {
     return '파일을 동기화하지 않는 작업 공간 $count개';
-  }
-
-  @override
-  String lanSyncReportConversationsOmittedForSize(Object count) {
-    return '이번 전송에 담지 못한 대화 $count개';
   }
 
   @override
@@ -18534,13 +18560,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get subagentConfigSubtitle => '이 대화의 복제본에서 같은 작업 공간으로 한 가지 작업을 실행합니다.';
 
   @override
-  String get subagentConfigEnabled => '켜기';
-
-  @override
   String get subagentConfigDepth => '깊이';
 
   @override
   String get subagentConfigDepthDescription => '하위 에이전트가 다시 위임할 수 있는 단계 수';
+
+  @override
+  String get subagentConfigDepthOne => '서브에이전트는 더 이상 위임할 수 없습니다';
+
+  @override
+  String get subagentConfigDepthTwo => '서브에이전트가 한 단계 더 위임할 수 있습니다';
+
+  @override
+  String get subagentConfigDepthThree => '서브에이전트가 최대 두 단계 더 위임할 수 있습니다';
 
   @override
   String get subagentConfigModel => '모델';
@@ -18550,6 +18582,44 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get subagentConfigModelInherit => '이 어시스턴트 따르기';
+
+  @override
+  String get subagentConfigTargets => '위임 대상';
+
+  @override
+  String get subagentConfigTargetsDescription => '하위 에이전트로 활동할 수 있는 어시스턴트';
+
+  @override
+  String get subagentConfigTargetsSelf => '이 어시스턴트';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '이 어시스턴트 + $count개';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '이 어시스턴트에게 맡기는 것은 항상 가능합니다';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '같은 어시스턴트, 같은 모델, 같은 도구';
+
+  @override
+  String get subagentConfigTargetsAlways => '항상';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '이름으로 지정할 수도 있음';
+
+  @override
+  String get subagentConfigTargetsFooter => '아무도 선택하지 않으면 이 어시스턴트에게만 맡깁니다.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 대상 $targets개 · 깊이 $depth';
+  }
 
   @override
   String subagentConfigSummary(String model, int depth) {

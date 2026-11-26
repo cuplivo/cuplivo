@@ -4,12 +4,20 @@
 
 ### Added
 
-- **Remote sync (experimental)**: the sync panel gains a remote mode beside LAN sync — two devices on different networks sync through an embedded tailcat WireGuard tunnel, directly peer-to-peer when NAT traversal succeeds and over Tailscale's public DERP relays otherwise, with no account and no port forwarding. A device keeps a fixed remote identity, so its remote address is stable across restarts; **Reset key** rotates that address, so peers reachable only remotely must pair again, while the pairing records and their LAN addresses are kept. This is a new transport, not a new protocol: LAN sync stays on protocol 10 and pairing is still a QR code or an address plus a six-digit code. A pair already made on the LAN needs no second pairing: once both sides run remote sync, the next session exchanges remote addresses by itself. Remote sync needs macOS 13.0, iOS 15, Android 7.0 (API 24), Windows x64 or Linux glibc 2.28+ (Windows builds are x64 only), and adds about 6 MB compressed (14–17 MB uncompressed) per bundled architecture. The panel's About section explains the tailcat/WireGuard path and the relay fallback, and states that relays see connection metadata only; the public relay is rate-limited, has no SLA, and may be far away in mainland China. See `docs/adr/0020-remote-sync-over-tailcat.md`.
+- **Remote sync (experimental)**: the sync panel gains a remote mode beside LAN sync — two devices on different networks sync through an embedded tailcat WireGuard tunnel, directly peer-to-peer when NAT traversal succeeds and over Tailscale's public DERP relays otherwise, with no account and no port forwarding. A device keeps a fixed remote identity, so its remote address is stable across restarts; **Reset key** rotates that address, so peers reachable only remotely must pair again, while the pairing records and their LAN addresses are kept. This is a new transport, not a new protocol: pairing is still a QR code or an address plus a six-digit code. A pair already made on the LAN needs no second pairing: once both sides run remote sync, the next session exchanges remote addresses by itself. Remote sync needs macOS 13.0, iOS 15, Android 7.0 (API 24), Windows x64 or Linux glibc 2.28+ (Windows builds are x64 only), and adds about 6 MB compressed (14–17 MB uncompressed) per bundled architecture. The panel's About section explains the tailcat/WireGuard path and the relay fallback, and states that relays see connection metadata only; the public relay is rate-limited, has no SLA, and may be far away in mainland China. See `docs/adr/0021-remote-sync-over-tailcat.md`.
 
 ### Changed
 
 - **macOS 12 is no longer supported**: the remote-sync native library needs macOS 13, so the macOS deployment target moves from 12.0 to 13.0 (Podfile and Xcode project) and macOS 13.0 is the new minimum.
 - **The LAN Sync settings page is now Convenient Sync**: a segmented control switches between **LAN Sync** (the default) and **Remote Sync (Experimental)**; the LAN panel itself is unchanged.
+
+- **LAN sync sends a conversation in pages instead of leaving it behind**: a conversation larger than one request now crosses in as many pages as it needs, so the single-conversation ceiling is gone — and with it the "did not fit this round" row, because nothing is left behind any more. The transfer pauses at a page, remembers where it stopped in the peer checkpoint, and resumes there (LAN sync protocol 11: update every device before syncing)
+- **The sync card says what it is doing**: reading and packing has its own phase instead of hiding under "comparing data", sending and receiving name a count and the bytes already moved, and a thin bar appears only when the phase has something to count
+- **A workspace is bounded by its file count, not its size**: the 200 MB cap is gone. A workspace's files cross one at a time, staged and renamed, so a large workspace is a long transfer rather than a refusal
+
+### Fixed
+
+- **A page that is not the last one can no longer look like a deletion**: the receiver only reads absence as a peer deletion against the sender's full row set, which the last page carries, so the rows a later page holds are never erased by an earlier one
 
 ## [4.8.0] - 2026-11-22
 

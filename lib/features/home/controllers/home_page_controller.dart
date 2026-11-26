@@ -20,6 +20,7 @@ import '../../scheduled_tasks/scheduled_task_runner.dart';
 import '../services/tool_approval_service.dart';
 import '../../subagent/services/subagent_coordinator.dart';
 import '../../subagent/services/subagent_model.dart' show resolveSubagentModel;
+import '../../subagent/services/subagent_target.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show listEquals, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -29,6 +30,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/group_chat.dart';
 import '../../../core/models/message_part.dart';
 import '../../../core/models/chat_owner.dart';
 import '../../../core/models/conversation.dart';
@@ -66,7 +68,6 @@ import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
 import '../../chat/widgets/message_edit_sheet.dart';
 import '../../chat/widgets/message_more_sheet.dart';
 import '../../chat/widgets/message_export_sheet.dart';
-import '../../chat/widgets/pdf_export_dialog.dart';
 import '../../../desktop/message_edit_dialog.dart';
 import '../../../desktop/hotkeys/chat_action_bus.dart';
 import '../../../desktop/hotkeys/sidebar_tab_bus.dart';
@@ -757,12 +758,19 @@ class HomePageController extends ChangeNotifier {
   /// over the three capabilities once and takes them back when it goes away.
   SubagentHost buildSubagentHost() => SubagentHost(
     turnStarter:
-        ({required conversationId, required assistant, required task}) =>
-            startSubagentTurn(
-              conversationId: conversationId,
-              assistant: assistant,
-              task: task,
-            ),
+        ({
+          required conversationId,
+          required assistant,
+          required task,
+          delegator,
+          target,
+        }) => startSubagentTurn(
+          conversationId: conversationId,
+          assistant: assistant,
+          task: task,
+          delegator: delegator,
+          target: target,
+        ),
     enqueueResult:
         ({
           required parentConversationId,
@@ -809,16 +817,22 @@ class HomePageController extends ChangeNotifier {
   }
 
   /// Runs one whole turn in [conversationId] on behalf of a subagent.
+  ///
+  /// [assistant] is the target — who the child runs as — and [delegator] is who
+  /// handed the task over. They differ when the task was named to another
+  /// assistant, and the pair is what the model override is resolved from.
   Future<SubagentTurnStart> startSubagentTurn({
     required String conversationId,
     required Assistant assistant,
     required String task,
+    Assistant? delegator,
+    SubagentTarget? target,
   }) async {
     final conversation = _chatService.getConversation(conversationId);
     if (conversation == null) {
       return const SubagentTurnStart.refused('conversation_missing');
     }
-    final model = resolveSubagentModel(assistant);
+    final model = resolveSubagentModel(delegator ?? assistant, target: target);
     final result = await _viewModel.sendScheduledMessage(
       input: ChatInputData(text: task),
       conversation: conversation,
@@ -1939,19 +1953,40 @@ class HomePageController extends ChangeNotifier {
     if (currentConversation == null) return;
     final target = _chatService.getConversation(message.conversationId);
     if (target == null) return;
-    // A group topic regenerates its round, not one reply: who answers is the
-    // director's decision, so "say that again" belongs to the user message
-    // that started the round. A member's reply offers no regenerate at all.
-    // A topic whose group row is gone has no director to ask, so it regenerates
-    // like an ordinary conversation.
-    if (target.isGroupConversation && _hasGroupChat(target.groupChatId)) {
-      if (message.role != 'user') return;
-      final success = await _viewModel.restartGroupRound(
-        conversation: target,
-        userMessage: message,
-      );
-      if (success) notifyListeners();
-      return;
+    // A group regenerates per message. The user turn re-asks the whole round —
+    // who answers is the director's decision, so "say that again" belongs to
+    // the message that opened it. A member's reply re-asks that member alone:
+    // same author, same model, a new version. That is the single-owner path
+    // with two group facts added, so it keeps the preflight, the confirmations
+    // and the context guards instead of growing a second way to write a reply —
+    // including "delete the messages below", which stays the user's setting.
+    final group = _groupChatFor(target);
+    Assistant? groupSpeaker;
+    var groupMembers = const <Assistant>[];
+    if (group != null) {
+      if (message.role == 'user') {
+        final success = await _viewModel.restartGroupRound(
+          conversation: target,
+          userMessage: message,
+        );
+        if (success) notifyListeners();
+        return;
+      }
+      final assistants = _context.read<AssistantProvider>();
+      final senderId = message.senderId;
+      groupSpeaker = senderId == null ? null : assistants.getById(senderId);
+      groupMembers = [
+        for (final id in group.memberIds)
+          if (assistants.getById(id) case final member?) member,
+      ];
+      // The group is there but nobody is in it: say so. A reply with no author
+      // left is a different state — the timeline does not offer the action for
+      // it — and there is nothing to ask, so it stays quiet.
+      if (groupMembers.isEmpty) {
+        _viewModel.onWarning?.call('group_unavailable');
+        return;
+      }
+      if (groupSpeaker == null) return;
     }
     final deletingTail = _context
         .read<SettingsProvider>()
@@ -2003,6 +2038,9 @@ class HomePageController extends ChangeNotifier {
       omitImages: omitImages,
       assistantAsNewReply: assistantAsNewReply,
       expectedContextState: approved,
+      assistantOverride: groupSpeaker,
+      group: group,
+      members: groupMembers,
       allowImagesApiRouting:
           allowImagesApiRouting ?? _mediaController.allowImagesApiRouting,
     );
@@ -2017,6 +2055,20 @@ class HomePageController extends ChangeNotifier {
   /// group list, and there nothing can be a live group.
   bool _hasGroupChat(String? groupChatId) =>
       _groupChatExists(groupChatId) == true;
+
+  /// The group a conversation is a topic of, or null when it is not one.
+  ///
+  /// Guarded like [_groupChatExists]: a reduced tree has no group list, and
+  /// there nothing can be a live group.
+  GroupChat? _groupChatFor(Conversation conversation) {
+    final groupChatId = conversation.groupChatId;
+    if (groupChatId == null) return null;
+    try {
+      return _context.read<GroupChatProvider>().byId(groupChatId);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Whether [groupChatId] names a live group, or null when this tree has no
   /// group list at all and the answer cannot be known.
@@ -3465,43 +3517,6 @@ class HomePageController extends ChangeNotifier {
       for (final id in ids)
         if (storedById[id] != null) storedById[id]!,
     ];
-  }
-
-  /// Exports the selected messages as a PDF, from the same selection the share
-  /// sheet uses: the dialog owns the layout and the options, so this only
-  /// assembles the message set and hands it over.
-  Future<void> exportSelectedAsPdf() async {
-    final convo = currentConversation;
-    if (convo == null) return;
-    final context = _context;
-
-    final selected = await _selectedCollapsedMessages(
-      Set<String>.of(_selectedItems),
-    );
-    if (!context.mounted) return;
-    if (selected.isEmpty) {
-      final l10n = AppLocalizations.of(context)!;
-      showAppSnackBar(
-        context,
-        message: l10n.homePageSelectMessagesToShare,
-        type: NotificationType.info,
-      );
-      return;
-    }
-
-    final settings = context.read<SettingsProvider>();
-    cancelSelection();
-    await showPdfExportDialog(
-      context,
-      conversation: convo,
-      messages: selected,
-      showThinkingAndToolCards: settings.showThinkingCards,
-      expandThinkingContent: false,
-      appFontPath: settings.appFontLocalPath,
-      codeFontPath: settings.codeFontLocalPath,
-      appFontFamily: settings.appFontFamily,
-      codeFontFamily: settings.codeFontFamily,
-    );
   }
 
   Future<void> exportSelectedMessages() async {

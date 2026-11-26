@@ -33,13 +33,21 @@ import '../../../core/models/tool_permission_mode.dart';
 import '../../../core/models/workspace_binding.dart';
 import '../../../core/services/chat/chat_service.dart';
 import 'subagent_rules.dart';
+import 'subagent_target.dart';
 
 /// How the host starts one turn inside the child conversation.
+///
+/// [assistant] is who runs the turn — the target, not the delegator — and
+/// [delegator] is who handed the task over. Both are passed because the model
+/// a child runs on is resolved from the pair, and today that rule reads only
+/// the delegator's override.
 typedef SubagentTurnStarter =
     Future<SubagentTurnStart> Function({
       required String conversationId,
       required Assistant assistant,
       required String task,
+      Assistant? delegator,
+      SubagentTarget? target,
     });
 
 /// What a turn starter produced.
@@ -88,6 +96,8 @@ final class SubagentEntry {
     required this.title,
     required this.startedAt,
     required this.assistant,
+    this.target = const GeneralSubagentTarget(),
+    this.targetName,
   });
 
   final String? key;
@@ -97,7 +107,17 @@ final class SubagentEntry {
   /// The model's short name for the job, already bounded by `childTitle`.
   final String title;
   final DateTime startedAt;
+
+  /// Who delegated: the assistant that is woken with the result. It is not the
+  /// assistant running the child when the task was named to somebody else.
   final Assistant assistant;
+
+  /// Who runs the task. `general` means a copy of [assistant].
+  final SubagentTarget target;
+
+  /// What [target] is called, resolved once when the delegation starts so the
+  /// panel never has to look an assistant up mid-build.
+  final String? targetName;
 
   SubagentPhase phase = SubagentPhase.running;
   SubagentWaitReason? waitReason;
@@ -140,6 +160,10 @@ final class SubagentStarted extends SubagentStart {
     'status': 'started',
     'conversation_id': entry.childConversationId,
     'job_id': entry.childConversationId,
+    // Echoed so a model that named several targets in one turn can tell which
+    // receipt belongs to which job, and so the card can render without
+    // re-reading the call's arguments.
+    'target': entry.target.encode(),
   };
 }
 
@@ -293,11 +317,22 @@ class SubagentCoordinator extends ChangeNotifier {
 
   /// Stops the child's run, so a cancelled parent does not leave work running.
   ///
+  /// It stops what the child started first: a cancelled subagent whose own
+  /// subagent kept running would report a result into a conversation nobody is
+  /// watching, and keep spending the user's tokens while doing it.
+  ///
   /// The watcher then sees a `cancelled` run and writes the notice as usual; no
   /// second bookkeeping path is needed for a cancellation.
   Future<void> cancelChild(String childConversationId) async {
     final cancel = _host?.cancelTurn;
     if (cancel == null) return;
+    final started = _byChild.values
+        .where((entry) => entry.parentConversationId == childConversationId)
+        .map((entry) => entry.childConversationId)
+        .toList(growable: false);
+    for (final id in started) {
+      await cancelChild(id);
+    }
     final entry = _byChild[childConversationId];
     if (entry == null || !entry.isLive) return;
     await cancel(childConversationId);
@@ -309,14 +344,37 @@ class SubagentCoordinator extends ChangeNotifier {
   /// parent is bound to a workspace that has since been deleted, the delegation
   /// is refused here: a child with no workspace would fail every useful tool
   /// later, long after the model told the user it had started.
+  ///
+  /// [targetAssistant] is who runs the task and [assistant] is who delegated.
+  /// They are the same assistant for a `general` delegation. The child's
+  /// workspace and grant still come from the delegating conversation and never
+  /// from the target: a task handed to another assistant runs in the files this
+  /// conversation is working in, not in that assistant's default one.
   Future<SubagentStart> begin({
     required String parentConversationId,
     required String toolCallId,
     required String task,
     required String? label,
     required Assistant assistant,
+    Assistant? targetAssistant,
+    SubagentTarget? target,
     bool Function(String workspaceId)? workspaceExists,
   }) async {
+    // Both default rather than being required: `general` is the whole feature
+    // as it shipped, and a caller that has nothing to say about the target is
+    // delegating to itself.
+    final who = target ?? SubagentTarget.general();
+    final runner = targetAssistant ?? assistant;
+    // The two arguments describe one decision, so they must agree: an extras
+    // value naming one assistant while another one runs the turn would make the
+    // stored provenance a lie, and every later reader believes extras.
+    final named = who.assistantId;
+    if (named != null && runner.id != named) {
+      return const SubagentRefused(
+        'unknown_target',
+        'That assistant is no longer available to this conversation.',
+      );
+    }
     final key = toolCallId.trim().isEmpty
         // No id means nothing to be idempotent about: deduplicating on the
         // parent alone would collapse every delegation in the conversation into
@@ -349,6 +407,7 @@ class SubagentCoordinator extends ChangeNotifier {
       extras: parent.extras,
       isGroup: parent.isGroupConversation,
       isTemporary: _chat.isTemporaryConversation(parentConversationId),
+      delegator: assistant,
     );
     if (blocked != null) {
       return SubagentRefused(blocked, switch (blocked) {
@@ -360,8 +419,9 @@ class SubagentCoordinator extends ChangeNotifier {
               'promise that it disappears. Ask the user to delegate from a '
               'saved conversation.',
         _ =>
-          'Delegation is limited to $kMaxSubagentDepth level(s); this '
-              'conversation is already at the limit.',
+          'This conversation is already as deep as its assistant allows; a '
+              'subagent started here could not delegate again. Do the work '
+              'yourself or ask the user to raise the depth setting.',
       });
     }
 
@@ -374,6 +434,16 @@ class SubagentCoordinator extends ChangeNotifier {
       delegatorHasFullAccess:
           ToolPermissionMode.fromExtras(parent.extras) ==
           ToolPermissionMode.fullAccess,
+      target: who.encode(),
+      // What the child may do from here: the chain's remaining levels, capped
+      // by the assistant that will actually spend them.
+      levels: childLevels(
+        parentLevels: delegationLevels(
+          delegator: assistant,
+          extras: parent.extras,
+        ),
+        child: runner,
+      ),
     );
     // No workspace is not a refusal: a child inherits whatever the parent has,
     // including nothing. An unbound parent that still wants a second opinion gets
@@ -391,7 +461,10 @@ class SubagentCoordinator extends ChangeNotifier {
     final title = childTitle(label: label, task: task);
     final child = await _chat.createConversation(
       title: title.isEmpty ? null : title,
-      assistantId: parent.assistantId,
+      // The target, not the parent: the child's prompt, model and tools are
+      // the assistant the user named. Workspace and grant were decided above,
+      // from the delegating side only.
+      assistantId: runner.id,
       activate: false,
       extras: spec.extras,
     );
@@ -402,6 +475,11 @@ class SubagentCoordinator extends ChangeNotifier {
       title: title,
       startedAt: _clock(),
       assistant: assistant,
+      target: who,
+      // `general` is "a copy of yourself" and needs no name; a named target is
+      // shown on the card and in the panel so the user can tell two delegations
+      // of the same shape apart.
+      targetName: who is AssistantSubagentTarget ? assistantName(runner) : null,
     );
     if (key != null) _byKey[key] = entry;
     _byChild[child.id] = entry;
@@ -411,8 +489,10 @@ class SubagentCoordinator extends ChangeNotifier {
     try {
       turn = await host.turnStarter(
         conversationId: child.id,
-        assistant: assistant,
+        assistant: runner,
         task: task,
+        delegator: assistant,
+        target: who,
       );
     } catch (error) {
       // Nothing ran, and the entry must not outlive the attempt: a retry of the

@@ -17,7 +17,7 @@ const Duration kTailcatTransportTimeout = Duration(seconds: 45);
 /// listener is gone.
 const Duration kTailcatRelayConnectTimeout = Duration(seconds: 10);
 
-/// The remote half of sync (ADR-0020): a tailcat server whose address is this
+/// The remote half of sync (ADR-0021): a tailcat server whose address is this
 /// device's remote address, plus the client side that dials other devices'
 /// addresses.
 ///
@@ -195,7 +195,7 @@ class TailcatRemoteService {
   /// The caller is responsible for what that means to peers (their remote
   /// endpoints no longer reach this device): the service only owns the keys.
   ///
-  /// A reset is the documented revocation path (ADR-0020), so it fails loudly
+  /// A reset is the documented revocation path (ADR-0021), so it fails loudly
   /// instead of falling back to the old identity: if the key file cannot be
   /// removed, or the minted address is not different, the old address is still
   /// live and reporting success would tell the user a leaked capability was

@@ -27,6 +27,7 @@ import 'package:Cuplivo/core/database/schema_migrations.dart';
 import 'package:Cuplivo/core/models/backup.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/utils/kelivo_file_uri.dart';
 import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
@@ -3636,6 +3637,48 @@ void main() {
             BusinessPreferences(businessRepository),
           ).getAll(),
           isEmpty,
+        );
+      },
+    );
+
+    test(
+      'versioned settings-only overwrite keeps a library the archive never names',
+      () async {
+        // A pre-promotion archive carries the compression library in its
+        // snapshot database and no key for it in settings.json. A settings-only
+        // restore reads only the settings half, so the missing key must keep the
+        // live library instead of erasing it.
+        await ExtensionEntityStore(businessDatabase).upsert(
+          CompressionTemplate.entityKind,
+          'custom',
+          const CompressionTemplate(
+            id: 'custom',
+            name: 'My RP',
+            prompt: 'Keep secrets separate {content}',
+          ).toJson(),
+        );
+        final zipFile = await _createSqliteBackupFixture(
+          root: root,
+          prefix: 'unstated_library_overwrite',
+          settings: const {'theme_mode_v1': 'dark'},
+        );
+
+        await DataSync(
+          businessRepository: businessRepository,
+          chatService: ChatService(),
+        ).restoreFromLocalFile(zipFile, _withoutChatsOrAssets);
+
+        expect(
+          (await BusinessRestoreService(
+            businessRepository,
+          ).exportSettings())['theme_mode_v1'],
+          'dark',
+        );
+        expect(
+          await ExtensionEntityStore(
+            businessDatabase,
+          ).get(CompressionTemplate.entityKind, 'custom'),
+          isNotNull,
         );
       },
     );

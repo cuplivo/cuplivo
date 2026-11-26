@@ -26,6 +26,7 @@ import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
 import 'package:Cuplivo/core/providers/user_provider.dart';
 import 'package:Cuplivo/core/providers/world_book_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/sync/sync_merge.dart';
 import 'package:Cuplivo/core/services/world_book_activation.dart';
 import 'package:Cuplivo/features/home/services/message_builder_service.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -429,9 +430,11 @@ void main() {
           await preview();
         }
         expect(chat.extrasWrites, 0);
-        expect((await repository.getConversation('one'))!.extras, {
-          'keep': true,
-        });
+        expect(
+          {...(await repository.getConversation('one'))!.extras}
+            ..remove(syncClockExtrasKey),
+          {'keep': true},
+        );
 
         // A real request still records activation; later previews leave it alone.
         await generation.assembleUnprocessedRequestContext(

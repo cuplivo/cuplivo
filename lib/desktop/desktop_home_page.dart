@@ -10,6 +10,7 @@ import '../shared/responsive/screen_type_helper.dart';
 import '../shared/widgets/ios_tactile.dart';
 import '../icons/lucide_adapter.dart';
 import 'desktop_settings_page.dart';
+import 'setting/sync_pane.dart';
 import 'desktop_translate_page.dart';
 import '../features/settings/pages/storage_space_page.dart';
 import '../l10n/app_localizations.dart';
@@ -42,6 +43,7 @@ class DesktopHomePage extends StatefulWidget {
 class _DesktopHomePageState extends State<DesktopHomePage> {
   int _tabIndex = 0; // 0=Chat, 1=Translate, 2=Storage, 3=Settings
   bool _storageVisited = false;
+  bool _lanSyncVisited = false;
   bool _navigationOpen = false;
   bool _globalSearchActive = false;
   StreamSubscription<HotkeyAction>? _hotkeySub;
@@ -55,7 +57,8 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
     if (widget.initialTabIndex != null) {
       _tabIndex = widget.initialTabIndex!.clamp(0, 3);
     }
-    _storageVisited = _tabIndex == 2;
+    _storageVisited = _tab == DesktopTab.storage;
+    _lanSyncVisited = _tab == DesktopTab.lanSync;
     _conversationOpenSub = NotificationService.conversationTaps.listen((_) {
       if (!mounted) return;
       setState(() {
@@ -206,7 +209,8 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
       _tabIndex = index;
       _globalSearchActive = search;
       _navigationOpen = false;
-      if (index == 2) _storageVisited = true;
+      if (tab == DesktopTab.storage) _storageVisited = true;
+      if (tab == DesktopTab.lanSync) _lanSyncVisited = true;
     });
     ChatActionBus.instance.fire(
       search ? ChatAction.enterGlobalSearch : ChatAction.exitGlobalSearch,
@@ -215,6 +219,42 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
       ChatActionBus.instance.fire(ChatAction.focusInput);
     }
   }
+
+  /// One page per tab, and the stack is built from [DesktopTab.values], so the
+  /// rail's targets and the stack's order are the same list.
+  Widget _pageFor(DesktopTab tab) => switch (tab) {
+    DesktopTab.chat => const DesktopChatPage(),
+    DesktopTab.translate => const DesktopTranslatePage(
+      key: ValueKey('translate_page'),
+    ),
+    DesktopTab.storage =>
+      _storageVisited
+          ? const StorageSpacePage(
+              key: ValueKey('storage_space_page'),
+              embedded: true,
+            )
+          : const SizedBox.shrink(),
+    DesktopTab.settings => DesktopSettingsPage(
+      key: const ValueKey('settings_page'),
+      initialProviderKey: widget.initialProviderKey,
+    ),
+    DesktopTab.markdownImage => const MarkdownExportPage(
+      key: ValueKey('markdown_export_page'),
+    ),
+    // The pane the settings page mounts, on the surface the tabs are drawn on —
+    // it owns the padding, scroll view and max width. Built on first visit like
+    // [DesktopTab.storage]: the stack builds every tab at launch, and building a
+    // pane the user has not asked for is work spent on a screen they may never
+    // open. The provider is above the shell either way (`main.dart`).
+    DesktopTab.lanSync =>
+      _lanSyncVisited
+          ? Material(
+              key: const ValueKey('lan_sync_page'),
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child: const DesktopSyncPane(),
+            )
+          : const SizedBox.shrink(),
+  };
 
   @override
   Widget build(BuildContext context) {

@@ -6,6 +6,7 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/schema_columns.dart';
 import 'package:Cuplivo/core/database/schema_migrations.dart';
 
 void main() {
@@ -170,7 +171,7 @@ void main() {
       expect(columns, isNot(contains('future_note')));
       expect(
         columns,
-        ChatDatabaseRepository.currentSchemaColumns['conversation_rows'],
+        currentSchemaColumns['conversation_rows'],
         reason: 'exactly this build\'s columns, in order',
       );
 
@@ -242,7 +243,7 @@ void main() {
     try {
       // Structure and contents both untouched. (Byte equality would be wrong:
       // opening read-write bumps the file change counter.)
-      for (final entry in ChatDatabaseRepository.currentSchemaColumns.entries) {
+      for (final entry in currentSchemaColumns.entries) {
         expect(
           raw
               .select('PRAGMA table_info("${entry.key}");')

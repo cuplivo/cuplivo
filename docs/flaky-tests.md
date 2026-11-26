@@ -24,6 +24,7 @@ source**, or marked as **not reproduced**.
 | §9 — the three Windows-only defect families (`workspace_file_navigation_test.dart` ×5, `markstream_adapters_test.dart` › image providers…, `file_preview_test.dart` › code preview lazily…) | none of them was a platform limit: `p.canonicalize` lower-cases the whole path on Windows, `SandboxPathResolver.fix` returned its `/`-folded *matching* form, and the paged preview legitimately holds its file open until disposed. Fixed at each layer, see **§9** |
 | §3 — `file_browser_test.dart` › new folder rename and delete through the widget, and the `finish()` budget in `home_page_controller_composer_draft_test.dart` | both surfaced once in a 2026-10-21 full-suite run and pass in isolation. A single `_reload` after a mutation is not a synchronisation point — the mutation triggers its own refresh, and two refreshes can land out of order, so the older listing overwrites the newer one; the test now reloads until the item itself is on screen. `finish()` keeps `done` as the pass condition and bounds only a hung operation, in wall-clock terms instead of 200 × 15 ms (~3 s) |
 | §15 — the sync suite's eight panel cases | two layers, both in the test: `pumpAndSettle` cannot settle while the pairing dialog's `Timer.periodic` countdown or the panel's repeating progress bar is on screen, and the teardown's `ChatService.close()` deadlocks when awaited under the fake clock. The five pumping cases now use a bounded `pumpPanel`, and all eight close their side inside `closePanel`'s `runAsync`. The file went from 106 min / 151 passed / 8 failed to **4 min 08 s / 159 passed**, and the 89-minute CI run that reported `11516 passed, 10 failed` loses its eight hangs |
+| §20 — `skill_body_lifecycle_test.dart` › *an edit in place keeps the shape and still moves the clock*, and its same-size sibling | neither case races the filesystem's stamp any more: both write the second version and then *set* the stamp, and a fifth case pins the published limit (an edit that keeps path, size and stamp is invisible by design). See **§20** |
 
 Verified with Dart 3.13.0 (the SDK CI pins): `dart format` clean and
 `dart analyze --fatal-infos lib test integration_test` clean over the whole project; the four
@@ -494,6 +495,12 @@ Specific defects worth naming:
   — hands a folded path to the UI, to `File`, or to a persisted field. Grep `p.canonicalize(`
   and ask which of the two it is; the comparison sites (`p.equals`, `p.isWithin`, `!=` against
   another canonical form) are fine, the returning ones are not.
+* **An equal-length write used as a clock source.** A test that writes a file and then
+  expects a content clock to notice it is asserting the filesystem's mtime granularity on
+  top of the code under test. Only *equal-length* edits are exposed — a different size
+  moves the fingerprint on its own — which is why this hid among four other `hashOf`
+  files that edit content by changing its length. §20 has the case, the proof and the
+  scan of every call site.
 * **Unseeded randomness: none.** All 10 `Random(` uses are explicitly seeded
   (`image_compress_editor_test.dart:1471`, `output_buffer_test.dart:13`, …). This hazard is
   cleanly absent.
@@ -1081,3 +1088,66 @@ timer the test does not own and cannot prove it has drained without the full run
 and unlike the request-log case there is no handle whose release can be waited for. Registered here
 as load-shaped rather than in `.toolbridge/known-failures.json`, which is for platform claims proven
 at upstream's tip.
+
+## 20. The `skill_body_lifecycle_test` clock: an equal-length write is not a clock source
+
+`skill_body_lifecycle_test.dart` › *an edit in place keeps the shape and still moves the
+clock* went red twice on `master` (`44861597905`, `44934105202`) and printed the same
+hash on both sides:
+
+```
+Expected: not 'ec7e4195066ff93b4970a835d96d4b49fc0beab686823870e7c7585f3c9c7d1b'
+  Actual:     'ec7e4195066ff93b4970a835d96d4b49fc0beab686823870e7c7585f3c9c7d1b'
+```
+
+**The log names its own mechanism.** The bytes went `# v1\n` → `# v2\n`, so a recomputed
+sha256 cannot match; the only path to the pre-edit hash is the per-launch memo at
+`skill_directory_sync.dart:99-107`, which answers from cache when
+`fingerprintOfSkillBody` is unchanged. That fingerprint is `relPath\0size\0mtimeMs`
+(`skill_body_policy.dart:226-233`), and the two writes share the path and the size — so
+the stamps were *the same millisecond*. Between them sits one `Isolate.run`, which is
+the whole of the margin.
+
+**The millisecond is this project's, not Dart's.** On Linux, `File.stat` reads `st_mtim`
+and converts it to *microseconds* (`runtime/bin/file_linux.cc`, `TimespecToMicroseconds`);
+the truncation to milliseconds happens in the fingerprint's own
+`millisecondsSinceEpoch`.
+
+**Proved by injection, and the proof reproduced the CI hash.** Dropping the `mtimeMs`
+term from `fingerprintOfSkillBody` — the violation the assertion exists to catch — put
+both cases back in the red with *exactly* `ec7e4195…` on both sides: the state CI
+reported, not a lookalike. The other two clock cases (rename, move) stayed green under
+it, because a changed path moves the fingerprint on its own. The injection was reverted
+byte-exact (sha256 `d8ae5a60…`) and the group re-run clean.
+
+**Why Windows never sees it.** A one-off probe mirroring the case (write with `flush`,
+one `Isolate.run`, write again, compare `statSync().modified`) gave **300 rounds, 0
+collisions**, gaps 5–22 ms, median 7.9 ms. So this is not "load" in the sense every
+other entry here uses: an *idle* runner makes it likelier, because two writes are more
+apt to share a bucket. It also cannot go in `.toolbridge/known-failures.json` — that
+file is a claim about Windows, and this case is green there always.
+
+**The repair is to stop racing.** Both cases now write the second version and then set
+the stamp on purpose: `2030-01-01` for the plain edit, and `2029-01-01` for the sibling
+whose point is a *newer* neighbour, so the body's newest stamp stays the untouched file.
+That is the convention the workspace file plane's tests already use —
+`putFile(..., mtimeMs:)` in `workspace_content_sync_test.dart:81-87` and
+`sync_engine_integration_test.dart:518-526` — so it adds no new idea, and it keeps every
+assertion the two cases were written to make.
+
+**The limit is pinned rather than merely documented.** A fifth case writes `# v2\n` and
+then puts the stamp *back*, asserting the hash does **not** move. That turns the
+published limit (`skill_body_policy.dart:213-216`, "an edit that keeps both the size and
+the mtime … is invisible here") into a contract: a later change that adds a content
+digest to the fingerprint fails this case instead of quietly making every call read every
+body.
+
+**Blast radius, measured.** Every `hashOf`/`hashesOf` call site in `test/` was read for
+the shape — a real write, then a hash expected to move (35 matches over 4 files; three of
+them are `BlobFileHasher`, a different hash). Only these
+two are equal-length edits. `skill_directory_sync_test.dart:42` (`echo hi` → `echo bye`)
+and `:227` (`on: push` → `on: pull_request`) keep the size moving;
+`skill_body_recycle_test.dart` and `sync_engine_integration_test.dart` compare across
+roots or read a body the plane just installed. The narrowness is the finding worth
+carrying: **the hazard is not "a write as a clock", it is "an equal-length write as a
+clock".**

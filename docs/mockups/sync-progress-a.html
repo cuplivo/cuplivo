@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=360">
+<title>同步进度 · A 细条 + 一行</title>
+<style>
+  body{margin:0;background:#f2f2f7;color:#1c1c1e;font-family:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif}
+  .wrap{max-width:360px;margin:0 auto;padding:14px 12px 40px}
+  h1{font-size:15px;font-weight:600;margin:4px 4px 2px}
+  p.lead{font-size:12px;color:#8e8e93;margin:0 4px 16px;line-height:1.5}
+  .cap{font-size:12px;color:#6b6b70;margin:18px 4px 6px;font-weight:500}
+  .card{background:#fff;border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .hdr{display:flex;align-items:center;gap:10px}
+  .badge{width:30px;height:30px;border-radius:9px;background:#e9e9eb;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .name{font-size:15px;font-weight:500;line-height:1.2}
+  .sub{font-size:12px;color:#8e8e93;margin-top:2px}
+  .sp{margin-left:auto;flex:none}
+  .spin{width:14px;height:14px;border:2px solid #0a84ff;border-right-color:transparent;border-radius:50%;animation:r 1s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+  .prog{margin-top:10px;padding:8px 8px 7px;border:1.5px dashed #0a84ff;border-radius:10px;background:rgba(10,132,255,.03)}
+  .bar{height:3px;border-radius:2px;background:#e5e5ea;overflow:hidden;position:relative}
+  .bar i{display:block;height:100%;background:#0a84ff}
+  .bar.ind i{width:36%;animation:slide 1.3s ease-in-out infinite}
+  @keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(290%)}}
+  .lbl{margin-top:7px;font-size:13px;color:rgba(28,28,30,.72);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lbl b{font-weight:600;color:#1c1c1e}
+  .ctx{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;opacity:.3}
+  .ep{font-size:11px;padding:3px 7px;border-radius:6px;background:#f2f2f7}
+  .note{font-size:11px;color:#8e8e93;margin:6px 4px 0;line-height:1.45}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>A · 一条细进度条 + 一行</h1>
+  <p class="lead">虚线框是改动。条：算得出比例就确定，算不出就不定。行：一个动词 + 当下最细的诚实计数。头部转圈保留，当作「忙」的一眼标记。只有一种「发送中」，没有「大对话」的特例。</p>
+
+  <div class="cap">① 连接</div>
+  <div class="card">
+    <div class="hdr"><div class="badge">📱</div><div><div class="name">小明的 iPhone</div><div class="sub">iOS · 刚刚</div></div><div class="sp"><div class="spin"></div></div></div>
+    <div class="prog">
+      <div class="bar ind"><i></i></div>
+      <div class="lbl">正在连接 192.168.1.8:4712…</div>
+    </div>
+    <div class="ctx"><span class="ep">192.168.1.8</span><span class="ep">10.0.0.3</span><span class="ep">fd12::8</span></div>
+  </div>
+  <div class="note">地址仍在这一行（它比名字宽，所以不放头部）。</div>
+
+  <div class="cap">② 准备</div>
+  <div class="card">
+    <div class="hdr"><div class="badge">📱</div><div><div class="name">小明的 iPhone</div><div class="sub">iOS · 刚刚</div></div><div class="sp"><div class="spin"></div></div></div>
+    <div class="prog">
+      <div class="bar ind"><i></i></div>
+      <div class="lbl">正在准备…</div>
+    </div>
+  </div>
+  <div class="note">算计划：对比两边的 (clock, digest)，纯内存，一瞬间。</div>
+
+  <div class="cap">③ 发送中 · 唯一的一种</div>
+  <div class="card">
+    <div class="hdr"><div class="badge">📱</div><div><div class="name">小明的 iPhone</div><div class="sub">iOS · 刚刚</div></div><div class="sp"><div class="spin"></div></div></div>
+    <div class="prog">
+      <div class="bar"><i style="width:33%"></i></div>
+      <div class="lbl">正在发送 <b>4/12</b> · 45 MiB</div>
+    </div>
+  </div>
+  <div class="note">条 = 对话 4/12。45 MiB 是每页发出前 <code>jsonEncode</code> 一次得到的精确长度，逐页累加——所以「已发」永远是真数；总量事先不可知，就不显示百分比。撞上大对话时 4/12 停住、MiB 继续涨，「活着」靠数字。</div>
+
+  <div class="cap">④ 被动方 · 被拨号的那一侧，现在也有进度</div>
+  <div class="card">
+    <div class="hdr"><div class="badge">💻</div><div><div class="name">客厅的 Mac</div><div class="sub">macOS · 正在同步</div></div><div class="sp"><div class="spin"></div></div></div>
+    <div class="prog">
+      <div class="bar"><i style="width:33%"></i></div>
+      <div class="lbl">正在接收 <b>4/12</b> · 45 MiB</div>
+    </div>
+  </div>
+
+  <div class="cap">⑤ 下载文件 · 按字节，不按个数</div>
+  <div class="card">
+    <div class="hdr"><div class="badge">📱</div><div><div class="name">小明的 iPhone</div><div class="sub">iOS · 刚刚</div></div><div class="sp"><div class="spin"></div></div></div>
+    <div class="prog">
+      <div class="bar"><i style="width:28%"></i></div>
+      <div class="lbl">正在下载 <b>12/120</b> · 340 MiB / 1.2 GiB</div>
+    </div>
+  </div>
+  <div class="note">文件总字节事先已知（SyncBlobEntry.byteSize），所以这里条是按字节走的真比例；一个大文件不再让「3/120」停几分钟。</div>
+
+  <div class="cap">⑥ 应用</div>
+  <div class="card">
+    <div class="hdr"><div class="badge">📱</div><div><div class="name">小明的 iPhone</div><div class="sub">iOS · 刚刚</div></div><div class="sp"><div class="spin"></div></div></div>
+    <div class="prog">
+      <div class="bar ind"><i></i></div>
+      <div class="lbl">正在应用变更…</div>
+    </div>
+  </div>
+
+  <div class="cap">⑦ 结束后 · 报告的变化</div>
+  <div class="card">
+    <div class="hdr"><div class="badge">📱</div><div><div class="name">小明的 iPhone</div><div class="sub">iOS · 刚刚</div></div><div class="sp" style="font-size:13px;color:#0a84ff">立即同步</div></div>
+    <div class="ctx" style="opacity:1;margin-top:10px"><span class="ep" style="background:#e8f1ff;color:#0a84ff">已发送 12 个对话</span><span class="ep" style="background:#e8f1ff;color:#0a84ff">已接收 3 个对话</span><span class="ep" style="background:#fff4e5;color:#c77c00">1 项延后</span></div>
+  </div>
+  <div class="note">「N 个对话没能放进本轮推送」这一项<b>消失</b>——没有推不上去这回事。「延后」只剩一个意思：对端正在生成、或对端延后了应用。</div>
+</div>
+</body>
+</html>

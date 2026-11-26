@@ -1,7 +1,6 @@
 import 'package:Cuplivo/core/models/message_part.dart';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 // ignore: depend_on_referenced_packages
@@ -152,12 +151,11 @@ void main() {
         content: 'plain',
       );
       final repository = service.chatRepositoryOrNull!;
-      await repository.freezeMessagePrompt(
+      await repository.putMessagePrompt(
         revisionId: snapshotMessage.id,
         conversationId: conversation.id,
         payload: 'assistant A memory',
         carriesMemorySnapshot: true,
-        injectedMemoryHash: const Value('assistant-a-hash'),
       );
       await repository.putMessagePrompt(
         revisionId: plainMessage.id,
@@ -177,8 +175,12 @@ void main() {
         'plain frozen prompt',
       );
       expect(
-        await repository.getConversationInjectedMemoryHash(conversation.id),
-        isNull,
+        await repository.getMessagePrompts([
+          snapshotMessage.id,
+          plainMessage.id,
+        ]),
+        hasLength(1),
+        reason: 'only the prompt without the snapshot survives the move',
       );
       expect(
         service.getConversation(conversation.id)?.assistantId,
@@ -455,7 +457,7 @@ void main() {
       },
     );
 
-    test('rename invalidates the cached order', () async {
+    test('rename updates the title without reordering the list', () async {
       final service = createService();
       await service.init();
       final older = await service.createConversation(title: 'Older');
@@ -465,7 +467,9 @@ void main() {
       expect(service.getAllConversations().first.id, newer.id);
 
       await service.renameConversation(older.id, 'Older renamed');
-      expect(service.getAllConversations().first.id, older.id);
+      // Tidying is not activity: the rename travels on the row's sync clock,
+      // and the list keeps answering "what did I last talk to".
+      expect(service.getAllConversations().first.id, newer.id);
       expect(service.getConversation(older.id)!.title, 'Older renamed');
     });
   });

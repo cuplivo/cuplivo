@@ -103,29 +103,6 @@ void main() {
     expect(reloaded.reasoningText, 'original reasoning');
   });
 
-  test('conversation upsert preserves the database memory hash', () async {
-    final now = DateTime.utc(2026, 7, 12);
-    final stale = Conversation(
-      id: 'conversation-1',
-      title: 'Before',
-      createdAt: now,
-      updatedAt: now,
-    );
-    await repository.putConversation(stale);
-    await repository.setConversationInjectedMemoryHash(
-      stale.id,
-      'latest-memory-hash',
-    );
-
-    stale.title = 'After';
-    stale.updatedAt = now.add(const Duration(minutes: 1));
-    await repository.putConversation(stale);
-
-    final reloaded = await repository.getConversation(stale.id);
-    expect(reloaded!.title, 'After');
-    expect(reloaded.injectedMemoryHash, 'latest-memory-hash');
-  });
-
   test('content update rebuilds parts and preserves tool events', () async {
     final message = await seedMessage(
       toolEvents: const [

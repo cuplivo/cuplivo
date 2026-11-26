@@ -31,6 +31,7 @@ import '../../models/conversation.dart';
 import '../chat/chat_service.dart';
 import '../storage/attachment_file_lock.dart';
 import '../workspace/workspace_file_coordinator.dart';
+import '../sync/sync_store.dart';
 import '../migration/legacy_message_content_decoder.dart';
 import '../migration/legacy_record_sanitizer.dart';
 import '../../utils/multimodal_input_utils.dart';
@@ -339,6 +340,45 @@ class DataSync {
             operation,
             canResumeOnError: canResumeOnError,
           );
+  }
+
+  /// Announces a bulk replacement to a LAN-sync pair.
+  ///
+  /// The row face has replacement paths of its own that never touch the
+  /// database bundle — a settings-only overwrite, and the legacy archive's
+  /// overwrite — so they never pass the restore cutover that drops sync state
+  /// for a replaced database ([RestoreBundleMover.resetSyncState]).
+  ///
+  /// Without this the per-peer checkpoints keep describing rows this device has
+  /// just replaced. A row the archive does not carry is then absent here while
+  /// the peer still holds the agreed version, and that is exactly the shape the
+  /// plan reads as `peerDeletes`: this device would order the peer to delete a
+  /// row nobody deleted here. Clearing the row entries turns the same absence
+  /// into `peerSends`, and the epoch bump is what tells the peer that a missing
+  /// row was never deleted — the two halves of one announcement, which is why
+  /// they are one call.
+  ///
+  /// Which of the two hooks is owed depends on one thing, and [replacedChats] is
+  /// the caller's answer to it — asked here, once:
+  ///
+  /// - Chats untouched (a settings-only overwrite): the conversation half stays,
+  ///   because a conversation this device deleted but has not announced is
+  ///   derived from its own entry ([SyncStore.resetRowFaceForBulkReplacement]).
+  /// - Chats restored: the archive replaced them too, so kept entries would
+  ///   describe conversations this device no longer has — announced afterwards as
+  ///   deletions the archive never intended, and read by the peer as rows to
+  ///   re-send. That is the wholesale reset
+  ///   ([SyncStore.resetForBulkReplacement]).
+  ///
+  /// The caller runs it inside the replacement's non-cancellable commit region,
+  /// so a cancelled restore cannot bump an epoch for a history that survives.
+  Future<void> _announceBulkReplacement({required bool replacedChats}) async {
+    final directory = await AppDirectories.getSyncDirectory();
+    if (replacedChats) {
+      await SyncStore.resetForBulkReplacement(directory);
+    } else {
+      await SyncStore.resetRowFaceForBulkReplacement(directory);
+    }
   }
 
   Future<void> _prepareLiveRestoreBundle({
@@ -827,7 +867,14 @@ class DataSync {
         );
         snapshotInfo = await snapshotDatabase(databaseFile);
         publishedDraftFiles = _publishedDraftFilesFrom(databaseFile);
-        await _sanitizeBackupDatabase(databaseFile, scope: scope);
+        await _sanitizeBackupDatabase(
+          databaseFile,
+          scope: scope,
+          target: target,
+          // The same call writes `settings.json` from the same scope, so the
+          // library is in that half and must not also stay in this one.
+          libraryInSettings: scope.includes(BackupCategory.instructions),
+        );
       }
 
       if (!includeChats && includeFiles) {
@@ -3348,10 +3395,17 @@ class DataSync {
   static Future<void> _sanitizeBackupDatabase(
     File file, {
     BackupScope scope = const BackupScope(),
+    BackupTarget target = BackupTarget.cuplivo,
+    bool libraryInSettings = false,
   }) async {
     final database = AppDatabase.open(file: file);
     try {
-      await BackupPortability.sanitizeDatabase(database, scope: scope);
+      await BackupPortability.sanitizeDatabase(
+        database,
+        scope: scope,
+        target: target,
+        libraryInSettings: libraryInSettings,
+      );
       for (final sql in MessageTimelineIndex.discardStatements) {
         await database.customStatement(sql);
       }
@@ -3360,6 +3414,18 @@ class DataSync {
     }
     await ChatDatabaseRepository.normalizeSnapshotJournal(file);
   }
+
+  /// Whether an archive's `settings.json` is a *complete* carrier of the
+  /// compression library — both keys, not one.
+  ///
+  /// Those keys are what makes the snapshot database's copy of the same rows
+  /// redundant. An archive from a build that did not export them has the database
+  /// as its only carrier, so this is asked of the archive and not assumed; and
+  /// the answer is "both", so a half-carrying archive keeps the database's copy
+  /// and errs towards a duplicate (recoverable) rather than a lost template.
+  static bool _settingsCarryCompressionLibrary(Map<String, dynamic> settings) =>
+      settings.containsKey('compression_templates_v1') &&
+      settings.containsKey('compression_recipes_v1');
 
   /// Reads a backup file's manifest and reports what restoring it would mean.
   ///
@@ -3548,6 +3614,10 @@ class DataSync {
                 entityRowIds: entityRowIds,
               ),
             );
+            // The row face was replaced wholesale and the chats were not, so the
+            // pair is owed the row-face announcement and keeps the conversation
+            // half of every checkpoint.
+            await _announceBulkReplacement(replacedChats: false);
             return;
           }
           final appDataPath = (await AppDirectories.getAppDataDirectory()).path;
@@ -3577,6 +3647,11 @@ class DataSync {
           await _sanitizeBackupDatabase(
             File(p.join(extractDir.path, _databaseEntryName)),
             scope: scope,
+            // This archive's settings half is the same `settings` map the merge
+            // below imports. When it carries the library, the database's copy of
+            // it is one fact in two carriers: an archive made by a build that
+            // exported both would otherwise list every template twice.
+            libraryInSettings: _settingsCarryCompressionLibrary(settings),
           );
           beginNonCancellableCommit();
           _lastMergeReport = await chatService.mergeDatabaseSnapshot(
@@ -3818,6 +3893,13 @@ class DataSync {
       if (restoreBusiness != null) {
         beginNonCancellableCommit();
         await _runLiveBusinessRestore(restoreBusiness);
+      }
+      // Every versioned overwrite returned above, so reaching here in overwrite
+      // mode means the legacy archive replaced chats and/or the whole business
+      // row face in place — the same bulk replacement, announced through the hook
+      // that matches what it actually replaced.
+      if (mode == RestoreMode.overwrite) {
+        await _announceBulkReplacement(replacedChats: restoreChats);
       }
     } catch (error) {
       restoreError = error;

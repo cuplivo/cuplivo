@@ -1,11 +1,12 @@
 import 'dart:io';
 
 import 'package:Cuplivo/core/database/app_database.dart';
-import 'package:drift/drift.dart' show Variable;
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
 import 'package:Cuplivo/core/services/recycle/recycle_service.dart';
+import 'package:Cuplivo/core/services/sync/sync_merge.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_test/flutter_test.dart';
 
 /// What a conversation deletion leaves behind, and what a restore puts back.
@@ -47,49 +48,6 @@ class _RecordingStore extends RecycleStore {
       group: group,
     );
   }
-}
-
-Future<List<Map<String, Object?>>> _rows(
-  AppDatabase database,
-  String sql,
-  String id,
-) async {
-  final result = await database
-      .customSelect(sql, variables: [Variable<String>(id)])
-      .get();
-  return [for (final row in result) row.data];
-}
-
-/// The rows a conversation's subtree occupies, read straight from SQLite: the
-/// assertions below are about what is *persisted*, not about what a cache says.
-Future<List<Map<String, Object?>>> readMessageRows(
-  AppDatabase database,
-  String conversationId,
-) => _rows(
-  database,
-  'SELECT * FROM message_rows WHERE conversation_id = ?;',
-  conversationId,
-);
-
-Future<List<Map<String, Object?>>> readMessagePartRows(
-  AppDatabase database,
-  String conversationId,
-) => _rows(
-  database,
-  'SELECT * FROM message_part_rows WHERE conversation_id = ?;',
-  conversationId,
-);
-
-Future<Map<String, Object?>?> readConversationRow(
-  AppDatabase database,
-  String conversationId,
-) async {
-  final rows = await _rows(
-    database,
-    'SELECT * FROM conversation_rows WHERE id = ?;',
-    conversationId,
-  );
-  return rows.isEmpty ? null : rows.single;
 }
 
 void main() {
@@ -162,7 +120,7 @@ void main() {
 
     test('a deleted conversation is staged with its whole subtree', () async {
       await seedConversation('c1');
-      final partsBefore = await readMessagePartRows(database, 'c1');
+      final partsBefore = await repository.syncReadMessagePartRows('c1');
 
       await repository.deleteConversation('c1');
 
@@ -179,41 +137,52 @@ void main() {
       expect(tables['message_part_rows'], hasLength(partsBefore.length));
     });
 
-    test('restoring brings the subtree back and wins the next clock', () async {
-      await seedConversation('c1');
-      final partsBefore = await readMessagePartRows(database, 'c1');
-      await repository.deleteConversation('c1');
-      final entry = (await binEntries()).single;
-      final staged = await store.readTables(entry);
-      final stagedClock =
-          staged!['conversation_rows']!.single['updated_at']! as int;
+    test(
+      'restoring brings the subtree back and takes the next sync clock',
+      () async {
+        await seedConversation('c1');
+        final partsBefore = await repository.syncReadMessagePartRows('c1');
+        final clockBefore = effectiveConversationClock(
+          (await repository.syncReadConversationRow('c1'))!,
+        );
+        await repository.deleteConversation('c1');
+        final entry = (await binEntries()).single;
+        final staged = await store.readTables(entry);
+        final stagedClock =
+            staged!['conversation_rows']!.single['updated_at']! as int;
 
-      expect(await recycle.restore(entry), RecycleRestoreOutcome.restored);
+        expect(await recycle.restore(entry), RecycleRestoreOutcome.restored);
 
-      final restored = await readConversationRow(database, 'c1');
-      expect(restored, isNotNull);
-      expect(restored!['title'], 'Topic c1');
-      expect(
-        restored['updated_at'] as int,
-        greaterThan(stagedClock),
-        reason: 'a restore is a fresh local write, not a clock resurrection',
-      );
-      expect(await readMessageRows(database, 'c1'), hasLength(2));
-      expect(
-        (await readMessagePartRows(database, 'c1')).length,
-        partsBefore.length,
-      );
-      expect(
-        await repository.readTombstones(),
-        isEmpty,
-        reason: 'the deletion record goes with the deletion it recorded',
-      );
-      expect(
-        await binEntries(),
-        isEmpty,
-        reason: 'the entry is retired by its own restore',
-      );
-    });
+        final restored = await repository.syncReadConversationRow('c1');
+        expect(restored, isNotNull);
+        expect(restored!['title'], 'Topic c1');
+        // The display clock comes back at the value the row was deleted with: an
+        // undo is not activity, and the list keeps its position and date group.
+        expect(restored['updated_at'] as int, stagedClock);
+        // The clock sync compares does move. That is what keeps the next session
+        // from reading the restore as the deletion it undid.
+        expect(
+          effectiveConversationClock(restored),
+          greaterThan(clockBefore),
+          reason: 'a restore is a fresh local write on the sync clock',
+        );
+        expect(await repository.syncReadMessageRows('c1'), hasLength(2));
+        expect(
+          (await repository.syncReadMessagePartRows('c1')).length,
+          partsBefore.length,
+        );
+        expect(
+          await repository.readTombstones(),
+          isEmpty,
+          reason: 'the deletion record goes with the deletion it recorded',
+        );
+        expect(
+          await binEntries(),
+          isEmpty,
+          reason: 'the entry is retired by its own restore',
+        );
+      },
+    );
 
     test('a conversation that is present again is not overwritten', () async {
       await seedConversation('c1');
@@ -230,6 +199,16 @@ void main() {
         hasLength(1),
         reason: 'nothing was restored, so nothing is retired',
       );
+    });
+
+    test('a peer deletion stages with the remote origin', () async {
+      await seedConversation('c1');
+
+      expect(await repository.syncApplyPeerDeletion('c1'), isTrue);
+
+      final entry = (await binEntries()).single;
+      expect(entry.origin, RecycleOrigin.remote);
+      expect(entry.key, 'c1');
     });
 
     test('a delete returns before the bin has begun writing', () async {
@@ -260,7 +239,7 @@ void main() {
       final rowPresentWhenStaged = <bool>[];
       store.onStage = (key) async {
         rowPresentWhenStaged.add(
-          await readConversationRow(database, key) != null,
+          await repository.syncReadConversationRow(key) != null,
         );
       };
 
@@ -287,7 +266,7 @@ void main() {
             'message-level deletion is an edit inside a conversation, '
             'not a conversation leaving the bin\'s custody',
       );
-      expect(await readMessageRows(database, 'c1'), hasLength(1));
+      expect(await repository.syncReadMessageRows('c1'), hasLength(1));
     });
 
     test('a bulk reset stages nothing', () async {

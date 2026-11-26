@@ -173,7 +173,11 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     ],
     _BinFilter.settings => [
       for (final entry in _entries)
+        // A skill is one of these rows — user-managed configuration with a
+        // directory behind it, not a chat and not a file in a workspace — so it
+        // answers to the tab the rest of the entity kinds answer to.
         if (entry.type == RecycleEntryType.preference ||
+            entry.type == RecycleEntryType.skillBody ||
             (entry.type == RecycleEntryType.businessEntity &&
                 entry.kindWire != 'assistant_rows'))
           entry,
@@ -239,8 +243,13 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     RecycleEntryType.conversation => Lucide.MessageSquare,
     RecycleEntryType.preference => Lucide.Settings2,
     RecycleEntryType.workspaceFile => Lucide.FileText,
+    RecycleEntryType.skillBody => Lucide.WandSparkles,
     RecycleEntryType.businessEntity => switch (entry.kindWire) {
       'assistant_rows' => Lucide.Bot,
+      'groupChat' => Lucide.Users,
+      'conversationContext' => Lucide.History,
+      'conversationImageContext' => Lucide.Image,
+      'conversationCompression' => Lucide.Settings2,
       _ => Lucide.SlidersHorizontal,
     },
   };
@@ -250,6 +259,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         RecycleEntryType.conversation => l10n.recycleBinKindConversation,
         RecycleEntryType.preference => l10n.recycleBinKindPreference,
         RecycleEntryType.workspaceFile => l10n.recycleBinKindWorkspaceFile,
+        RecycleEntryType.skillBody => l10n.recycleBinKindSkill,
         RecycleEntryType.businessEntity => switch (entry.kindWire) {
           'assistant_rows' => l10n.recycleBinKindAssistant,
           'provider_rows' ||
@@ -257,6 +267,9 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
           'world_book_rows' => l10n.recycleBinKindWorldBook,
           'assistant_memory_rows' ||
           'memory_entry_rows' => l10n.recycleBinKindMemory,
+          'conversationContext' => l10n.recycleBinKindCompressionHistory,
+          'conversationImageContext' => l10n.recycleBinKindImageContext,
+          'conversationCompression' => l10n.recycleBinKindCompressionSettings,
           _ => l10n.recycleBinKindConfig,
         },
       };

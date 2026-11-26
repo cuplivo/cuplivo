@@ -1,0 +1,962 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart' as crypto;
+
+import 'sync_limits.dart';
+import 'sync_models.dart';
+
+/// Pure, side-effect-free sync planning and merge rules (ADR-0003).
+///
+/// Every function here is deterministic and symmetric: both peers, given the
+/// same three views (mine, peer, checkpoint), compute the same plan; both
+/// peers, given the same two row sets, converge to the same merged state.
+/// That property is what removes the 3.x direction knob — there is never a
+/// "which side wins" question for the user to answer.
+
+/// What this device should do about one conversation.
+enum SyncConvAction {
+  /// Nothing to do; states already agree.
+  none,
+
+  /// This device sends its subtree.
+  iSend,
+
+  /// The peer sends its subtree.
+  peerSends,
+
+  /// Both sides changed since the checkpoint; both send, both merge.
+  bothSend,
+
+  /// The conversation was deleted here and the peer is unmodified — the peer
+  /// must delete it. This device just drops its checkpoint entry.
+  peerDeletes,
+
+  /// The conversation was deleted on the peer and this device is unmodified —
+  /// delete locally. If this device modified it, delete-vs-edit resolves to
+  /// edit: this device keeps it and sends.
+  iDelete,
+
+  /// Deleted on both sides; nothing to move, checkpoint entry goes away.
+  bothDeleted,
+}
+
+class SyncConvPlan {
+  final String conversationId;
+  final SyncConvAction action;
+
+  const SyncConvPlan(this.conversationId, this.action);
+}
+
+/// Computes the full session plan from three manifests: [mine] and [peers]
+/// are the hello manifests, [checkpoint] is the row state this device last
+/// observed on the peer. Runs identically (with swapped roles) on the other
+/// device.
+List<SyncConvPlan> planSync({
+  required SyncManifest mine,
+  required SyncManifest peers,
+  required SyncCheckpoint checkpoint,
+}) {
+  final ids = <String>{
+    ...mine.conversations.keys,
+    ...peers.conversations.keys,
+    ...checkpoint.conversations.keys,
+  };
+  final plans = <SyncConvPlan>[];
+  for (final id in ids) {
+    plans.add(
+      SyncConvPlan(
+        id,
+        _planConversation(
+          mine: mine.conversations[id],
+          peers: peers.conversations[id],
+          checkpoint: checkpoint.conversations[id],
+        ),
+      ),
+    );
+  }
+  return plans;
+}
+
+SyncConvAction _planConversation({
+  SyncManifestEntry? mine,
+  SyncManifestEntry? peers,
+  SyncCheckpointConversation? checkpoint,
+}) => planRowSync(
+  mineDigest: mine?.digest,
+  peerDigest: peers?.digest,
+  checkpointDigest: checkpoint?.digest,
+  // The conversation row's own clock: its content travels only with the
+  // subtree, so a rename or a version selection that leaves every message row
+  // untouched is visible here and nowhere else.
+  mineClock: mine?.updatedAtUs,
+  peerClock: peers?.updatedAtUs,
+  // What the two sides last agreed on, clock included. The delete branch needs
+  // it for the same reason the announcement does: a restore writes the row back
+  // with a fresh clock and leaves the digest alone.
+  checkpointClock: checkpoint?.updatedAtUs,
+);
+
+/// Whether this device's copy was written here since the two sides last agreed
+/// on it.
+///
+/// This is the one question both readers of an agreement ask, so it is answered
+/// in one place: the plan asks it before honouring a delete this device would
+/// otherwise apply ([planRowSync]), and the hello asks it before honouring a
+/// deletion the peer announces ([SyncEngine._announcementKills]).
+///
+/// A differing digest is always "changed". When the digests agree, only the row
+/// clock can tell: a conversation's digest is computed from its message rows, so
+/// a row-only write is invisible to it. The recycle bin's restore is exactly
+/// that write — the messages come back verbatim and the row keeps the display
+/// clock it was deleted with, so only the sync clock it is re-stamped with says
+/// this device wrote here — and so is a rename that left every message alone.
+///
+/// With no clock on either side (a business row, whose digest covers the whole
+/// row; or an agreement recorded before the clock travelled) the digest is the
+/// whole answer, which is the narrower rule rather than a wrong one.
+bool copyWrittenSinceAgreement({
+  required String digest,
+  required String agreedDigest,
+  required int? clock,
+  required int? agreedClock,
+}) {
+  if (digest != agreedDigest) return true;
+  if (clock == null || agreedClock == null) return false;
+  return clock > agreedClock;
+}
+
+/// The one decision table both sync faces use: a conversation and a business
+/// row (entity or preference) differ only in what "row state" means, so the
+/// presence-and-digest reasoning is shared rather than copied.
+///
+/// A null digest means "this side does not have the row".
+///
+/// [mineClock] and [peerClock] are the conversation row's mutation clocks,
+/// passed only by the conversation face: its digest covers the conversation's
+/// families and never the conversation row, so a change to the row itself
+/// (title, pin, selected version, extras) is otherwise invisible and would
+/// never transfer. [checkpointClock] is the row
+/// clock the two sides last agreed on, and is what keeps the delete branch from
+/// undoing a restore: the bin writes the messages back byte-identical and
+/// re-stamps only the sync clock, so the digest still matches the agreement
+/// while the row says this device wrote here since.
+///
+/// **The business face passes [mineClock] and [checkpointClock] but not
+/// [peerClock], and that asymmetry is the point.** A business row's digest *is*
+/// its content, so a clock-only difference between the two sides is not
+/// something to exchange — leaving [peerClock] null keeps the equal-digest
+/// branch's `bothSend` a conversation-face rule, where the digest genuinely
+/// cannot see the row write. The clocks are still needed on that face for the
+/// delete branch: a restore writes the same content back with a new clock, and
+/// the comparison that decides whether a deletion may be applied is the same one
+/// in both cases.
+SyncConvAction planRowSync({
+  required String? mineDigest,
+  required String? peerDigest,
+  required String? checkpointDigest,
+  int? mineClock,
+  int? peerClock,
+  int? checkpointClock,
+}) {
+  if (mineDigest == null && peerDigest == null) {
+    return checkpointDigest == null
+        ? SyncConvAction.none
+        : SyncConvAction.bothDeleted;
+  }
+  if (mineDigest == null) {
+    // Deleted here (or never had it) since the checkpoint.
+    if (checkpointDigest == null) return SyncConvAction.peerSends;
+    return peerDigest == checkpointDigest
+        ? SyncConvAction.peerDeletes
+        : SyncConvAction.peerSends; // peer modified: edit beats delete
+  }
+  if (peerDigest == null) {
+    if (checkpointDigest == null) return SyncConvAction.iSend;
+    // The peer deleted it and this device held the agreed state — unless it did
+    // not. A copy whose rows still match the agreement but whose row clock is
+    // newer was written here since, and an edit beats a delete here exactly as
+    // it does in the digest comparison below.
+    return copyWrittenSinceAgreement(
+          digest: mineDigest,
+          agreedDigest: checkpointDigest,
+          clock: mineClock,
+          agreedClock: checkpointClock,
+        )
+        ? SyncConvAction.iSend
+        : SyncConvAction.iDelete;
+  }
+  if (mineDigest == peerDigest) {
+    if (mineClock != null && peerClock != null && mineClock != peerClock) {
+      // Same rows, different row state: both sides hold a version the other
+      // has not seen, and the apply's row-level LWW settles it.
+      return SyncConvAction.bothSend;
+    }
+    return SyncConvAction.none;
+  }
+  if (checkpointDigest != null && peerDigest == checkpointDigest) {
+    return SyncConvAction.iSend;
+  }
+  if (checkpointDigest != null && mineDigest == checkpointDigest) {
+    return SyncConvAction.peerSends;
+  }
+  return SyncConvAction.bothSend;
+}
+
+/// One business row's plan. [kindWire] is a table name or
+/// [kSyncPreferenceWire]; [id] is a row id or a preference key.
+class SyncBusinessPlanItem {
+  final String kindWire;
+  final String id;
+  final SyncConvAction action;
+
+  /// This key is held by one of the two devices without being offered, so
+  /// neither side may move it: the action is [SyncConvAction.none] and this
+  /// flag says what that `none` means.
+  ///
+  /// Only ever set with `none` — a withheld key plans no exchange at all, so
+  /// nothing that rewrites a plan's *actions* can carry it into a deletion or a
+  /// send.
+  ///
+  /// The distinction matters to the checkpoint. A plain `none` is an
+  /// *agreement* — both manifests carry the same digest — and the business
+  /// advance records the local row as the shared state. A withheld key has no
+  /// agreement at all; recording one would make the first session after the
+  /// user un-withholds it resolve by "this device's copy wins" instead of by
+  /// the table's own last-write-wins, which is a switch that changes the
+  /// winner rather than only the traffic.
+  final bool withheld;
+
+  const SyncBusinessPlanItem(
+    this.kindWire,
+    this.id,
+    this.action, {
+    this.withheld = false,
+  });
+}
+
+/// Plans every business row in one pass over the union of both manifests and
+/// the checkpoint. Entity kinds and preference keys go through the same table:
+/// they are rows on the same clock.
+///
+/// [localOnly] is the union of both devices' withheld keys — this device's own
+/// set and the peer's hello announcement — and every key in it plans `none`
+/// with [SyncBusinessPlanItem.withheld] set. Both halves belong here for
+/// different reasons. A key *this* device withholds must not leave and must not
+/// come back: the row is the user's, on this machine. A key the *peer*
+/// withholds must not leave either — the peer's copy is its own, and sending
+/// this device's version would overwrite it through the apply — and must not be
+/// read as deleted, which is exactly what the peer's announcement protests.
+List<SyncBusinessPlanItem> planBusinessSync({
+  required SyncManifest mine,
+  required SyncManifest peers,
+  required SyncCheckpoint checkpoint,
+  Set<String> localOnly = const {},
+}) {
+  final plans = <SyncBusinessPlanItem>[];
+
+  final kinds = <String>{
+    ...mine.entities.keys,
+    ...peers.entities.keys,
+    ...checkpoint.entities.keys,
+  };
+  for (final kind in kinds) {
+    final mineRows = mine.entities[kind] ?? const <String, SyncManifestEntry>{};
+    final peerRows =
+        peers.entities[kind] ?? const <String, SyncManifestEntry>{};
+    final checkpointRows =
+        checkpoint.entities[kind] ?? const <String, SyncCheckpointEntry>{};
+    final ids = <String>{
+      ...mineRows.keys,
+      ...peerRows.keys,
+      ...checkpointRows.keys,
+    };
+    for (final id in ids) {
+      final withheld = localOnly.contains(syncBusinessKey(kind, id));
+      plans.add(
+        SyncBusinessPlanItem(
+          kind,
+          id,
+          withheld
+              ? SyncConvAction.none
+              : planRowSync(
+                  mineDigest: mineRows[id]?.digest,
+                  peerDigest: peerRows[id]?.digest,
+                  checkpointDigest: checkpointRows[id]?.digest,
+                  // A business row's digest is its content, and a restore
+                  // writes the same content back with a fresh clock — so the
+                  // delete branch cannot see a restore from the digest alone
+                  // any more than the conversation face can. The clocks are
+                  // already in both manifests and the checkpoint, so the same
+                  // rule applies. [peerClock] stays out on purpose; see
+                  // [planRowSync].
+                  mineClock: mineRows[id]?.updatedAtUs,
+                  checkpointClock: checkpointRows[id]?.updatedAtUs,
+                ),
+          withheld: withheld,
+        ),
+      );
+    }
+  }
+
+  final keys = <String>{
+    ...mine.preferences.keys,
+    ...peers.preferences.keys,
+    ...checkpoint.preferences.keys,
+  };
+  for (final key in keys) {
+    final withheld = localOnly.contains(
+      syncBusinessKey(kSyncPreferenceWire, key),
+    );
+    plans.add(
+      SyncBusinessPlanItem(
+        kSyncPreferenceWire,
+        key,
+        withheld
+            ? SyncConvAction.none
+            : planRowSync(
+                mineDigest: mine.preferences[key]?.digest,
+                peerDigest: peers.preferences[key]?.digest,
+                checkpointDigest: checkpoint.preferences[key]?.digest,
+                // Same as the entity loop: a synced preference's digest is its
+                // value.
+                mineClock: mine.preferences[key]?.updatedAtUs,
+                checkpointClock: checkpoint.preferences[key]?.updatedAtUs,
+              ),
+        withheld: withheld,
+      ),
+    );
+  }
+  return plans;
+}
+
+/// LWW for one business row: the newer `updated_at` wins; an exact tie falls
+/// to the higher deviceId, so both peers reach the same verdict without
+/// talking to each other. Same rule as message and conversation rows.
+bool incomingBusinessRowWins({
+  required int localUpdatedAtUs,
+  required int incomingUpdatedAtUs,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) {
+  var cmp = incomingUpdatedAtUs.compareTo(localUpdatedAtUs);
+  if (cmp == 0) cmp = peerDeviceId.compareTo(myDeviceId);
+  return cmp >= 0;
+}
+
+/// One skill's content verdict for this session (slice 3).
+///
+/// The skill *record* rides the ordinary business plan; this is the separate
+/// decision about its directory body, which has no clock of its own. The
+/// record's `updated_at` does not track content edits, so the manifest digest
+/// for a skill is `combineSkillDigest(payloadDigest, dirHash)` — content edits
+/// are visible to [planRowSync], and the checkpoint holds the same combined
+/// digest, which is what makes "unchanged side adopts the changed side" work.
+class SkillContentPlan {
+  final String skillId;
+  final SyncConvAction action;
+
+  const SkillContentPlan(this.skillId, this.action);
+}
+
+/// Plans every skill directory against the same three views as the row plan.
+/// [skillWire] is the wire kind name of the skill entity kind (the authority
+/// is `BusinessEntityKind.skill.wireName`).
+///
+/// The caller resolves [SyncConvAction.bothSend] with the one LWW rule —
+/// newer record clock, ties to the higher deviceId — and reports the loser;
+/// this planner only says that both sides changed.
+List<SkillContentPlan> planSkillContentSync({
+  required SyncManifest mine,
+  required SyncManifest peers,
+  required SyncCheckpoint checkpoint,
+  required String skillWire,
+}) {
+  final mineRows =
+      mine.entities[skillWire] ?? const <String, SyncManifestEntry>{};
+  final peerRows =
+      peers.entities[skillWire] ?? const <String, SyncManifestEntry>{};
+  final checkpointRows =
+      checkpoint.entities[skillWire] ?? const <String, SyncCheckpointEntry>{};
+  final ids = <String>{
+    ...mineRows.keys,
+    ...peerRows.keys,
+    ...checkpointRows.keys,
+  };
+  return [
+    for (final id in ids)
+      SkillContentPlan(
+        id,
+        planRowSync(
+          mineDigest: mineRows[id]?.digest,
+          peerDigest: peerRows[id]?.digest,
+          checkpointDigest: checkpointRows[id]?.digest,
+          // The digest already covers the body (`combineSkillDigest`), so a
+          // restored skill row — which comes back without its directory, and
+          // therefore with a different hash — moves it on its own. The clocks go
+          // in anyway for the case it does not: a directory that happens to be
+          // identical again leaves the digest equal to the agreement, and then
+          // only the record clock separates a restore from a deletion.
+          mineClock: mineRows[id]?.updatedAtUs,
+          checkpointClock: checkpointRows[id]?.updatedAtUs,
+        ),
+      ),
+  ];
+}
+
+/// Content hash of a business row's payload or a preference's value. It rides
+/// the manifest alongside `updated_at` so "same clock, different content"
+/// (skewed or coarse clocks) still counts as divergence and gets exchanged.
+String businessContentDigest(String content) =>
+    crypto.sha256.convert(utf8.encode(content)).toString();
+
+// ---- workspace file content (slice 18) ----
+
+/// What this device should do about one file inside one workspace.
+///
+/// The same shape as [SyncConvAction] because it is the same decision table:
+/// "does the other side have this, and did either side change it since we last
+/// agreed" is answered identically for a row and for a file. What differs is
+/// the clock (a row's `updated_at` against a file's size+mtime) and the fact
+/// that a file's bytes move over their own route rather than inside the batch.
+enum WorkspaceFileAction {
+  /// Both sides hold the same version, or neither ever had it.
+  none,
+
+  /// This device's version is the one to spread: the peer fetches it.
+  iSend,
+
+  /// The peer's version is the one to adopt: this device fetches it.
+  peerSends,
+
+  /// Both sides changed it since they last agreed, and the deterministic rule
+  /// keeps this device's version; the peer fetches it and its own edit is
+  /// replaced there.
+  iWin,
+
+  /// Both sides changed it and the deterministic rule keeps the peer's
+  /// version: this device fetches it and its own edit is *replaced here* —
+  /// counted, never silent.
+  peerWins,
+
+  /// The peer deleted it and this device is unchanged: delete locally.
+  iDelete,
+
+  /// This device deleted it and the peer is unchanged: the peer deletes. This
+  /// side does nothing; the peer reaches the same verdict from the tables it
+  /// holds.
+  peerDeletes,
+
+  /// Neither side has it any more; the ledger entry goes away.
+  bothDeleted,
+}
+
+class WorkspaceFilePlan {
+  final String path;
+  final WorkspaceFileAction action;
+
+  const WorkspaceFilePlan(this.path, this.action);
+}
+
+/// Whether the peer's version of a file wins the deterministic conflict rule.
+///
+/// A file's only clock is its mtime, and an exact tie — two writes inside the
+/// same millisecond — falls to the higher deviceId. That is [planRowSync]'s
+/// rule and [incomingBusinessRowWins]'s implementation: both devices reach the
+/// same verdict without negotiating, which is what makes the loser's transfer
+/// implied rather than something one side has to ask for.
+bool peerWorkspaceFileWins({
+  required WorkspaceFileStamp mine,
+  required WorkspaceFileStamp peers,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) => incomingBusinessRowWins(
+  localUpdatedAtUs: mine.mtimeMs,
+  incomingUpdatedAtUs: peers.mtimeMs,
+  myDeviceId: myDeviceId,
+  peerDeviceId: peerDeviceId,
+);
+
+/// Plans one workspace's files from three views: this device's index, the
+/// peer's advertised table, and the ledger of what the two last demonstrably
+/// agreed.
+///
+/// [peers] must be the peer's table *for a workspace it shares*; a workspace
+/// the peer did not advertise is never planned at all (see
+/// [SyncWorkspaceFileTables]). An empty [peers] therefore means "the peer
+/// shares this workspace and has no files that ride" — the one reading under
+/// which a local file may be deleted, and the reason the two cases are kept
+/// apart by the caller.
+///
+/// A path absent from [baseline] is conservative in both directions: the file
+/// is offered or fetched, never deleted. That is what makes a lost ledger (a
+/// dropped entry, a reset checkpoint, a cap) cost a re-transfer rather than
+/// data.
+///
+/// Two identical stamps are agreement *before* anything else is consulted, and
+/// that ordering is load-bearing rather than an optimisation: the side that
+/// wins a conflict never advances its own ledger entry (it cannot know whether
+/// the peer's fetch landed), so the session after a conflict starts from a
+/// stale baseline on both sides. What heals it is exactly this check — once the
+/// bytes have moved, both sides hold the same version and stop looking at the
+/// ledger at all.
+List<WorkspaceFilePlan> planWorkspaceContent({
+  required Map<String, WorkspaceFileStamp> mine,
+  required Map<String, WorkspaceFileStamp> peers,
+  required Map<String, SyncAgreedFile> baseline,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) {
+  final paths = <String>{...mine.keys, ...peers.keys, ...baseline.keys};
+  final plans = <WorkspaceFilePlan>[];
+  for (final path in paths) {
+    final local = mine[path];
+    final remote = peers[path];
+    final agreed = baseline[path];
+    plans.add(
+      WorkspaceFilePlan(
+        path,
+        _planWorkspaceFile(
+          mine: local,
+          peers: remote,
+          agreed: agreed,
+          myDeviceId: myDeviceId,
+          peerDeviceId: peerDeviceId,
+        ),
+      ),
+    );
+  }
+  return plans;
+}
+
+WorkspaceFileAction _planWorkspaceFile({
+  required WorkspaceFileStamp? mine,
+  required WorkspaceFileStamp? peers,
+  required SyncAgreedFile? agreed,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) {
+  if (mine == null && peers == null) {
+    return agreed == null
+        ? WorkspaceFileAction.none
+        : WorkspaceFileAction.bothDeleted;
+  }
+  if (mine == null) {
+    // Deleted here (or never had it).
+    if (agreed == null) return WorkspaceFileAction.peerSends;
+    // Unchanged on the peer since both sides agreed: this device's deletion
+    // stands. Otherwise the peer's edit beats this device's deletion.
+    return peers == agreed.peer
+        ? WorkspaceFileAction.peerDeletes
+        : WorkspaceFileAction.peerSends;
+  }
+  if (peers == null) {
+    if (agreed == null) return WorkspaceFileAction.iSend;
+    return mine == agreed.mine
+        ? WorkspaceFileAction.iDelete
+        : WorkspaceFileAction.iSend;
+  }
+  if (mine == peers) return WorkspaceFileAction.none;
+  if (agreed != null) {
+    // Both sides' own stamps are compared against the ledger, not against each
+    // other: a receiver that had to round its mtime still agreed on a *pair*
+    // of stamps, and re-deciding that pair as a conflict every session is
+    // exactly what storing both halves prevents.
+    if (mine == agreed.mine && peers == agreed.peer) {
+      return WorkspaceFileAction.none;
+    }
+    if (mine == agreed.mine) return WorkspaceFileAction.peerSends;
+    if (peers == agreed.peer) return WorkspaceFileAction.iSend;
+  }
+  // Both sides changed it (or neither has a baseline): the deterministic rule
+  // decides, and the loser's side counts what it lost.
+  return peerWorkspaceFileWins(
+        mine: mine,
+        peers: peers,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+      )
+      ? WorkspaceFileAction.peerWins
+      : WorkspaceFileAction.iWin;
+}
+
+/// The ledger one workspace needs after a session, given what actually
+/// happened to each file.
+///
+/// An entry is written only for a state both sides *demonstrably* reached:
+/// a file both sides hold identically, or one this device just fetched (the
+/// served bytes were verified against the advertised stamp, so the peer's
+/// version is confirmed by construction). Everything else keeps its previous
+/// entry, which is what makes sending self-healing — the sender does not know
+/// whether the peer's fetch landed, so it keeps the old baseline and re-offers
+/// the file next session; the peer's own table then proves receipt and the
+/// entry advances. An entry that advanced on a *send* would instead tell the
+/// next session that a transfer nobody confirmed had happened.
+Map<String, SyncAgreedFile> advanceWorkspaceBaseline({
+  required Map<String, WorkspaceFileStamp> mine,
+  required Map<String, WorkspaceFileStamp> peers,
+  required Map<String, SyncAgreedFile> baseline,
+  required Iterable<WorkspaceFilePlan> plan,
+  required Map<String, WorkspaceFileStamp> landed,
+  required Set<String> deleted,
+}) {
+  final next = <String, SyncAgreedFile>{};
+  for (final item in plan) {
+    final prior = baseline[item.path];
+    switch (item.action) {
+      case WorkspaceFileAction.none:
+        final local = mine[item.path];
+        final remote = peers[item.path];
+        if (local != null && remote != null) {
+          next[item.path] = SyncAgreedFile(local, remote);
+        }
+      case WorkspaceFileAction.peerSends:
+      case WorkspaceFileAction.peerWins:
+        final fetched = landed[item.path];
+        final remote = peers[item.path];
+        if (fetched != null && remote != null) {
+          next[item.path] = SyncAgreedFile(fetched, remote);
+        } else if (prior != null) {
+          next[item.path] = prior;
+        }
+      case WorkspaceFileAction.iDelete:
+        // The file is gone here and the peer's table no longer has it: the
+        // entry has nothing left to describe. A delete that failed keeps it,
+        // so the next session retries.
+        if (deleted.contains(item.path)) continue;
+        if (prior != null) next[item.path] = prior;
+      case WorkspaceFileAction.bothDeleted:
+        continue;
+      case WorkspaceFileAction.iSend:
+      case WorkspaceFileAction.iWin:
+      case WorkspaceFileAction.peerDeletes:
+        if (prior != null) next[item.path] = prior;
+    }
+  }
+  return next;
+}
+
+/// Bounds the per-peer ledger, whole workspaces at a time.
+///
+/// Over the cap the workspaces that sort last lose their ledger entries
+/// entirely rather than being truncated file by file: a half-remembered
+/// workspace would present some of its files as "never agreed" (re-transfer,
+/// safe) and others as agreed, and the two readings would be indistinguishable
+/// in the checkpoint. An absent entry is only ever conservative, so what the
+/// cap costs is a re-transfer, never a deletion.
+Map<String, Map<String, SyncAgreedFile>> capWorkspaceLedger(
+  Map<String, Map<String, SyncAgreedFile>> ledger, {
+  int maxEntries = kMaxWorkspaceLedgerEntries,
+}) {
+  var total = 0;
+  for (final table in ledger.values) {
+    total += table.length;
+  }
+  if (total <= maxEntries) return ledger;
+  final ids = ledger.keys.toList()..sort();
+  final kept = <String, Map<String, SyncAgreedFile>>{};
+  var keptEntries = 0;
+  for (final id in ids) {
+    final table = ledger[id]!;
+    if (table.isEmpty) continue;
+    if (keptEntries + table.length > maxEntries) continue;
+    keptEntries += table.length;
+    kept[id] = table;
+  }
+  return kept;
+}
+
+/// Content hash of one entity row: its payload plus the list position it
+/// occupies. The position is its own column and a reorder leaves the payload
+/// untouched, so a payload-only digest made the reorder invisible — the plan
+/// said "none" while the two devices held different orders. Preferences have
+/// no position and keep [businessContentDigest].
+String entityRowDigest(String payload, int sortOrder) =>
+    businessContentDigest('$sortOrder\u0000$payload');
+
+/// Result of merging one conversation row.
+class ConversationRowMerge {
+  /// The row to persist (local or incoming) plus whether it changed locally.
+  final Map<String, dynamic> winner;
+  final bool incomingWon;
+
+  const ConversationRowMerge(this.winner, this.incomingWon);
+}
+
+/// The `conversation_rows.extras_json` key holding a conversation's mutation
+/// clock.
+///
+/// A conversation carries two times. `updated_at` says when its **content**
+/// last changed — a new message, an edit, a deletion — and it is what the home
+/// list orders and groups by. This key says when a device last wrote the
+/// **row**, which is a superset: pinning, summarising, renaming and changing
+/// the workspace binding all travel without moving the list. Sync reads this
+/// key and never the column; both peers store it inside the extras bag they
+/// already exchange, so the wire shape does not change.
+///
+/// A row written before the key existed falls back to `updated_at` — the clock
+/// that used to be the only one — so no backfill is needed (the plan's G5).
+const String syncClockExtrasKey = 'sync.clock';
+
+Map<String, dynamic>? _extrasObject(Object? raw) {
+  final Object? decoded;
+  if (raw is Map) {
+    decoded = raw;
+  } else if (raw is String && raw.isNotEmpty) {
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return null;
+    }
+  } else {
+    return null;
+  }
+  if (decoded is! Map) return null;
+  return {for (final entry in decoded.entries) '${entry.key}': entry.value};
+}
+
+/// The mutation clock stored beside [extrasJson], or null when the row has
+/// none (it predates the key, or its bag is unreadable).
+///
+/// Only a JSON integer counts. A float, a numeric string or junk is treated as
+/// absent rather than converted, because the manifest's SQL half tests
+/// `json_type(...) = 'integer'` and the two readers must agree on every row —
+/// including the rows nobody meant to write.
+int? syncClockOf(Object? extrasJson) {
+  final value = _extrasObject(extrasJson)?[syncClockExtrasKey];
+  return value is int ? value : null;
+}
+
+/// [extrasJson] as stored, with [syncClock] written into it.
+///
+/// Null when the bag is not a JSON object. The caller then leaves the column
+/// alone: a row whose key cannot be read falls back to `updated_at`, and every
+/// caller here is already moving that.
+String? withSyncClock(Object? extrasJson, int syncClock) {
+  final extras = _extrasObject(extrasJson);
+  if (extras == null) return null;
+  return jsonEncode({...extras, syncClockExtrasKey: syncClock});
+}
+
+/// The clock both peers compare for a conversation row: the key when it is
+/// there, `updated_at` when it is not.
+///
+/// Deliberately not "the later of the two": `updated_at` is the display clock
+/// once this ships, so letting it raise the sync clock would let a write that
+/// only reorders the list claim it changed the row.
+int effectiveConversationClock(Map<String, dynamic> row) =>
+    syncClockOf(row['extras_json']) ?? (row['updated_at'] as num).toInt();
+
+/// The clock one local write must store.
+///
+/// Strictly greater than the clock being replaced and than the display clock
+/// the row will carry: [copyWrittenSinceAgreement] asks "was this written
+/// since", so two writes inside one microsecond would compare equal and the
+/// second one would be invisible to every peer. Stepping from `current + 1`
+/// rather than from `now` also crosses a clock that is ahead of this device's
+/// wall time (a peer with a fast clock, a restored archive), which is the one
+/// case where "now is always newer" does not hold.
+int nextSyncClock({
+  required int nowUs,
+  required int? currentUs,
+  required int updatedAtUs,
+}) {
+  var next = nowUs;
+  if (updatedAtUs >= next) next = updatedAtUs + 1;
+  if (currentUs != null && currentUs >= next) next = currentUs + 1;
+  return next;
+}
+
+/// LWW for the conversation row: the newer [effectiveConversationClock] wins;
+/// ties fall to the higher deviceId so both peers decide identically.
+/// `updated_at` is required on both rows (the column is non-nullable), and is
+/// only the fallback clock for a row that predates [syncClockExtrasKey].
+///
+/// Row maps use the raw column names and raw SQLite values (microsecond
+/// integers, 0/1 booleans) — the wire format is the storage format, so no
+/// translation layer exists to drift out of sync with the schema.
+ConversationRowMerge mergeConversationRow({
+  required Map<String, dynamic> local,
+  required Map<String, dynamic> incoming,
+  required String myDeviceId,
+  required String peerDeviceId,
+}) {
+  final localAt = effectiveConversationClock(local);
+  final incomingAt = effectiveConversationClock(incoming);
+  int cmp = incomingAt.compareTo(localAt);
+  if (cmp == 0) {
+    cmp = peerDeviceId.compareTo(myDeviceId);
+  }
+  return cmp >= 0
+      ? ConversationRowMerge(incoming, true)
+      : ConversationRowMerge(local, false);
+}
+
+/// Per-message merge decision for one conversation.
+class MessageMergePlan {
+  /// Incoming rows that must be written (insert or overwrite).
+  final List<Map<String, dynamic>> upserts;
+
+  /// Local message ids to delete: present locally, present in the checkpoint
+  /// (so the peer used to have them), absent from the incoming subtree, and
+  /// untouched here since — i.e. the peer deleted them.
+  final List<String> deletes;
+
+  const MessageMergePlan(this.upserts, this.deletes);
+}
+
+/// Coalesced mutation time of a message row: `COALESCE(updated_at, timestamp)`
+/// — exactly the semantics the schema documents for sync/LWW.
+int messageRowMutationUs(Map<String, dynamic> row) {
+  final updatedAt = row['updated_at'];
+  if (updatedAt is num) return updatedAt.toInt();
+  return (row['timestamp'] as num).toInt();
+}
+
+/// Union-merge of message rows with LWW per row and checkpoint-based
+/// deletion detection. [checkpointRows] is the peer-observed row set from the
+/// last successful session for this conversation.
+///
+/// [incomingIds] is the set the incoming *transfer* covers, when it is wider
+/// than [incoming]: a conversation arrives in pages, and one page carries a
+/// slice of the sender's rows while the transfer as a whole covers them all.
+/// Without it, every page after the first would read its predecessors' rows as
+/// rows the peer deleted. It defaults to the keys of [incoming], which is what a
+/// whole-conversation transfer means.
+///
+/// [allowDeletes] is false while a transfer is unfinished: a page proves what it
+/// carries, never what the sender no longer holds. The page that ends the
+/// transfer passes the sender's full id set as [incomingIds] and lets the oracle
+/// run.
+MessageMergePlan mergeMessageRows({
+  required Map<String, Map<String, dynamic>> local,
+  required Map<String, Map<String, dynamic>> incoming,
+  required Map<String, int> checkpointRows,
+  required String myDeviceId,
+  required String peerDeviceId,
+  Set<String>? incomingIds,
+  bool allowDeletes = true,
+}) {
+  final upserts = <Map<String, dynamic>>[];
+  for (final entry in incoming.entries) {
+    final localRow = local[entry.key];
+    if (localRow == null) {
+      upserts.add(entry.value);
+      continue;
+    }
+    final localAt = messageRowMutationUs(localRow);
+    final incomingAt = messageRowMutationUs(entry.value);
+    var cmp = incomingAt.compareTo(localAt);
+    if (cmp == 0) cmp = peerDeviceId.compareTo(myDeviceId);
+    if (cmp >= 0) upserts.add(entry.value);
+  }
+
+  final deletes = <String>[];
+  if (allowDeletes) {
+    final settled = incomingIds ?? incoming.keys;
+    for (final entry in local.entries) {
+      if (settled.contains(entry.key)) continue;
+      final seenAt = checkpointRows[entry.key];
+      if (seenAt == null) continue; // created here since the last sync: keep
+      if (messageRowMutationUs(entry.value) == seenAt) {
+        deletes.add(entry.key); // untouched here, gone there: peer deleted it
+      }
+      // else: edited here — edit beats delete, keep the row.
+    }
+  }
+  return MessageMergePlan(upserts, deletes);
+}
+
+/// The ids of message rows that must lose the `(conversation_id, group_id,
+/// version)` slot they share with another row of [rows].
+///
+/// Two devices that each regenerate (or edit-append) the same message create
+/// rival rows with the same group and version but different ids, and the
+/// schema's `UNIQUE(conversation_id, group_id, version)` allows only one: the
+/// union of both sides would violate it and abort the apply — and every later
+/// session with it. The winner is the newer mutation clock, ties to the higher
+/// row id; both peers hold the same rival rows, and neither the clock nor the
+/// id depends on which side is asking, so both reach the same verdict without
+/// negotiating (the same property the per-row LWW rule has).
+///
+/// Rows without a group id cannot collide — SQLite treats NULLs as distinct in
+/// a unique index — and are left alone.
+List<String> resolveVersionGroupCollisions(
+  Iterable<Map<String, dynamic>> rows,
+) {
+  final bySlot = <String, List<Map<String, dynamic>>>{};
+  for (final row in rows) {
+    final groupId = row['group_id'];
+    if (groupId is! String || groupId.isEmpty) continue;
+    bySlot.putIfAbsent('$groupId\u0000${row['version']}', () => []).add(row);
+  }
+  final losers = <String>[];
+  for (final cluster in bySlot.values) {
+    if (cluster.length < 2) continue;
+    cluster.sort((a, b) {
+      final byClock = messageRowMutationUs(
+        b,
+      ).compareTo(messageRowMutationUs(a));
+      if (byClock != 0) return byClock;
+      return (b['id'] as String).compareTo(a['id'] as String);
+    });
+    for (final loser in cluster.skip(1)) {
+      losers.add(loser['id'] as String);
+    }
+  }
+  return losers;
+}
+
+/// Deterministic message order for a merged conversation. The slot each row
+/// *carries* leads, and only a tie on that slot falls to `(timestamp, id)`;
+/// assigning sequential values then compacts the result and guarantees
+/// uniqueness. Both peers run this over the same merged rows and land on
+/// identical orders, which resolves concurrent appends without touching
+/// `updated_at`.
+///
+/// The carried slot has to lead because the app itself places rows by it: when
+/// a user deletes the version a group is anchored on, the surviving revision is
+/// moved onto the freed slot so the group does not jump to the bottom of the
+/// timeline. Re-deriving from `(timestamp, id)` alone silently undid exactly
+/// that, and the order is in no digest, so the local placement could never win
+/// the next session back either.
+Map<String, int> rederiveMessageOrder(Iterable<Map<String, dynamic>> rows) {
+  final ordered = rows.toList()
+    ..sort((a, b) {
+      final bySlot = ((a['message_order'] as num).toInt()).compareTo(
+        (b['message_order'] as num).toInt(),
+      );
+      if (bySlot != 0) return bySlot;
+      final byTime = ((a['timestamp'] as num).toInt()).compareTo(
+        (b['timestamp'] as num).toInt(),
+      );
+      if (byTime != 0) return byTime;
+      return (a['id'] as String).compareTo(b['id'] as String);
+    });
+  return {
+    for (var i = 0; i < ordered.length; i++) ordered[i]['id'] as String: i,
+  };
+}
+
+/// Builds a checkpoint entry from the post-merge row state. Both peers call
+/// this after applying; identical inputs produce identical entries, which is
+/// what keeps the next session's plan symmetric.
+/// [digest] is the conversation's composed identity
+/// ([composeConversationDigest]) — every synced family, not only its messages.
+/// It arrives from the caller because the composition is a read of every
+/// travelling family, and the two peers must agree on it exactly: this function
+/// only packages the post-merge state.
+SyncCheckpointConversation buildCheckpointConversation({
+  required Map<String, dynamic> conversationRow,
+  required Iterable<Map<String, dynamic>> messageRows,
+  required String digest,
+}) {
+  final rows = {
+    for (final row in messageRows)
+      row['id'] as String: messageRowMutationUs(row),
+  };
+  return SyncCheckpointConversation(
+    updatedAtUs: effectiveConversationClock(conversationRow),
+    digest: digest,
+    rows: rows,
+  );
+}

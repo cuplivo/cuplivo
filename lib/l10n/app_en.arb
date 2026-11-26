@@ -1454,7 +1454,11 @@
   },
   "subagentMailLabel": "Subagent message",
   "@subagentMailLabel": {
-    "description": "Divider label for a message the other side of a subagent delegation sent; the sender's conversation title follows it."
+    "description": "Divider label for a message the subagent sent in its parent conversation; the sender's conversation title follows it."
+  },
+  "subagentMailDelegatorLabel": "Delegator message",
+  "@subagentMailDelegatorLabel": {
+    "description": "Divider label for a message the delegator sent into a subagent conversation; the sender's conversation title follows it."
   },
   "subagentMailOpenConversation": "Open conversation",
   "@subagentMailOpenConversation": {

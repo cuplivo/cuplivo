@@ -886,6 +886,7 @@
   "subagentResultCancelled": "Субагент отменён",
   "subagentResultInterrupted": "Субагент прерван",
   "subagentMailLabel": "Сообщение субагента",
+  "subagentMailDelegatorLabel": "Сообщение делегатора",
   "subagentMailOpenConversation": "Открыть чат",
   "subagentMailCopy": "Копировать",
   "subagentMailCopied": "Скопировано",

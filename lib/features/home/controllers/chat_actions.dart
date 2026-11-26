@@ -4081,6 +4081,15 @@ class ChatActions {
       // A message that ended the turn at a step boundary starts the next segment
       // in the same breath. Loading is not cleared between them: an idle frame
       // would let the queue drain and put another turn between the two halves.
+      if (handoffRequested) {
+        // Drop this subscription before the next segment starts. This handler
+        // runs inside the sequential drain, so the next segment's
+        // `await previousSub.cancel()` would wait on this very drain and stall
+        // until the cancel timeout; the entry is this subscription's only
+        // handle, and the finish and done handlers remove it the same way when
+        // no handoff follows.
+        _conversationStreams.remove(conversationId);
+      }
       final handedOff =
           handoffRequested &&
           await (onHandoffRequested?.call(conversationId) ??

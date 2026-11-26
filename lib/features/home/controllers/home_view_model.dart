@@ -1086,6 +1086,9 @@ class HomeViewModel extends ChangeNotifier {
   /// to end rather than interrupting it.
   bool _hasHandoffReady(String conversationId) {
     if (_hasPendingMail(conversationId)) return true;
+    // A paused queue is a failed delivery the composer is showing as paused: it
+    // is not ready to go, and a handoff that took it would deliver it anyway.
+    if (_pausedQueuedInputs.contains(conversationId)) return false;
     final head = _queue[conversationId]?.firstOrNull;
     return head is QueuedUserInput;
   }

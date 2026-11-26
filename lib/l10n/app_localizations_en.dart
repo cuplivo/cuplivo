@@ -2945,6 +2945,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subagentMailLabel => 'Subagent message';
 
   @override
+  String get subagentMailDelegatorLabel => 'Delegator message';
+
+  @override
   String get subagentMailOpenConversation => 'Open conversation';
 
   @override

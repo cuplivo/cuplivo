@@ -207,3 +207,10 @@ Send a message to the conversation that delegated your task: a finding that chan
 - **留言行改用结果行那条 28px 分隔线**：`subagentMailLabel · 发送方标题`，正文跟在下面，不再是独立卡片；点分隔线打开 dialog（桌面）/ sheet（移动）看完整消息。导出与 PNG 走已有分隔线分支。
 - 新增 `subagentMailLabel`（6 个 ARB、指纹、`gen-l10n`、`translate.py check` 全过），实现里不再需要「已停止」文案——停止不产生结果行。
 
+### 13.2 review 修正（2026-11-25）
+
+- `interrupt` 说明改成「静默停止」；`stopped` 的结果行分支（divider/面板）删除，因为存储里不会有这个 outcome。
+- 手递手不再等旧订阅的 barrier cancel：`_finishStreaming` 在启动下一段前把旧订阅从 `_conversationStreams` 移除，避开「在 drain 里等 drain」的 3 秒超时。
+- 留言标签按方向取词：子对话里读「委派方消息」（`subagentMailDelegatorLabel`），导出共用 `subagentMailLabelText`。
+- l10n state 文件保持 LF；watcher 带 generation；`stoppedByModel` 每段结算清空；暂停队列不参与手递手。
+

@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show ApplyInterceptor;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:Cuplivo/core/database/app_database.dart';
 import 'package:Cuplivo/core/database/composer_draft_store.dart';
 import 'package:Cuplivo/core/models/composer_draft.dart';
@@ -28,7 +29,7 @@ void main() {
     );
     store = ComposerDraftStore(
       db,
-      directory: () async => Directory('${root.path}/files'),
+      directory: () async => Directory(p.join(root.path, 'files')),
     );
     await store.initialize();
   }
@@ -95,7 +96,13 @@ void main() {
       expect(await source.exists(), isTrue);
       expect(await second.exists(), isTrue);
       await reopen();
-      expect((await store.load('a')).active.images.single.path, second.path);
+      expect(
+        p.equals(
+          (await store.load('a')).active.images.single.path,
+          second.path,
+        ),
+        isTrue,
+      );
     },
   );
 
@@ -570,7 +577,9 @@ void main() {
     () async {
       final victim = await File('${root.path}/keep.txt').writeAsString('keep');
       final dir = await store.directoryFor('../');
-      expect(dir.path.startsWith('${root.path}/files/'), isTrue);
+      // Compare with path semantics: the hashed directory is built by p.join,
+      // so on Windows it carries `\` while a literal '/files/' prefix does not.
+      expect(p.isWithin(p.join(root.path, 'files'), dir.path), isTrue);
       await store.removePrivateDirectory('../');
       expect(await victim.readAsString(), 'keep');
     },

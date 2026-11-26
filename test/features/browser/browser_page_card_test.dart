@@ -1,6 +1,7 @@
 import 'package:provider/provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import '../../support/business_test_harness.dart';
+import '../../support/temp_directory_cleanup.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
@@ -411,7 +412,9 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
         PathProviderPlatform.instance = paths;
         SandboxPathResolver.debugSetDirs();
-        await tester.runAsync(() => root.delete(recursive: true));
+        await tester.runAsync(
+          () => deleteDirectoryWhenReleased(root, keepLockedLeftovers: true),
+        );
       }
     },
   );

@@ -2412,6 +2412,35 @@ class _Controller extends PlatformInAppWebViewController {
     return Uint8List.fromList([1]);
   }
 
+  /// The engine's Windows dialog bridge subscribes through the DevTools
+  /// protocol (`_installWindowsDialogs`), and the real Windows plugin
+  /// implements it, so the fake has to as well — otherwise every engine
+  /// creation on a Windows host dies in the platform interface's default
+  /// `UnimplementedError`.
+  final List<({String eventName, Function(dynamic) callback})>
+  devToolsListeners = [];
+
+  @override
+  Future<void> addDevToolsProtocolEventListener({
+    required String eventName,
+    required Function(dynamic data) callback,
+  }) async {
+    devToolsListeners.add((eventName: eventName, callback: callback));
+  }
+
+  /// `_installWindowsDialogs` also enables the Page domain once it subscribed.
+  final List<({String methodName, Map<String, dynamic>? parameters})>
+  devToolsCalls = [];
+
+  @override
+  Future<dynamic> callDevToolsProtocolMethod({
+    required String methodName,
+    Map<String, dynamic>? parameters,
+  }) async {
+    devToolsCalls.add((methodName: methodName, parameters: parameters));
+    return null;
+  }
+
   @override
   Future<WebUri?> getUrl() async => document.urlRead?.future ?? document.url;
   @override

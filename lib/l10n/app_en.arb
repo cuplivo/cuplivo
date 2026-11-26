@@ -461,6 +461,22 @@
   "assistantEditMaxTokensTitle": "Max Tokens",
   "assistantEditMaxTokensDescription": "Leave empty for unlimited",
   "assistantEditMaxTokensHint": "Unlimited",
+  "assistantEditDescriptionTitle": "Description",
+  "@assistantEditDescriptionTitle": {
+    "description": "Label of the row that holds what this assistant is for. Read by delegation targets and the group chat director, never shown in the chat itself."
+  },
+  "assistantEditDescriptionTip": "Only read when scheduling group chats and subagents. Leave it empty if you use neither.",
+  "@assistantEditDescriptionTip": {
+    "description": "Says who reads the description and that it is optional. Shown behind the row's help icon and under the field."
+  },
+  "assistantEditDescriptionHint": "e.g. Write SQL from a request and explain the query plan",
+  "@assistantEditDescriptionHint": {
+    "description": "Placeholder inside the description field; teaches what to write (what it does, not who it is)."
+  },
+  "assistantEditDescriptionSet": "Set",
+  "@assistantEditDescriptionSet": {
+    "description": "Value of the description row when one is written; the row does not preview the text because any useful preview would push the label off a phone."
+  },
   "assistantEditChatBackgroundTitle": "Chat Background",
   "assistantEditChatBackgroundDescription": "Set a background image for this assistant",
   "assistantEditChooseImageButton": "Choose Image",
@@ -468,6 +484,86 @@
   "desktopNavChatTooltip": "Chat",
   "desktopNavTranslateTooltip": "Translate",
   "desktopNavStorageTooltip": "Storage",
+  "toolsMenuTooltip": "Tools",
+  "@toolsMenuTooltip": {
+    "description": "Tooltip of the tools icon in the desktop navigation rail; opens the app's tool list, where the Markdown image tool lives."
+  },
+  "markdownExportTitle": "Markdown image",
+  "@markdownExportTitle": {
+    "description": "Title of the page that renders Markdown text into one picture."
+  },
+  "markdownExportEditTab": "Edit",
+  "@markdownExportEditTab": {
+    "description": "Tab label for the Markdown source editor in the Markdown image tool."
+  },
+  "markdownExportPreviewTab": "Preview",
+  "@markdownExportPreviewTab": {
+    "description": "Tab label for the rendered preview in the Markdown image tool."
+  },
+  "markdownExportHint": "Paste Markdown, or import a .md file",
+  "@markdownExportHint": {
+    "description": "Placeholder in the empty Markdown editor: what the user can do."
+  },
+  "markdownExportPreviewEmpty": "Nothing to preview yet",
+  "@markdownExportPreviewEmpty": {
+    "description": "Preview pane's empty state before there is any Markdown to render."
+  },
+  "markdownExportImport": "Import",
+  "@markdownExportImport": {
+    "description": "Button that imports a .md file into the Markdown image tool."
+  },
+  "markdownExportPaste": "Paste",
+  "@markdownExportPaste": {
+    "description": "Button that pastes the clipboard into the Markdown editor."
+  },
+  "markdownExportTextSize": "Text size",
+  "@markdownExportTextSize": {
+    "description": "Label above the text-size choice for the rendered picture."
+  },
+  "markdownExportTextSizeSmall": "Small",
+  "@markdownExportTextSizeSmall": {
+    "description": "Text-size option: small."
+  },
+  "markdownExportTextSizeStandard": "Standard",
+  "@markdownExportTextSizeStandard": {
+    "description": "Text-size option: standard (the default)."
+  },
+  "markdownExportTextSizeLarge": "Large",
+  "@markdownExportTextSizeLarge": {
+    "description": "Text-size option: large."
+  },
+  "markdownExportHideSource": "Hide source",
+  "@markdownExportHideSource": {
+    "description": "Tooltip on the preview's toggle while the source is shown; pressing it hides the editor."
+  },
+  "markdownExportShowSource": "Show source",
+  "@markdownExportShowSource": {
+    "description": "Tooltip on the preview's toggle while the source is hidden; pressing it shows the editor."
+  },
+  "markdownExportReducedResolution": "Long document: drawn at a lower resolution so it still fits one picture",
+  "@markdownExportReducedResolution": {
+    "description": "Notice shown when a long document is captured below the normal 3x scale so it still fits in one image."
+  },
+  "markdownExportExportImage": "Export image",
+  "@markdownExportExportImage": {
+    "description": "Button that captures the preview and saves it as one image."
+  },
+  "markdownExportDropHint": "Drop to import Markdown",
+  "@markdownExportDropHint": {
+    "description": "Overlay shown while a file is dragged over the Markdown image tool."
+  },
+  "markdownExportUnsupportedFile": "Only Markdown text files are supported",
+  "@markdownExportUnsupportedFile": {
+    "description": "Error when the dropped or picked file is not a Markdown text file."
+  },
+  "markdownExportReadFailed": "This file could not be read",
+  "@markdownExportReadFailed": {
+    "description": "Error when an imported file could not be read."
+  },
+  "markdownExportNothingToPaste": "The clipboard has nothing this tool can use",
+  "@markdownExportNothingToPaste": {
+    "description": "Message when the clipboard holds nothing the Markdown editor can paste."
+  },
   "desktopNavGlobalSearchTooltip": "Global Search",
   "desktopNavThemeToggleTooltip": "Theme",
   "desktopNavSettingsTooltip": "Settings",
@@ -735,6 +831,32 @@
     },
     "description": "Counter showing selected versus total backup categories, e.g. 3/12, with {selected} and {total} placeholders."
   },
+  "backupPageTargetTitle": "Backup target",
+  "@backupPageTargetTitle": {
+    "description": "Section label above the backup-target choice: which app the archive is written for."
+  },
+  "backupPageTargetCuplivo": "Cuplivo",
+  "@backupPageTargetCuplivo": {
+    "description": "Backup target option: a Cuplivo archive, restorable here with every kind."
+  },
+  "backupPageTargetCuplivoNote": "Everything this version can restore, group chats included",
+  "@backupPageTargetCuplivoNote": {
+    "description": "One-line explanation under the Cuplivo backup target."
+  },
+  "backupPageTargetKelivo": "Kelivo {version}+",
+  "@backupPageTargetKelivo": {
+    "description": "Backup target option: an archive every Kelivo release from {version} on can import.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "1.3.2"
+      }
+    }
+  },
+  "backupPageTargetKelivoNote": "Imports into Kelivo, but group chats are lost",
+  "@backupPageTargetKelivoNote": {
+    "description": "One-line explanation under the Kelivo backup target: it imports there, but group chats are not in it."
+  },
   "backupPageBackupManagementDescription": "Choose what to back up and import. Applies to local, WebDAV and S3 backups. Unselected content stays unchanged on import. Skills and workspaces include their own files.",
   "backupPageAssistantsLabel": "Assistants",
   "backupPageProvidersLabel": "Providers",
@@ -744,7 +866,7 @@
   "backupPageWorldBooksLabel": "World books",
   "backupPageMemoriesLabel": "Memories",
   "backupPageQuickPhrasesLabel": "Quick phrases",
-  "backupPageInstructionsLabel": "Prompt injections",
+  "backupPageInstructionsLabel": "Prompt library",
   "backupPageWorkspacesLabel": "Workspaces",
   "backupPageSearchServicesLabel": "Search services",
   "backupPageSpeechServicesLabel": "Speech services",
@@ -1151,6 +1273,14 @@
   "bottomToolsSheetResetDefault": "Reset to default",
   "bottomToolsSheetSave": "Save",
   "bottomToolsSheetOcr": "Image OCR",
+  "chatToolsEmptyModelCannotUseTools": "This member's model cannot call tools.",
+  "@chatToolsEmptyModelCannotUseTools": {
+    "description": "Shown in the tools panel when the member on show runs a model that cannot call tools."
+  },
+  "chatToolsEmptyNoToolsEnabled": "This member has no tools switched on.",
+  "@chatToolsEmptyNoToolsEnabled": {
+    "description": "Shown in the tools panel when the member on show has no tools switched on."
+  },
   "messageMoreSheetTitle": "More Actions",
   "messageMoreSheetSelectCopy": "Select & Copy",
   "messageMoreSheetRenderWebView": "Render Web View",
@@ -1284,6 +1414,145 @@
       }
     },
     "description": "Tool-call title for fetching a web page; {target} is the URL host or full URL."
+  },
+  "chatMessageWidgetDelegate": "Delegate: {label}",
+  "@chatMessageWidgetDelegate": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Tool-call title for a delegation; {label} is the model's short name for the job."
+  },
+  "chatMessageWidgetDelegateTo": "Delegate {assistant}: {label}",
+  "@chatMessageWidgetDelegateTo": {
+    "placeholders": {
+      "assistant": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Tool-call title for a delegation the model handed to another assistant; {assistant} is that assistant's name and {label} the short name for the job."
+  },
+  "subagentResultCompleted": "Subagent finished",
+  "@subagentResultCompleted": {
+    "description": "Divider label where a finished subagent's result appears in the parent conversation."
+  },
+  "subagentResultFailed": "Subagent failed",
+  "@subagentResultFailed": {
+    "description": "Divider label for a subagent whose run ended in an error."
+  },
+  "subagentResultCancelled": "Subagent cancelled",
+  "@subagentResultCancelled": {
+    "description": "Divider label for a subagent the user stopped."
+  },
+  "subagentResultInterrupted": "Subagent interrupted",
+  "@subagentResultInterrupted": {
+    "description": "Divider label for a subagent whose run the app stopped (for example a restart)."
+  },
+  "subagentMailLabel": "Subagent message",
+  "@subagentMailLabel": {
+    "description": "Divider label for a message the subagent sent in its parent conversation; the sender's conversation title follows it."
+  },
+  "subagentMailDelegatorLabel": "Delegator message",
+  "@subagentMailDelegatorLabel": {
+    "description": "Divider label for a message the delegator sent into a subagent conversation; the sender's conversation title follows it."
+  },
+  "subagentMailOpenConversation": "Open conversation",
+  "@subagentMailOpenConversation": {
+    "description": "Button in a subagent message dialog; opens the conversation the message came from."
+  },
+  "subagentMailCopy": "Copy",
+  "@subagentMailCopy": {
+    "description": "Button in a subagent message dialog; copies the message text."
+  },
+  "subagentMailCopied": "Copied",
+  "@subagentMailCopied": {
+    "description": "Confirmation shown after a subagent message is copied to the clipboard."
+  },
+  "subagentStripRunning": "Subagent running ({elapsed}) {label}",
+  "@subagentStripRunning": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name."
+  },
+  "subagentStripRunningMany": "Subagents running: {count}",
+  "@subagentStripRunningMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    },
+    "description": "Progress line above the composer while several subagents work and none of them needs the user."
+  },
+  "subagentStripWaiting": "Subagent waiting for you · {label}",
+  "@subagentStripWaiting": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line while one subagent is parked on a question or approval in its own conversation; {label} is the job's short name."
+  },
+  "subagentStripCounts": "{count} subagents ({running} running)",
+  "@subagentStripCounts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "running": {
+        "type": "int"
+      }
+    },
+    "description": "Progress line while several subagents exist and at least one waits for the user; {count} is the total, {running} how many are still working."
+  },
+  "subagentStripWaitingApproval": "Subagent waiting for approval · {label}",
+  "@subagentStripWaitingApproval": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    },
+    "description": "Progress line while one subagent is blocked on a tool approval in its own conversation."
+  },
+  "subagentPanelTitle": "Subagents",
+  "@subagentPanelTitle": {
+    "description": "Title of the panel listing the subagents of this conversation."
+  },
+  "subagentPanelEmpty": "No subagents in this conversation yet.",
+  "@subagentPanelEmpty": {
+    "description": "Shown in the subagent panel when this process has never delegated anything here."
+  },
+  "subagentTag": "Subagent",
+  "@subagentTag": {
+    "description": "Short tag beside a conversation's title in the sidebar, saying this chat is a delegated task rather than one the user started."
+  },
+  "subagentPanelRunning": "Running",
+  "subagentPanelWaitingAnswer": "Waiting for you",
+  "subagentPanelWaitingApproval": "Waiting for approval",
+  "subagentPanelCompleted": "Finished",
+  "subagentPanelFailed": "Failed",
+  "subagentPanelCancelled": "Cancelled",
+  "subagentPanelInterrupted": "Interrupted",
+  "subagentPanelElapsed": "{minutes}m {seconds}s",
+  "@subagentPanelElapsed": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    },
+    "description": "How long one subagent ran, shown at the end of its row in the panel."
   },
   "chatMessageWidgetBuiltinSearch": "Built-in Search",
   "chatMessageWidgetReadClipboard": "Read Clipboard",
@@ -1589,6 +1858,10 @@
   "chatInputBarMcpServersTooltip": "MCP Servers",
   "chatInputBarToolsTooltip": "Tools",
   "chatInputBarMoreTooltip": "Add",
+  "chatInputBarOverflowTooltip": "More actions",
+  "@chatInputBarOverflowTooltip": {
+    "description": "Tooltip of the composer's overflow button, which holds the actions that did not fit."
+  },
   "chatInputBarVoiceInputTooltip": "Voice input",
   "chatInputBarVoiceCancelTooltip": "Discard recording",
   "chatInputBarVoiceStopTooltip": "Stop and transcribe to input",
@@ -1704,6 +1977,8 @@
     "description": "Tag showing enabled versus total tools for a server in the MCP conversation sheet; {enabled} and {total} are integers."
   },
   "mcpServerEditSheetEnabledLabel": "Enabled",
+  "mcpServerEditSheetLocalOnlyLabel": "This device only",
+  "mcpServerEditSheetLocalOnlySaveFailed": "Saved, but this server could not be held on this device.",
   "mcpServerEditSheetNameLabel": "Name",
   "mcpServerEditSheetTransportLabel": "Transport",
   "mcpServerEditSheetUrlLabel": "Server URL",
@@ -1858,6 +2133,14 @@
   "modelDetailSheetModelTypeLabel": "Model Type",
   "modelDetailSheetChatType": "Chat",
   "modelDetailSheetEmbeddingType": "Embedding",
+  "modelDetailSheetDecisionType": "Decision",
+  "modelDetailSheetDecisionDialectLabel": "Decision API",
+  "modelDetailSheetDecisionUrlLabel": "Decision URL",
+  "modelDetailSheetDecisionUrlHint": "Empty: appended to the provider URL",
+  "modelDetailSheetDecisionUrlHelp": "Some providers serve decision models on their own endpoint; enter the path to override the default address.",
+  "modelDetailSheetDecisionUrlFill": "Fill",
+  "modelDetailSheetDecisionUrlCurrent": "Current",
+  "modelDetailSheetDecisionUrlBailian": "Bailian",
   "modelDetailSheetInputModesLabel": "Input Modes",
   "modelDetailSheetOutputModesLabel": "Output Modes",
   "modelDetailSheetAbilitiesLabel": "Abilities",
@@ -5707,6 +5990,14 @@
   "backgroundInterrupted": "Background generation was interrupted. Open the chat to continue.",
   "backgroundRequesting": "Connecting",
   "backgroundGenerating": "Generating reply",
+  "backgroundCareLetter": "Writing a letter",
+  "@backgroundCareLetter": {
+    "description": "Notification title while a proactive-care letter is being written, shown on the platform notification."
+  },
+  "backgroundCareWorking": "Preparing your letter",
+  "@backgroundCareWorking": {
+    "description": "Notification body while a proactive-care letter is being generated in the background."
+  },
   "backgroundThinking": "Thinking",
   "backgroundToolRunning": "Running tool",
   "backgroundRetrying": "Waiting to retry",
@@ -7824,6 +8115,86 @@
   "selectionRegenerate": "Regenerate",
   "translating": "Translating…",
   "retry": "Retry",
+  "imageJobTitle": "Illustration",
+  "@imageJobTitle": {
+    "description": "Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time."
+  },
+  "imageJobFailed": "Illustration failed",
+  "@imageJobFailed": {
+    "description": "Header of the same card when the picture could not be generated; a sentence explaining why follows it."
+  },
+  "imageJobInterrupted": "Illustration interrupted",
+  "@imageJobInterrupted": {
+    "description": "Header of the same card when the app closed before the picture arrived; nothing is retried automatically."
+  },
+  "assistantEditLocalToolImageTitle": "Drawing",
+  "@assistantEditLocalToolImageTitle": {
+    "description": "Name of the drawing capability in the assistant's local-tool list."
+  },
+  "assistantEditLocalToolDelegateTitle": "Subagent",
+  "@assistantEditLocalToolDelegateTitle": {
+    "description": "Name of the delegation capability in the assistant's local-tool list."
+  },
+  "assistantEditLocalToolAwaitJobTitle": "Wait for task",
+  "@assistantEditLocalToolAwaitJobTitle": {
+    "description": "Name of the capability that blocks until a delegated task finishes."
+  },
+  "assistantEditLocalToolSendMessageTitle": "Send message",
+  "@assistantEditLocalToolSendMessageTitle": {
+    "description": "Tool-call card title for a message one side of a delegation sends to the other."
+  },
+  "assistantEditLocalToolInterruptTitle": "Stop subagent",
+  "@assistantEditLocalToolInterruptTitle": {
+    "description": "Tool-call card title for asking a subagent to stop."
+  },
+  "defaultModelPageImageModelTitle": "Image Model",
+  "@defaultModelPageImageModelTitle": {
+    "description": "Settings row for choosing the model that draws pictures."
+  },
+  "defaultModelPageImageModelSubtitle": "The model that draws pictures inside a reply; leave it unset to turn drawing off.",
+  "@defaultModelPageImageModelSubtitle": {
+    "description": "Explains that the drawing model is optional and that leaving it unset turns drawing off."
+  },
+  "imageJobPanelCopy": "Copy",
+  "@imageJobPanelCopy": {
+    "description": "Button that copies the prompt to the clipboard; a confirmation toast follows."
+  },
+  "imageJobPanelPromptLabel": "Prompt",
+  "@imageJobPanelPromptLabel": {
+    "description": "Label of the prompt that produced the picture."
+  },
+  "imageJobPanelModelLabel": "Model",
+  "@imageJobPanelModelLabel": {
+    "description": "Label of the model that drew the picture."
+  },
+  "imageJobPanelSizeLabel": "Size",
+  "@imageJobPanelSizeLabel": {
+    "description": "Label of the picture's pixel size, or of the requested aspect ratio when the file cannot be read."
+  },
+  "imageJobPanelElapsedLabel": "Time taken",
+  "@imageJobPanelElapsedLabel": {
+    "description": "Label of how long the picture took to generate."
+  },
+  "imageJobPanelUsageLabel": "Usage",
+  "@imageJobPanelUsageLabel": {
+    "description": "Label of what the picture consumed: today a count of pictures, later possibly a token count."
+  },
+  "imageJobPanelAuto": "Auto",
+  "@imageJobPanelAuto": {
+    "description": "Value of the size row when the request left the aspect ratio to the model."
+  },
+  "imageJobPanelOneImage": "1 image",
+  "@imageJobPanelOneImage": {
+    "description": "Value of the usage row: this reply produced a single picture."
+  },
+  "imageJobNotConfigured": "Not configured · Choose",
+  "@imageJobNotConfigured": {
+    "description": "Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker."
+  },
+  "imageModelFollowGlobal": "Use the default image model",
+  "@imageModelFollowGlobal": {
+    "description": "Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings."
+  },
   "recoveryGuideTitle": "Let’s recover your chats",
   "recoveryGuideBody": "Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.",
   "recoverySpaceTitle": "Some free space is needed",
@@ -9822,7 +10193,7 @@
     "description": "Backup category label for quick phrases."
   },
   "@backupPageInstructionsLabel": {
-    "description": "Backup category label for prompt injections (instruction snippets)."
+    "description": "Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library’s summary templates and recipes. It must name the material, not one of the two features that write it."
   },
   "@backupPageWorkspacesLabel": {
     "description": "Backup category label for workspaces."
@@ -11342,6 +11713,12 @@
   "@mcpServerEditSheetEnabledLabel": {
     "description": "Label for the toggle switch that enables or disables an MCP server in the edit form."
   },
+  "@mcpServerEditSheetLocalOnlyLabel": {
+    "description": "Label for the toggle switch that keeps an MCP server on this device: a held row is neither offered to a paired device nor overwritten by one."
+  },
+  "@mcpServerEditSheetLocalOnlySaveFailed": {
+    "description": "Warning shown after saving an MCP server whose \"this device only\" switch could not be written. The server itself was saved; the message says what did not happen, so the user knows the server is still shared."
+  },
   "@mcpServerEditSheetNameLabel": {
     "description": "Label for the text field entering an MCP server's display name."
   },
@@ -11581,6 +11958,30 @@
   },
   "@modelDetailSheetReasoningAbility": {
     "description": "Checkbox label for the Reasoning ability; also used as a tag label."
+  },
+  "@modelDetailSheetDecisionType": {
+    "description": "Model type segment and model tag for a decision model: it answers typed yes/no or choice questions with probabilities and never generates chat text."
+  },
+  "@modelDetailSheetDecisionDialectLabel": {
+    "description": "Label of the segmented control that picks which decision protocol a decision model speaks (System One or OpenAI decisions)."
+  },
+  "@modelDetailSheetDecisionUrlLabel": {
+    "description": "Label of the optional field that overrides the endpoint address of a decision model."
+  },
+  "@modelDetailSheetDecisionUrlHint": {
+    "description": "Placeholder of the decision address field: leaving it empty appends the dialect's default path to the provider URL."
+  },
+  "@modelDetailSheetDecisionUrlHelp": {
+    "description": "First paragraph of the help sheet behind the info icon next to the decision address field: some providers serve decision models on a separate endpoint, so the default address has to be overridden."
+  },
+  "@modelDetailSheetDecisionUrlFill": {
+    "description": "Button in the decision address help sheet that writes the shown example path into the address field."
+  },
+  "@modelDetailSheetDecisionUrlCurrent": {
+    "description": "Small tag in the decision address help sheet marking the example row that matches the current provider's host."
+  },
+  "@modelDetailSheetDecisionUrlBailian": {
+    "description": "Name of Alibaba's Bailian model platform, used as the provider name of a decision address example."
   },
   "@modelDetailSheetCustomHeadersTitle": {
     "description": "Section title for custom HTTP headers in advanced settings and the provider custom request editor."
@@ -21957,10 +22358,6 @@
   "@chatMessageWidgetReplySelection": {
     "description": "Item in the text-selection context menu that replies to the selected text with it quoted."
   },
-  "chatSelectionExportPdf": "PDF",
-  "@chatSelectionExportPdf": {
-    "description": "Action in the chat selection bar that exports the selected messages as a PDF document."
-  },
   "messageExportSheetUser": "User",
   "@messageExportSheetUser": {
     "description": "Role label printed for the user's own messages in an exported transcript."
@@ -22100,6 +22497,10 @@
   "pdfExportResultDone": "Done",
   "@pdfExportResultDone": {
     "description": "Button that closes the PDF export result dialog."
+  },
+  "pdfExportResultSave": "Save PDF",
+  "@pdfExportResultSave": {
+    "description": "Primary button on the panel that offers a finished PDF; it opens the system save picker."
   },
   "sideDrawerMenuCopyLink": "Copy Link",
   "@sideDrawerMenuCopyLink": {
@@ -22380,6 +22781,22 @@
   "@recycleBinKindWorkspaceFile": {
     "description": "Kind label on a recycle-bin entry that is a file from a workspace folder."
   },
+  "recycleBinKindSkill": "Skill",
+  "@recycleBinKindSkill": {
+    "description": "Kind label on a recycle-bin entry that is a skill — an installed skill's folder of files, deleted as one item."
+  },
+  "recycleBinKindCompressionHistory": "Compression history",
+  "@recycleBinKindCompressionHistory": {
+    "description": "Recycle-bin label for a conversation's record of context operations (compressions and clears), which sync may replace with the peer's newer copy."
+  },
+  "recycleBinKindImageContext": "Image context",
+  "@recycleBinKindImageContext": {
+    "description": "Recycle-bin label for a conversation's pinned images and image-recall switches, which sync may replace with the peer's newer copy."
+  },
+  "recycleBinKindCompressionSettings": "Compression settings",
+  "@recycleBinKindCompressionSettings": {
+    "description": "Recycle-bin label for a conversation's own compression configuration, which sync may replace with the peer's newer copy."
+  },
   "recycleBinKindConfig": "Configuration",
   "@recycleBinKindConfig": {
     "description": "Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised."
@@ -22435,6 +22852,10 @@
   "recycleBinRestoreNoWorkspace": "This file's workspace was deleted, so there is no folder to put it back into.",
   "@recycleBinRestoreNoWorkspace": {
     "description": "Toast explaining that the entry's workspace folder no longer exists, so there is nowhere to put the file back."
+  },
+  "recycleBinRestoreNoConversation": "This entry's conversation was deleted, so there is nothing to put it back into.",
+  "@recycleBinRestoreNoConversation": {
+    "description": "Toast explaining that the entry belongs to a conversation that no longer exists, so the record has nowhere to go back to. Restoring the conversation from the bin brings it back."
   },
   "recycleBinRestoreFailed": "Could not restore that entry",
   "@recycleBinRestoreFailed": {
@@ -22556,9 +22977,9 @@
   "@recycleBinDetailAssistantGone": {
     "description": "Warning on the detail page when the conversation's assistant was deleted too; name is that assistant, and an assistant must be chosen after restoring."
   },
-  "settingsPageLanSync": "LAN Sync",
-  "@settingsPageLanSync": {
-    "description": "Settings entry and page title for syncing with other devices over the local network."
+  "settingsPageSync": "Convenient Sync",
+  "@settingsPageSync": {
+    "description": "Settings entry and page title for syncing with other devices, over the local network or remotely."
   },
   "lanSyncThisDevice": "This device",
   "@lanSyncThisDevice": {
@@ -22648,6 +23069,10 @@
   "@lanSyncPairErrorUnreachable": {
     "description": "Pairing error shown when the other device could not be reached, suggesting the address, port and network are checked."
   },
+  "lanSyncPairErrorBusy": "The other device is busy with another pairing request. Try again in a moment.",
+  "@lanSyncPairErrorBusy": {
+    "description": "Pairing error shown when the other device's pairing lane is full (four requests in flight), so this one was refused. The advice must not be about the address: the device answered."
+  },
   "lanSyncPairErrorNoCertificate": "The other device did not identify itself. Pairing aborted.",
   "@lanSyncPairErrorNoCertificate": {
     "description": "Pairing error shown when the other device did not present a certificate, so pairing was aborted."
@@ -22708,7 +23133,7 @@
   "@lanSyncWorkspaces": {
     "description": "Section header listing the workspace folders whose files sync to the other devices."
   },
-  "lanSyncWorkspaceTip": "Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don't sync their files. A workspace's record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.",
+  "lanSyncWorkspaceTip": "Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files don't sync their files. A workspace's record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.",
   "@lanSyncWorkspaceTip": {
     "description": "Help text for that section, explaining which folders are skipped, the size limits, and that the switch only governs files while the folder's record always syncs."
   },
@@ -22831,6 +23256,18 @@
   "lanSyncPhaseExchanging": "Comparing data…",
   "@lanSyncPhaseExchanging": {
     "description": "Progress line during a sync while both devices compare what they hold."
+  },
+  "lanSyncPhasePreparing": "Preparing…",
+  "@lanSyncPhasePreparing": {
+    "description": "Progress line during a sync while this device reads its own rows and packs them into pages; no traffic is on the wire yet."
+  },
+  "lanSyncPhaseSendingOf": "Sending {done}/{total} · {bytes}",
+  "@lanSyncPhaseSendingOf": {
+    "description": "Progress line while pages are pushed to the other device: done and total count conversations finished and planned, bytes is how much has been sent."
+  },
+  "lanSyncPhaseReceivingOf": "Receiving {done}/{total} · {bytes}",
+  "@lanSyncPhaseReceivingOf": {
+    "description": "Progress line while the other device's changes are fetched: done and total count conversations finished and requested, bytes is how much has arrived."
   },
   "lanSyncPhaseSending": "Sending changes…",
   "@lanSyncPhaseSending": {
@@ -22960,13 +23397,21 @@
   "@lanSyncReportWorkspacesOmitted": {
     "description": "Sync report count of workspaces whose files were not synced at all; count is that number."
   },
-  "lanSyncReportWorkspacesKept": "{count} workspace folders kept (switch off)",
+  "lanSyncReportWorkspacesKept": "{count} workspace folders kept on disk (switched off, or holding unsynced files)",
   "@lanSyncReportWorkspacesKept": {
-    "description": "Sync report count of workspace folders kept on this device because their switch is off; count is that number."
+    "description": "Sync report count of workspace folders left on disk because the workspace's sync switch is off, or because the folder holds files the two devices never agreed on; count is that number."
+  },
+  "lanSyncReportDeletesBlocked": "{count} deletions skipped (the local copy changed)",
+  "@lanSyncReportDeletesBlocked": {
+    "description": "Sync report count of deletions this device skipped because its own copy had changed since the two devices last agreed; count is that number."
   },
   "lanSyncReportRowsLost": "{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)",
   "@lanSyncReportRowsLost": {
     "description": "Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count."
+  },
+  "lanSyncReportDocumentsReplaced": "{n} conversations' compression history, image-context switches or compression settings replaced by the peer's newer copy",
+  "@lanSyncReportDocumentsReplaced": {
+    "description": "Sync report count of conversations whose compression history, image-context switches or compression settings the peer's newer copy replaced. Each of those is stored as one whole record per conversation, so a divergence is settled by replacing the record, never by merging it field by field; n is a count of conversations, not of records."
   },
   "lanSyncReportClockSkew": "Clocks differ by ~{n} min — fix the device clock, then sync again",
   "@lanSyncReportClockSkew": {
@@ -24111,5 +24556,627 @@
   "backupMacKeychainAccessDenied": "macOS denied access to the backup password. If a system prompt appears, allow Cuplivo to access it. You can also check the default keychain and the password item’s permissions in Keychain Access.",
   "@backupMacKeychainAccessDenied": {
     "description": "Backup password error when macOS denied access even though the default keychain was reported unlocked. Covers access denied by item permissions or an unusable login keychain without assuming that the user cancelled."
+  },
+  "settingsPageChatOwners": "Assistants and groups",
+  "@settingsPageChatOwners": {
+    "description": "Settings row that opens the list of assistants and group chats."
+  },
+  "settingsPageChatOwnersCreate": "Create",
+  "@settingsPageChatOwnersCreate": {
+    "description": "Label of the create action in the assistants-and-groups list."
+  },
+  "chatOwnersSeparate": "Show separately",
+  "@chatOwnersSeparate": {
+    "description": "Switch that lists assistants and group chats in separate sections instead of one mixed order."
+  },
+  "chatOwnersSectionAssistants": "Assistants",
+  "@chatOwnersSectionAssistants": {
+    "description": "Section header for assistants in the assistants-and-groups list."
+  },
+  "chatOwnersSectionGroups": "Groups",
+  "@chatOwnersSectionGroups": {
+    "description": "Section header for group chats in the assistants-and-groups list."
+  },
+  "chatOwnerCreateAssistant": "New assistant",
+  "@chatOwnerCreateAssistant": {
+    "description": "Create action that makes a new assistant from the assistants-and-groups list."
+  },
+  "recycleBinKindGroup": "Group",
+  "@recycleBinKindGroup": {
+    "description": "Recycle bin entry kind: a deleted group chat."
+  },
+  "recycleBinFilterGroups": "Groups",
+  "@recycleBinFilterGroups": {
+    "description": "Recycle bin filter that shows only group chats."
+  },
+  "groupChatTitle": "Group chat",
+  "@groupChatTitle": {
+    "description": "Name of the group-chat feature, used as a page title and fallback label."
+  },
+  "groupChatCreate": "New group chat",
+  "@groupChatCreate": {
+    "description": "Entry that starts creating a group chat."
+  },
+  "groupChatCreateHint": "Pick at least one assistant",
+  "@groupChatCreateHint": {
+    "description": "Helper line under the group name field: a group needs at least one assistant."
+  },
+  "groupChatNameHint": "Group name",
+  "@groupChatNameHint": {
+    "description": "Placeholder in the group name field."
+  },
+  "groupChatChangeAvatar": "Change group avatar",
+  "@groupChatChangeAvatar": {
+    "description": "Row that opens the avatar picker for the group."
+  },
+  "groupChatMembers": "Members",
+  "@groupChatMembers": {
+    "description": "Section label listing the assistants in a group."
+  },
+  "groupChatMembersEmpty": "No members yet",
+  "@groupChatMembersEmpty": {
+    "description": "Empty state of a group's member list."
+  },
+  "groupChatInvite": "Invite assistants",
+  "@groupChatInvite": {
+    "description": "Action that opens the roster picker to add assistants to the group."
+  },
+  "groupChatNoAssistantToInvite": "Every assistant is already in this group",
+  "@groupChatNoAssistantToInvite": {
+    "description": "Shown when every assistant is already a member of the group."
+  },
+  "groupChatSave": "Save",
+  "@groupChatSave": {
+    "description": "Save action in the group editor."
+  },
+  "groupChatCancel": "Cancel",
+  "@groupChatCancel": {
+    "description": "Cancel action in the group editor."
+  },
+  "groupChatSettingsTitle": "Group settings",
+  "@groupChatSettingsTitle": {
+    "description": "Title of the group settings page."
+  },
+  "groupChatBack": "Back",
+  "@groupChatBack": {
+    "description": "Back action in the group settings page."
+  },
+  "groupChatOrchestration": "Who speaks",
+  "@groupChatOrchestration": {
+    "description": "Section label for the settings that decide who speaks next in a group round."
+  },
+  "groupChatDirectorTitle": "Director model",
+  "@groupChatDirectorTitle": {
+    "description": "Setting label: the model that picks the next speaker in a group round."
+  },
+  "groupChatDirectorSubtitle": "The model that picks who speaks next. A fast, low-cost model is the right choice.",
+  "@groupChatDirectorSubtitle": {
+    "description": "Explanation under the director model setting."
+  },
+  "groupChatDirectorFollowDefault": "Follows default model",
+  "@groupChatDirectorFollowDefault": {
+    "description": "Value shown when the director model follows the default model instead of a pinned one."
+  },
+  "groupChatMaxTurnsTitle": "Replies per round",
+  "@groupChatMaxTurnsTitle": {
+    "description": "Setting label: the most member replies one round may produce."
+  },
+  "groupChatMaxTurnsSubtitle": "How many members may reply to one message",
+  "@groupChatMaxTurnsSubtitle": {
+    "description": "Explanation under the replies-per-round setting."
+  },
+  "groupChatRemoveMember": "Remove",
+  "@groupChatRemoveMember": {
+    "description": "Action that removes an assistant from the group."
+  },
+  "groupChatRemoveMemberTitle": "Remove assistant",
+  "@groupChatRemoveMemberTitle": {
+    "description": "Title of the confirmation that removes an assistant from the group."
+  },
+  "groupChatRemoveMemberContent": "This assistant will no longer take part in this group.",
+  "@groupChatRemoveMemberContent": {
+    "description": "Body of the confirmation that removes an assistant from the group."
+  },
+  "groupChatDelete": "Delete group chat",
+  "@groupChatDelete": {
+    "description": "Action that deletes the group chat."
+  },
+  "groupChatDeleteTitle": "Delete this group chat?",
+  "@groupChatDeleteTitle": {
+    "description": "Title of the confirmation that deletes a group chat."
+  },
+  "groupChatDeleteContent": "The group and all of its topics move to the recycle bin together.",
+  "@groupChatDeleteContent": {
+    "description": "Body of the delete confirmation: the group and its topics move to the recycle bin together."
+  },
+  "groupChatDeleted": "Group chat moved to the recycle bin",
+  "@groupChatDeleted": {
+    "description": "Snackbar after a group chat moved to the recycle bin."
+  },
+  "groupChatUnavailable": "This group chat's settings are not available. Restore it from the recycle bin.",
+  "@groupChatUnavailable": {
+    "description": "Shown when a conversation belongs to a group chat that no longer exists, with the recycle-bin hint."
+  },
+  "groupChatNewTopic": "New topic",
+  "@groupChatNewTopic": {
+    "description": "Placeholder title of a group topic before it is named, and the action that starts one."
+  },
+  "groupChatRemovedMember": "Deleted assistant",
+  "@groupChatRemovedMember": {
+    "description": "Author label for a reply whose member was deleted from the group."
+  },
+  "groupChatDirectorFallbackWarning": "The director model is unavailable, so the first member replied once. Check the default model settings.",
+  "@groupChatDirectorFallbackWarning": {
+    "description": "Notice after a round fell back because the director model is unavailable: the first member replied once."
+  },
+  "groupChatUnavailableWarning": "This group chat has no available members.",
+  "@groupChatUnavailableWarning": {
+    "description": "Notice when a group chat has no available members."
+  },
+  "defaultModelPageDirectorModelTitle": "Director model",
+  "@defaultModelPageDirectorModelTitle": {
+    "description": "Title of the director model card in Default Models."
+  },
+  "defaultModelPageDirectorModelSubtitle": "Picks who speaks next in a group chat. A fast, low-cost model is the best fit.",
+  "@defaultModelPageDirectorModelSubtitle": {
+    "description": "Subtitle of the director model card: what the model does and which model suits it."
+  },
+  "@subagentPanelRunning": {
+    "description": "State word for a subagent that is still working, shown at the right of its row in the panel."
+  },
+  "@subagentPanelWaitingAnswer": {
+    "description": "State word for a subagent whose question is waiting for the user to answer it."
+  },
+  "@subagentPanelWaitingApproval": {
+    "description": "State word for a subagent whose tool call is waiting for the user's approval."
+  },
+  "@subagentPanelCompleted": {
+    "description": "State word for a subagent that finished successfully."
+  },
+  "@subagentPanelFailed": {
+    "description": "State word for a subagent whose run ended in an error."
+  },
+  "@subagentPanelCancelled": {
+    "description": "State word for a subagent the user stopped."
+  },
+  "@subagentPanelInterrupted": {
+    "description": "State word for a subagent whose run the app stopped, for example when the app restarts."
+  },
+  "subagentConfigSubtitle": "Run one task in a copy of this chat, in the same workspace.",
+  "@subagentConfigSubtitle": {
+    "description": "One sentence above the three settings, saying what delegating does in this conversation."
+  },
+  "subagentConfigDepth": "Depth",
+  "@subagentConfigDepth": {
+    "description": "Label of the row that states how deep delegation may go."
+  },
+  "subagentConfigDepthDescription": "How many levels of subagents may delegate again.",
+  "@subagentConfigDepthDescription": {
+    "description": "Explains the depth option itself, not its current value."
+  },
+  "subagentConfigDepthOne": "A subagent cannot delegate again",
+  "@subagentConfigDepthOne": {
+    "description": "Depth choice 1: the chain stops at the first subagent."
+  },
+  "subagentConfigDepthTwo": "A subagent may delegate once more",
+  "@subagentConfigDepthTwo": {
+    "description": "Depth choice 2: one further level below the first subagent."
+  },
+  "subagentConfigDepthThree": "A subagent may delegate two more levels",
+  "@subagentConfigDepthThree": {
+    "description": "Depth choice 3: two further levels below the first subagent."
+  },
+  "subagentConfigModel": "Model",
+  "@subagentConfigModel": {
+    "description": "Label of the row that chooses the model delegations run on."
+  },
+  "subagentConfigModelDescription": "Which model runs the subagent.",
+  "@subagentConfigModelDescription": {
+    "description": "Explains the model option itself, not its current value."
+  },
+  "subagentConfigModelInherit": "Follow this assistant",
+  "@subagentConfigModelInherit": {
+    "description": "The model value shown when delegations follow the assistant, and the matching choice in the model picker."
+  },
+  "subagentConfigTargets": "Delegation targets",
+  "@subagentConfigTargets": {
+    "description": "Label of the row that picks which assistants a delegation may name, and the title of the picker it opens."
+  },
+  "subagentConfigTargetsDescription": "Assistants that can work as subagents.",
+  "@subagentConfigTargetsDescription": {
+    "description": "Explains the targets option itself, not its current value."
+  },
+  "subagentConfigTargetsSelf": "This assistant",
+  "@subagentConfigTargetsSelf": {
+    "description": "Value of the delegation targets row when no other assistant is selected; also the label of the fixed row in the picker."
+  },
+  "subagentConfigTargetsSelfPlus": "This assistant + {count}",
+  "@subagentConfigTargetsSelfPlus": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    },
+    "description": "Value of the delegation targets row, counting the other assistants that may be named; the row never shows a single name because it would be clipped."
+  },
+  "subagentConfigTargetsSelfSection": "Delegating to your own assistant is always possible",
+  "@subagentConfigTargetsSelfSection": {
+    "description": "Heading above the fixed picker row that says delegating to your own assistant always works."
+  },
+  "subagentConfigTargetsSelfCaption": "Same assistant, same model, same tools",
+  "@subagentConfigTargetsSelfCaption": {
+    "description": "Second line of the fixed picker row: what a copy of the delegating assistant inherits."
+  },
+  "subagentConfigTargetsAlways": "Always",
+  "@subagentConfigTargetsAlways": {
+    "description": "Trailing word on the fixed picker row, explaining why it cannot be unticked."
+  },
+  "subagentConfigTargetsOthersSection": "Also available by name",
+  "@subagentConfigTargetsOthersSection": {
+    "description": "Heading above the selectable assistants in the delegation target picker."
+  },
+  "subagentConfigTargetsFooter": "Nobody ticked means delegations go to yourself only.",
+  "@subagentConfigTargetsFooter": {
+    "description": "Bottom line of the delegation target picker: what an empty selection means."
+  },
+  "subagentConfigSummaryWithTargets": "{model} · targets {targets} · depth {depth}",
+  "@subagentConfigSummaryWithTargets": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "int"
+      },
+      "depth": {
+        "type": "int"
+      }
+    },
+    "description": "Second line of the subagent toolbox row when some assistants may be named."
+  },
+  "subagentConfigSummary": "{model} · depth {depth}",
+  "@subagentConfigSummary": {
+    "description": "Second line of the toolbox row: what a delegation runs on and how deep it may go.",
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "depth": {
+        "type": "int"
+      }
+    }
+  },
+  "subagentViewParent": "View parent chat · {label}",
+  "@subagentViewParent": {
+    "description": "The row at the top and bottom of a delegated conversation that returns to the conversation that started it; {label} is that conversation's title.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "subagentEscalation": "Subagent escalation",
+  "@subagentEscalation": {
+    "description": "Label of the row that decides how a delegated task may spend the user's permission."
+  },
+  "subagentEscalationAsk": "Ask",
+  "@subagentEscalationAsk": {
+    "description": "Escalation policy: ask the user, in the child conversation, whenever a tool call needs approval."
+  },
+  "subagentEscalationDeny": "Always deny",
+  "@subagentEscalationDeny": {
+    "description": "Escalation policy: never ask; refuse the tool call inside a subagent."
+  },
+  "subagentEscalationAllow": "Always allow",
+  "@subagentEscalationAllow": {
+    "description": "Escalation policy: do not ask, but only up to what the delegating conversation already allows."
+  },
+  "remoteSyncTabLan": "LAN Sync",
+  "@remoteSyncTabLan": {
+    "description": "Tab label that switches the sync settings panel to local network sync."
+  },
+  "remoteSyncTabRemote": "Remote Sync (Experimental)",
+  "@remoteSyncTabRemote": {
+    "description": "Tab label that switches the sync settings panel to remote sync over tailcat; the feature is experimental."
+  },
+  "remoteSyncThisDevice": "This device",
+  "@remoteSyncThisDevice": {
+    "description": "Section header in remote sync settings showing this device and the status of its remote listener."
+  },
+  "remoteSyncStatusRunning": "Running",
+  "@remoteSyncStatusRunning": {
+    "description": "Remote listener status when it is running and peers can reach this device."
+  },
+  "remoteSyncStatusStarting": "Starting…",
+  "@remoteSyncStatusStarting": {
+    "description": "Remote listener status while it is starting up."
+  },
+  "remoteSyncStatusStopped": "Not running",
+  "@remoteSyncStatusStopped": {
+    "description": "Remote listener status when it is not running."
+  },
+  "remoteSyncStatusFailed": "Failed: {error}",
+  "@remoteSyncStatusFailed": {
+    "description": "Remote listener status when starting failed; error is the reason reported by the service."
+  },
+  "remoteSyncPairSectionTitle": "Pair a device",
+  "@remoteSyncPairSectionTitle": {
+    "description": "Section header for pairing another device over remote sync."
+  },
+  "remoteSyncPairIntro": "Devices on any network can pair: one shows the remote pairing QR code, the other scans it or pastes the address.",
+  "@remoteSyncPairIntro": {
+    "description": "Explanation under that header: two devices on any networks pair by showing a remote pairing QR code on one and scanning or pasting the address on the other."
+  },
+  "remoteSyncShowCode": "Show remote pairing QR",
+  "@remoteSyncShowCode": {
+    "description": "Button that opens the remote pairing dialog and shows this device's QR code."
+  },
+  "remoteSyncEnterCode": "Scan or paste pairing code",
+  "@remoteSyncEnterCode": {
+    "description": "Button and dialog title for pairing remotely by scanning a QR code or pasting the other device's address and code."
+  },
+  "remoteSyncPairingCode": "Remote pairing code",
+  "@remoteSyncPairingCode": {
+    "description": "Title of the dialog that displays this device's remote pairing code; also the label of the code field on the joining side."
+  },
+  "remoteSyncAddressLabel": "Remote address",
+  "@remoteSyncAddressLabel": {
+    "description": "Label of the field where the other device's remote address is pasted, and of the address shown in this device's pairing dialog."
+  },
+  "remoteSyncAddressHint": "Paste the remote address shown on the other device",
+  "@remoteSyncAddressHint": {
+    "description": "Hint text in the address field, telling the user to paste the remote address shown on the other device."
+  },
+  "remoteSyncAddressNote": "A remote address is a long string, so scanning is easier. If you cannot scan, copy it on the other device and paste it here.",
+  "@remoteSyncAddressNote": {
+    "description": "Note under the address field explaining that a remote address is a long string, so scanning is easier, and that it can be copied and pasted when scanning is unavailable."
+  },
+  "remoteSyncShowAddress": "Show address",
+  "@remoteSyncShowAddress": {
+    "description": "Button that reveals this device's remote address in the pairing dialog; the address is hidden by default because it is a secret."
+  },
+  "remoteSyncCopyAddress": "Copy address",
+  "@remoteSyncCopyAddress": {
+    "description": "Tooltip and button label for copying this device's remote address in the pairing dialog."
+  },
+  "remoteSyncAddressCopied": "Remote address copied",
+  "@remoteSyncAddressCopied": {
+    "description": "Toast confirming that the remote address was copied to the clipboard."
+  },
+  "remoteSyncAddressEmpty": "The remote address is not available yet. Wait a moment and try again.",
+  "@remoteSyncAddressEmpty": {
+    "description": "Shown in the remote pairing dialog when this device's remote address is not available yet."
+  },
+  "remoteSyncPhaseConnecting": "Connecting over the remote tunnel…",
+  "@remoteSyncPhaseConnecting": {
+    "description": "Progress text on a device card while a sync session is connecting over the remote tunnel instead of a local network address."
+  },
+  "remoteSyncPairedDevices": "Paired devices",
+  "@remoteSyncPairedDevices": {
+    "description": "Section header listing devices that have a remote sync pairing."
+  },
+  "remoteSyncNoDevices": "No devices are paired over remote sync yet.",
+  "@remoteSyncNoDevices": {
+    "description": "Empty state under that header when no device has been paired over remote sync."
+  },
+  "remoteSyncEndpointRemote": "Remote (tailcat)",
+  "@remoteSyncEndpointRemote": {
+    "description": "Label shown in a paired device's card for its remote endpoint, instead of the long remote address."
+  },
+  "remoteSyncKeySection": "Remote key",
+  "@remoteSyncKeySection": {
+    "description": "Section header for the remote key that determines this device's remote address."
+  },
+  "remoteSyncKeyIntro": "Remote sync uses a fixed remote identity, so this device's remote address stays the same across restarts. Resetting the key changes that address. Devices paired over remote sync must pair again; local network sync is not affected.",
+  "@remoteSyncKeyIntro": {
+    "description": "Explanation that remote sync uses a fixed remote identity, so this device's remote address survives restarts, and that resetting the key changes that address and requires remote-paired devices to pair again while local network sync is unaffected."
+  },
+  "remoteSyncResetKey": "Reset key",
+  "@remoteSyncResetKey": {
+    "description": "Button that resets this device's remote key."
+  },
+  "remoteSyncResetTitle": "Reset the remote key?",
+  "@remoteSyncResetTitle": {
+    "description": "Confirmation dialog title shown before the remote key is reset."
+  },
+  "remoteSyncResetBody": "This device gets a new remote address. Devices paired over remote sync must pair again; local network sync is not affected.",
+  "@remoteSyncResetBody": {
+    "description": "Confirmation body explaining what resetting the remote key changes for remote pairings, and that local network sync is unaffected."
+  },
+  "remoteSyncResetDone": "Remote key reset",
+  "@remoteSyncResetDone": {
+    "description": "Toast confirming that the remote key was reset."
+  },
+  "remoteSyncResetFailed": "Could not reset the remote key: {error}",
+  "@remoteSyncResetFailed": {
+    "description": "Toast shown when resetting the remote key failed; error is the reason reported by the service."
+  },
+  "remoteSyncAboutSection": "About remote sync",
+  "@remoteSyncAboutSection": {
+    "description": "Section header explaining how remote sync works."
+  },
+  "remoteSyncAboutTailcat": "Remote sync is built on tailcat. Everything sent between devices is encrypted with WireGuard.",
+  "@remoteSyncAboutTailcat": {
+    "description": "About-section paragraph saying remote sync is built on tailcat and data is encrypted with WireGuard in transit."
+  },
+  "remoteSyncLearnMore": "Learn more",
+  "@remoteSyncLearnMore": {
+    "description": "Link label that opens the tailcat website for more information."
+  },
+  "remoteSyncAboutTransport": "Most of the time devices connect directly through NAT traversal, just like local network sync. When that fails, data is relayed through Tailscale's public DERP servers, still encrypted with WireGuard. Cuplivo does not run its own DERP servers yet; if you can provide a compliant one, please reach out.",
+  "@remoteSyncAboutTransport": {
+    "description": "About-section paragraph explaining that devices usually connect directly through NAT traversal, fall back to Tailscale's public DERP relays when that fails, that content stays WireGuard-encrypted either way, and that Cuplivo runs no DERP servers of its own but welcomes offers."
+  },
+  "remoteSyncContactUs": "Contact us",
+  "@remoteSyncContactUs": {
+    "description": "Link label that opens the Cuplivo GitHub repository so the user can contact the project."
+  },
+  "remoteSyncMetadataNote": "DERP relays only see connection metadata; they cannot decrypt synced content.",
+  "@remoteSyncMetadataNote": {
+    "description": "Small print under the remote sync explanation noting that DERP relays can only see connection metadata and cannot decrypt synced content."
+  },
+  "remoteSyncPairErrorInvalidAddress": "Enter a valid remote address.",
+  "@remoteSyncPairErrorInvalidAddress": {
+    "description": "Remote pairing error shown when the pasted remote address is empty or not in the expected format."
+  },
+  "remoteSyncPairErrorUnavailable": "Remote sync is not available right now. Try again in a moment.",
+  "@remoteSyncPairErrorUnavailable": {
+    "description": "Remote pairing error shown when this device's remote listener is not available, so pairing cannot start."
+  },
+  "remoteSyncPairErrorUnknown": "Remote pairing failed: {error}",
+  "@remoteSyncPairErrorUnknown": {
+    "description": "Fallback remote pairing error carrying the underlying failure; error is that reason."
+  },
+  "remoteSyncQrErrorNotTailcat": "This is not a remote pairing QR code.",
+  "@remoteSyncQrErrorNotTailcat": {
+    "description": "Error shown when a scanned QR code is not a Cuplivo remote pairing code."
+  },
+  "remoteSyncQrErrorBadVersion": "This remote pairing QR code is from a newer version. Update the app and try again.",
+  "@remoteSyncQrErrorBadVersion": {
+    "description": "Error shown when a scanned remote pairing code comes from a newer app version."
+  },
+  "remoteSyncQrErrorMalformed": "The remote pairing QR code could not be read.",
+  "@remoteSyncQrErrorMalformed": {
+    "description": "Error shown when a scanned remote pairing code cannot be decoded."
+  },
+  "assistantHarnessDefaultName": "DeepSeek Harness",
+  "@assistantHarnessDefaultName": {
+    "description": "Default display name of the DeepSeek Harness assistant kind, shown in assistant lists and settings. DeepSeek Harness is a product name and is not translated."
+  },
+  "assistantHarnessRemoteSubtitle": "Remote DeepSeek Harness",
+  "@assistantHarnessRemoteSubtitle": {
+    "description": "Subtitle under the DeepSeek Harness assistant kind explaining that it connects to a remote DeepSeek Harness WebUI instead of a model provider."
+  },
+  "assistantHarnessWebUiUrlLabel": "Enter the DeepSeek Harness WebUI access link",
+  "@assistantHarnessWebUiUrlLabel": {
+    "description": "Label of the field where the user enters the access link of a DeepSeek Harness WebUI. WebUI is a product term and is not translated."
+  },
+  "assistantHarnessWebUiUrlHint": "https://dsh-e2e.example.com",
+  "@assistantHarnessWebUiUrlHint": {
+    "description": "Sample placeholder inside the WebUI access link field on the DeepSeek Harness settings page. It is an example URL and must be kept unchanged."
+  },
+  "assistantHarnessWebUiUrlHelper": "Use when DeepSeek Harness is on the same LAN or reachable over the internet.",
+  "@assistantHarnessWebUiUrlHelper": {
+    "description": "Helper text below the WebUI access link field explaining that the link works when DeepSeek Harness runs on the same LAN or is reachable over the internet."
+  },
+  "assistantHarnessConfirm": "Confirm",
+  "@assistantHarnessConfirm": {
+    "description": "Button that confirms the entered DeepSeek Harness WebUI access link and starts checking the connection."
+  },
+  "assistantHarnessConnected": "Connected",
+  "@assistantHarnessConnected": {
+    "description": "Connection status shown when the DeepSeek Harness WebUI link has been verified and the assistant can reach it."
+  },
+  "assistantHarnessChecking": "Connecting…",
+  "@assistantHarnessChecking": {
+    "description": "Connection status shown while the app is checking the DeepSeek Harness WebUI link; the trailing ellipsis indicates an ongoing action."
+  },
+  "assistantHarnessConnectionFailed": "Connection failed. Check the link and your network, then try again.",
+  "@assistantHarnessConnectionFailed": {
+    "description": "Connection status message shown when connecting to DeepSeek Harness fails for an unspecified reason; asks the user to check the link and network and try again."
+  },
+  "assistantHarnessInvalidUrl": "Enter a valid WebUI access link.",
+  "@assistantHarnessInvalidUrl": {
+    "description": "Validation error shown when the entered text is not a usable WebUI access link; asks the user to enter a valid link."
+  },
+  "assistantHarnessMissingToken": "The link is missing its token. Paste the full access link printed by dsh web.",
+  "@assistantHarnessMissingToken": {
+    "description": "Validation error shown when the WebUI access link has no token; asks the user to paste the complete link printed by the dsh web command. token and dsh web are technical terms."
+  },
+  "assistantHarnessRejected": "DeepSeek Harness rejected this link. Check that its token is still valid.",
+  "@assistantHarnessRejected": {
+    "description": "Error shown when DeepSeek Harness refuses the access link, for example because the token is no longer valid; asks the user to check that the token is still valid."
+  },
+  "assistantHarnessUnreachable": "Could not reach that link. Check the address and network.",
+  "@assistantHarnessUnreachable": {
+    "description": "Error shown when the DeepSeek Harness address cannot be reached at all; asks the user to check the address and network."
+  },
+  "assistantHarnessApiUnavailable": "DeepSeek Harness did not answer its API.",
+  "@assistantHarnessApiUnavailable": {
+    "description": "Error shown when the DeepSeek Harness page answers but its API does not respond, so the connection cannot be used."
+  },
+  "assistantHarnessLoadFailed": "Could not load DeepSeek Harness.",
+  "@assistantHarnessLoadFailed": {
+    "description": "Error shown inside the embedded WebView when the DeepSeek Harness page cannot be loaded."
+  },
+  "assistantHarnessUnsupportedPlatform": "Embedded WebView is not supported on this platform.",
+  "@assistantHarnessUnsupportedPlatform": {
+    "description": "Message shown instead of the embedded WebView on platforms that do not support an in-app WebView; the user can open the link in a browser instead."
+  },
+  "assistantHarnessOpenInBrowser": "Open in browser",
+  "@assistantHarnessOpenInBrowser": {
+    "description": "Button that opens the DeepSeek Harness WebUI link in the system browser instead of the embedded WebView."
+  },
+  "assistantHarnessRetry": "Retry",
+  "@assistantHarnessRetry": {
+    "description": "Button that retries loading or connecting to DeepSeek Harness after a failure."
+  },
+  "assistantHarnessConnectionMethodLabel": "Connection method",
+  "@assistantHarnessConnectionMethodLabel": {
+    "description": "Title above the two-way selector on the DeepSeek Harness settings page; chooses how the app reaches the remote instance."
+  },
+  "assistantHarnessMethodLink": "Public link",
+  "@assistantHarnessMethodLink": {
+    "description": "Selector option for reaching DeepSeek Harness through the access link printed by dsh web, which works on the same LAN or over the internet."
+  },
+  "assistantHarnessMethodTailcat": "ds-hu plugin",
+  "@assistantHarnessMethodTailcat": {
+    "description": "Selector option for reaching DeepSeek Harness through the ds-hu remote-access plugin, which exposes a tailnet address instead of a public link. ds-hu is a product name and is not translated."
+  },
+  "assistantHarnessTailcatAddressLabel": "Enter the tailcat address",
+  "@assistantHarnessTailcatAddressLabel": {
+    "description": "Label of the field where the user pastes the tailcat address (or the pairing command) shown by the ds-hu plugin. tailcat is a product name and is not translated."
+  },
+  "assistantHarnessTailcatAddressHint": "tailcat forward tc… 18080:13080",
+  "@assistantHarnessTailcatAddressHint": {
+    "description": "Sample placeholder inside the tailcat address field; an example pairing command. It is a command with an abbreviated address and must be kept unchanged."
+  },
+  "assistantHarnessTailcatAddressHelper": "In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.",
+  "@assistantHarnessTailcatAddressHelper": {
+    "description": "Helper text below the tailcat address field explaining where the user finds the address or pairing command in the remote DeepSeek Harness interface."
+  },
+  "assistantHarnessTailcatInvalidAddress": "Enter the tailcat address or pairing command shown under Remote access.",
+  "@assistantHarnessTailcatInvalidAddress": {
+    "description": "Validation error shown when the pasted text is not a tailcat address or pairing command; tells the user where to find the right text."
+  },
+  "assistantHarnessTailcatUnavailable": "Could not open the tailcat tunnel. Check the address and network.",
+  "@assistantHarnessTailcatUnavailable": {
+    "description": "Error shown when a tailcat address is valid but the tunnel cannot be established; asks the user to check the address and network."
+  },
+  "assistantHarnessTailcatUnsupported": "tailcat connections are not supported on this platform.",
+  "@assistantHarnessTailcatUnsupported": {
+    "description": "Error shown when a tailcat connection is attempted on a platform without a tailcat client (the web build)."
+  },
+  "assistantHarnessTailcatOpening": "Opening the tailcat tunnel…",
+  "@assistantHarnessTailcatOpening": {
+    "description": "Loading message inside the DeepSeek Harness page while the tailcat tunnel is being established; the trailing ellipsis indicates an ongoing action."
+  }
+,  "assistantHarnessTailcatScanButton": "Scan QR code",
+  "@assistantHarnessTailcatScanButton": {
+    "description": "Label of the button that opens the camera to scan the ds-hu plugin pairing QR code; the scan fills the tailcat address field and confirms it."
+  },
+  "assistantHarnessTailcatKeyLabel": "This device's public key (allow-list)",
+  "@assistantHarnessTailcatKeyLabel": {
+    "description": "Heading of the card that shows this device's tailcat public key, the value a user adds to the ds-hu plugin client allow-list."
+  },
+  "assistantHarnessTailcatKeyHelper": "Add this key under Remote access → Security in DeepSeek Harness to allow only the devices you list. Without an allow-list, the address alone is enough.",
+  "@assistantHarnessTailcatKeyHelper": {
+    "description": "Helper text below the client public key: where to add it in the ds-hu plugin, and that an empty allow-list admits any address holder."
+  },
+  "assistantHarnessTailcatKeyPreparing": "Preparing this device's key…",
+  "@assistantHarnessTailcatKeyPreparing": {
+    "description": "Loading message while this device's tailcat identity is generated or read from disk; the trailing ellipsis indicates an ongoing action."
+  },
+  "assistantHarnessTailcatKeyFailed": "Could not prepare this device's key.",
+  "@assistantHarnessTailcatKeyFailed": {
+    "description": "Error shown when this device's tailcat identity could not be prepared (for example the app support directory is unavailable)."
+  },
+  "assistantHarnessTailcatKeyCopied": "Public key copied",
+  "@assistantHarnessTailcatKeyCopied": {
+    "description": "Confirmation snackbar shown after the client public key was placed on the clipboard."
+  },
+  "assistantHarnessTailcatPluginNote": "Remote access through the plugin. Install @ds-hu/dsh-tailcat-remote on the DeepSeek Harness and Cuplivo can open its WebUI without exposing a port.",
+  "@assistantHarnessTailcatPluginNote": {
+    "description": "Note under the method selector explaining that the ds-hu plugin provides remote access to the DeepSeek Harness WebUI and only has to be installed on the Harness host."
   }
 }

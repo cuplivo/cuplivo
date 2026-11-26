@@ -1046,6 +1046,20 @@ class AppLocalizationsTr extends AppLocalizations {
   String get assistantEditMaxTokensHint => 'Sınırsız';
 
   @override
+  String get assistantEditDescriptionTitle => 'Açıklama';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      'Yalnızca grup sohbetlerinde ve alt ajan yönlendirmesinde okunur. Bu özellikleri kullanmıyorsanız boş bırakın.';
+
+  @override
+  String get assistantEditDescriptionHint =>
+      'ör. İsteği SQL\'e dönüştür ve sorgu planını açıkla';
+
+  @override
+  String get assistantEditDescriptionSet => 'Ayarlı';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Sohbet Arka Planı';
 
   @override
@@ -1066,6 +1080,70 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get desktopNavStorageTooltip => 'Depolama';
+
+  @override
+  String get toolsMenuTooltip => 'Araçlar';
+
+  @override
+  String get markdownExportTitle => 'Markdown görseli';
+
+  @override
+  String get markdownExportEditTab => 'Düzenle';
+
+  @override
+  String get markdownExportPreviewTab => 'Önizleme';
+
+  @override
+  String get markdownExportHint =>
+      'Markdown yapıştırın veya bir .md dosyası içe aktarın';
+
+  @override
+  String get markdownExportPreviewEmpty => 'Henüz önizlenecek bir şey yok';
+
+  @override
+  String get markdownExportImport => 'İçe aktar';
+
+  @override
+  String get markdownExportPaste => 'Yapıştır';
+
+  @override
+  String get markdownExportTextSize => 'Yazı boyutu';
+
+  @override
+  String get markdownExportTextSizeSmall => 'Küçük';
+
+  @override
+  String get markdownExportTextSizeStandard => 'Standart';
+
+  @override
+  String get markdownExportTextSizeLarge => 'Büyük';
+
+  @override
+  String get markdownExportHideSource => 'Kaynağı gizle';
+
+  @override
+  String get markdownExportShowSource => 'Kaynağı göster';
+
+  @override
+  String get markdownExportReducedResolution =>
+      'Uzun belge: tek bir görsele sığması için daha düşük çözünürlükte çizildi';
+
+  @override
+  String get markdownExportExportImage => 'Görseli dışa aktar';
+
+  @override
+  String get markdownExportDropHint => 'Markdown içe aktarmak için bırakın';
+
+  @override
+  String get markdownExportUnsupportedFile =>
+      'Yalnızca Markdown metin dosyaları desteklenir';
+
+  @override
+  String get markdownExportReadFailed => 'Bu dosya okunamadı';
+
+  @override
+  String get markdownExportNothingToPaste =>
+      'Panoda bu aracın kullanabileceği bir içerik yok';
 
   @override
   String get desktopNavGlobalSearchTooltip => 'Genel Arama';
@@ -1725,6 +1803,25 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => 'Yedek hedefi';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote =>
+      'Bu sürümün geri yükleyebildiği her şey, grup sohbetleri dahil';
+
+  @override
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
+
+  @override
+  String get backupPageTargetKelivoNote =>
+      'Kelivo\'ya aktarılabilir, ancak grup sohbetleri kaybolur';
+
+  @override
   String get backupPageBackupManagementDescription =>
       'Neyin yedekleneceğini ve içe aktarılacağını seçin. Yerel, WebDAV ve S3 yedekleri için geçerlidir. Seçilmeyen içerik içe aktarmada değişmeden kalır. Beceriler ve çalışma alanları kendi dosyalarını içerir.';
 
@@ -1753,7 +1850,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Hızlı ifadeler';
 
   @override
-  String get backupPageInstructionsLabel => 'İstem enjeksiyonları';
+  String get backupPageInstructionsLabel => 'İstem kitaplığı';
 
   @override
   String get backupPageWorkspacesLabel => 'Çalışma alanları';
@@ -2594,6 +2691,14 @@ class AppLocalizationsTr extends AppLocalizations {
   String get bottomToolsSheetOcr => 'Görsel OCR';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools =>
+      'Bu üyenin modeli araçları çağıramıyor.';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled =>
+      'Bu üyede etkinleştirilmiş araç yok.';
+
+  @override
   String get messageMoreSheetTitle => 'Daha Fazla İşlem';
 
   @override
@@ -2831,6 +2936,103 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String chatMessageWidgetWebFetch(String target) {
     return 'Sayfayı oku: $target';
+  }
+
+  @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Alt ajana devret: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '$assistant ile devret: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Alt ajan tamamladı';
+
+  @override
+  String get subagentResultFailed => 'Alt ajan başarısız';
+
+  @override
+  String get subagentResultCancelled => 'Alt ajan iptal edildi';
+
+  @override
+  String get subagentResultInterrupted => 'Alt ajan kesildi';
+
+  @override
+  String get subagentMailLabel => 'Alt ajan mesajı';
+
+  @override
+  String get subagentMailDelegatorLabel => 'Görev veren mesajı';
+
+  @override
+  String get subagentMailOpenConversation => 'Sohbeti aç';
+
+  @override
+  String get subagentMailCopy => 'Kopyala';
+
+  @override
+  String get subagentMailCopied => 'Kopyalandı';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Alt ajan çalışıyor ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Çalışan alt ajan: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Alt ajan yanıtınızı bekliyor · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return 'Alt ajan: $count ($running çalışıyor)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Alt ajan onay bekliyor · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Alt ajanlar';
+
+  @override
+  String get subagentPanelEmpty => 'Bu sohbette henüz alt ajan yok.';
+
+  @override
+  String get subagentTag => 'Alt ajan';
+
+  @override
+  String get subagentPanelRunning => 'Çalışıyor';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Yanıt bekliyor';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Onay bekliyor';
+
+  @override
+  String get subagentPanelCompleted => 'Tamamlandı';
+
+  @override
+  String get subagentPanelFailed => 'Başarısız';
+
+  @override
+  String get subagentPanelCancelled => 'İptal edildi';
+
+  @override
+  String get subagentPanelInterrupted => 'Kesildi';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes dk $seconds sn';
   }
 
   @override
@@ -3378,6 +3580,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get chatInputBarMoreTooltip => 'Ekle';
 
   @override
+  String get chatInputBarOverflowTooltip => 'Daha fazla işlem';
+
+  @override
   String get chatInputBarVoiceInputTooltip => 'Sesli giriş';
 
   @override
@@ -3624,6 +3829,13 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get mcpServerEditSheetEnabledLabel => 'Etkin';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'Yalnızca bu cihaz';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Kaydedildi, ancak bu sunucu yalnızca bu cihazda tutulamadı.';
 
   @override
   String get mcpServerEditSheetNameLabel => 'Ad';
@@ -3905,6 +4117,32 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Gömme';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Karar';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Karar API\'si';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Karar adresi';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Boşsa sağlayıcı adresinin sonuna eklenir';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Bazı sağlayıcılar karar modellerini ayrı bir adreste sunar; varsayılan adresi geçersiz kılmak için yolu girin.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Doldur';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Geçerli';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Giriş Modları';
@@ -12016,6 +12254,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get backgroundGenerating => 'Yanıt oluşturuluyor';
 
   @override
+  String get backgroundCareLetter => 'Mektup yazılıyor';
+
+  @override
+  String get backgroundCareWorking => 'Mektubunuz hazırlanıyor';
+
+  @override
   String get backgroundThinking => 'Düşünüyor';
 
   @override
@@ -15972,6 +16216,67 @@ class AppLocalizationsTr extends AppLocalizations {
   String get retry => 'Yeniden dene';
 
   @override
+  String get imageJobTitle => 'İllüstrasyon';
+
+  @override
+  String get imageJobFailed => 'İllüstrasyon başarısız oldu';
+
+  @override
+  String get imageJobInterrupted => 'İllüstrasyon kesintiye uğradı';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Çizim';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => 'Alt ajan';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Görev bekle';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => 'Mesaj gönder';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Alt ajanı durdur';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Görsel Modeli';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'Yanıt içinde resim çizen model; ayarlanmazsa çizim devre dışı kalır.';
+
+  @override
+  String get imageJobPanelCopy => 'Kopyala';
+
+  @override
+  String get imageJobPanelPromptLabel => 'İstem';
+
+  @override
+  String get imageJobPanelModelLabel => 'Model';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Boyut';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Geçen süre';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Kullanım';
+
+  @override
+  String get imageJobPanelAuto => 'Otomatik';
+
+  @override
+  String get imageJobPanelOneImage => '1 görsel';
+
+  @override
+  String get imageJobNotConfigured => 'Yapılandırılmadı · Seç';
+
+  @override
+  String get imageModelFollowGlobal => 'Varsayılan görsel modelini kullan';
+
+  @override
   String get recoveryGuideTitle => 'Sohbetlerinizi kurtaralım';
 
   @override
@@ -16988,9 +17293,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get chatMessageWidgetReplySelection => 'Yanıtla';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => 'Kullanıcı';
 
   @override
@@ -17107,6 +17409,9 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => 'Bitti';
+
+  @override
+  String get pdfExportResultSave => 'PDF\'yi kaydet';
 
   @override
   String get sideDrawerMenuCopyLink => 'Bağlantıyı kopyala';
@@ -17324,6 +17629,18 @@ class AppLocalizationsTr extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => 'Çalışma alanı dosyası';
 
   @override
+  String get recycleBinKindSkill => 'Beceri';
+
+  @override
+  String get recycleBinKindCompressionHistory => 'Sıkıştırma geçmişi';
+
+  @override
+  String get recycleBinKindImageContext => 'Görsel bağlamı';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Sıkıştırma ayarları';
+
+  @override
   String get recycleBinKindConfig => 'Yapılandırma';
 
   @override
@@ -17371,6 +17688,10 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get recycleBinRestoreNoWorkspace =>
       'Bu dosyanın çalışma alanı silinmiş, geri koyacak bir klasör yok.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      'Bu kaydın sohbeti silindiği için geri koyulacak bir yer yok.';
 
   @override
   String get recycleBinRestoreFailed => 'O öğe geri yüklenemedi';
@@ -17477,7 +17798,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => 'LAN eşitleme';
+  String get settingsPageSync => 'Kolay eşitleme';
 
   @override
   String get lanSyncThisDevice => 'Bu cihaz';
@@ -17558,6 +17879,10 @@ class AppLocalizationsTr extends AppLocalizations {
       'Cihaza ulaşılamadı. Adresi ve bağlantı noktasını, iki cihazın aynı ağda olduğunu kontrol edin.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'Diğer cihaz başka bir eşleştirme isteğiyle meşgul. Birazdan tekrar deneyin.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'Diğer cihaz kimliğini göstermedi. Eşleştirme iptal edildi.';
 
@@ -17616,7 +17941,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      'Zaman kazanmak için sürüm denetimi ile bağımlılık/derleme klasörleri atlanır. 2.000 dosyadan veya 200 MB\'tan büyük çalışma alanları dosyalarını eşitlemez. Çalışma alanı kaydı her zaman eşitlenir — anahtar yalnızca dosyalarını yönetir: anahtarı kapalı bir klasör hiç gönderilmez ve eşitleme onu hiç kaldırmaz.';
+      'Zaman kazanmak için sürüm denetimi ile bağımlılık/derleme klasörleri atlanır. 2.000 dosyadan büyük çalışma alanları dosyalarını eşitlemez. Çalışma alanı kaydı her zaman eşitlenir — anahtar yalnızca dosyalarını yönetir: anahtarı kapalı bir klasör hiç gönderilmez ve eşitleme onu hiç kaldırmaz.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -17727,6 +18052,19 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => 'Veriler karşılaştırılıyor…';
+
+  @override
+  String get lanSyncPhasePreparing => 'Hazırlanıyor…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return 'Gönderiliyor $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return 'Alınıyor $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => 'Değişiklikler gönderiliyor…';
@@ -17870,12 +18208,22 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '$count çalışma alanı klasörü korundu (anahtar kapalı)';
+    return '$count çalışma alanı klasörü diskte tutuldu (kapalı veya eşitlenmemiş dosyalar içeriyor)';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count silme işlemi atlandı (yerel kopya değişti)';
   }
 
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n yerel kayıt, eşteki daha yeni sürümlerle değiştirildi (geri dönüşüm kutusundan kurtarılabilir)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n sohbetin sıkıştırma geçmişi, görsel bağlam ayarları veya sıkıştırma ayarları eşteki daha yeni sürümle değiştirildi';
   }
 
   @override
@@ -18645,7 +18993,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupAutoEnableHint =>
-      'Planlanan saat geldiğinde Cuplivo, uygulama ön plandayken yedekleme yapar. Uygulama kapatılır veya sonlandırılırsa yedekleme devam etmez ve kaldığı yerden sürdürülmez; uygulamayı bir sonraki açışınızda süre hâlâ dolmuşsa tek bir tam yedekleme çalışır.';
+      'Planlanan saat geldiğinde, uygulama ön plandayken Cuplivo yedekleme yapar. Uygulama kapatılır veya sonlandırılırsa yedekleme devam etmez ve kaldığı yerden sürdürülmez; uygulamayı bir sonraki açışınızda hâlâ zamanı gelmişse tek bir tam yedekleme çalışır.';
 
   @override
   String get backupAutoDestinationTitle => 'Otomatik yedekleme hedefi';
@@ -18695,11 +19043,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      'Seçilen klasöre yazılamıyor. Hâlâ kullanılabilir olduğunu kontrol edin veya başka bir klasör seçin. Cuplivo kayıtlı konumu kendi başına değiştirmez.';
+      'Seçilen klasöre yazılamıyor. Hâlâ kullanılabilir olduğunu kontrol edin veya başka bir klasör seçin. Cuplivo kayıtlı konumu kendiliğinden değiştirmez.';
 
   @override
   String get backupAutoLocalDirPermission =>
-      'Seçilen klasöre yazma izniniz yok. Lütfen klasörü yeniden seçin. Cuplivo kayıtlı konumu kendi başına değiştirmez.';
+      'Seçilen klasöre yazma izniniz yok. Lütfen klasörü yeniden seçin. Cuplivo kayıtlı konumu kendiliğinden değiştirmez.';
 
   @override
   String get backupAutoLocalDirFull =>
@@ -18732,7 +19080,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupAutoKeychainUnavailable =>
-      'Cuplivo, yedekleme parolası için sistem anahtarlığına erişemiyor. Yine de manuel olarak yedekleme yapabilirsiniz.';
+      'Cuplivo, yedek parolası için sistem anahtarlığına erişemiyor. Yine de manuel yedekleme yapabilirsiniz.';
 
   @override
   String get backupAutoSucceeded => 'Otomatik yedekleme tamamlandı';
@@ -18774,12 +19122,508 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS oturum açma anahtarlığının kilidini açamadı. Anahtar Zinciri Erişimi\'ni açın, “oturum açma” anahtarlığının kilidini açın ve ardından Cuplivo\'da tekrar deneyin.';
+      'macOS oturum açma anahtarlığının kilidini açamadı. Anahtar Zinciri Erişimi\'ni açın, \"login\" anahtarlığının kilidini açın ve ardından Cuplivo\'da yeniden deneyin.';
 
   @override
   String get backupMacOpenKeychainAccess => 'Anahtar Zinciri Erişimi\'ni aç';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS yedek parolasına erişimi reddetti. Bir sistem istemi görünürse Cuplivo\'nun erişmesine izin verin. Ayrıca Anahtar Zinciri Erişimi\'nde varsayılan anahtar zincirini ve parola öğesinin izinlerini kontrol edebilirsiniz.';
+      'macOS, yedek parolasına erişimi reddetti. Bir sistem istemi görünürse Cuplivo\'nun erişmesine izin verin. Ayrıca Anahtar Zinciri Erişimi\'nde varsayılan anahtar zincirini ve parola öğesinin izinlerini kontrol edebilirsiniz.';
+
+  @override
+  String get settingsPageChatOwners => 'Asistanlar ve gruplar';
+
+  @override
+  String get settingsPageChatOwnersCreate => 'Oluştur';
+
+  @override
+  String get chatOwnersSeparate => 'Ayrı göster';
+
+  @override
+  String get chatOwnersSectionAssistants => 'Asistanlar';
+
+  @override
+  String get chatOwnersSectionGroups => 'Gruplar';
+
+  @override
+  String get chatOwnerCreateAssistant => 'Yeni asistan';
+
+  @override
+  String get recycleBinKindGroup => 'Grup';
+
+  @override
+  String get recycleBinFilterGroups => 'Gruplar';
+
+  @override
+  String get groupChatTitle => 'Grup sohbeti';
+
+  @override
+  String get groupChatCreate => 'Yeni grup sohbeti';
+
+  @override
+  String get groupChatCreateHint => 'En az bir asistan seçin';
+
+  @override
+  String get groupChatNameHint => 'Grup adı';
+
+  @override
+  String get groupChatChangeAvatar => 'Grup avatarını değiştir';
+
+  @override
+  String get groupChatMembers => 'Üyeler';
+
+  @override
+  String get groupChatMembersEmpty => 'Henüz üye yok';
+
+  @override
+  String get groupChatInvite => 'Asistan davet et';
+
+  @override
+  String get groupChatNoAssistantToInvite => 'Tüm asistanlar zaten bu grupta';
+
+  @override
+  String get groupChatSave => 'Kaydet';
+
+  @override
+  String get groupChatCancel => 'İptal';
+
+  @override
+  String get groupChatSettingsTitle => 'Grup ayarları';
+
+  @override
+  String get groupChatBack => 'Geri';
+
+  @override
+  String get groupChatOrchestration => 'Kim konuşacak';
+
+  @override
+  String get groupChatDirectorTitle => 'Yönetmen modeli';
+
+  @override
+  String get groupChatDirectorSubtitle =>
+      'Sırada kimin konuşacağını seçen model. Hızlı ve düşük maliyetli bir model doğru seçimdir.';
+
+  @override
+  String get groupChatDirectorFollowDefault => 'Varsayılan modeli izler';
+
+  @override
+  String get groupChatMaxTurnsTitle => 'Tur başına yanıt';
+
+  @override
+  String get groupChatMaxTurnsSubtitle =>
+      'Bir mesaja en fazla kaç üye yanıt verebilir';
+
+  @override
+  String get groupChatRemoveMember => 'Kaldır';
+
+  @override
+  String get groupChatRemoveMemberTitle => 'Asistanı kaldır';
+
+  @override
+  String get groupChatRemoveMemberContent =>
+      'Bu asistan artık bu grupta yer almayacak.';
+
+  @override
+  String get groupChatDelete => 'Grup sohbetini sil';
+
+  @override
+  String get groupChatDeleteTitle => 'Bu grup sohbeti silinsin mi?';
+
+  @override
+  String get groupChatDeleteContent =>
+      'Grup ve tüm konuları birlikte geri dönüşüm kutusuna taşınır.';
+
+  @override
+  String get groupChatDeleted => 'Grup sohbeti geri dönüşüm kutusuna taşındı';
+
+  @override
+  String get groupChatUnavailable =>
+      'Bu grup sohbetinin ayarları bulunamadı. Geri dönüşüm kutusundan geri yükleyin.';
+
+  @override
+  String get groupChatNewTopic => 'Yeni konu';
+
+  @override
+  String get groupChatRemovedMember => 'Silinmiş asistan';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      'Yönetmen modeli kullanılamıyor, bu yüzden ilk üye bir kez yanıtladı. Varsayılan model ayarlarını kontrol edin.';
+
+  @override
+  String get groupChatUnavailableWarning =>
+      'Bu grup sohbetinde kullanılabilir üye yok.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => 'Yönetmen modeli';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      'Grup sohbetinde sıradaki konuşmacıyı belirler. Hızlı ve düşük maliyetli bir model en uygun seçimdir.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Bu sohbetin bir kopyasında, aynı çalışma alanında tek bir görevi yürütür.';
+
+  @override
+  String get subagentConfigDepth => 'Derinlik';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'Alt ajanların kaç düzey daha devredebileceği';
+
+  @override
+  String get subagentConfigDepthOne => 'Alt ajan artık devredemez';
+
+  @override
+  String get subagentConfigDepthTwo => 'Alt ajan bir seviye daha devredebilir';
+
+  @override
+  String get subagentConfigDepthThree =>
+      'Alt ajan en fazla iki seviye daha devredebilir';
+
+  @override
+  String get subagentConfigModel => 'Model';
+
+  @override
+  String get subagentConfigModelDescription =>
+      'Alt ajanı hangi model çalıştıracak';
+
+  @override
+  String get subagentConfigModelInherit => 'Bu asistanı izle';
+
+  @override
+  String get subagentConfigTargets => 'Devretme hedefleri';
+
+  @override
+  String get subagentConfigTargetsDescription =>
+      'Alt ajan olarak çalışabilecek asistanlar';
+
+  @override
+  String get subagentConfigTargetsSelf => 'Bu asistan';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return 'Bu asistan + $count';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection =>
+      'Kendi asistanınıza devretmek her zaman mümkündür';
+
+  @override
+  String get subagentConfigTargetsSelfCaption =>
+      'Aynı asistan, aynı model, aynı araçlar';
+
+  @override
+  String get subagentConfigTargetsAlways => 'Her zaman';
+
+  @override
+  String get subagentConfigTargetsOthersSection => 'Adıyla da seçilebilir';
+
+  @override
+  String get subagentConfigTargetsFooter =>
+      'Kimse seçilmezse görevler yalnızca size gelir.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · hedef $targets · derinlik $depth';
+  }
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · derinlik $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'Üst sohbeti gör · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Alt ajan yetkisi';
+
+  @override
+  String get subagentEscalationAsk => 'Sor';
+
+  @override
+  String get subagentEscalationDeny => 'Her zaman reddet';
+
+  @override
+  String get subagentEscalationAllow => 'Her zaman izin ver';
+
+  @override
+  String get remoteSyncTabLan => 'LAN eşitleme';
+
+  @override
+  String get remoteSyncTabRemote => 'Uzak eşitleme (deneysel)';
+
+  @override
+  String get remoteSyncThisDevice => 'Bu cihaz';
+
+  @override
+  String get remoteSyncStatusRunning => 'Çalışıyor';
+
+  @override
+  String get remoteSyncStatusStarting => 'Başlatılıyor…';
+
+  @override
+  String get remoteSyncStatusStopped => 'Çalışmıyor';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return 'Başlatılamadı: $error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => 'Cihaz eşleştir';
+
+  @override
+  String get remoteSyncPairIntro =>
+      'Herhangi bir ağdaki iki cihaz eşleşebilir: biri uzak eşleştirme QR kodunu gösterir, diğeri okutur veya adresi yapıştırır.';
+
+  @override
+  String get remoteSyncShowCode => 'Uzak eşleştirme QR\'ını göster';
+
+  @override
+  String get remoteSyncEnterCode => 'Kodu okut veya yapıştır';
+
+  @override
+  String get remoteSyncPairingCode => 'Uzak eşleştirme kodu';
+
+  @override
+  String get remoteSyncAddressLabel => 'Uzak adres';
+
+  @override
+  String get remoteSyncAddressHint =>
+      'Diğer cihazda gösterilen uzak adresi yapıştırın';
+
+  @override
+  String get remoteSyncAddressNote =>
+      'Uzak adres uzun bir karakter dizisidir; bu yüzden okutmak daha kolaydır. Okutamıyorsanız diğer cihazda kopyalayıp buraya yapıştırın.';
+
+  @override
+  String get remoteSyncShowAddress => 'Adresi göster';
+
+  @override
+  String get remoteSyncCopyAddress => 'Adresi kopyala';
+
+  @override
+  String get remoteSyncAddressCopied => 'Uzak adres kopyalandı';
+
+  @override
+  String get remoteSyncAddressEmpty =>
+      'Bu cihazın uzak adresi henüz alınamadı. Biraz bekleyip yeniden deneyin.';
+
+  @override
+  String get remoteSyncPhaseConnecting => 'Uzak tünel üzerinden bağlanılıyor…';
+
+  @override
+  String get remoteSyncPairedDevices => 'Eşleştirilen cihazlar';
+
+  @override
+  String get remoteSyncNoDevices =>
+      'Henüz uzak eşitleme ile eşleştirilmiş cihaz yok.';
+
+  @override
+  String get remoteSyncEndpointRemote => 'Uzak (tailcat)';
+
+  @override
+  String get remoteSyncKeySection => 'Uzak anahtar';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      'Uzak eşitleme sabit bir uzak kimlik kullanır; bu cihazın uzak adresi yeniden başlatmalar arasında değişmez. Anahtarı sıfırlamak bu adresi değiştirir. Uzaktan eşleştirilen cihazların yeniden eşleştirilmesi gerekir; LAN eşitlemesi etkilenmez.';
+
+  @override
+  String get remoteSyncResetKey => 'Anahtarı sıfırla';
+
+  @override
+  String get remoteSyncResetTitle => 'Uzak anahtar sıfırlansın mı?';
+
+  @override
+  String get remoteSyncResetBody =>
+      'Bu cihaz yeni bir uzak adres alır. Uzaktan eşleştirilen cihazların yeniden eşleştirilmesi gerekir; LAN eşitlemesi etkilenmez.';
+
+  @override
+  String get remoteSyncResetDone => 'Uzak anahtar sıfırlandı';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return 'Uzak anahtar sıfırlanamadı: $error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => 'Uzak eşitleme hakkında';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      'Uzak eşitleme tailcat üzerine kuruludur. Cihazlar arasında gönderilen veriler WireGuard ile şifrelenir.';
+
+  @override
+  String get remoteSyncLearnMore => 'Daha fazla bilgi';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      'Çoğu durumda cihazlar P2P NAT geçişiyle doğrudan bağlanır ve deneyim LAN eşitlemesinden neredeyse farksızdır. Bağlantı kurulamadığında veriler Tailscale\'in resmî DERP sunucuları üzerinden aktarılır; içerik yine WireGuard ile şifrelidir. Cuplivo\'nun henüz kendi DERP sunucusu yok; uygun bir DERP sunucusu sağlayabilirseniz lütfen bizimle iletişime geçin.';
+
+  @override
+  String get remoteSyncContactUs => 'Bize ulaşın';
+
+  @override
+  String get remoteSyncMetadataNote =>
+      'DERP aktarıcıları yalnızca bağlantı üst verilerini görebilir; eşitlenen içeriği çözemez.';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress =>
+      'Geçerli bir uzak adres girin.';
+
+  @override
+  String get remoteSyncPairErrorUnavailable =>
+      'Uzak eşitleme şu anda kullanılamıyor. Biraz sonra yeniden deneyin.';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return 'Uzak eşleştirme başarısız: $error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat =>
+      'Bu bir uzak eşleştirme QR kodu değil.';
+
+  @override
+  String get remoteSyncQrErrorBadVersion =>
+      'Bu uzak eşleştirme QR kodu daha yeni bir sürümden. Uygulamayı güncelleyip yeniden deneyin.';
+
+  @override
+  String get remoteSyncQrErrorMalformed => 'Uzak eşleştirme QR kodu okunamadı.';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => 'Uzak DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'DeepSeek Harness WebUI erişim bağlantısını girin';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'DeepSeek Harness aynı LAN\'dayken veya internet üzerinden erişilebildiğinde kullanın.';
+
+  @override
+  String get assistantHarnessConfirm => 'Onayla';
+
+  @override
+  String get assistantHarnessConnected => 'Bağlandı';
+
+  @override
+  String get assistantHarnessChecking => 'Bağlanıyor…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      'Bağlantı başarısız. Bağlantı adresini ve ağınızı kontrol edip yeniden deneyin.';
+
+  @override
+  String get assistantHarnessInvalidUrl =>
+      'Geçerli bir WebUI erişim bağlantısı girin.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      'Bağlantıda token eksik. dsh web\'in yazdırdığı tam erişim bağlantısını yapıştırın.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness bu bağlantıyı reddetti. Token\'ın hâlâ geçerli olup olmadığını kontrol edin.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      'Bu bağlantıya ulaşılamadı. Adresi ve ağınızı kontrol edin.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness, API\'sine yanıt vermedi.';
+
+  @override
+  String get assistantHarnessLoadFailed => 'DeepSeek Harness yüklenemedi.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      'Bu platformda gömülü WebView desteklenmiyor.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => 'Tarayıcıda Aç';
+
+  @override
+  String get assistantHarnessRetry => 'Yeniden dene';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Bağlantı yöntemi';
+
+  @override
+  String get assistantHarnessMethodLink => 'Genel bağlantı';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu eklentisi';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'tailcat adresini girin';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'DeepSeek Harness kenar çubuğunda Uzaktan erişim bölümünü açın ve tailcat adresini veya eşleştirme komutunu kopyalayın.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Uzaktan erişim bölümünde gösterilen tailcat adresini veya eşleştirme komutunu girin.';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'tailcat tüneli açılamadı. Adresi ve ağı kontrol edin.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'tailcat bağlantıları bu platformda desteklenmiyor.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'tailcat tüneli açılıyor…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'QR kodunu tara';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'Bu cihazın genel anahtarı (izin listesi)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Yalnızca listedeki cihazların bağlanabilmesi için bu anahtarı DeepSeek Harness\'ta \"Remote access → Security\" bölümüne ekleyin. İzin listesi boşsa adres tek başına yeterlidir.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Bu cihazın anahtarı hazırlanıyor…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Bu cihazın anahtarı hazırlanamadı.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Genel anahtar kopyalandı';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Eklenti üzerinden uzaktan erişim. DeepSeek Harness\'a @ds-hu/dsh-tailcat-remote kurun; Cuplivo bir bağlantı noktası açmadan WebUI\'sini açabilir.';
 }

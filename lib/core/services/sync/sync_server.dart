@@ -11,6 +11,7 @@ import 'sync_limits.dart';
 import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_store.dart';
+import 'sync_transport.dart';
 
 /// Handler surface the sync engine implements behind [SyncServer]. The server
 /// is transport only: mTLS, routing, JSON/gzip codecs, certificate pinning.
@@ -224,10 +225,11 @@ enum _Lane { ping, pair, read, write }
 /// there, and that arm cannot compile without a lane here.
 enum _Route { ping, pair, hello, subtrees, revoke, workspaceFile, blob }
 
-/// HTTPS server for LAN sync.
+/// HTTPS server for sync.
 ///
 /// One listener serves both pairing and sync routes, authenticated in two
-/// layers:
+/// layers (a remote session's bytes arrive through the tailcat relay and are
+/// handed to this same listener — ADR-0021):
 ///
 /// - **Server → client**: the listener presents this device's self-signed
 ///   certificate, and the client pins it (SHA-256 of the DER must equal the
@@ -276,6 +278,16 @@ class SyncServer {
   /// Header names of the app-layer peer authentication.
   static const deviceHeader = 'x-cuplivo-device';
   static const tokenHeader = 'x-cuplivo-token';
+
+  /// Set by a remote session's client on every request (ADR-0021).
+  ///
+  /// A remote connection arrives through this device's own tailcat relay, so
+  /// its socket comes from loopback — not from where the peer is. Without the
+  /// marker the engine would remember `127.0.0.1` as the peer's LAN endpoint
+  /// and dial it back on the next session. The marker is not authentication:
+  /// it only suppresses an address guess, and a peer that sends it merely
+  /// loses the source-address hint.
+  static const String remoteHeader = 'x-cuplivo-remote';
 
   void rememberPeer(SyncPeerRecord peer) {
     _peerSecrets[peer.deviceId] = peer.secret;
@@ -528,11 +540,13 @@ class SyncServer {
       // exception the peer has no use for.
       _safeRespond(request, refusal.statusCode, {'error': refusal.error});
     } catch (error, stack) {
-      _safeRespond(request, HttpStatus.internalServerError, {
-        'error': '$error',
-      });
+      // A handler exception can name the request URL, and a sync URL carries
+      // the peer's tailcat address when the request came through a tunnel.
+      // Scrub the capability before it reaches either the response or the log.
+      final reason = redactEndpointText('$error');
+      _safeRespond(request, HttpStatus.internalServerError, {'error': reason});
       // ignore: avoid_print
-      print('sync server: $error\n$stack');
+      print('sync server: $reason\n$stack');
     }
   }
 
@@ -724,6 +738,11 @@ class SyncServer {
   /// human: stored as-is it would become an endpoint that cannot be dialed
   /// back and would double every IPv4 peer under two names.
   String? _remoteHost(HttpRequest request) {
+    // A relayed connection's source is this device's own loopback, so the
+    // address says nothing about the peer: report "no source hint" instead,
+    // and let the peer's advertised candidates (its tailcat host among them)
+    // carry the return direction.
+    if (request.headers.value(remoteHeader) == '1') return null;
     final address = request.connectionInfo?.remoteAddress.address;
     return address == null ? null : normalizeHost(address);
   }

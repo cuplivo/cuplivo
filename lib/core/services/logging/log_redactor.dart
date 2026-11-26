@@ -78,6 +78,21 @@ class LogRedactor {
   static final RegExp _knownPrefixRe = RegExp(
     r'(?<![A-Za-z0-9_\-])(?:sk-ant-|sk-|AIza|xai-|gsk_|hf_|AKIA)[A-Za-z0-9_\-]+',
   );
+
+  /// A tailcat endpoint host embeds a device's remote address, which is the
+  /// capability to reach it (ADR-0021). The sync code scrubs the lines it
+  /// writes itself; this net catches a print that bypasses that scrub, because
+  /// the persisted log file is what users attach to bug reports.
+  static final RegExp _tailcatHostRe = RegExp(
+    r'tcat:[A-Za-z0-9_\-+=.~]{16,2048}',
+  );
+
+  /// The same address as the host of a sync URL (`https://<address>:9527`):
+  /// the form a `HttpException` appends as `uri = ...`.
+  static final RegExp _tailcatUriRe = RegExp(
+    r'https://[A-Za-z0-9_\-+=.~]{16,2048}:9527',
+  );
+
   static final RegExp _camelCaseRe = RegExp(r'(?<=[a-z0-9])(?=[A-Z])');
   static final RegExp _nameSepRe = RegExp(r'[-_.\s]+');
 
@@ -116,7 +131,16 @@ class LogRedactor {
   }
 
   static String redactText(String text) {
-    return _redactKnownPrefixes(_redactUrlByRegex(_redactUserInfo(text)));
+    return _redactTailcatAddresses(
+      _redactKnownPrefixes(_redactUrlByRegex(_redactUserInfo(text))),
+    );
+  }
+
+  static String _redactTailcatAddresses(String text) {
+    if (!text.contains('tcat:') && !text.contains('9527')) return text;
+    return text
+        .replaceAll(_tailcatUriRe, 'https://<redacted>:9527')
+        .replaceAll(_tailcatHostRe, 'tcat:<redacted>');
   }
 
   static String maskSecret(String value) {

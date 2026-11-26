@@ -30,6 +30,7 @@ import 'package:Cuplivo/core/services/sync/sync_models.dart';
 import 'package:Cuplivo/core/services/sync/sync_pair_qr.dart';
 import 'package:Cuplivo/core/services/sync/sync_server.dart';
 import 'package:Cuplivo/core/services/sync/sync_store.dart';
+import 'package:Cuplivo/core/services/sync/sync_transport.dart';
 import '../../../support/sync_payload.dart';
 import 'package:Cuplivo/core/services/sync/workspace_content_sync.dart';
 import 'package:Cuplivo/features/home/controllers/chat_controller.dart';
@@ -453,6 +454,51 @@ Future<void> _closePanel(
   });
 }
 
+/// A [SyncTransport] that stands in for the tailcat tunnel on loopback.
+///
+/// The production transport rewrites a `tcat:` endpoint into the tunnel's
+/// dialing form and supplies a factory whose socket is a plain loopback pipe;
+/// the sync client then performs its own TLS handshake over that socket (a
+/// `HttpClient` with a `connectionFactory` does not wrap it). This fake keeps
+/// that shape exactly: a `tcat:` endpoint resolves to the harness peer's real
+/// `127.0.0.1:<boundPort>` TLS listener, and the factory hands back a plain
+/// socket to it. Everything above the transport — the pinned TLS, the pairing
+/// PIN, the protocol — is the production code, so what a case proves is that
+/// the rewrite carries it.
+class _LoopbackTailcatTransport implements SyncTransport {
+  /// The real listener each tailcat address resolves to, keyed by the address
+  /// text the peer would store in a `tcat:` endpoint.
+  final Map<String, int> addresses = <String, int>{};
+
+  /// Every URI the sync client built for a remote endpoint, in order. The
+  /// rewrite is the only thing between a stored `tcat:` memory and this list,
+  /// so the entries show what the client actually dialed.
+  final List<Uri> dialed = <Uri>[];
+
+  @override
+  SyncUriEndpoint uriEndpointFor(String host, int port) {
+    final address = tailcatAddressFromHost(host);
+    if (address == null) return (host: host, port: port);
+    final peerPort = addresses[address];
+    if (peerPort == null) {
+      throw StateError('no loopback peer registered for $address');
+    }
+    // The resolved form is an ordinary loopback address, so the sync client's
+    // `https://127.0.0.1:<port>` URL and its TLS handshake are the real ones.
+    return (host: '127.0.0.1', port: peerPort);
+  }
+
+  /// The plain tunnel socket: connected, not TLS-terminated, exactly the
+  /// contract [SyncTransport.connectionFactory] states (the sync client
+  /// completes the handshake over it).
+  @override
+  Future<ConnectionTask<Socket>> Function(Uri, String?, int?)
+  get connectionFactory => (uri, proxyHost, proxyPort) {
+    dialed.add(uri);
+    return Socket.startConnect(uri.host, uri.port);
+  };
+}
+
 /// One device: its own sync directory, database, chat and business stores, and
 /// its own listener.
 class _Side {
@@ -466,6 +512,7 @@ class _Side {
     this.yieldedSessionTtl = SyncEngine.kYieldedSessionTtl,
     this.pageBytes = kSyncPageBytes,
     this.now,
+    this.transport,
   });
 
   final String label;
@@ -513,6 +560,11 @@ class _Side {
   /// This side's wall clock, when a test needs to move time instead of waiting
   /// for it. Null means the production `DateTime.now`.
   final DateTime Function()? now;
+
+  /// The transport this side's engine dials `tcat:` endpoints through. Null for
+  /// every side that only speaks the LAN path: the transport is what makes the
+  /// remote cases remote, and an unpaired side never needs it.
+  final SyncTransport? transport;
 
   late final Directory dir;
   late final AppDatabase database;
@@ -814,6 +866,7 @@ class _Side {
       identity: identity,
       store: store,
       dataPlane: dataPlane,
+      transport: transport,
       onStateChanged: () => stateChanges++,
       onProgressChanged: () => progressChanges++,
       // The responder's counterpart to the report `syncWithPeer` returns: what
@@ -1473,6 +1526,25 @@ void main() {
       host: '127.0.0.1',
       port: responder.port,
       pin: pin,
+    );
+  }
+
+  /// Pairs [initiator] with [responder] over the loopback stand-in for the
+  /// tailcat tunnel: [initiator] is told only the responder's remote address,
+  /// which [transport] resolves to the responder's real listener.
+  Future<void> pairOverTailcat(
+    _Side initiator,
+    _Side responder,
+    _LoopbackTailcatTransport transport, {
+    required String address,
+  }) async {
+    transport.addresses[address] = responder.port;
+    final pin = responder.engine.openPairing();
+    await initiator.engine.pairWith(
+      host: tailcatHost(address),
+      port: kTailcatRemotePort,
+      pin: pin,
+      advertisedAddresses: [tailcatHost(address)],
     );
   }
 
@@ -3371,6 +3443,364 @@ void main() {
     expect(aPeer.primaryEndpoint?.port, b.port);
     expect(b.engine.isPairingOpen, isFalse, reason: 'the PIN is spent');
   });
+
+  test(
+    'a QR-pinned remote pairing refuses a wrong fingerprint before the PIN',
+    () async {
+      // The QR hard pin is the one identity check the remote path must not lose:
+      // the certificate arrives inside the TLS handshake the sync client now
+      // performs over the tunnel socket, so a wrong scanned fingerprint has to be
+      // refused there — before the pairing body (the PIN) leaves this device.
+      const address = 'test-remote-address';
+      final transport = _LoopbackTailcatTransport();
+      final a = _Side('a', transport: transport);
+      final b = _Side('b');
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      transport.addresses[address] = b.port;
+
+      final pin = b.engine.openPairing();
+      await expectLater(
+        a.engine.pairWith(
+          host: tailcatHost(address),
+          port: kTailcatRemotePort,
+          pin: pin,
+          expectedDeviceId: 'f' * 64,
+        ),
+        throwsA(
+          isA<SyncClientException>().having(
+            (error) => error.message,
+            'message',
+            'pair_fingerprint_mismatch',
+          ),
+        ),
+      );
+      expect(await a.store.findPeer(b.identity.deviceId), isNull);
+      expect(
+        b.engine.isPairingOpen,
+        isTrue,
+        reason: 'the handshake never completed, so nothing was spent here',
+      );
+
+      // The very same PIN still pairs once the fingerprint is the right one.
+      await a.engine.pairWith(
+        host: tailcatHost(address),
+        port: kTailcatRemotePort,
+        pin: pin,
+        expectedDeviceId: b.identity.deviceId,
+        advertisedAddresses: [tailcatHost(address)],
+      );
+      final aPeer = await a.peer(b);
+      expect(aPeer.primaryEndpoint?.host, tailcatHost(address));
+      expect(aPeer.primaryEndpoint?.port, kTailcatRemotePort);
+    },
+  );
+
+  test('a manually typed remote pairing stores the tcat endpoint', () async {
+    // The address + PIN path has no fingerprint to pin, so what this case
+    // proves is the transport half: the pairing reached the peer through the
+    // rewritten endpoint, and both records kept the remote memory — the
+    // initiator's proven endpoint and the responder's advertised candidate.
+    const address = 'test-remote-address';
+    final transport = _LoopbackTailcatTransport();
+    final a = _Side('a', transport: transport);
+    final b = _Side('b');
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+
+    await pairOverTailcat(a, b, transport, address: address);
+
+    final aPeer = await a.peer(b);
+    expect(aPeer.primaryEndpoint?.host, tailcatHost(address));
+    expect(aPeer.primaryEndpoint?.port, kTailcatRemotePort);
+    expect(
+      transport.dialed,
+      isNotEmpty,
+      reason: 'pairing went through the storage-rewrite seam',
+    );
+    expect(
+      transport.dialed.every(
+        (uri) => uri.host == '127.0.0.1' && uri.port == b.port,
+      ),
+      isTrue,
+      reason: 'the tcat host never reached the socket layer',
+    );
+
+    // The responder learned the candidate the initiator advertised, on the
+    // remote port constant (a tcat endpoint's port is the protocol constant,
+    // not the peer's LAN listener port).
+    final bPeer = await b.peer(a);
+    expect(
+      bPeer.endpointFor(tailcatHost(address), kTailcatRemotePort),
+      isNotNull,
+    );
+    expect(
+      bPeer.endpoints.where((endpoint) => endpoint.host == '127.0.0.1'),
+      isEmpty,
+      reason:
+          'a relayed connection comes from this device\'s own loopback, and '
+          'the remote marker suppresses that source hint',
+    );
+  });
+
+  test('a tcat endpoint carries a later session over real TLS', () async {
+    // The paired memory must be dialable again: the session resolves the stored
+    // `tcat:` endpoint through the transport, completes a real TLS handshake
+    // over the returned plain socket and runs protocol 11 end to end.
+    const address = 'test-remote-address';
+    final transport = _LoopbackTailcatTransport();
+    final a = _Side('a', transport: transport);
+    final b = _Side('b');
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+    await pairOverTailcat(a, b, transport, address: address);
+    final dialsBeforeSession = transport.dialed.length;
+
+    await _seedConversation(
+      a,
+      id: 'conv-remote',
+      contents: ['over the tcat tunnel'],
+    );
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await _conversationIds(b), contains('conv-remote'));
+    final sessionDials = transport.dialed.sublist(dialsBeforeSession);
+    expect(
+      sessionDials,
+      isNotEmpty,
+      reason: 'the session dialed the stored tcat endpoint again',
+    );
+    expect(
+      sessionDials.every(
+        (uri) => uri.host == '127.0.0.1' && uri.port == b.port,
+      ),
+      isTrue,
+    );
+    // The hello carried the remote marker too: answering must not teach the
+    // responder that the peer's LAN address is its own loopback.
+    final bPeer = await b.peer(a);
+    expect(
+      bPeer.endpoints.where((endpoint) => endpoint.host == '127.0.0.1'),
+      isEmpty,
+    );
+  });
+
+  test('a remote session pulls an attachment back through the tunnel', () async {
+    // A responder answers a pushed attachment over a *separate* connection to
+    // the initiator's own listener — the session's connection points the wrong
+    // way. On a remote session that reverse connection must itself go through
+    // the tailcat transport; a LAN-shaped dial would treat `tcat:...` as a
+    // hostname, never reach the peer, and leave the picture a permanently
+    // pending blob that only a push can repair.
+    const addressA = 'test-remote-address-a';
+    const addressB = 'test-remote-address-b';
+    final aTransport = _LoopbackTailcatTransport();
+    final bTransport = _LoopbackTailcatTransport();
+    final a = _Side('a', transport: aTransport);
+    final b = _Side('b', transport: bTransport);
+    await a.start(root);
+    await b.start(root);
+    sides.addAll([a, b]);
+    aTransport.addresses[addressB] = b.port;
+    bTransport.addresses[addressA] = a.port;
+    // Each side advertises its own remote endpoint, so b learns where to dial a
+    // back from a's hello — that candidate is what the reverse pull uses.
+    a.engine.extraAdvertisedHosts = [tailcatHost(addressA)];
+    b.engine.extraAdvertisedHosts = [tailcatHost(addressB)];
+
+    // Pair a -> b over the tunnel: b's record of a is then a `tcat:` endpoint
+    // with no loopback address to fall back on.
+    final pin = b.engine.openPairing();
+    await a.engine.pairWith(
+      host: tailcatHost(addressB),
+      port: kTailcatRemotePort,
+      pin: pin,
+      advertisedAddresses: [tailcatHost(addressA)],
+    );
+
+    await _writeBlob(a, 'images/remote.png', 'a picture across networks');
+    await _seedConversationWithImage(
+      a,
+      id: 'conv-remote-image',
+      uri: 'kelivo-file:///images/remote.png',
+    );
+
+    final report = await a.engine.syncWithPeer(await a.peer(b));
+    expect(report.success, isTrue, reason: report.summary);
+    expect(await _conversationIds(b), contains('conv-remote-image'));
+
+    // The bytes arrived, not only the row that references them: the pull is the
+    // step that makes an attachment an attachment rather than a broken image.
+    expect(
+      await _assetPathsFor(b, 'conv-remote-image-m0'),
+      contains('kelivo-file:///images/remote.png'),
+    );
+    final landed = File('${b.dir.path}/images/remote.png');
+    expect(await landed.exists(), isTrue);
+    expect(await landed.readAsString(), 'a picture across networks');
+    // b's own report carries the moved blob; a failed reverse dial would have
+    // recorded a miss instead (and the push fallback would be the repair).
+    final responder = (await b.peer(a)).lastReport!;
+    expect(responder.blobsMoved, 1);
+    expect(responder.blobsMissing, 0);
+
+    // The pull went back through the tunnel: b's transport is the only thing
+    // that rewrites a stored `tcat:` endpoint, and only it reaches a's listener.
+    expect(
+      bTransport.dialed,
+      isNotEmpty,
+      reason: 'the responder dialled back through the tailcat transport',
+    );
+    expect(
+      bTransport.dialed.every(
+        (uri) => uri.host == '127.0.0.1' && uri.port == a.port,
+      ),
+      isTrue,
+      reason:
+          'every reverse dial resolved the tcat endpoint to a loopback peer '
+          'listener',
+    );
+    // The reverse connection does not teach b a loopback address for a: the
+    // remote arrival is not a LAN endpoint.
+    final bPeer = await b.peer(a);
+    expect(
+      bPeer.endpoints.where((endpoint) => endpoint.host == '127.0.0.1'),
+      isEmpty,
+    );
+  });
+
+  test(
+    'a paged remote session opens no reverse tunnel for a page with nothing to pull',
+    () async {
+      // A push beat is one page since master's paging, and on a remote session
+      // opening the responder's reverse connection is a tunnel dial plus a ping.
+      // A text-only transfer has nothing to bring back, so the pages after the
+      // first — the only one that runs the workspace walk and skill planning —
+      // must not pay that per page.
+      const addressA = 'test-paged-address-a';
+      const addressB = 'test-paged-address-b';
+      const tinyPage = 1500;
+      final aTransport = _LoopbackTailcatTransport();
+      final bTransport = _LoopbackTailcatTransport();
+      final a = _Side('a', transport: aTransport, pageBytes: tinyPage);
+      final b = _Side('b', transport: bTransport);
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      aTransport.addresses[addressB] = b.port;
+      bTransport.addresses[addressA] = a.port;
+      a.engine.extraAdvertisedHosts = [tailcatHost(addressA)];
+      b.engine.extraAdvertisedHosts = [tailcatHost(addressB)];
+
+      final pin = b.engine.openPairing();
+      await a.engine.pairWith(
+        host: tailcatHost(addressB),
+        port: kTailcatRemotePort,
+        pin: pin,
+        advertisedAddresses: [tailcatHost(addressA)],
+      );
+
+      // Six rows past a 1.5 kB page: the push crosses in several beats.
+      await _seedConversation(
+        a,
+        id: 'conv-paged',
+        contents: [for (var i = 0; i < 6; i++) 'row $i ${'x' * 900}'],
+      );
+      final reverseDialsBefore = bTransport.dialed.length;
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await _messageIds(b, 'conv-paged'), hasLength(6));
+      expect(
+        bTransport.dialed.sublist(reverseDialsBefore),
+        isEmpty,
+        reason:
+            'no page carried a blob or a workspace file to pull back, so '
+            'the responder had nothing to open a tunnel for',
+      );
+    },
+  );
+
+  test(
+    'a LAN session exchanges the tailcat endpoints both ways, once',
+    () async {
+      // A pair made on the LAN becomes remote-capable the first time the two
+      // sessions meet: the initiator's hello advertises its tailcat endpoint
+      // beside its LAN addresses, the answer carries the responder's in the
+      // same optional field, and each side keeps what it is told. No second
+      // pairing step, no remote connection here — both sides dial 127.0.0.1.
+      const addressA = 'test-address-a';
+      const addressB = 'test-address-b';
+      final (a, b) = await pair();
+
+      a.engine.extraAdvertisedHosts = [tailcatHost(addressA)];
+      b.engine.extraAdvertisedHosts = [tailcatHost(addressB)];
+
+      // b initiates, so b's hello advertises b's remote endpoint to a, and a's
+      // answering hello advertises a's to b.
+      final first = await b.engine.syncWithPeer(await b.peer(a));
+      expect(first.success, isTrue, reason: first.summary);
+
+      final aOfB = await a.peer(b);
+      expect(
+        aOfB.endpointFor(tailcatHost(addressB), kTailcatRemotePort),
+        isNotNull,
+        reason:
+            'the responder keeps the remote endpoint the initiator advertised',
+      );
+      final bOfA = await b.peer(a);
+      expect(
+        bOfA.endpointFor(tailcatHost(addressA), kTailcatRemotePort),
+        isNotNull,
+        reason: 'the initiator keeps the remote endpoint the answer advertised',
+      );
+
+      // A repeated session is a read, not a write: the same advertisement must
+      // not add the endpoint a second time.
+      final aBefore = aOfB.endpoints.length;
+      final bBefore = bOfA.endpoints.length;
+      final second = await b.engine.syncWithPeer(await b.peer(a));
+      expect(second.success, isTrue, reason: second.summary);
+      final aAfter = await a.peer(b);
+      final bAfter = await b.peer(a);
+      expect(aAfter.endpoints.length, aBefore);
+      expect(bAfter.endpoints.length, bBefore);
+      expect(
+        aAfter.endpoints.where(
+          (endpoint) => endpoint.host == tailcatHost(addressB),
+        ),
+        hasLength(1),
+      );
+      expect(
+        bAfter.endpoints.where(
+          (endpoint) => endpoint.host == tailcatHost(addressA),
+        ),
+        hasLength(1),
+      );
+
+      // Additive: a peer that stops advertising (remote sync switched off) does
+      // not lose the memory — the pair can still reach it if it comes back.
+      a.engine.extraAdvertisedHosts = const [];
+      b.engine.extraAdvertisedHosts = const [];
+      final third = await b.engine.syncWithPeer(await b.peer(a));
+      expect(third.success, isTrue, reason: third.summary);
+      expect(
+        (await a.peer(
+          b,
+        )).endpointFor(tailcatHost(addressB), kTailcatRemotePort),
+        isNotNull,
+      );
+      expect(
+        (await b.peer(
+          a,
+        )).endpointFor(tailcatHost(addressA), kTailcatRemotePort),
+        isNotNull,
+      );
+    },
+  );
 
   test('a mismatched fingerprint aborts before the PIN is spent', () async {
     final a = _Side('a');

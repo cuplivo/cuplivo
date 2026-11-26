@@ -47,7 +47,7 @@ Cuplivo 不只是聊天。模型可以联网搜索、调用 MCP 服务器、按�
 
 Cuplivo 4.0 把代码基线整体搬到 **Kelivo v1.3.0**，并在其上重新实现 Cuplivo 自有特性。此后本仓库随 Kelivo 的版本更新持续 rebase，而非永久 diverge，上游的改进会持续到来。
 
-- **局域网同步** —— 对话、其背后的业务数据、附件与技能在同一局域网内的多台设备之间跟随你。扫码一次性配对（端点 + 证书指纹 + 一次性 PIN），同步后无需重启：无服务器、无中心设备、无需手工合并。
+- **局域网同步** —— 对话、其背后的业务数据、附件与技能在你的多台设备之间跟随你（同一局域网；开启实验性的远程同步后也可以跨网络）。扫码一次性配对（端点 + 证书指纹 + 一次性 PIN），同步后无需重启：无 Cuplivo 服务器、无中心设备、无需手工合并。
 - **输入草稿** —— 未发送的输入内容（文本、图片路径与文档附件）跨重启保留，意外退出不再白写。
 - **手动优先的图片压缩** —— 在 Kelivo 自动压缩之外，还可以手动压缩：选择 JPEG / PNG / 原图，设置长边与质量，1:1 对比前后效果，并给出整图体积预估。
 
@@ -108,9 +108,9 @@ Cuplivo 4.0 把代码基线整体搬到 **Kelivo v1.3.0**，并在其上重新�
 | --- | --- | --- | --- |
 | iOS / iPadOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | 未签名 IPA（需自签） | iOS 15.0 及以上 |
 | Android | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | APK（`arm64-v8a`、`armeabi-v7a`、`x86_64`） | Android 7.0 及以上 |
-| macOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | DMG | macOS 12.0 及以上，支持 Apple 芯片与 Intel |
-| Windows | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | 安装程序（`setup.exe`）或免安装 ZIP | Windows 10 / 11 |
-| Linux | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | AppImage、DEB、RPM、tar.gz | x86_64 |
+| macOS | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | DMG | macOS 13.0 及以上，支持 Apple 芯片与 Intel |
+| Windows | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | 安装程序（`setup.exe`）或免安装 ZIP | Windows 10 / 11（x64） |
+| Linux | [GitHub Releases](https://github.com/cuplivo/cuplivo/releases/latest) | AppImage、DEB、RPM、tar.gz | x86_64，glibc 2.28 及以上 |
 
 官网的[下载页](https://kelivo.psycheas.top/downloads)提供同样的安装包。
 
@@ -188,6 +188,13 @@ Cuplivo 4.0 把代码基线整体搬到 **Kelivo v1.3.0**，并在其上重新�
 - **导入**：支持从 Cherry Studio 和 Chatbox 导入。
 - **诊断**：请求日志、上下文日志（记录实际发送给模型的完整内容），以及存储空间占用明细。
 
+### 🔄 同步
+
+两种方式在同一个设置页「便捷同步」里，用分段控件切换：「局域网同步」（默认）与「远程同步（实验性）」。
+
+- **局域网同步** —— 对话、其背后的业务数据、附件、技能与工作区内容在你的多台设备之间跟随你（同一局域网）。扫码一次性配对（端点 + 证书指纹 + 一次性 PIN），同步后无需重启：无 Cuplivo 服务器、无中心设备、无需手工合并。协议有版本：协议 11 要求所有设备都升级到支持它的版本。
+- **远程同步（实验性）** —— 同一套同步可以跨网络进行，由内嵌的 [tailcat](https://github.com/tailscale/tailcat) 隧道承载：WireGuard 端到端加密，NAT 穿透成功时直连点对点，失败时经由 Tailscale 官方公共 DERP 中继回退；无需账号，无需端口映射。本设备使用固定远程身份，重启后远程地址不变；**重置密钥**会更换该地址，此前通过远程同步配对的设备需要重新配对——设备记录及其局域网地址保留，局域网同步不受影响。配对方式是远程二维码，或「远程地址 + 6 位配对码」（远程地址是一长串字符，能扫码时二维码更方便）；已经在局域网配对的设备无需再配对：两侧都启用远程同步后，下一次同步会自动交换远程地址。面板的「关于」会说明：远程同步基于 tailcat，设备之间传输的内容使用 WireGuard 加密；NAT 穿透成功时直连，失败时经 Tailscale 官方公共 DERP 中继（中继只能看到连接元数据，无法解密同步内容）；Cuplivo 暂不自建 DERP，欢迎提供合规的中继。公共中继免费但有限速、无 SLA，在中国大陆可能距离较远。远程同步（实验性）支持 Android、iOS 15+、macOS 13.0+、Windows x64 和 Linux x86_64/arm64（glibc 2.28+）；Windows 构建仅提供 x64（Windows on Arm 上构建会在原生库阶段失败，而不是得到一个禁用的 Tab），每个架构约增加 6 MB 压缩体积（未压缩 14–17 MB）。设计记录见 [ADR-0021](docs/adr/0021-remote-sync-over-tailcat.md)。
+
 ### 🔗 系统集成
 
 - **手机端**：生成可在后台持续进行，并在完成时通知；iOS 支持实时活动，Android 支持实时通知和任务悬浮窗。可以从其他应用分享文本和文件到 Cuplivo，Android 上还能通过文本选择菜单直接发送选中的文字。
@@ -208,6 +215,7 @@ Cuplivo 4.0 把代码基线整体搬到 **Kelivo v1.3.0**，并在其上重新�
 | 后台生成 | 常驻通知、实时通知、任务悬浮窗 | 增强后台运行、实时活动 | Cuplivo 运行期间 |
 | 平台专属设备工具 | 日历、定位、屏幕使用时间 | 日历、定位、天气、提醒事项、健康数据 | — |
 | 全局快捷键与系统托盘 | — | — | ✓ |
+| 远程同步（实验性） | ✓ | ✓ | ✓（Windows 仅 x64） |
 
 桌面端的工作区命令以当前用户的权限运行，没有沙盒隔离。对于存放重要文件的工作区，建议保持命令审批开启。
 
@@ -220,6 +228,7 @@ Cuplivo 4.0 把代码基线整体搬到 **Kelivo v1.3.0**，并在其上重新�
 - 仅 Linux（Debian/Ubuntu 包名）：`clang cmake ninja-build pkg-config libgtk-3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libkeybinder-3.0-dev libayatana-appindicator3-dev`
 - 仅 iOS：`brew install meson ninja llvm lld`。Xcode 构建时会自动编译 iSH 沙盒并准备 Alpine Linux 镜像。
 - 仅 Android：需要 `python3`、`curl` 和 `tar`。Gradle 构建时会自动下载 PRoot 二进制文件。
+- 仅远程同步：无需额外工具链。libtailcat 原生库由 Dart build hook 在首次构建时下载并校验 SHA-256。
 
 ```bash
 git clone https://github.com/cuplivo/cuplivo.git
@@ -254,9 +263,10 @@ flutter test
 - [iSH](https://github.com/ish-app/ish)：iOS 沙盒所基于的上游 iOS Linux Shell 项目。
 - [PRoot](https://github.com/termux/proot) 与 [Termux](https://termux.dev)：Android Linux 沙盒的基础。
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)：提供离线语音识别。
+- [tailcat](https://github.com/tailscale/tailcat) 与 [libtailcat](https://github.com/cuplivo/libtailcat)：远程同步背后的 WireGuard 隧道及其 Dart 绑定。
 - Cuplivo 依赖的所有开源软件包，详见 [`pubspec.yaml`](pubspec.yaml)。
 
-沙盒组件的完整第三方声明见 [`ios/sandbox/NOTICE`](ios/sandbox/NOTICE) 和 [`android/app/src/main/jniLibs/NOTICE`](android/app/src/main/jniLibs/NOTICE)。
+完整第三方声明见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)（tailcat 与 libtailcat 的许可证及构建来源）；沙盒组件的声明见 [`ios/sandbox/NOTICE`](ios/sandbox/NOTICE) 和 [`android/app/src/main/jniLibs/NOTICE`](android/app/src/main/jniLibs/NOTICE)。
 
 ## ⭐ Star History
 

@@ -16751,7 +16751,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => '局域网同步';
+  String get settingsPageSync => '便捷同步';
 
   @override
   String get lanSyncThisDevice => '本设备';
@@ -18207,6 +18207,142 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => '始终允许';
+
+  @override
+  String get remoteSyncTabLan => '局域网同步';
+
+  @override
+  String get remoteSyncTabRemote => '远程同步（实验性）';
+
+  @override
+  String get remoteSyncThisDevice => '本设备';
+
+  @override
+  String get remoteSyncStatusRunning => '运行中';
+
+  @override
+  String get remoteSyncStatusStarting => '启动中…';
+
+  @override
+  String get remoteSyncStatusStopped => '未启动';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return '启动失败：$error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get remoteSyncPairIntro => '两台设备可以在任意网络下配对：一台显示远程配对二维码，另一台扫码或粘贴地址。';
+
+  @override
+  String get remoteSyncShowCode => '显示远程配对二维码';
+
+  @override
+  String get remoteSyncEnterCode => '扫码或粘贴配对码';
+
+  @override
+  String get remoteSyncPairingCode => '远程配对码';
+
+  @override
+  String get remoteSyncAddressLabel => '远程地址';
+
+  @override
+  String get remoteSyncAddressHint => '粘贴另一台设备显示的远程地址';
+
+  @override
+  String get remoteSyncAddressNote =>
+      '远程地址是一长串字符，建议直接扫码；无法扫码时，可从另一台设备复制后粘贴到此处。';
+
+  @override
+  String get remoteSyncShowAddress => '显示地址';
+
+  @override
+  String get remoteSyncCopyAddress => '复制地址';
+
+  @override
+  String get remoteSyncAddressCopied => '远程地址已复制';
+
+  @override
+  String get remoteSyncAddressEmpty => '暂时拿不到本机的远程地址，请稍后重试。';
+
+  @override
+  String get remoteSyncPhaseConnecting => '正在通过远程隧道连接…';
+
+  @override
+  String get remoteSyncPairedDevices => '已配对设备';
+
+  @override
+  String get remoteSyncNoDevices => '还没有通过远程同步配对的设备。';
+
+  @override
+  String get remoteSyncEndpointRemote => '远程（tailcat）';
+
+  @override
+  String get remoteSyncKeySection => '远程密钥';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      '远程同步使用固定的远程身份，本机远程地址在重启后保持不变。重置密钥会更换该地址：通过远程同步配对的设备需要重新配对；局域网同步不受影响。';
+
+  @override
+  String get remoteSyncResetKey => '重置密钥';
+
+  @override
+  String get remoteSyncResetTitle => '重置远程密钥？';
+
+  @override
+  String get remoteSyncResetBody => '本机会获得新的远程地址。通过远程同步配对的设备需要重新配对；局域网同步不受影响。';
+
+  @override
+  String get remoteSyncResetDone => '远程密钥已重置';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return '重置远程密钥失败：$error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => '关于远程同步';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      '远程同步基于 tailcat，设备之间传输的数据使用 WireGuard 加密。';
+
+  @override
+  String get remoteSyncLearnMore => '了解更多';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      '大多数情况下，设备会通过 P2P 打洞直连，体验与局域网同步几乎无差别；少数打洞失败时，数据会经 Tailscale 官方 DERP 服务器中转，内容仍为 WireGuard 加密。Cuplivo 目前没有自建 DERP 服务器；如你愿意提供境内合规的 DERP 服务器，欢迎联系我们。';
+
+  @override
+  String get remoteSyncContactUs => '联系我们';
+
+  @override
+  String get remoteSyncMetadataNote => 'DERP 中继只能看到连接元数据，无法解密同步内容。';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress => '请输入有效的远程地址。';
+
+  @override
+  String get remoteSyncPairErrorUnavailable => '远程同步当前不可用，请稍后重试。';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return '远程配对失败：$error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat => '这不是远程配对二维码。';
+
+  @override
+  String get remoteSyncQrErrorBadVersion => '此远程配对二维码来自更新的版本，请先更新应用再重试。';
+
+  @override
+  String get remoteSyncQrErrorMalformed => '无法读取该远程配对二维码。';
 
   @override
   String get assistantHarnessDefaultName => 'DeepSeek Harness';
@@ -35070,7 +35206,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsPageLanSync => '局域网同步';
+  String get settingsPageSync => '便捷同步';
 
   @override
   String get lanSyncThisDevice => '本设备';
@@ -36526,6 +36662,142 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get subagentEscalationAllow => '始终允许';
+
+  @override
+  String get remoteSyncTabLan => '局域网同步';
+
+  @override
+  String get remoteSyncTabRemote => '远程同步（实验性）';
+
+  @override
+  String get remoteSyncThisDevice => '本设备';
+
+  @override
+  String get remoteSyncStatusRunning => '运行中';
+
+  @override
+  String get remoteSyncStatusStarting => '启动中…';
+
+  @override
+  String get remoteSyncStatusStopped => '未启动';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return '启动失败：$error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get remoteSyncPairIntro => '两台设备可以在任意网络下配对：一台显示远程配对二维码，另一台扫码或粘贴地址。';
+
+  @override
+  String get remoteSyncShowCode => '显示远程配对二维码';
+
+  @override
+  String get remoteSyncEnterCode => '扫码或粘贴配对码';
+
+  @override
+  String get remoteSyncPairingCode => '远程配对码';
+
+  @override
+  String get remoteSyncAddressLabel => '远程地址';
+
+  @override
+  String get remoteSyncAddressHint => '粘贴另一台设备显示的远程地址';
+
+  @override
+  String get remoteSyncAddressNote =>
+      '远程地址是一长串字符，建议直接扫码；无法扫码时，可从另一台设备复制后粘贴到此处。';
+
+  @override
+  String get remoteSyncShowAddress => '显示地址';
+
+  @override
+  String get remoteSyncCopyAddress => '复制地址';
+
+  @override
+  String get remoteSyncAddressCopied => '远程地址已复制';
+
+  @override
+  String get remoteSyncAddressEmpty => '暂时拿不到本机的远程地址，请稍后重试。';
+
+  @override
+  String get remoteSyncPhaseConnecting => '正在通过远程隧道连接…';
+
+  @override
+  String get remoteSyncPairedDevices => '已配对设备';
+
+  @override
+  String get remoteSyncNoDevices => '还没有通过远程同步配对的设备。';
+
+  @override
+  String get remoteSyncEndpointRemote => '远程（tailcat）';
+
+  @override
+  String get remoteSyncKeySection => '远程密钥';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      '远程同步使用固定的远程身份，本机远程地址在重启后保持不变。重置密钥会更换该地址：通过远程同步配对的设备需要重新配对；局域网同步不受影响。';
+
+  @override
+  String get remoteSyncResetKey => '重置密钥';
+
+  @override
+  String get remoteSyncResetTitle => '重置远程密钥？';
+
+  @override
+  String get remoteSyncResetBody => '本机会获得新的远程地址。通过远程同步配对的设备需要重新配对；局域网同步不受影响。';
+
+  @override
+  String get remoteSyncResetDone => '远程密钥已重置';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return '重置远程密钥失败：$error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => '关于远程同步';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      '远程同步基于 tailcat，设备之间传输的数据使用 WireGuard 加密。';
+
+  @override
+  String get remoteSyncLearnMore => '了解更多';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      '大多数情况下，设备会通过 P2P 打洞直连，体验与局域网同步几乎无差别；少数打洞失败时，数据会经 Tailscale 官方 DERP 服务器中转，内容仍为 WireGuard 加密。Cuplivo 目前没有自建 DERP 服务器；如你愿意提供境内合规的 DERP 服务器，欢迎联系我们。';
+
+  @override
+  String get remoteSyncContactUs => '联系我们';
+
+  @override
+  String get remoteSyncMetadataNote => 'DERP 中继只能看到连接元数据，无法解密同步内容。';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress => '请输入有效的远程地址。';
+
+  @override
+  String get remoteSyncPairErrorUnavailable => '远程同步当前不可用，请稍后重试。';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return '远程配对失败：$error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat => '这不是远程配对二维码。';
+
+  @override
+  String get remoteSyncQrErrorBadVersion => '此远程配对二维码来自更新的版本，请先更新应用再重试。';
+
+  @override
+  String get remoteSyncQrErrorMalformed => '无法读取该远程配对二维码。';
 
   @override
   String get assistantHarnessDefaultName => 'DeepSeek Harness';
@@ -53400,7 +53672,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsPageLanSync => '區域網路同步';
+  String get settingsPageSync => '便捷同步';
 
   @override
   String get lanSyncThisDevice => '本裝置';
@@ -54867,6 +55139,141 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subagentEscalationAllow => '始終允許';
+
+  @override
+  String get remoteSyncTabLan => '區域網路同步';
+
+  @override
+  String get remoteSyncTabRemote => '遠端同步（實驗性）';
+
+  @override
+  String get remoteSyncThisDevice => '本裝置';
+
+  @override
+  String get remoteSyncStatusRunning => '執行中';
+
+  @override
+  String get remoteSyncStatusStarting => '啟動中…';
+
+  @override
+  String get remoteSyncStatusStopped => '未啟動';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return '啟動失敗：$error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => '配對裝置';
+
+  @override
+  String get remoteSyncPairIntro => '兩台裝置可以在任意網路下配對：一台顯示遠端配對二維碼，另一台掃碼或貼上地址。';
+
+  @override
+  String get remoteSyncShowCode => '顯示遠端配對二維碼';
+
+  @override
+  String get remoteSyncEnterCode => '掃碼或貼上配對碼';
+
+  @override
+  String get remoteSyncPairingCode => '遠端配對碼';
+
+  @override
+  String get remoteSyncAddressLabel => '遠端地址';
+
+  @override
+  String get remoteSyncAddressHint => '貼上另一台裝置顯示的遠端地址';
+
+  @override
+  String get remoteSyncAddressNote => '遠端地址是一長串字元，建議直接掃碼；無法掃碼時，可從另一台裝置複製後貼到此處。';
+
+  @override
+  String get remoteSyncShowAddress => '顯示地址';
+
+  @override
+  String get remoteSyncCopyAddress => '複製地址';
+
+  @override
+  String get remoteSyncAddressCopied => '遠端地址已複製';
+
+  @override
+  String get remoteSyncAddressEmpty => '暫時無法取得本機的遠端地址，請稍後再試。';
+
+  @override
+  String get remoteSyncPhaseConnecting => '正在透過遠端通道連線…';
+
+  @override
+  String get remoteSyncPairedDevices => '已配對裝置';
+
+  @override
+  String get remoteSyncNoDevices => '還沒有透過遠端同步配對的裝置。';
+
+  @override
+  String get remoteSyncEndpointRemote => '遠端（tailcat）';
+
+  @override
+  String get remoteSyncKeySection => '遠端金鑰';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      '遠端同步使用固定的遠端身分，本機遠端地址在重新啟動後維持不變。重設金鑰會更換該地址：透過遠端同步配對的裝置需要重新配對；區域網路同步不受影響。';
+
+  @override
+  String get remoteSyncResetKey => '重設金鑰';
+
+  @override
+  String get remoteSyncResetTitle => '重設遠端金鑰？';
+
+  @override
+  String get remoteSyncResetBody => '本機會取得新的遠端地址。透過遠端同步配對的裝置需要重新配對；區域網路同步不受影響。';
+
+  @override
+  String get remoteSyncResetDone => '遠端金鑰已重設';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return '重設遠端金鑰失敗：$error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => '關於遠端同步';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      '遠端同步基於 tailcat，裝置之間傳輸的資料使用 WireGuard 加密。';
+
+  @override
+  String get remoteSyncLearnMore => '瞭解更多';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      '大多數情況下，裝置會透過 P2P 打洞直連，體驗與區域網路同步幾乎無差別；少數打洞失敗時，資料會經 Tailscale 官方 DERP 伺服器中轉，內容仍為 WireGuard 加密。Cuplivo 目前沒有自建 DERP 伺服器；如你願意提供境內合規的 DERP 伺服器，歡迎聯絡我們。';
+
+  @override
+  String get remoteSyncContactUs => '聯絡我們';
+
+  @override
+  String get remoteSyncMetadataNote => 'DERP 中繼只能看到連線中繼資料，無法解密同步內容。';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress => '請輸入有效的遠端地址。';
+
+  @override
+  String get remoteSyncPairErrorUnavailable => '遠端同步目前無法使用，請稍後再試。';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return '遠端配對失敗：$error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat => '這不是遠端配對二維碼。';
+
+  @override
+  String get remoteSyncQrErrorBadVersion => '此遠端配對二維碼來自較新的版本，請先更新應用程式再試一次。';
+
+  @override
+  String get remoteSyncQrErrorMalformed => '無法讀取此遠端配對二維碼。';
 
   @override
   String get assistantHarnessDefaultName => 'DeepSeek Harness';

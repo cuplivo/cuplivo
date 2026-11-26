@@ -17970,7 +17970,7 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => 'Синхронизация по локальной сети';
+  String get settingsPageSync => 'Удобная синхронизация';
 
   @override
   String get lanSyncThisDevice => 'Это устройство';
@@ -19551,6 +19551,155 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => 'Всегда разрешать';
+
+  @override
+  String get remoteSyncTabLan => 'Синхронизация по локальной сети';
+
+  @override
+  String get remoteSyncTabRemote =>
+      'Удалённая синхронизация (экспериментальная)';
+
+  @override
+  String get remoteSyncThisDevice => 'Это устройство';
+
+  @override
+  String get remoteSyncStatusRunning => 'Работает';
+
+  @override
+  String get remoteSyncStatusStarting => 'Запуск…';
+
+  @override
+  String get remoteSyncStatusStopped => 'Не запущена';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return 'Не удалось запустить: $error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => 'Сопряжение устройства';
+
+  @override
+  String get remoteSyncPairIntro =>
+      'Два устройства в любой сети: одно показывает QR-код удалённого сопряжения, другое сканирует его или вставляет адрес.';
+
+  @override
+  String get remoteSyncShowCode => 'Показать QR удалённого сопряжения';
+
+  @override
+  String get remoteSyncEnterCode => 'Сканировать или вставить код';
+
+  @override
+  String get remoteSyncPairingCode => 'Код удалённого сопряжения';
+
+  @override
+  String get remoteSyncAddressLabel => 'Удалённый адрес';
+
+  @override
+  String get remoteSyncAddressHint =>
+      'Вставьте удалённый адрес, показанный на другом устройстве';
+
+  @override
+  String get remoteSyncAddressNote =>
+      'Удалённый адрес — длинная строка символов, поэтому проще отсканировать QR-код. Если сканирование недоступно, скопируйте адрес на другом устройстве и вставьте его здесь.';
+
+  @override
+  String get remoteSyncShowAddress => 'Показать адрес';
+
+  @override
+  String get remoteSyncCopyAddress => 'Копировать адрес';
+
+  @override
+  String get remoteSyncAddressCopied => 'Удалённый адрес скопирован';
+
+  @override
+  String get remoteSyncAddressEmpty =>
+      'Удалённый адрес этого устройства пока недоступен. Подождите немного и повторите попытку.';
+
+  @override
+  String get remoteSyncPhaseConnecting =>
+      'Подключение через удалённый туннель…';
+
+  @override
+  String get remoteSyncPairedDevices => 'Сопряжённые устройства';
+
+  @override
+  String get remoteSyncNoDevices =>
+      'Устройств, сопряжённых через удалённую синхронизацию, пока нет.';
+
+  @override
+  String get remoteSyncEndpointRemote => 'Удалённое (tailcat)';
+
+  @override
+  String get remoteSyncKeySection => 'Удалённый ключ';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      'Удалённая синхронизация использует фиксированную удалённую идентичность, поэтому удалённый адрес этого устройства не меняется между перезапусками. Сброс ключа заменяет этот адрес; устройства, сопряжённые удалённо, потребуется сопрячь заново. На синхронизацию по локальной сети это не влияет.';
+
+  @override
+  String get remoteSyncResetKey => 'Сбросить ключ';
+
+  @override
+  String get remoteSyncResetTitle => 'Сбросить удалённый ключ?';
+
+  @override
+  String get remoteSyncResetBody =>
+      'Это устройство получит новый удалённый адрес. Устройства, сопряжённые удалённо, потребуется сопрячь заново. Синхронизация по локальной сети не затрагивается.';
+
+  @override
+  String get remoteSyncResetDone => 'Удалённый ключ сброшен';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return 'Не удалось сбросить удалённый ключ: $error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => 'Об удалённой синхронизации';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      'Удалённая синхронизация построена на tailcat. Данные между устройствами передаются в зашифрованном виде с помощью WireGuard.';
+
+  @override
+  String get remoteSyncLearnMore => 'Подробнее';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      'В большинстве случаев устройства соединяются напрямую через пробивание NAT, и разницы с синхронизацией по локальной сети почти нет. Если это не удаётся, данные проходят через публичные DERP-серверы Tailscale, но по-прежнему остаются зашифрованными WireGuard. У Cuplivo пока нет собственных DERP-серверов; если вы можете предоставить соответствующий требованиям DERP-сервер, свяжитесь с нами.';
+
+  @override
+  String get remoteSyncContactUs => 'Связаться с нами';
+
+  @override
+  String get remoteSyncMetadataNote =>
+      'DERP-ретрансляторы видят только метаданные соединения и не могут расшифровать синхронизируемые данные.';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress =>
+      'Введите корректный удалённый адрес.';
+
+  @override
+  String get remoteSyncPairErrorUnavailable =>
+      'Удалённая синхронизация сейчас недоступна. Повторите попытку позже.';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return 'Не удалось выполнить удалённое сопряжение: $error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat =>
+      'Это не QR-код удалённого сопряжения.';
+
+  @override
+  String get remoteSyncQrErrorBadVersion =>
+      'Этот QR-код удалённого сопряжения создан более новой версией. Обновите приложение и повторите попытку.';
+
+  @override
+  String get remoteSyncQrErrorMalformed =>
+      'Не удалось прочитать QR-код удалённого сопряжения.';
 
   @override
   String get assistantHarnessDefaultName => 'DeepSeek Harness';

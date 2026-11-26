@@ -17678,7 +17678,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => 'LAN Sync';
+  String get settingsPageSync => 'Convenient Sync';
 
   @override
   String get lanSyncThisDevice => 'This device';
@@ -19240,6 +19240,153 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => 'Always allow';
+
+  @override
+  String get remoteSyncTabLan => 'LAN Sync';
+
+  @override
+  String get remoteSyncTabRemote => 'Remote Sync (Experimental)';
+
+  @override
+  String get remoteSyncThisDevice => 'This device';
+
+  @override
+  String get remoteSyncStatusRunning => 'Running';
+
+  @override
+  String get remoteSyncStatusStarting => 'Starting…';
+
+  @override
+  String get remoteSyncStatusStopped => 'Not running';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return 'Failed: $error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => 'Pair a device';
+
+  @override
+  String get remoteSyncPairIntro =>
+      'Devices on any network can pair: one shows the remote pairing QR code, the other scans it or pastes the address.';
+
+  @override
+  String get remoteSyncShowCode => 'Show remote pairing QR';
+
+  @override
+  String get remoteSyncEnterCode => 'Scan or paste pairing code';
+
+  @override
+  String get remoteSyncPairingCode => 'Remote pairing code';
+
+  @override
+  String get remoteSyncAddressLabel => 'Remote address';
+
+  @override
+  String get remoteSyncAddressHint =>
+      'Paste the remote address shown on the other device';
+
+  @override
+  String get remoteSyncAddressNote =>
+      'A remote address is a long string, so scanning is easier. If you cannot scan, copy it on the other device and paste it here.';
+
+  @override
+  String get remoteSyncShowAddress => 'Show address';
+
+  @override
+  String get remoteSyncCopyAddress => 'Copy address';
+
+  @override
+  String get remoteSyncAddressCopied => 'Remote address copied';
+
+  @override
+  String get remoteSyncAddressEmpty =>
+      'The remote address is not available yet. Wait a moment and try again.';
+
+  @override
+  String get remoteSyncPhaseConnecting => 'Connecting over the remote tunnel…';
+
+  @override
+  String get remoteSyncPairedDevices => 'Paired devices';
+
+  @override
+  String get remoteSyncNoDevices =>
+      'No devices are paired over remote sync yet.';
+
+  @override
+  String get remoteSyncEndpointRemote => 'Remote (tailcat)';
+
+  @override
+  String get remoteSyncKeySection => 'Remote key';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      'Remote sync uses a fixed remote identity, so this device\'s remote address stays the same across restarts. Resetting the key changes that address. Devices paired over remote sync must pair again; local network sync is not affected.';
+
+  @override
+  String get remoteSyncResetKey => 'Reset key';
+
+  @override
+  String get remoteSyncResetTitle => 'Reset the remote key?';
+
+  @override
+  String get remoteSyncResetBody =>
+      'This device gets a new remote address. Devices paired over remote sync must pair again; local network sync is not affected.';
+
+  @override
+  String get remoteSyncResetDone => 'Remote key reset';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return 'Could not reset the remote key: $error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => 'About remote sync';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      'Remote sync is built on tailcat. Everything sent between devices is encrypted with WireGuard.';
+
+  @override
+  String get remoteSyncLearnMore => 'Learn more';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      'Most of the time devices connect directly through NAT traversal, just like local network sync. When that fails, data is relayed through Tailscale\'s public DERP servers, still encrypted with WireGuard. Cuplivo does not run its own DERP servers yet; if you can provide a compliant one, please reach out.';
+
+  @override
+  String get remoteSyncContactUs => 'Contact us';
+
+  @override
+  String get remoteSyncMetadataNote =>
+      'DERP relays only see connection metadata; they cannot decrypt synced content.';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress =>
+      'Enter a valid remote address.';
+
+  @override
+  String get remoteSyncPairErrorUnavailable =>
+      'Remote sync is not available right now. Try again in a moment.';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return 'Remote pairing failed: $error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat =>
+      'This is not a remote pairing QR code.';
+
+  @override
+  String get remoteSyncQrErrorBadVersion =>
+      'This remote pairing QR code is from a newer version. Update the app and try again.';
+
+  @override
+  String get remoteSyncQrErrorMalformed =>
+      'The remote pairing QR code could not be read.';
 
   @override
   String get assistantHarnessDefaultName => 'DeepSeek Harness';

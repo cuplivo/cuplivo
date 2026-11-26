@@ -26,7 +26,7 @@ extension AppToolPresentation on AppTool {
     AppTool.translate => l10n.desktopNavTranslateTooltip,
     AppTool.storage => l10n.desktopNavStorageTooltip,
     AppTool.markdownImage => l10n.markdownExportTitle,
-    AppTool.lanSync => l10n.settingsPageLanSync,
+    AppTool.lanSync => l10n.settingsPageSync,
   };
 
   /// Opens the tool on top of the current route, for entry points that do not

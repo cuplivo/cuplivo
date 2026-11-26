@@ -63,6 +63,15 @@ dependencies:
   # Self-signed certificate generation + PEM/DER helpers for the LAN sync
   # device identity (ADR-0003): the certificate IS the device identity.
   basic_utils: ^5.8.2
+  # Tailcat (ADR-0021): Dart bindings over Tailscale's tailcat library, used by
+  # remote sync as its tunnel transport and by the ds-hu remote-access plugin to
+  # expose a remote DeepSeek Harness over a tailnet address. The fork pins the
+  # upstream commit and the one Android interface registration patch; prebuilt
+  # native libraries come from its CI release.
+  libtailcat:
+    git:
+      url: https://github.com/cuplivo/libtailcat.git
+      ref: e2384d3024c64e669498d03e4593f353758fc341
   ffi: ^2.2.0
   dio: 5.9.2
   socks5_proxy: ^2.1.1
@@ -116,15 +125,6 @@ dependencies:
   webview_flutter: ^4.13.1
   webview_flutter_android: ^4.14.1
   flutter_inappwebview: ^6.1.5
-  # tailcat client for the ds-hu remote-access plugin: a remote DeepSeek
-  # Harness exposed over a tailnet address instead of a public tokenized link.
-  # Cuplivo consumes the fork whose pins and native artifacts it controls; the
-  # package's build hook downloads the native library built by the fork's CI
-  # (no Go or NDK on a developer machine).
-  libtailcat:
-    git:
-      url: https://github.com/cuplivo/libtailcat.git
-      ref: e2384d3024c64e669498d03e4593f353758fc341
   liquid_glass_widgets:
     path: ./dependencies/liquid_glass_widgets
   webview_flutter_wkwebview: ^3.25.1

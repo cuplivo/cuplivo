@@ -468,4 +468,10 @@ master 已经合并生图 job（`3c7e9b2b9`）。它带来的不是"又一个功
 - 邮件弹窗底部三个按钮从 `Row` 改为 `Wrap`：ru/tr 在 360 px 上会溢出。
 - 新增回归 `a handoff blocked by compression keeps the queued message`，并做过反向验证：把出队改回投递前，用例失败；恢复后通过（文件 SHA256 校验一致）。
 
+**第五轮 review 修正**：
+
+- 手递手在默认设置下原本是死代码：`_historyContext` 在「自动压缩关闭且不替换已消费工具」时返回 null，而 `takeHandoff` 只挂在这个对象上，于是 `RequestHistoryContext.current` 为空、两个段边界永远读到 false。默认值正是压缩关闭，所以只有打开自动压缩的用户才被 steer 到。现在这个对象无条件创建：压缩关闭时 `beforeRequest` 一次配置读取就返回 null，`nativeCompression` 仍为 false，唯一差别是边界可以问「有没有留言」。
+- watcher 的代际收尾：await 之后重新校验 `watchGeneration`，`_finish` 再带 generation 校验一次。此前一次轮询与结算之间被 `send_message` 续聊取代的 watcher，仍会把新一段结算掉，而 `_finish` 的 `isLive` 守卫拦不住（续聊刚把 entry 重置为 live），后续真正的终态反而被丢弃。
+- 遗留：成功的手递手仍没有端到端测试（只有被拒绝的路径与 runner 单测）；需要一次带工具调用的伪造 SSE。
+
 

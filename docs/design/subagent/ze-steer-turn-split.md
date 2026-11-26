@@ -232,6 +232,12 @@ Send a message to another conversation in this delegation. Omit `job_id`, or pas
 - 邮件弹窗底部按钮改 `Wrap`（360 px ru/tr 溢出）。
 - 新增回归测试，并做了反向验证（改回旧形状 → 失败；恢复后通过，SHA256 一致）。
 
+### 13.7 第五轮 review 修正（2026-11-26）
+
+- `_historyContext` 不再因「压缩关闭 + 不替换工具」返回 null：它是 `takeHandoff` 的唯一载体，默认设置下返回 null 等于 steer 从未生效。压缩行为不变（`beforeRequest` 仍按原条件早退）。
+- `_watch` 在 await 后重新校验代际，`_finish` 也带 generation 复核：被 `send_message` 取代的旧 watcher 不再结算新一段。
+- 遗留：成功手递手没有端到端测试。
+
 ### 13.4 rebase 到深度 1–3（2026-11-26）
 
 - 简报的「不能继续委派」改为读该会话的 `levels`；深度不再写死为 1。

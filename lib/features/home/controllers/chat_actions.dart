@@ -3055,10 +3055,13 @@ class ChatActions {
     final skipAutomatic = chatService.contextCompression.consumeAutomaticSkip(
       id,
     );
-    if ((skipAutomatic || preferences.mode == AutoCompressionMode.off) &&
-        !preferences.replaceConsumedTools) {
-      return null;
-    }
+    // No early return here for "compression is off and no tool replacement":
+    // this object is also the only carrier of `takeHandoff`, so skipping it
+    // silently disabled steering for the default settings (auto-compression
+    // off, `replaceConsumedTools` false). With compression off `beforeRequest`
+    // returns null on its first config read, and `nativeCompression` stays
+    // false, so the only difference is that a step boundary can now ask
+    // whether a message arrived.
     final user = ctx.apiMessages
         .where(
           (m) =>

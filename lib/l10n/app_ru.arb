@@ -885,6 +885,7 @@
   "subagentResultFailed": "Субагент не справился",
   "subagentResultCancelled": "Субагент отменён",
   "subagentResultInterrupted": "Субагент прерван",
+  "subagentMailLabel": "Сообщение субагента",
   "subagentStripRunning": "Субагент работает ({elapsed}) {label}",
   "subagentStripRunningMany": "Субагентов работает: {count}",
   "subagentStripWaiting": "Субагент ждёт вашего ответа · {label}",

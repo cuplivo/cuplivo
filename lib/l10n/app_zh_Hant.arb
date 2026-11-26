@@ -885,6 +885,7 @@
   "subagentResultFailed": "子代理失敗",
   "subagentResultCancelled": "子代理已取消",
   "subagentResultInterrupted": "子代理已中斷",
+  "subagentMailLabel": "子代理訊息",
   "subagentStripRunning": "子代理執行中（{elapsed}）{label}",
   "subagentStripRunningMany": "{count} 個子代理正在執行",
   "subagentStripWaiting": "子代理在等你回答 · {label}",

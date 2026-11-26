@@ -180,8 +180,8 @@ whose content is the content carry), the merge (`c0127cbe9`), and the litter (`1
 | 1 | identity | 1 + docs 18, 19, 22, 23, 25, 26, 57 |
 | 2 | baseline-repair | 2, 20, 21, 24, 44 + e2e 33, 34 |
 | 3 | recycle | 3 |
-| 4 | sync-infrastructure-lan | 4, 14, 15, 45, 30, 31, 38, 39, 40, 41, 49 + memory 27 |
-| 5 | sync-bridge-recycle | 5, 28 |
+| 4 | sync-infrastructure-lan | 4, **5**, 14, 15, 45, 30, 31, 38, 39, 40, 41, 49 + memory 27 |
+| 5 | recycle-documents | 28 (its bridge half, 5, moved to unit 4) |
 | 6 | tailcat-infrastructure | 54, its tailcat paths only |
 | 7 | sync-remote | 54, every other path |
 | 8 | care | 6 + the care half of 50 |
@@ -247,13 +247,42 @@ pass at each of them. The rest may not compile; the gate belongs to the tip (rul
 
 ### Progress
 
-| unit | state |
+| | |
 | --- | --- |
-| 1 identity | not started |
-| 2 baseline-repair | not started |
-| 3 to 18 | not started |
-| reformat | not started |
-| proof + gates | not started |
+| done | `rebase/series-18-base`, 18 commits above `c2b48958d` |
+| tree | `git diff --quiet master <tip-1>` exits 0 — the eighteen replay master byte for byte |
+| ancestry | `c2b48958d` is still an ancestor |
+| gates at the tip | `dart analyze --fatal-infos` clean, `dart format` 0 changed over 2890 files, l10n 0 pending in all four locales |
+| reformat | **not needed**: the pinned formatter changes nothing, because `bbf2b9b89`'s effect arrived inside the units it reformatted |
+
+### What the pass actually did, against this plan
+
+The plan was written before the code was read, and six things turned out differently. They are
+recorded here because the commit messages that carry them are spread over eighteen subjects.
+
+1. **The baseline was wrong.** This document says "57 commits above `c2b48958d`"; the line was
+   **60**. Three records commits (`0aaaf4d89`, `91f62b9fa`, `30e90438f`) sit above `63eb2f517`, and
+   the first build of the series reproduced `63eb2f517` — losing this very document. Unit 1 now
+   carries it, which is why the assembly is reproducible from the tree.
+2. **`ca9f1c5c6` belongs to unit 4, not unit 5.** It is position 5, and it is the commit that
+   introduces `_announcementKills` and the `land()` shape that `7aeff339d` refactors. Without it
+   every hunk of that refactor lands on code that does not exist. Unit 5 is `246e06a60` alone.
+3. **`ios/Runner/Info.plist` belongs to unit 2.** Its location usage strings are what the l10n
+   gate fingerprints, and unit 2 cannot pass that gate without them.
+4. **The translate shrink is a re-base step, not a compression one.** Dropping `bn` here would make
+   the tree proof unreachable, so the unit replays whole.
+5. **The litter is excluded, not deleted.** `1537b1597` does not replay; unit 18 simply never adds
+   the two paths it removed.
+6. **The conflict rule was wrong, and the tip proof caught it.** Resolving a conflict by "take the
+   incoming side" is correct only when the incoming side is the later one — and after unit 4's fold
+   imported position-30 content, several later units met an *older* incoming commit. Twenty-four
+   paths lost 459 lines (three whole tests among them) and `pubspec.yaml` gained `libtailcat`
+   twice. They are restored in unit 18, which is where the correction had to go once seven units
+   were already built; the rule that would have avoided it is to compare positions, not sides.
+
+The lesson for the next pass is the last one: a fold that crosses another unit's refactor makes
+"theirs" the older side, and only the tip diff will say so.
+
 
 ## 5. Where the pauses will be
 

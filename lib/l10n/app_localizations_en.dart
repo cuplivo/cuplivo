@@ -19329,4 +19329,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantHarnessTailcatOpening => 'Opening the tailcat tunnel…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'Scan QR code';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'This device\'s public key (allow-list)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Add this key under Remote access → Security in DeepSeek Harness to allow only the devices you list. Without an allow-list, the address alone is enough.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Preparing this device\'s key…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Could not prepare this device\'s key.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Public key copied';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Remote access through the plugin. Install @ds-hu/dsh-tailcat-remote on the DeepSeek Harness and Cuplivo can open its WebUI without exposing a port.';
 }

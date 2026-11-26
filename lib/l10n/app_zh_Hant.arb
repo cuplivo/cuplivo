@@ -5606,5 +5606,12 @@
   "assistantHarnessTailcatInvalidAddress": "填寫「遠端存取」頁面上顯示的 tailcat 位址或配對指令。",
   "assistantHarnessTailcatUnavailable": "無法建立 tailcat 隧道，請檢查位址和網路。",
   "assistantHarnessTailcatUnsupported": "目前平台不支援 tailcat 連線。",
-  "assistantHarnessTailcatOpening": "正在建立 tailcat 隧道…"
+  "assistantHarnessTailcatOpening": "正在建立 tailcat 隧道…",
+  "assistantHarnessTailcatScanButton": "掃描 QR Code",
+  "assistantHarnessTailcatKeyLabel": "本機公鑰（白名單）",
+  "assistantHarnessTailcatKeyHelper": "在 DeepSeek Harness 的「Remote access → Security」加入此公鑰，即可只允許清單中的裝置連線；未加入白名單時僅憑位址即可連線。",
+  "assistantHarnessTailcatKeyPreparing": "正在準備本機公鑰…",
+  "assistantHarnessTailcatKeyFailed": "無法準備本機公鑰。",
+  "assistantHarnessTailcatKeyCopied": "公鑰已複製",
+  "assistantHarnessTailcatPluginNote": "透過外掛即可遠端存取：只需在 DeepSeek Harness 上安裝 @ds-hu/dsh-tailcat-remote，Cuplivo 就能開啟它的 WebUI，無需對外開放連接埠。"
 }

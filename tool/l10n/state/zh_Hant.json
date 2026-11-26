@@ -5606,5 +5606,12 @@
   "assistantHarnessTailcatInvalidAddress": "e639f048a2761b5af9086af78e81518ad1de189ae100e53174abb8bd4dc32278",
   "assistantHarnessTailcatUnavailable": "e460cf052289977737e0c82b32ce639484a0d37bf4ea19048fbd06c0ca8cf068",
   "assistantHarnessTailcatUnsupported": "e2eb824c906c75b327bb489c66353d04c3882bc16a2fa3aecc6f32ad47cc02f0",
-  "assistantHarnessTailcatOpening": "5c054982e455daa3237a41f581e4d1a6951709fa8df08f1b7e2e1b8c5af3e25c"
+  "assistantHarnessTailcatOpening": "5c054982e455daa3237a41f581e4d1a6951709fa8df08f1b7e2e1b8c5af3e25c",
+  "assistantHarnessTailcatScanButton": "3b803bd2c36fa8a74577567375a8ce91ebf84ee969214f2829d8275a2d0f5d23",
+  "assistantHarnessTailcatKeyLabel": "2fbab5c0f6c25ae365f91e1555734683c6b9ac77bb2f651e757b5eb84369de3d",
+  "assistantHarnessTailcatKeyHelper": "bd3863339f3fb3834b82831e6b01477acfce3ec2560d5f913e0453a87beffdcc",
+  "assistantHarnessTailcatKeyPreparing": "dd0f547ad3e4d0a0200e29e428ee74a865366ded5c7abe18ec887853e82d269c",
+  "assistantHarnessTailcatKeyFailed": "bcc1c8015e8627deb401976926ac81ae9511bd3182122803c61ab5985eff6cd1",
+  "assistantHarnessTailcatKeyCopied": "0659312635a8ee749f29add5157afb18272f79432ebe74949d3b200bd85898d3",
+  "assistantHarnessTailcatPluginNote": "3bd6492de212cab854849840eaa15322e40861f8ad7ee05d1046bf4ecfb237bf"
 }

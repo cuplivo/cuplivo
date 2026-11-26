@@ -5606,5 +5606,12 @@
   "assistantHarnessTailcatInvalidAddress": "Введите адрес tailcat или команду сопряжения, показанные в разделе «Удалённый доступ».",
   "assistantHarnessTailcatUnavailable": "Не удалось открыть туннель tailcat. Проверьте адрес и сеть.",
   "assistantHarnessTailcatUnsupported": "Подключения tailcat не поддерживаются на этой платформе.",
-  "assistantHarnessTailcatOpening": "Открываем туннель tailcat…"
+  "assistantHarnessTailcatOpening": "Открываем туннель tailcat…",
+  "assistantHarnessTailcatScanButton": "Сканировать QR-код",
+  "assistantHarnessTailcatKeyLabel": "Публичный ключ этого устройства (список разрешённых)",
+  "assistantHarnessTailcatKeyHelper": "Добавьте этот ключ в разделе «Remote access → Security» DeepSeek Harness, чтобы подключались только устройства из списка. Если список пуст, достаточно адреса.",
+  "assistantHarnessTailcatKeyPreparing": "Подготовка ключа этого устройства…",
+  "assistantHarnessTailcatKeyFailed": "Не удалось подготовить ключ этого устройства.",
+  "assistantHarnessTailcatKeyCopied": "Публичный ключ скопирован",
+  "assistantHarnessTailcatPluginNote": "Удалённый доступ через плагин. Установите @ds-hu/dsh-tailcat-remote на DeepSeek Harness, и Cuplivo сможет открыть его WebUI, не открывая порты."
 }

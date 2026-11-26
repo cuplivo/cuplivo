@@ -18731,4 +18731,27 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get assistantHarnessTailcatOpening => 'tailcat 터널을 여는 중…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'QR 코드 스캔';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '이 기기의 공개 키 (허용 목록)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'DeepSeek Harness의 \"Remote access → Security\"에서 이 공개 키를 추가하면 목록에 있는 기기만 연결할 수 있습니다. 허용 목록을 비워 두면 주소만으로도 연결됩니다.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '이 기기의 키를 준비하는 중…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '이 기기의 키를 준비하지 못했습니다.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '공개 키를 복사했습니다';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '플러그인을 통한 원격 접속입니다. DeepSeek Harness에 @ds-hu/dsh-tailcat-remote를 설치하면 포트를 열지 않고도 Cuplivo에서 WebUI를 열 수 있습니다.';
 }

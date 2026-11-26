@@ -18,11 +18,12 @@ import 'harness_tailcat_tunnel.dart';
 /// results are the answer to "is it connected", while this map is only "what is
 /// running".
 class HarnessTailcatTunnels {
-  HarnessTailcatTunnels({HarnessTailcatDialer Function(String address)? dialer})
+  HarnessTailcatTunnels({required HarnessTailcatDialerFactory dialer})
     : _dialerFactory = dialer;
 
-  /// Test seam: the dialer a new tunnel should use (production: libtailcat).
-  final HarnessTailcatDialer Function(String address)? _dialerFactory;
+  /// The seam between every tunnel here and libtailcat (production: a client
+  /// presenting this install's identity; tests: a fake).
+  final HarnessTailcatDialerFactory _dialerFactory;
 
   final Map<String, HarnessTailcatTunnel> _open =
       <String, HarnessTailcatTunnel>{};

@@ -18290,6 +18290,29 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '扫描二维码';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本机公钥（白名单）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「远程访问 → 安全」里添加此公钥，即可只允许列表中的设备连接；不添加白名单时仅凭地址即可连接。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在准备本机公钥…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '无法准备本机公钥。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公钥已复制';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '通过插件即可远程访问：只需在 DeepSeek Harness 上安装 @ds-hu/dsh-tailcat-remote，Cuplivo 就能打开它的 WebUI，无需暴露端口。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -36578,6 +36601,29 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '扫描二维码';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本机公钥（白名单）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「远程访问 → 安全」里添加此公钥，即可只允许列表中的设备连接；不添加白名单时仅凭地址即可连接。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在准备本机公钥…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '无法准备本机公钥。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公钥已复制';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '通过插件即可远程访问：只需在 DeepSeek Harness 上安装 @ds-hu/dsh-tailcat-remote，Cuplivo 就能打开它的 WebUI，无需暴露端口。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -54888,4 +54934,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '掃描 QR Code';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本機公鑰（白名單）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「Remote access → Security」加入此公鑰，即可只允許清單中的裝置連線；未加入白名單時僅憑位址即可連線。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在準備本機公鑰…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '無法準備本機公鑰。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公鑰已複製';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '透過外掛即可遠端存取：只需在 DeepSeek Harness 上安裝 @ds-hu/dsh-tailcat-remote，Cuplivo 就能開啟它的 WebUI，無需對外開放連接埠。';
 }

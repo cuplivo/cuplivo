@@ -19642,4 +19642,30 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get assistantHarnessTailcatOpening => 'Открываем туннель tailcat…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'Сканировать QR-код';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'Публичный ключ этого устройства (список разрешённых)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Добавьте этот ключ в разделе «Remote access → Security» DeepSeek Harness, чтобы подключались только устройства из списка. Если список пуст, достаточно адреса.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Подготовка ключа этого устройства…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Не удалось подготовить ключ этого устройства.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Публичный ключ скопирован';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Удалённый доступ через плагин. Установите @ds-hu/dsh-tailcat-remote на DeepSeek Harness, и Cuplivo сможет открыть его WebUI, не открывая порты.';
 }

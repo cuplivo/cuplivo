@@ -376,6 +376,20 @@ void main() {
       expect(find.byKey(const Key('harness-tailcat-field')), findsOneWidget);
       expect(find.byKey(const Key('harness-connected-status')), findsOneWidget);
       expect(find.text(l10n.assistantHarnessConnected), findsWidgets);
+      // The plugin note and the scan affordance sit above the address field.
+      expect(find.text(l10n.assistantHarnessTailcatPluginNote), findsOneWidget);
+      expect(find.byKey(const Key('harness-tailcat-scan')), findsOneWidget);
+      // The client public key is the allow-list half of this connection: it is
+      // prepared and shown next to the field.
+      await pumpUntil(
+        tester,
+        () => find
+            .byKey(const Key('harness-tailcat-public-key'))
+            .evaluate()
+            .isNotEmpty,
+        maxFrames: 300,
+      );
+      expect(find.byKey(const Key('harness-tailcat-copy-key')), findsOneWidget);
       // The stored tailcat address is a capability: it must not be rendered.
       final renderedCredentials = tester
           .widgetList<EditableText>(find.byType(EditableText))
@@ -498,6 +512,20 @@ void main() {
         find.text(l10n.assistantHarnessTailcatAddressHelper),
         findsOneWidget,
       );
+      expect(find.text(l10n.assistantHarnessTailcatPluginNote), findsOneWidget);
+      // The Android build is the one with a camera, so it offers the scan.
+      expect(find.byKey(const Key('harness-tailcat-scan')), findsOneWidget);
+      // The identity is prepared lazily for the tailcat form; the public key it
+      // shows is the one the tunnel would present to a server allow-list.
+      await pumpUntil(
+        tester,
+        () => find
+            .byKey(const Key('harness-tailcat-public-key'))
+            .evaluate()
+            .isNotEmpty,
+        maxFrames: 300,
+      );
+      expect(find.byKey(const Key('harness-tailcat-copy-key')), findsOneWidget);
       await _capture(tester, binding, 'harness_07_tailcat_settings');
       await tester.enterText(
         find.byKey(const Key('harness-tailcat-field')),

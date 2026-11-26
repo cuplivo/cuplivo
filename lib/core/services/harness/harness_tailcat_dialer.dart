@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:libtailcat/libtailcat.dart';
@@ -48,15 +49,32 @@ abstract interface class HarnessTailcatDialer {
   Future<void> close();
 }
 
-/// Creates the production dialer for [address]: one libtailcat client.
+/// Builds the dialer for one tunnel.
+///
+/// Production supplies the install's stable identity so a server allow-list can
+/// name it; tests supply a fake returning without `dart:ffi`. A future is
+/// allowed because loading the persisted identity is I/O.
+typedef HarnessTailcatDialerFactory =
+    FutureOr<HarnessTailcatDialer> Function(String address);
+
+/// Creates the production dialer for [address]: one libtailcat client that
+/// presents [privateKey].
 ///
 /// Throws [HarnessTailcatTunnelException] when the address turns out to be
 /// malformed at the library level (the shape check before this only rejects
 /// obvious non-addresses).
-HarnessTailcatDialer createHarnessTailcatDialer(String address) {
+HarnessTailcatDialer createHarnessTailcatDialer(
+  String address, {
+  required TailcatPrivateKey privateKey,
+}) {
   try {
     return _LibTailcatDialer(
-      TailcatClient(TailcatClientConfig(address: TailcatAddress(address))),
+      TailcatClient(
+        TailcatClientConfig(
+          address: TailcatAddress(address),
+          privateKey: privateKey,
+        ),
+      ),
     );
   } on HarnessTailcatTunnelException {
     rethrow;

@@ -5606,5 +5606,12 @@
   "assistantHarnessTailcatInvalidAddress": "Uzaktan erişim bölümünde gösterilen tailcat adresini veya eşleştirme komutunu girin.",
   "assistantHarnessTailcatUnavailable": "tailcat tüneli açılamadı. Adresi ve ağı kontrol edin.",
   "assistantHarnessTailcatUnsupported": "tailcat bağlantıları bu platformda desteklenmiyor.",
-  "assistantHarnessTailcatOpening": "tailcat tüneli açılıyor…"
+  "assistantHarnessTailcatOpening": "tailcat tüneli açılıyor…",
+  "assistantHarnessTailcatScanButton": "QR kodunu tara",
+  "assistantHarnessTailcatKeyLabel": "Bu cihazın genel anahtarı (izin listesi)",
+  "assistantHarnessTailcatKeyHelper": "Yalnızca listedeki cihazların bağlanabilmesi için bu anahtarı DeepSeek Harness'ta \"Remote access → Security\" bölümüne ekleyin. İzin listesi boşsa adres tek başına yeterlidir.",
+  "assistantHarnessTailcatKeyPreparing": "Bu cihazın anahtarı hazırlanıyor…",
+  "assistantHarnessTailcatKeyFailed": "Bu cihazın anahtarı hazırlanamadı.",
+  "assistantHarnessTailcatKeyCopied": "Genel anahtar kopyalandı",
+  "assistantHarnessTailcatPluginNote": "Eklenti üzerinden uzaktan erişim. DeepSeek Harness'a @ds-hu/dsh-tailcat-remote kurun; Cuplivo bir bağlantı noktası açmadan WebUI'sini açabilir."
 }

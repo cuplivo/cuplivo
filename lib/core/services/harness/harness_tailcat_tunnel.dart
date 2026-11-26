@@ -36,14 +36,15 @@ class HarnessTailcatTunnel {
 
   /// Opens [address]'s tunnel and starts accepting local connections.
   ///
-  /// [dialerFactory] is the test seam; production leaves it null and gets the
-  /// libtailcat client. Throws [HarnessTailcatTunnelException] when the address
-  /// is not one, the platform has no client, or loopback cannot be bound.
+  /// [dialerFactory] is the seam between the tunnel and libtailcat: production
+  /// builds a client presenting this install's identity, tests build a fake.
+  /// Throws [HarnessTailcatTunnelException] when the address is not one, the
+  /// platform has no client, or loopback cannot be bound.
   static Future<HarnessTailcatTunnel> open(
     String address, {
     int remotePort = kHarnessTailcatDefaultPort,
     Duration connectTimeout = kHarnessTailcatConnectTimeout,
-    HarnessTailcatDialer Function(String address)? dialerFactory,
+    required HarnessTailcatDialerFactory dialerFactory,
   }) async {
     if (!looksLikeHarnessTailcatAddress(address)) {
       throw const HarnessTailcatTunnelException(
@@ -59,7 +60,7 @@ class HarnessTailcatTunnel {
     HarnessTailcatDialer? dialer;
     ServerSocket? server;
     try {
-      dialer = (dialerFactory ?? createHarnessTailcatDialer)(address);
+      dialer = await dialerFactory(address);
       server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     } catch (error) {
       await dialer?.close();

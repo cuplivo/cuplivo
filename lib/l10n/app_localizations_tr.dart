@@ -19425,4 +19425,30 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get assistantHarnessTailcatOpening => 'tailcat tüneli açılıyor…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'QR kodunu tara';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'Bu cihazın genel anahtarı (izin listesi)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Yalnızca listedeki cihazların bağlanabilmesi için bu anahtarı DeepSeek Harness\'ta \"Remote access → Security\" bölümüne ekleyin. İzin listesi boşsa adres tek başına yeterlidir.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Bu cihazın anahtarı hazırlanıyor…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Bu cihazın anahtarı hazırlanamadı.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Genel anahtar kopyalandı';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Eklenti üzerinden uzaktan erişim. DeepSeek Harness\'a @ds-hu/dsh-tailcat-remote kurun; Cuplivo bir bağlantı noktası açmadan WebUI\'sini açabilir.';
 }

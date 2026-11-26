@@ -7029,5 +7029,12 @@
   "assistantHarnessTailcatInvalidAddress": "填写「远程访问」页上显示的 tailcat 地址或配对命令。",
   "assistantHarnessTailcatUnavailable": "无法建立 tailcat 隧道，请检查地址和网络。",
   "assistantHarnessTailcatUnsupported": "当前平台不支持 tailcat 连接。",
-  "assistantHarnessTailcatOpening": "正在建立 tailcat 隧道…"
+  "assistantHarnessTailcatOpening": "正在建立 tailcat 隧道…",
+  "assistantHarnessTailcatScanButton": "扫描二维码",
+  "assistantHarnessTailcatKeyLabel": "本机公钥（白名单）",
+  "assistantHarnessTailcatKeyHelper": "在 DeepSeek Harness 的「远程访问 → 安全」里添加此公钥，即可只允许列表中的设备连接；不添加白名单时仅凭地址即可连接。",
+  "assistantHarnessTailcatKeyPreparing": "正在准备本机公钥…",
+  "assistantHarnessTailcatKeyFailed": "无法准备本机公钥。",
+  "assistantHarnessTailcatKeyCopied": "公钥已复制",
+  "assistantHarnessTailcatPluginNote": "通过插件即可远程访问：只需在 DeepSeek Harness 上安装 @ds-hu/dsh-tailcat-remote，Cuplivo 就能打开它的 WebUI，无需暴露端口。"
 }

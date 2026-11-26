@@ -5606,5 +5606,12 @@
   "assistantHarnessTailcatInvalidAddress": "'원격 액세스'에 표시된 tailcat 주소 또는 페어링 명령을 입력하세요.",
   "assistantHarnessTailcatUnavailable": "tailcat 터널을 열지 못했습니다. 주소와 네트워크를 확인하세요.",
   "assistantHarnessTailcatUnsupported": "이 플랫폼은 tailcat 연결을 지원하지 않습니다.",
-  "assistantHarnessTailcatOpening": "tailcat 터널을 여는 중…"
+  "assistantHarnessTailcatOpening": "tailcat 터널을 여는 중…",
+  "assistantHarnessTailcatScanButton": "QR 코드 스캔",
+  "assistantHarnessTailcatKeyLabel": "이 기기의 공개 키 (허용 목록)",
+  "assistantHarnessTailcatKeyHelper": "DeepSeek Harness의 \"Remote access → Security\"에서 이 공개 키를 추가하면 목록에 있는 기기만 연결할 수 있습니다. 허용 목록을 비워 두면 주소만으로도 연결됩니다.",
+  "assistantHarnessTailcatKeyPreparing": "이 기기의 키를 준비하는 중…",
+  "assistantHarnessTailcatKeyFailed": "이 기기의 키를 준비하지 못했습니다.",
+  "assistantHarnessTailcatKeyCopied": "공개 키를 복사했습니다",
+  "assistantHarnessTailcatPluginNote": "플러그인을 통한 원격 접속입니다. DeepSeek Harness에 @ds-hu/dsh-tailcat-remote를 설치하면 포트를 열지 않고도 Cuplivo에서 WebUI를 열 수 있습니다."
 }

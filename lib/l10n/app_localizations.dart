@@ -33773,6 +33773,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Opening the tailcat tunnel…'**
   String get assistantHarnessTailcatOpening;
+
+  /// Label of the button that opens the camera to scan the ds-hu plugin pairing QR code; the scan fills the tailcat address field and confirms it.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR code'**
+  String get assistantHarnessTailcatScanButton;
+
+  /// Heading of the card that shows this device's tailcat public key, the value a user adds to the ds-hu plugin client allow-list.
+  ///
+  /// In en, this message translates to:
+  /// **'This device\'s public key (allow-list)'**
+  String get assistantHarnessTailcatKeyLabel;
+
+  /// Helper text below the client public key: where to add it in the ds-hu plugin, and that an empty allow-list admits any address holder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this key under Remote access → Security in DeepSeek Harness to allow only the devices you list. Without an allow-list, the address alone is enough.'**
+  String get assistantHarnessTailcatKeyHelper;
+
+  /// Loading message while this device's tailcat identity is generated or read from disk; the trailing ellipsis indicates an ongoing action.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing this device\'s key…'**
+  String get assistantHarnessTailcatKeyPreparing;
+
+  /// Error shown when this device's tailcat identity could not be prepared (for example the app support directory is unavailable).
+  ///
+  /// In en, this message translates to:
+  /// **'Could not prepare this device\'s key.'**
+  String get assistantHarnessTailcatKeyFailed;
+
+  /// Confirmation snackbar shown after the client public key was placed on the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Public key copied'**
+  String get assistantHarnessTailcatKeyCopied;
+
+  /// Note under the method selector explaining that the ds-hu plugin provides remote access to the DeepSeek Harness WebUI and only has to be installed on the Harness host.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote access through the plugin. Install @ds-hu/dsh-tailcat-remote on the DeepSeek Harness and Cuplivo can open its WebUI without exposing a port.'**
+  String get assistantHarnessTailcatPluginNote;
 }
 
 class _AppLocalizationsDelegate

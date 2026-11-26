@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +10,7 @@ import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/harness_connection_provider.dart';
 import '../../../core/services/haptics.dart';
 import '../../../core/services/harness/harness_connection_probe.dart';
+import '../../../core/services/harness/harness_tailcat_identity.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -18,6 +20,7 @@ import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
 import '../../home/controllers/chat_actions.dart';
 import '../../home/widgets/assistant_avatar.dart';
+import '../../scan/pages/qr_scan_page.dart';
 
 /// Connection settings for one [AssistantKind.deepSeekHarness] assistant: its
 /// name, the way it reaches the remote instance, and that way's credential.
@@ -36,9 +39,17 @@ import '../../home/widgets/assistant_avatar.dart';
 /// address are both capabilities, and a capability is not something to render
 /// on a screen that may be captured.
 class HarnessSettingsPage extends StatefulWidget {
-  const HarnessSettingsPage({super.key, required this.assistantId});
+  const HarnessSettingsPage({
+    super.key,
+    required this.assistantId,
+    this.scanQrCode,
+  });
 
   final String assistantId;
+
+  /// Test seam for the QR scanner: production leaves it null and pushes the
+  /// shared [QrScanPage]; widget tests return a payload without a camera.
+  final Future<String?> Function(BuildContext context)? scanQrCode;
 
   @override
   State<HarnessSettingsPage> createState() => _HarnessSettingsPageState();
@@ -61,6 +72,13 @@ class _HarnessSettingsPageState extends State<HarnessSettingsPage> {
   bool _probeOnOpenScheduled = false;
   bool _autoPopScheduled = false;
 
+  /// This install's tailcat identity: the public half is what the user adds to
+  /// the ds-hu plugin's allow-list, the private half is what the tunnel dials
+  /// with. Loaded lazily, the first time the tailcat method is on screen.
+  HarnessTailcatIdentity? _identity;
+  bool _identityRequested = false;
+  bool _identityFailed = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -72,7 +90,31 @@ class _HarnessSettingsPageState extends State<HarnessSettingsPage> {
     _seeded = true;
     _nameCtrl.text = assistant.name;
     _mode = assistant.harnessConnectionMode;
+    if (_mode == HarnessConnectionMode.tailcat) _ensureIdentityLoaded();
     _scheduleStoredConnectionProbe();
+  }
+
+  /// Starts the one-time identity load (or a retry after a failure).
+  void _ensureIdentityLoaded({bool retry = false}) {
+    if (_identityRequested && !retry) return;
+    _identityRequested = true;
+    if (retry) setState(() => _identityFailed = false);
+    final store = context.read<HarnessTailcatIdentityStore>();
+    unawaited(
+      store
+          .load()
+          .then((identity) {
+            if (!mounted) return;
+            setState(() {
+              _identity = identity;
+              _identityFailed = false;
+            });
+          })
+          .catchError((Object _) {
+            if (!mounted) return;
+            setState(() => _identityFailed = true);
+          }),
+    );
   }
 
   /// A saved connection is re-proved every time the page opens: a launch token
@@ -201,12 +243,62 @@ class _HarnessSettingsPageState extends State<HarnessSettingsPage> {
                   connected: connected,
                   onFieldChanged: _onConnectionEdit,
                   onConfirm: _confirmConnection,
+                  onScan: _mode == HarnessConnectionMode.tailcat && _canScanQr
+                      ? _scanTailcat
+                      : null,
                 ),
+                if (_mode == HarnessConnectionMode.tailcat) ...[
+                  const SizedBox(height: 14),
+                  _TailcatAccessCard(
+                    l10n: l10n,
+                    identity: _identity,
+                    failed: _identityFailed,
+                    onRetry: () => _ensureIdentityLoaded(retry: true),
+                    onCopy: _copyIdentityKey,
+                  ),
+                ],
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// QR scanning is a camera feature: the platforms the app's scanner widget
+  /// covers, and never the web build.
+  static bool get _canScanQr =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  Future<void> _scanTailcat() async {
+    final scan = widget.scanQrCode;
+    final code = scan != null ? await scan(context) : await _pushScanPage();
+    if (!mounted || code == null) return;
+    final text = code.trim();
+    if (text.isEmpty) return;
+    // A scan is a paste: fill the field, drop the previous answer, and run the
+    // same prove-then-save path the confirm button runs, so an invalid code
+    // keeps its text and reports why instead of being stored.
+    _tailcatCtrl.text = text;
+    _onConnectionEdit();
+    await _confirmConnection();
+  }
+
+  Future<String?> _pushScanPage() {
+    return Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const QrScanPage()));
+  }
+
+  Future<void> _copyIdentityKey() async {
+    final identity = _identity;
+    if (identity == null) return;
+    await copyTextWithConfirmation(
+      context,
+      identity.publicKey,
+      message: AppLocalizations.of(context)!.assistantHarnessTailcatKeyCopied,
     );
   }
 
@@ -223,6 +315,7 @@ class _HarnessSettingsPageState extends State<HarnessSettingsPage> {
     if (mode == _mode) return;
     Haptics.soft();
     setState(() => _mode = mode);
+    if (mode == HarnessConnectionMode.tailcat) _ensureIdentityLoaded();
     _onConnectionEdit();
   }
 
@@ -491,6 +584,7 @@ class _ConnectionCard extends StatelessWidget {
     required this.connected,
     required this.onFieldChanged,
     required this.onConfirm,
+    required this.onScan,
   });
 
   final AppLocalizations l10n;
@@ -502,6 +596,9 @@ class _ConnectionCard extends StatelessWidget {
   final bool connected;
   final VoidCallback onFieldChanged;
   final VoidCallback onConfirm;
+
+  /// Opens the QR scanner; `null` on platforms without one.
+  final VoidCallback? onScan;
 
   @override
   Widget build(BuildContext context) {
@@ -519,6 +616,36 @@ class _ConnectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _HarnessMethodSelector(mode: mode, onChanged: onModeChanged),
+          if (!isLink) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              decoration: BoxDecoration(
+                color: context.appColors.surfaceFill,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(Lucide.Package, size: 15, color: cs.primary),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l10n.assistantHarnessTailcatPluginNote,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.35,
+                        color: cs.onSurface.withValues(alpha: 0.62),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Text(
             isLink
@@ -576,6 +703,18 @@ class _ConnectionCard extends StatelessWidget {
               color: cs.onSurface.withValues(alpha: 0.55),
             ),
           ),
+          if (!isLink && onScan != null) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IosTextButton(
+                key: const Key('harness-tailcat-scan'),
+                label: l10n.assistantHarnessTailcatScanButton,
+                icon: Lucide.Camera,
+                onPressed: onScan,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           _ConfirmButton(
             key: const Key('harness-confirm-button'),
@@ -854,6 +993,122 @@ class _ConfirmButtonState extends State<_ConfirmButton> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The client half of the ds-hu plugin's allow-list: the public key this
+/// install presents, ready to copy into the plugin's Security section.
+///
+/// The key is public by definition (the server checks it during the tailcat
+/// handshake), so unlike the address it is safe to render, copy and capture.
+class _TailcatAccessCard extends StatelessWidget {
+  const _TailcatAccessCard({
+    required this.l10n,
+    required this.identity,
+    required this.failed,
+    required this.onRetry,
+    required this.onCopy,
+  });
+
+  final AppLocalizations l10n;
+  final HarnessTailcatIdentity? identity;
+  final bool failed;
+  final VoidCallback onRetry;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final helperStyle = TextStyle(
+      fontSize: 13,
+      height: 1.35,
+      color: cs.onSurface.withValues(alpha: 0.55),
+    );
+    return SectionCard(
+      radius: 14,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.assistantHarnessTailcatKeyLabel,
+            style: TextStyle(fontSize: 16, fontWeight: AppFontWeights.emphasis),
+          ),
+          const SizedBox(height: 10),
+          if (identity == null && !failed)
+            Row(
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: cs.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    l10n.assistantHarnessTailcatKeyPreparing,
+                    style: helperStyle,
+                  ),
+                ),
+              ],
+            )
+          else if (identity == null)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.assistantHarnessTailcatKeyFailed,
+                    style: helperStyle,
+                  ),
+                ),
+                IosTextButton(
+                  key: const Key('harness-tailcat-key-retry'),
+                  label: l10n.assistantHarnessRetry,
+                  icon: Lucide.RotateCw,
+                  onPressed: onRetry,
+                ),
+              ],
+            )
+          else
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+              decoration: BoxDecoration(
+                color: context.appColors.surfaceFill,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(
+                      identity!.publicKey,
+                      key: const Key('harness-tailcat-public-key'),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  IosIconButton(
+                    key: const Key('harness-tailcat-copy-key'),
+                    icon: Lucide.Copy,
+                    size: 18,
+                    minSize: 40,
+                    semanticLabel: l10n.assistantHarnessTailcatKeyLabel,
+                    onTap: onCopy,
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 10),
+          Text(l10n.assistantHarnessTailcatKeyHelper, style: helperStyle),
+        ],
       ),
     );
   }

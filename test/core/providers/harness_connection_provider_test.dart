@@ -35,7 +35,12 @@ final class _ControllableProbe extends HarnessConnectionProbe {
 
 /// The tailcat half of the probe, controllable like [_ControllableProbe].
 final class _ControllableTailcatProbe extends HarnessTailcatProbe {
-  _ControllableTailcatProbe() : super(tunnels: HarnessTailcatTunnels());
+  _ControllableTailcatProbe()
+    : super(
+        tunnels: HarnessTailcatTunnels(
+          dialer: (_) => throw StateError('this probe never opens a tunnel'),
+        ),
+      );
 
   final List<String> requestedAddresses = <String>[];
   final List<int?> requestedPorts = <int?>[];

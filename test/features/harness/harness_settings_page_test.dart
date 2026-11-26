@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:libtailcat/libtailcat.dart';
 import 'package:provider/provider.dart';
 
 import 'package:Cuplivo/core/models/assistant.dart';
@@ -7,6 +11,7 @@ import 'package:Cuplivo/core/models/harness_tailcat_endpoint.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
 import 'package:Cuplivo/core/providers/harness_connection_provider.dart';
 import 'package:Cuplivo/core/services/harness/harness_connection_probe.dart';
+import 'package:Cuplivo/core/services/harness/harness_tailcat_identity.dart';
 import 'package:Cuplivo/features/harness/pages/harness_settings_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
@@ -16,6 +21,30 @@ import '../../support/business_test_harness.dart';
 const String _storedUrl = 'https://dsh.example.com/?token=abc';
 const String _storedTailcatAddress =
     'tcAPpXUQeEXAMPLEaddressEXAMPLEaddressEXAMPLEaddressEXAMPLE00';
+
+/// A fixed node key: 64 hex characters after the scheme, the shape the ds-hu
+/// plugin stores.
+final String _publicKey = 'nodekey:${'ab' * 32}';
+
+/// Returns a fixed identity without touching the app support directory or
+/// `dart:ffi`.
+class _FakeIdentityStore implements HarnessTailcatIdentityStore {
+  _FakeIdentityStore({this.failure});
+
+  Object? failure;
+  int loads = 0;
+
+  @override
+  Future<HarnessTailcatIdentity> load() async {
+    loads += 1;
+    final error = failure;
+    if (error != null) throw error;
+    return HarnessTailcatIdentity(
+      privateKey: const TailcatPrivateKey('private-test-key'),
+      publicKey: _publicKey,
+    );
+  }
+}
 
 /// A loaded-assistant view without the Drift-backed store.
 ///
@@ -153,6 +182,8 @@ Future<AppLocalizations> _pumpPage(
   required _InMemoryAssistantProvider assistants,
   required _StubHarnessConnections connections,
   required String assistantId,
+  _FakeIdentityStore? identityStore,
+  Future<String?> Function(BuildContext context)? scanQrCode,
 }) async {
   tester.view.physicalSize = const Size(400, 900);
   tester.view.devicePixelRatio = 1;
@@ -166,18 +197,26 @@ Future<AppLocalizations> _pumpPage(
         ChangeNotifierProvider<HarnessConnectionProvider>.value(
           value: connections,
         ),
+        Provider<HarnessTailcatIdentityStore>.value(
+          value: identityStore ?? _FakeIdentityStore(),
+        ),
       ],
       child: MaterialApp(
         locale: const Locale('en'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => AppSnackBarOverlay(child: child!),
-        home: HarnessSettingsPage(assistantId: assistantId),
+        home: HarnessSettingsPage(
+          assistantId: assistantId,
+          scanQrCode: scanQrCode,
+        ),
       ),
     ),
   );
   // First pump runs the open-time probe scheduled in didChangeDependencies;
-  // the second one paints its result.
+  // the second paints its result, the third the identity row a tailcat form
+  // loads alongside it.
+  await tester.pump();
   await tester.pump();
   await tester.pump();
   return AppLocalizations.of(tester.element(find.byType(HarnessSettingsPage)))!;
@@ -579,4 +618,176 @@ void main() {
       reason: 'one connection per assistant: the old link must not linger',
     );
   });
+
+  testWidgets('the tailcat form shows this device public key and copies it', (
+    tester,
+  ) async {
+    final seeded = await _seedHarness(tester);
+    final identityStore = _FakeIdentityStore();
+    final l10n = await _pumpPage(
+      tester,
+      assistants: seeded.assistants,
+      connections: seeded.connections,
+      assistantId: seeded.id,
+      identityStore: identityStore,
+    );
+
+    // The link form does not need a tailcat identity: the key is loaded only
+    // once the tailcat method is on screen.
+    expect(identityStore.loads, 0);
+    expect(find.byKey(const Key('harness-tailcat-public-key')), findsNothing);
+
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add(
+            (call.arguments as Map<Object?, Object?>)['text']! as String,
+          );
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('harness-method-tailcat')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(identityStore.loads, 1);
+    expect(find.byKey(const Key('harness-tailcat-public-key')), findsOneWidget);
+    expect(find.text(l10n.assistantHarnessTailcatKeyLabel), findsOneWidget);
+    expect(find.text(l10n.assistantHarnessTailcatKeyHelper), findsOneWidget);
+    final keyText = tester.widget<SelectableText>(
+      find.byKey(const Key('harness-tailcat-public-key')),
+    );
+    expect(keyText.data, _publicKey);
+
+    await tester.tap(find.byKey(const Key('harness-tailcat-copy-key')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(copied, <String>[_publicKey]);
+    expect(find.text(l10n.assistantHarnessTailcatKeyCopied), findsOneWidget);
+  });
+
+  testWidgets('a key that cannot be prepared reports it and retries', (
+    tester,
+  ) async {
+    final seeded = await _seedHarness(tester);
+    final identityStore = _FakeIdentityStore(
+      failure: const FileSystemException('disk unavailable'),
+    );
+    final l10n = await _pumpPage(
+      tester,
+      assistants: seeded.assistants,
+      connections: seeded.connections,
+      assistantId: seeded.id,
+      identityStore: identityStore,
+    );
+
+    await tester.tap(find.byKey(const Key('harness-method-tailcat')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text(l10n.assistantHarnessTailcatKeyFailed), findsOneWidget);
+    expect(find.byKey(const Key('harness-tailcat-key-retry')), findsOneWidget);
+
+    identityStore.failure = null;
+    await tester.tap(find.byKey(const Key('harness-tailcat-key-retry')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text(l10n.assistantHarnessTailcatKeyFailed), findsNothing);
+    expect(find.byKey(const Key('harness-tailcat-public-key')), findsOneWidget);
+  });
+
+  testWidgets('scanning a pairing code proves and saves the connection', (
+    tester,
+  ) async {
+    final seeded = await _seedHarness(tester);
+    // The ds-hu pairing QR carries the bare address; the peer port stays at the
+    // plugin's default.
+    const scanned = _storedTailcatAddress;
+    final l10n = await _pumpPage(
+      tester,
+      assistants: seeded.assistants,
+      connections: seeded.connections,
+      assistantId: seeded.id,
+      scanQrCode: (_) async => scanned,
+    );
+
+    await tester.tap(find.byKey(const Key('harness-method-tailcat')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const Key('harness-tailcat-scan')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('harness-tailcat-scan')));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+
+    final checked = seeded.connections.checked.single;
+    expect(checked.harnessTailcatAddress, _storedTailcatAddress);
+    expect(checked.harnessTailcatPort, kHarnessTailcatDefaultPort);
+    final stored = seeded.assistants.getById(seeded.id)!;
+    expect(stored.harnessConnectionMode, HarnessConnectionMode.tailcat);
+    expect(stored.harnessTailcatAddress, _storedTailcatAddress);
+    expect(stored.harnessTailcatPort, kHarnessTailcatDefaultPort);
+    expect(find.byKey(const Key('harness-connected-status')), findsOneWidget);
+    expect(find.text(l10n.assistantHarnessConnected), findsOneWidget);
+
+    // The scanned address is a capability: it is cleared from the field once
+    // the connection is proved and stored.
+    final tailcatField = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const Key('harness-tailcat-field')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(tailcatField.controller.text, isEmpty);
+  });
+
+  testWidgets(
+    'scanning something that is not a tailcat address stores nothing',
+    (tester) async {
+      final seeded = await _seedHarness(tester);
+      final l10n = await _pumpPage(
+        tester,
+        assistants: seeded.assistants,
+        connections: seeded.connections,
+        assistantId: seeded.id,
+        scanQrCode: (_) async => 'https://not-a-tailcat-address.example',
+      );
+
+      await tester.tap(find.byKey(const Key('harness-method-tailcat')));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('harness-tailcat-scan')));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(
+        find.text(l10n.assistantHarnessTailcatInvalidAddress),
+        findsOneWidget,
+      );
+      expect(seeded.connections.checked, isEmpty);
+      expect(
+        seeded.assistants.getById(seeded.id)!.harnessTailcatAddress,
+        isNull,
+      );
+      // The scanned text stays in the field so it can be corrected by hand.
+      expect(
+        find.text('https://not-a-tailcat-address.example'),
+        findsOneWidget,
+      );
+    },
+  );
 }

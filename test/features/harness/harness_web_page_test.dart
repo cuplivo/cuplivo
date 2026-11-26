@@ -91,7 +91,12 @@ Future<void> _pumpPage(
       providers: [
         ChangeNotifierProvider<AssistantProvider>.value(value: assistants),
         Provider<HarnessTailcatTunnels>.value(
-          value: tunnels ?? HarnessTailcatTunnels(),
+          value:
+              tunnels ??
+              HarnessTailcatTunnels(
+                dialer: (_) =>
+                    throw StateError('no tunnel expected in this case'),
+              ),
         ),
       ],
       child: MaterialApp(
@@ -268,7 +273,10 @@ void main() {
           providers: [
             ChangeNotifierProvider<AssistantProvider>.value(value: assistants),
             Provider<HarnessTailcatTunnels>(
-              create: (_) => HarnessTailcatTunnels(),
+              create: (_) => HarnessTailcatTunnels(
+                dialer: (_) =>
+                    throw StateError('no tunnel expected in this case'),
+              ),
             ),
           ],
           child: MaterialApp(
@@ -309,7 +317,10 @@ void main() {
           providers: [
             ChangeNotifierProvider<AssistantProvider>.value(value: assistants),
             Provider<HarnessTailcatTunnels>(
-              create: (_) => HarnessTailcatTunnels(),
+              create: (_) => HarnessTailcatTunnels(
+                dialer: (_) =>
+                    throw StateError('no tunnel expected in this case'),
+              ),
             ),
           ],
           child: MaterialApp(

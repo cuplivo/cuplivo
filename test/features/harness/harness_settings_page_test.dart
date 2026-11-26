@@ -675,6 +675,11 @@ void main() {
 
     expect(copied, <String>[_publicKey]);
     expect(find.text(l10n.assistantHarnessTailcatKeyCopied), findsOneWidget);
+
+    // Let the confirmation snackbar's auto-dismiss timer run out: the test
+    // binding fails a test that leaves a timer pending.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('a key that cannot be prepared reports it and retries', (
@@ -788,6 +793,11 @@ void main() {
         find.text('https://not-a-tailcat-address.example'),
         findsOneWidget,
       );
+
+      // Let the warning snackbar's auto-dismiss timer run out: the test binding
+      // fails a test that leaves a timer pending.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
     },
   );
 }

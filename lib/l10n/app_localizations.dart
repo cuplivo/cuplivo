@@ -33617,6 +33617,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Always allow'**
   String get subagentEscalationAllow;
+
+  /// Default display name of the DeepSeek Harness assistant kind, shown in assistant lists and settings. DeepSeek Harness is a product name and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness'**
+  String get assistantHarnessDefaultName;
+
+  /// Subtitle under the DeepSeek Harness assistant kind explaining that it connects to a remote DeepSeek Harness WebUI instead of a model provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote DeepSeek Harness'**
+  String get assistantHarnessRemoteSubtitle;
+
+  /// Label of the field where the user enters the access link of a DeepSeek Harness WebUI. WebUI is a product term and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the DeepSeek Harness WebUI access link'**
+  String get assistantHarnessWebUiUrlLabel;
+
+  /// Sample placeholder inside the WebUI access link field on the DeepSeek Harness settings page. It is an example URL and must be kept unchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'https://dsh-e2e.example.com'**
+  String get assistantHarnessWebUiUrlHint;
+
+  /// Helper text below the WebUI access link field explaining that the link works when DeepSeek Harness runs on the same LAN or is reachable over the internet.
+  ///
+  /// In en, this message translates to:
+  /// **'Use when DeepSeek Harness is on the same LAN or reachable over the internet.'**
+  String get assistantHarnessWebUiUrlHelper;
+
+  /// Button that confirms the entered DeepSeek Harness WebUI access link and starts checking the connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get assistantHarnessConfirm;
+
+  /// Connection status shown when the DeepSeek Harness WebUI link has been verified and the assistant can reach it.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get assistantHarnessConnected;
+
+  /// Connection status shown while the app is checking the DeepSeek Harness WebUI link; the trailing ellipsis indicates an ongoing action.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get assistantHarnessChecking;
+
+  /// Connection status message shown when connecting to DeepSeek Harness fails for an unspecified reason; asks the user to check the link and network and try again.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed. Check the link and your network, then try again.'**
+  String get assistantHarnessConnectionFailed;
+
+  /// Validation error shown when the entered text is not a usable WebUI access link; asks the user to enter a valid link.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid WebUI access link.'**
+  String get assistantHarnessInvalidUrl;
+
+  /// Validation error shown when the WebUI access link has no token; asks the user to paste the complete link printed by the dsh web command. token and dsh web are technical terms.
+  ///
+  /// In en, this message translates to:
+  /// **'The link is missing its token. Paste the full access link printed by dsh web.'**
+  String get assistantHarnessMissingToken;
+
+  /// Error shown when DeepSeek Harness refuses the access link, for example because the token is no longer valid; asks the user to check that the token is still valid.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness rejected this link. Check that its token is still valid.'**
+  String get assistantHarnessRejected;
+
+  /// Error shown when the DeepSeek Harness address cannot be reached at all; asks the user to check the address and network.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach that link. Check the address and network.'**
+  String get assistantHarnessUnreachable;
+
+  /// Error shown when the DeepSeek Harness page answers but its API does not respond, so the connection cannot be used.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness did not answer its API.'**
+  String get assistantHarnessApiUnavailable;
+
+  /// Error shown inside the embedded WebView when the DeepSeek Harness page cannot be loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load DeepSeek Harness.'**
+  String get assistantHarnessLoadFailed;
+
+  /// Message shown instead of the embedded WebView on platforms that do not support an in-app WebView; the user can open the link in a browser instead.
+  ///
+  /// In en, this message translates to:
+  /// **'Embedded WebView is not supported on this platform.'**
+  String get assistantHarnessUnsupportedPlatform;
+
+  /// Button that opens the DeepSeek Harness WebUI link in the system browser instead of the embedded WebView.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get assistantHarnessOpenInBrowser;
+
+  /// Button that retries loading or connecting to DeepSeek Harness after a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get assistantHarnessRetry;
+
+  /// Title above the two-way selector on the DeepSeek Harness settings page; chooses how the app reaches the remote instance.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection method'**
+  String get assistantHarnessConnectionMethodLabel;
+
+  /// Selector option for reaching DeepSeek Harness through the access link printed by dsh web, which works on the same LAN or over the internet.
+  ///
+  /// In en, this message translates to:
+  /// **'Public link'**
+  String get assistantHarnessMethodLink;
+
+  /// Selector option for reaching DeepSeek Harness through the ds-hu remote-access plugin, which exposes a tailnet address instead of a public link. ds-hu is a product name and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'ds-hu plugin'**
+  String get assistantHarnessMethodTailcat;
+
+  /// Label of the field where the user pastes the tailcat address (or the pairing command) shown by the ds-hu plugin. tailcat is a product name and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the tailcat address'**
+  String get assistantHarnessTailcatAddressLabel;
+
+  /// Sample placeholder inside the tailcat address field; an example pairing command. It is a command with an abbreviated address and must be kept unchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'tailcat forward tc… 18080:13080'**
+  String get assistantHarnessTailcatAddressHint;
+
+  /// Helper text below the tailcat address field explaining where the user finds the address or pairing command in the remote DeepSeek Harness interface.
+  ///
+  /// In en, this message translates to:
+  /// **'In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.'**
+  String get assistantHarnessTailcatAddressHelper;
+
+  /// Validation error shown when the pasted text is not a tailcat address or pairing command; tells the user where to find the right text.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the tailcat address or pairing command shown under Remote access.'**
+  String get assistantHarnessTailcatInvalidAddress;
+
+  /// Error shown when a tailcat address is valid but the tunnel cannot be established; asks the user to check the address and network.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the tailcat tunnel. Check the address and network.'**
+  String get assistantHarnessTailcatUnavailable;
+
+  /// Error shown when a tailcat connection is attempted on a platform without a tailcat client (the web build).
+  ///
+  /// In en, this message translates to:
+  /// **'tailcat connections are not supported on this platform.'**
+  String get assistantHarnessTailcatUnsupported;
+
+  /// Loading message inside the DeepSeek Harness page while the tailcat tunnel is being established; the trailing ellipsis indicates an ongoing action.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the tailcat tunnel…'**
+  String get assistantHarnessTailcatOpening;
+
+  /// Label of the button that opens the camera to scan the ds-hu plugin pairing QR code; the scan fills the tailcat address field and confirms it.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR code'**
+  String get assistantHarnessTailcatScanButton;
+
+  /// Heading of the card that shows this device's tailcat public key, the value a user adds to the ds-hu plugin client allow-list.
+  ///
+  /// In en, this message translates to:
+  /// **'This device\'s public key (allow-list)'**
+  String get assistantHarnessTailcatKeyLabel;
+
+  /// Helper text below the client public key: where to add it in the ds-hu plugin, and that an empty allow-list admits any address holder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this key under Remote access → Security in DeepSeek Harness to allow only the devices you list. Without an allow-list, the address alone is enough.'**
+  String get assistantHarnessTailcatKeyHelper;
+
+  /// Loading message while this device's tailcat identity is generated or read from disk; the trailing ellipsis indicates an ongoing action.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing this device\'s key…'**
+  String get assistantHarnessTailcatKeyPreparing;
+
+  /// Error shown when this device's tailcat identity could not be prepared (for example the app support directory is unavailable).
+  ///
+  /// In en, this message translates to:
+  /// **'Could not prepare this device\'s key.'**
+  String get assistantHarnessTailcatKeyFailed;
+
+  /// Confirmation snackbar shown after the client public key was placed on the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Public key copied'**
+  String get assistantHarnessTailcatKeyCopied;
+
+  /// Note under the method selector explaining that the ds-hu plugin provides remote access to the DeepSeek Harness WebUI and only has to be installed on the Harness host.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote access through the plugin. Install @ds-hu/dsh-tailcat-remote on the DeepSeek Harness and Cuplivo can open its WebUI without exposing a port.'**
+  String get assistantHarnessTailcatPluginNote;
 }
 
 class _AppLocalizationsDelegate

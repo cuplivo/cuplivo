@@ -19335,4 +19335,128 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => 'Her zaman izin ver';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => 'Uzak DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'DeepSeek Harness WebUI erişim bağlantısını girin';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'DeepSeek Harness aynı LAN\'dayken veya internet üzerinden erişilebildiğinde kullanın.';
+
+  @override
+  String get assistantHarnessConfirm => 'Onayla';
+
+  @override
+  String get assistantHarnessConnected => 'Bağlandı';
+
+  @override
+  String get assistantHarnessChecking => 'Bağlanıyor…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      'Bağlantı başarısız. Bağlantı adresini ve ağınızı kontrol edip yeniden deneyin.';
+
+  @override
+  String get assistantHarnessInvalidUrl =>
+      'Geçerli bir WebUI erişim bağlantısı girin.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      'Bağlantıda token eksik. dsh web\'in yazdırdığı tam erişim bağlantısını yapıştırın.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness bu bağlantıyı reddetti. Token\'ın hâlâ geçerli olup olmadığını kontrol edin.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      'Bu bağlantıya ulaşılamadı. Adresi ve ağınızı kontrol edin.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness, API\'sine yanıt vermedi.';
+
+  @override
+  String get assistantHarnessLoadFailed => 'DeepSeek Harness yüklenemedi.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      'Bu platformda gömülü WebView desteklenmiyor.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => 'Tarayıcıda Aç';
+
+  @override
+  String get assistantHarnessRetry => 'Yeniden dene';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Bağlantı yöntemi';
+
+  @override
+  String get assistantHarnessMethodLink => 'Genel bağlantı';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu eklentisi';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'tailcat adresini girin';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'DeepSeek Harness kenar çubuğunda Uzaktan erişim bölümünü açın ve tailcat adresini veya eşleştirme komutunu kopyalayın.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Uzaktan erişim bölümünde gösterilen tailcat adresini veya eşleştirme komutunu girin.';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'tailcat tüneli açılamadı. Adresi ve ağı kontrol edin.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'tailcat bağlantıları bu platformda desteklenmiyor.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'tailcat tüneli açılıyor…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'QR kodunu tara';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'Bu cihazın genel anahtarı (izin listesi)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Yalnızca listedeki cihazların bağlanabilmesi için bu anahtarı DeepSeek Harness\'ta \"Remote access → Security\" bölümüne ekleyin. İzin listesi boşsa adres tek başına yeterlidir.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Bu cihazın anahtarı hazırlanıyor…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Bu cihazın anahtarı hazırlanamadı.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Genel anahtar kopyalandı';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Eklenti üzerinden uzaktan erişim. DeepSeek Harness\'a @ds-hu/dsh-tailcat-remote kurun; Cuplivo bir bağlantı noktası açmadan WebUI\'sini açabilir.';
 }

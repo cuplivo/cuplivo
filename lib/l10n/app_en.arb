@@ -24842,5 +24842,145 @@
   "subagentEscalationAllow": "Always allow",
   "@subagentEscalationAllow": {
     "description": "Escalation policy: do not ask, but only up to what the delegating conversation already allows."
+  },
+  "assistantHarnessDefaultName": "DeepSeek Harness",
+  "@assistantHarnessDefaultName": {
+    "description": "Default display name of the DeepSeek Harness assistant kind, shown in assistant lists and settings. DeepSeek Harness is a product name and is not translated."
+  },
+  "assistantHarnessRemoteSubtitle": "Remote DeepSeek Harness",
+  "@assistantHarnessRemoteSubtitle": {
+    "description": "Subtitle under the DeepSeek Harness assistant kind explaining that it connects to a remote DeepSeek Harness WebUI instead of a model provider."
+  },
+  "assistantHarnessWebUiUrlLabel": "Enter the DeepSeek Harness WebUI access link",
+  "@assistantHarnessWebUiUrlLabel": {
+    "description": "Label of the field where the user enters the access link of a DeepSeek Harness WebUI. WebUI is a product term and is not translated."
+  },
+  "assistantHarnessWebUiUrlHint": "https://dsh-e2e.example.com",
+  "@assistantHarnessWebUiUrlHint": {
+    "description": "Sample placeholder inside the WebUI access link field on the DeepSeek Harness settings page. It is an example URL and must be kept unchanged."
+  },
+  "assistantHarnessWebUiUrlHelper": "Use when DeepSeek Harness is on the same LAN or reachable over the internet.",
+  "@assistantHarnessWebUiUrlHelper": {
+    "description": "Helper text below the WebUI access link field explaining that the link works when DeepSeek Harness runs on the same LAN or is reachable over the internet."
+  },
+  "assistantHarnessConfirm": "Confirm",
+  "@assistantHarnessConfirm": {
+    "description": "Button that confirms the entered DeepSeek Harness WebUI access link and starts checking the connection."
+  },
+  "assistantHarnessConnected": "Connected",
+  "@assistantHarnessConnected": {
+    "description": "Connection status shown when the DeepSeek Harness WebUI link has been verified and the assistant can reach it."
+  },
+  "assistantHarnessChecking": "Connecting…",
+  "@assistantHarnessChecking": {
+    "description": "Connection status shown while the app is checking the DeepSeek Harness WebUI link; the trailing ellipsis indicates an ongoing action."
+  },
+  "assistantHarnessConnectionFailed": "Connection failed. Check the link and your network, then try again.",
+  "@assistantHarnessConnectionFailed": {
+    "description": "Connection status message shown when connecting to DeepSeek Harness fails for an unspecified reason; asks the user to check the link and network and try again."
+  },
+  "assistantHarnessInvalidUrl": "Enter a valid WebUI access link.",
+  "@assistantHarnessInvalidUrl": {
+    "description": "Validation error shown when the entered text is not a usable WebUI access link; asks the user to enter a valid link."
+  },
+  "assistantHarnessMissingToken": "The link is missing its token. Paste the full access link printed by dsh web.",
+  "@assistantHarnessMissingToken": {
+    "description": "Validation error shown when the WebUI access link has no token; asks the user to paste the complete link printed by the dsh web command. token and dsh web are technical terms."
+  },
+  "assistantHarnessRejected": "DeepSeek Harness rejected this link. Check that its token is still valid.",
+  "@assistantHarnessRejected": {
+    "description": "Error shown when DeepSeek Harness refuses the access link, for example because the token is no longer valid; asks the user to check that the token is still valid."
+  },
+  "assistantHarnessUnreachable": "Could not reach that link. Check the address and network.",
+  "@assistantHarnessUnreachable": {
+    "description": "Error shown when the DeepSeek Harness address cannot be reached at all; asks the user to check the address and network."
+  },
+  "assistantHarnessApiUnavailable": "DeepSeek Harness did not answer its API.",
+  "@assistantHarnessApiUnavailable": {
+    "description": "Error shown when the DeepSeek Harness page answers but its API does not respond, so the connection cannot be used."
+  },
+  "assistantHarnessLoadFailed": "Could not load DeepSeek Harness.",
+  "@assistantHarnessLoadFailed": {
+    "description": "Error shown inside the embedded WebView when the DeepSeek Harness page cannot be loaded."
+  },
+  "assistantHarnessUnsupportedPlatform": "Embedded WebView is not supported on this platform.",
+  "@assistantHarnessUnsupportedPlatform": {
+    "description": "Message shown instead of the embedded WebView on platforms that do not support an in-app WebView; the user can open the link in a browser instead."
+  },
+  "assistantHarnessOpenInBrowser": "Open in browser",
+  "@assistantHarnessOpenInBrowser": {
+    "description": "Button that opens the DeepSeek Harness WebUI link in the system browser instead of the embedded WebView."
+  },
+  "assistantHarnessRetry": "Retry",
+  "@assistantHarnessRetry": {
+    "description": "Button that retries loading or connecting to DeepSeek Harness after a failure."
+  },
+  "assistantHarnessConnectionMethodLabel": "Connection method",
+  "@assistantHarnessConnectionMethodLabel": {
+    "description": "Title above the two-way selector on the DeepSeek Harness settings page; chooses how the app reaches the remote instance."
+  },
+  "assistantHarnessMethodLink": "Public link",
+  "@assistantHarnessMethodLink": {
+    "description": "Selector option for reaching DeepSeek Harness through the access link printed by dsh web, which works on the same LAN or over the internet."
+  },
+  "assistantHarnessMethodTailcat": "ds-hu plugin",
+  "@assistantHarnessMethodTailcat": {
+    "description": "Selector option for reaching DeepSeek Harness through the ds-hu remote-access plugin, which exposes a tailnet address instead of a public link. ds-hu is a product name and is not translated."
+  },
+  "assistantHarnessTailcatAddressLabel": "Enter the tailcat address",
+  "@assistantHarnessTailcatAddressLabel": {
+    "description": "Label of the field where the user pastes the tailcat address (or the pairing command) shown by the ds-hu plugin. tailcat is a product name and is not translated."
+  },
+  "assistantHarnessTailcatAddressHint": "tailcat forward tc… 18080:13080",
+  "@assistantHarnessTailcatAddressHint": {
+    "description": "Sample placeholder inside the tailcat address field; an example pairing command. It is a command with an abbreviated address and must be kept unchanged."
+  },
+  "assistantHarnessTailcatAddressHelper": "In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.",
+  "@assistantHarnessTailcatAddressHelper": {
+    "description": "Helper text below the tailcat address field explaining where the user finds the address or pairing command in the remote DeepSeek Harness interface."
+  },
+  "assistantHarnessTailcatInvalidAddress": "Enter the tailcat address or pairing command shown under Remote access.",
+  "@assistantHarnessTailcatInvalidAddress": {
+    "description": "Validation error shown when the pasted text is not a tailcat address or pairing command; tells the user where to find the right text."
+  },
+  "assistantHarnessTailcatUnavailable": "Could not open the tailcat tunnel. Check the address and network.",
+  "@assistantHarnessTailcatUnavailable": {
+    "description": "Error shown when a tailcat address is valid but the tunnel cannot be established; asks the user to check the address and network."
+  },
+  "assistantHarnessTailcatUnsupported": "tailcat connections are not supported on this platform.",
+  "@assistantHarnessTailcatUnsupported": {
+    "description": "Error shown when a tailcat connection is attempted on a platform without a tailcat client (the web build)."
+  },
+  "assistantHarnessTailcatOpening": "Opening the tailcat tunnel…",
+  "@assistantHarnessTailcatOpening": {
+    "description": "Loading message inside the DeepSeek Harness page while the tailcat tunnel is being established; the trailing ellipsis indicates an ongoing action."
+  }
+,  "assistantHarnessTailcatScanButton": "Scan QR code",
+  "@assistantHarnessTailcatScanButton": {
+    "description": "Label of the button that opens the camera to scan the ds-hu plugin pairing QR code; the scan fills the tailcat address field and confirms it."
+  },
+  "assistantHarnessTailcatKeyLabel": "This device's public key (allow-list)",
+  "@assistantHarnessTailcatKeyLabel": {
+    "description": "Heading of the card that shows this device's tailcat public key, the value a user adds to the ds-hu plugin client allow-list."
+  },
+  "assistantHarnessTailcatKeyHelper": "Add this key under Remote access → Security in DeepSeek Harness to allow only the devices you list. Without an allow-list, the address alone is enough.",
+  "@assistantHarnessTailcatKeyHelper": {
+    "description": "Helper text below the client public key: where to add it in the ds-hu plugin, and that an empty allow-list admits any address holder."
+  },
+  "assistantHarnessTailcatKeyPreparing": "Preparing this device's key…",
+  "@assistantHarnessTailcatKeyPreparing": {
+    "description": "Loading message while this device's tailcat identity is generated or read from disk; the trailing ellipsis indicates an ongoing action."
+  },
+  "assistantHarnessTailcatKeyFailed": "Could not prepare this device's key.",
+  "@assistantHarnessTailcatKeyFailed": {
+    "description": "Error shown when this device's tailcat identity could not be prepared (for example the app support directory is unavailable)."
+  },
+  "assistantHarnessTailcatKeyCopied": "Public key copied",
+  "@assistantHarnessTailcatKeyCopied": {
+    "description": "Confirmation snackbar shown after the client public key was placed on the clipboard."
+  },
+  "assistantHarnessTailcatPluginNote": "Remote access through the plugin. Install @ds-hu/dsh-tailcat-remote on the DeepSeek Harness and Cuplivo can open its WebUI without exposing a port.",
+  "@assistantHarnessTailcatPluginNote": {
+    "description": "Note under the method selector explaining that the ds-hu plugin provides remote access to the DeepSeek Harness WebUI and only has to be installed on the Harness host."
   }
 }

@@ -1265,7 +1265,7 @@ class _MemoryEntryEditFormState extends State<MemoryEntryEditForm> {
     if (text.isEmpty) return;
     final navigator = Navigator.of(context);
     final mp = context.read<MemoryProviderV2>();
-    final assistants = context.read<AssistantProvider>().assistants;
+    final assistants = context.read<AssistantProvider>().chatAssistants;
     final assistantId = _resolvedAssistantId(assistants);
     if (_scope == MemoryScope.assistant &&
         (assistantId == null || assistantId.isEmpty)) {
@@ -1405,7 +1405,7 @@ class _MemoryEntryEditFormState extends State<MemoryEntryEditForm> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
-    final assistants = context.watch<AssistantProvider>().assistants;
+    final assistants = context.watch<AssistantProvider>().chatAssistants;
 
     if (widget.desktop) {
       // Compact, height-hugging dialog body — stays visually centered.

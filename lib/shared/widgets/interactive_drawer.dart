@@ -17,6 +17,13 @@ class InteractiveDrawerController extends ChangeNotifier {
   bool get isOpen => value >= 1.0 - 1e-6;
   bool get isClosed => value <= 1e-6;
 
+  /// Whether this controller is currently driving a mounted drawer.
+  ///
+  /// A layout that renders no drawer (the desktop home layout) never attaches,
+  /// so callers that mean "close the sidebar if there is one" check this first
+  /// instead of calling a method that needs an attached drawer.
+  bool get isAttached => _controller != null;
+
   void _attach(AnimationController c) {
     final previous = _controller;
     if (previous != null) _detach(previous);

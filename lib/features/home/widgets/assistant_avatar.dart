@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/assistant.dart';
+import '../../harness/widgets/deepseek_harness_icon.dart';
 import '../../../shared/widgets/avatar_value.dart';
 import '../../../theme/app_font_weights.dart';
 
@@ -21,6 +22,26 @@ class AssistantAvatar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final name = (assistant?.name ?? fallbackName ?? '').trim();
+
+    // A harness assistant is a pointer to the remote product, not a chat
+    // configuration: it always wears that product's mark, whatever avatar a
+    // local edit may have left on the row.
+    if (assistant?.isDeepSeekHarness == true) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: cs.primary.withValues(alpha: 0.15),
+          border: Border.all(
+            color: cs.onSurface.withValues(alpha: isDark ? 0.24 : 0.12),
+            width: 0.5,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: DeepSeekHarnessIcon(size: size * 0.56, color: cs.onSurface),
+      );
+    }
 
     return Container(
       width: size,

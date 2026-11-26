@@ -18207,6 +18207,120 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get subagentEscalationAllow => '始终允许';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '远程连接的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '请输入 DeepSeek Harness 的 WebUI 访问链接';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '适用于与 DeepSeek Harness 处于同一局域网，或 DeepSeek Harness 暴露在公网上。';
+
+  @override
+  String get assistantHarnessConfirm => '确认';
+
+  @override
+  String get assistantHarnessConnected => '已连接';
+
+  @override
+  String get assistantHarnessChecking => '连接中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '连接失败，请检查链接和网络后重试。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '请输入有效的 WebUI 访问链接。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '链接缺少 token，请粘贴 dsh web 打印的完整访问链接。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒绝了该链接，请确认 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '无法访问该链接，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的接口没有响应。';
+
+  @override
+  String get assistantHarnessLoadFailed => '无法加载 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '当前平台不支持内嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在浏览器中打开';
+
+  @override
+  String get assistantHarnessRetry => '重试';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '连接方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公网链接';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 插件';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填写 tailcat 地址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 侧边栏打开「远程访问」，复制 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填写「远程访问」页上显示的 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '无法建立 tailcat 隧道，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '当前平台不支持 tailcat 连接。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '扫描二维码';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本机公钥（白名单）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「远程访问 → 安全」里添加此公钥，即可只允许列表中的设备连接；不添加白名单时仅凭地址即可连接。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在准备本机公钥…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '无法准备本机公钥。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公钥已复制';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '通过插件即可远程访问：只需在 DeepSeek Harness 上安装 @ds-hu/dsh-tailcat-remote，Cuplivo 就能打开它的 WebUI，无需暴露端口。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -36412,6 +36526,120 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get subagentEscalationAllow => '始终允许';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '远程连接的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '请输入 DeepSeek Harness 的 WebUI 访问链接';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '适用于与 DeepSeek Harness 处于同一局域网，或 DeepSeek Harness 暴露在公网上。';
+
+  @override
+  String get assistantHarnessConfirm => '确认';
+
+  @override
+  String get assistantHarnessConnected => '已连接';
+
+  @override
+  String get assistantHarnessChecking => '连接中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '连接失败，请检查链接和网络后重试。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '请输入有效的 WebUI 访问链接。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '链接缺少 token，请粘贴 dsh web 打印的完整访问链接。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒绝了该链接，请确认 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '无法访问该链接，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的接口没有响应。';
+
+  @override
+  String get assistantHarnessLoadFailed => '无法加载 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '当前平台不支持内嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在浏览器中打开';
+
+  @override
+  String get assistantHarnessRetry => '重试';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '连接方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公网链接';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 插件';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填写 tailcat 地址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 侧边栏打开「远程访问」，复制 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填写「远程访问」页上显示的 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '无法建立 tailcat 隧道，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '当前平台不支持 tailcat 连接。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '扫描二维码';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本机公钥（白名单）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「远程访问 → 安全」里添加此公钥，即可只允许列表中的设备连接；不添加白名单时仅凭地址即可连接。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在准备本机公钥…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '无法准备本机公钥。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公钥已复制';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '通过插件即可远程访问：只需在 DeepSeek Harness 上安装 @ds-hu/dsh-tailcat-remote，Cuplivo 就能打开它的 WebUI，无需暴露端口。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -54639,4 +54867,118 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subagentEscalationAllow => '始終允許';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '遠端連線的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '請輸入 DeepSeek Harness 的 WebUI 存取連結';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '適用於與 DeepSeek Harness 處於同一區域網路，或 DeepSeek Harness 暴露在公網上的情況。';
+
+  @override
+  String get assistantHarnessConfirm => '確認';
+
+  @override
+  String get assistantHarnessConnected => '已連線';
+
+  @override
+  String get assistantHarnessChecking => '連線中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '連線失敗，請檢查連結和網路後重試。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '請輸入有效的 WebUI 存取連結。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '連結缺少 token，請貼上 dsh web 輸出的完整存取連結。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒絕了該連結，請確認 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '無法存取該連結，請檢查位址和網路。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的介面沒有回應。';
+
+  @override
+  String get assistantHarnessLoadFailed => '無法載入 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '目前平台不支援內嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在瀏覽器中開啟';
+
+  @override
+  String get assistantHarnessRetry => '重試';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '連線方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公網連結';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 外掛';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填寫 tailcat 位址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 側邊欄開啟「遠端存取」，複製 tailcat 位址或配對指令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填寫「遠端存取」頁面上顯示的 tailcat 位址或配對指令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '無法建立 tailcat 隧道，請檢查位址和網路。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '目前平台不支援 tailcat 連線。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '掃描 QR Code';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本機公鑰（白名單）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「Remote access → Security」加入此公鑰，即可只允許清單中的裝置連線；未加入白名單時僅憑位址即可連線。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在準備本機公鑰…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '無法準備本機公鑰。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公鑰已複製';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '透過外掛即可遠端存取：只需在 DeepSeek Harness 上安裝 @ds-hu/dsh-tailcat-remote，Cuplivo 就能開啟它的 WebUI，無需對外開放連接埠。';
 }

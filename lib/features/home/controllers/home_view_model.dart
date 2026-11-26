@@ -153,6 +153,10 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onMessagesChanged = _onMessagesChanged;
     _chatActions.onSendPairAppended = () => onScrollToBottom?.call();
     _chatActions.onLoadingChanged = _onLoadingChanged;
+    // Steer: a message that arrives while the turn runs ends it at the next step
+    // boundary and starts the next one, instead of waiting for the reply to end.
+    _chatActions.takeHandoff = _hasHandoffReady;
+    _chatActions.onHandoffRequested = _startHandoffSegment;
     _chatActions.onContentUpdated = _onContentUpdated;
     _chatActions.onStreamError = _onStreamError;
     _chatActions.onContextOverflow = (message, error, originalParts) {
@@ -231,6 +235,47 @@ class HomeViewModel extends ChangeNotifier {
       _queue[conversationId]?.isNotEmpty ?? false;
   final Set<String> _drainingQueuedInputs = {};
   final Set<String> _pausedQueuedInputs = {};
+
+  /// Mail rows a delegation wrote that no turn has read yet, oldest first.
+  ///
+  /// The row is already persisted when it lands here (the coordinator writes it),
+  /// so this is only the delivery side: a turn starts from the row as soon as the
+  /// conversation can generate, at a step boundary or at the end of the turn.
+  final Map<String, List<ChatMessage>> _mailInbox = {};
+
+  bool _hasPendingMail(String conversationId) =>
+      _mailInbox[conversationId]?.isNotEmpty ?? false;
+
+  bool hasPendingMail(String conversationId) => _hasPendingMail(conversationId);
+
+  bool isConversationBusy(String conversationId) =>
+      _isConversationBusy(conversationId);
+
+  ChatMessage? _takeMail(String conversationId) {
+    final list = _mailInbox[conversationId];
+    if (list == null || list.isEmpty) return null;
+    final first = list.removeAt(0);
+    if (list.isEmpty) _mailInbox.remove(conversationId);
+    return first;
+  }
+
+  void _putMailBack(String conversationId, ChatMessage message) {
+    final list = _mailInbox.putIfAbsent(conversationId, () => []);
+    list.insert(0, message);
+  }
+
+  /// One mail row from a delegation. The row is already persisted; this only
+  /// queues the turn that reads it.
+  void enqueueMail({
+    required String conversationId,
+    required ChatMessage message,
+  }) {
+    _mailInbox.putIfAbsent(conversationId, () => []).add(message);
+    notifyListeners();
+    unawaited(refreshTimelineAfterExternalWrite(conversationId));
+    unawaited(_drainQueuedInputIfReady(conversationId));
+  }
+
   final Map<String, String> _compressionStates = {};
 
   /// Conversations whose title request is in flight, so two finishes in a row
@@ -1032,12 +1077,99 @@ class HomeViewModel extends ChangeNotifier {
     unawaited(_drainQueuedInputIfReady(turn.conversationId));
   }
 
+  /// Whether the turn running in [conversationId] should end at its next step
+  /// boundary.
+  ///
+  /// Mail comes first: a delegation's message is what the turn exists to serve.
+  /// A queued user message is the same rule from the composer's side. A finished
+  /// delegation's notice is not: it is a result, and a result waits for the turn
+  /// to end rather than interrupting it.
+  bool _hasHandoffReady(String conversationId) {
+    if (_hasPendingMail(conversationId)) return true;
+    final head = _queue[conversationId]?.firstOrNull;
+    return head is QueuedUserInput;
+  }
+
+  /// Starts the turn a handoff ended the previous one for.
+  ///
+  /// Returns false when nothing could start, in which case the caller clears the
+  /// loading flag and the waiting message is picked up by the normal drain at the
+  /// end of the turn.
+  Future<bool> _startHandoffSegment(String conversationId) async {
+    if (_drainingQueuedInputs.contains(conversationId)) return false;
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) return false;
+    _drainingQueuedInputs.add(conversationId);
+    notifyListeners();
+    try {
+      final mail = _takeMail(conversationId);
+      if (mail != null) {
+        try {
+          final started = await _startMailTurn(conversation, mail);
+          if (!started) _putMailBack(conversationId, mail);
+          return started;
+        } catch (_) {
+          // The row is in the transcript either way; the inbox keeps the
+          // delivery so the next drain tries again.
+          _putMailBack(conversationId, mail);
+          return false;
+        }
+      }
+      final queue = _queue[conversationId];
+      if (queue == null || queue.isEmpty) return false;
+      final head = queue.first;
+      if (head is! QueuedUserInput) return false;
+      // Take it out before starting: the drain would otherwise see the same head
+      // after this turn ends and deliver it a second time.
+      queue.removeAt(0);
+      if (queue.isEmpty) _queue.remove(conversationId);
+      try {
+        final delivered = await _sendMessageToConversation(
+          head.input,
+          conversation,
+        );
+        if (!delivered) {
+          queue.insert(0, head);
+          return false;
+        }
+        return true;
+      } catch (_) {
+        queue.insert(0, head);
+        return false;
+      }
+    } finally {
+      _drainingQueuedInputs.remove(conversationId);
+      notifyListeners();
+    }
+  }
+
+  /// Runs one turn from a mail row that is already in the transcript.
+  Future<bool> _startMailTurn(
+    Conversation conversation,
+    ChatMessage mail,
+  ) async {
+    final assistant = _contextProvider
+        .read<AssistantProvider>()
+        .resolveConversationAssistant(conversation.assistantId);
+    final outcome = await _chatActions.regenerateAtMessage(
+      message: mail,
+      conversation: conversation,
+      assistantOverride: assistant,
+      preserveFollowingMessages: true,
+      scheduled: true,
+      scheduledNotify: false,
+      scheduledPreview: false,
+      handoff: true,
+    );
+    return outcome.success;
+  }
+
   /// Tries to deliver every conversation's queue head.
   ///
   /// Called when the app comes back to the front: a drain that refused while the
   /// app was backgrounded has no other trigger to return to.
   void drainAllQueuedTurns() {
-    for (final conversationId in _queue.keys.toList()) {
+    for (final conversationId in {..._queue.keys, ..._mailInbox.keys}) {
       unawaited(_drainQueuedInputIfReady(conversationId));
     }
   }
@@ -1270,10 +1402,28 @@ class HomeViewModel extends ChangeNotifier {
       return;
     }
     if (!background.isForeground) return;
-    final queue = _queue[conversationId];
     final conversation = _chatService.getConversation(conversationId);
-    if (queue == null || queue.isEmpty || conversation == null) return;
+    if (conversation == null) return;
     if (_isConversationBusy(conversationId)) return;
+    // A delegation's mail goes before the user's queue: it is the message the
+    // finished step was waiting on, and the queue head behind it keeps its turn.
+    final mail = _takeMail(conversationId);
+    if (mail != null) {
+      _drainingQueuedInputs.add(conversationId);
+      notifyListeners();
+      try {
+        final started = await _startMailTurn(conversation, mail);
+        if (!started) _putMailBack(conversationId, mail);
+      } catch (_) {
+        _putMailBack(conversationId, mail);
+      } finally {
+        _drainingQueuedInputs.remove(conversationId);
+        notifyListeners();
+      }
+      return;
+    }
+    final queue = _queue[conversationId];
+    if (queue == null || queue.isEmpty) return;
 
     final turn = queue.first;
     _drainingQueuedInputs.add(conversationId);

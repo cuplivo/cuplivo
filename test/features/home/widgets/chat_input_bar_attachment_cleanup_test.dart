@@ -26,6 +26,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // ignore: depend_on_referenced_packages, implementation_imports
 import 'package:super_native_extensions/src/native/context.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -879,7 +880,9 @@ void main() {
     await tester.runAsync(() async {
       source = await writeUserImage('user_photo.png');
     });
-    final product = File('${appSupportDir.path}/upload/user_photo.png');
+    final product = File(
+      p.join(appSupportDir.path, 'upload', 'user_photo.png'),
+    );
     final controller = TextEditingController(text: 'with image');
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();
@@ -915,7 +918,7 @@ void main() {
     await tester.tap(find.byIcon(Lucide.ArrowUp));
     await tester.pumpAndSettle();
 
-    expect(submitted?.imagePaths.single, product.path);
+    expect(p.equals(submitted!.imagePaths.single, product.path), isTrue);
     expect(await fileExists(tester, source), isTrue);
 
     controller.dispose();
@@ -1130,9 +1133,9 @@ void main() {
         'inflight_user.png',
         byteCount: 8 * 1024 * 1024,
       );
-      final uploadDir = Directory('${appSupportDir.path}/upload');
+      final uploadDir = Directory(p.join(appSupportDir.path, 'upload'));
       await uploadDir.create(recursive: true);
-      final product = File('${uploadDir.path}/inflight_user.png');
+      final product = File(p.join(uploadDir.path, 'inflight_user.png'));
       var sawProductCreated = false;
       final productDeleted = Completer<void>();
       final subscription = uploadDir
@@ -1350,7 +1353,7 @@ Future<void> _forceDelete(Directory dir) async {
   try {
     if (await dir.exists()) {
       await Process.run('chmod', ['-R', '0755', dir.path]);
-      await dir.delete(recursive: true);
+      await deleteDirectoryWhenReleased(dir, keepLockedLeftovers: true);
     }
   } catch (_) {}
 }

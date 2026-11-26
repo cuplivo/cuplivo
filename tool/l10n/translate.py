@@ -129,6 +129,22 @@ def usage_context(message_keys):
     return result
 
 
+DART_TIMEOUT = 300
+
+
+def dart_binary(sdk):
+    """The SDK's own dart binary rather than the `bin/dart` wrapper script.
+
+    The wrapper runs `bin/internal/shared.bat` first, and that script retries its
+    lock on `bin/cache/flutter.bat.lock` forever when `bin/cache` is read-only
+    (shared.bat's `|| GOTO acquire_lock` has no bound), so a sandboxed shell waits
+    with no output and no child doing work. A bare script does not need the lock.
+    """
+    cache = sdk/'bin'/'cache'/'dart-sdk'/'bin'
+    binary = cache/('dart.exe' if os.name == 'nt' else 'dart')
+    return binary if binary.exists() else sdk/'bin'/('dart.bat' if os.name == 'nt' else 'dart')
+
+
 def validate(en, translated, locale=None):
     flutter = shutil.which('flutter')
     if not flutter:
@@ -138,14 +154,31 @@ def validate(en, translated, locale=None):
     if not (tool_dir/'.dart_tool/package_config.json').exists():
         raise RuntimeError('Initialize localization tool dependencies: '
                            'flutter pub get --directory tool/l10n')
-    dart = sdk / 'bin' / ('dart.bat' if os.name == 'nt' else 'dart')
+    dart = dart_binary(sdk)
     payload = {'messages': {key: {'source': en[key], 'target': value}
                             for key, value in translated.items()}}
-    result = subprocess.run(
-        [str(dart), 'run', '--enable-asserts', 'validate.dart'],
-        input=json.dumps(payload), encoding='utf-8', capture_output=True, cwd=tool_dir)
+    try:
+        result = subprocess.run(
+            [str(dart), 'run', '--enable-asserts', 'validate.dart'],
+            input=json.dumps(payload), encoding='utf-8', capture_output=True, cwd=tool_dir,
+            timeout=DART_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f'the Dart SDK did not answer within {DART_TIMEOUT} s. A sandboxed shell cannot '
+            'run it: verify that APPDATA and LOCALAPPDATA are writable, or run this in a '
+            'normal terminal')
     if result.returncode not in (0, 1) or not result.stdout.strip():
-        raise RuntimeError('Flutter message validation failed: ' + result.stderr[-1500:])
+        stderr = result.stderr or ''
+        first = next((line for line in stderr.strip().splitlines() if line.strip()), '')
+        # dart writes <APPDATA>/.dart-tool on every start; a read-only profile kills
+        # it with an unhandled FileSystemException before main() runs, and the old
+        # message buried that cause under the last 1500 characters of a stack trace.
+        if 'dart-tool' in stderr or 'errno = 5' in stderr or 'Access is denied' in stderr:
+            raise RuntimeError(
+                'the Dart SDK cannot start: it writes <APPDATA>/.dart-tool on every start and '
+                'that path is not writable. Point APPDATA and LOCALAPPDATA at a writable '
+                'directory for this run' + (f' ({first[:400]})' if first else ''))
+        raise RuntimeError('Flutter message validation failed: ' + stderr[-1500:])
     errors = loads(result.stdout)
     for key, value in translated.items():
         if locale in ('ru', 'ko', 'tr'):
@@ -441,11 +474,12 @@ def main():
         raise RuntimeError('\n'.join(failures))
     if args.command == 'sync' and not args.no_generate:
         write(ARB/'app_zh_Hans.arb', zh)
-        subprocess.run(['flutter', 'gen-l10n'], cwd=ROOT, check=True)
+        subprocess.run(['flutter', 'gen-l10n'], cwd=ROOT, check=True, timeout=600)
 
 
 if __name__ == '__main__':
     try:
         main()
-    except (RuntimeError, ValueError, subprocess.CalledProcessError) as error:
+    except (RuntimeError, ValueError, subprocess.CalledProcessError,
+            subprocess.TimeoutExpired) as error:
         raise SystemExit(f'L10n: {error}')

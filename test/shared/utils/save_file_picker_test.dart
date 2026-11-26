@@ -117,34 +117,36 @@ void main() {
       expect(picker.suggestedName, isNull);
     });
 
-    test(
-      '$platform preserves trailing spaces in the source and name',
-      () async {
-        debugDefaultTargetPlatformOverride = platform;
-        final selected = await File(
-          '${source.path} ',
-        ).writeAsString('selected');
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, (call) async {
-              expect(call.arguments, {
-                'sourcePath': selected.path,
-                'fileName': '报告.txt ',
-              });
-              expect(
-                await File(
-                  call.arguments['sourcePath'] as String,
-                ).readAsString(),
-                'selected',
-              );
-              return true;
+    test('$platform preserves trailing spaces in the source and name', () async {
+      debugDefaultTargetPlatformOverride = platform;
+      final selected = await File('${source.path} ').writeAsString('selected');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            expect(call.arguments, {
+              'sourcePath': selected.path,
+              'fileName': '报告.txt ',
             });
-        expect(
-          await saveHostFileWithPicker(file: _UnbufferedFile(selected)),
-          '报告.txt ',
-        );
+            expect(
+              await File(call.arguments['sourcePath'] as String).readAsString(),
+              'selected',
+            );
+            return true;
+          });
+      expect(
+        await saveHostFileWithPicker(file: _UnbufferedFile(selected)),
+        '报告.txt ',
+      );
+      // Win32 strips trailing spaces from file names, so on Windows
+      // `'${source.path} '` and `source.path` resolve to one file: the fixture
+      // cannot represent two distinct paths, and this file already holds
+      // 'selected'. The assertions above still cover the behaviour under test
+      // (the trailing space survives into the channel arguments and the staged
+      // file's bytes); only this "the original was untouched" guard needs the
+      // two paths to be genuinely different files.
+      if (!Platform.isWindows) {
         expect(await source.readAsString(), 'hello 世界');
-      },
-    );
+      }
+    });
   }
 
   for (final outcome in ['saved', 'cancelled', 'failed']) {

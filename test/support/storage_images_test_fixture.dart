@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
@@ -42,7 +43,9 @@ class StorageImagesFixture {
   }
 
   Future<File> file(String path, [List<int> bytes = const [1, 2, 3]]) async {
-    final file = File('${root.path}/$path');
+    // The page lists the directories it scans, so a row's path carries the
+    // host's separator; a '/' here made every key comparison miss on Windows.
+    final file = File(p.normalize(p.join(root.path, path)));
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes);
     return file;

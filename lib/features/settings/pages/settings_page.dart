@@ -406,7 +406,7 @@ class SettingsPage extends StatelessWidget {
               _iosNavRow(
                 context,
                 icon: Lucide.RefreshCw,
-                label: l10n.settingsPageLanSync,
+                label: l10n.settingsPageSync,
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SyncSettingsPage()),

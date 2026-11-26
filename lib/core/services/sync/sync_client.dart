@@ -9,6 +9,7 @@ import 'sync_local_addresses.dart';
 import 'sync_models.dart';
 import 'sync_server.dart';
 import 'sync_store.dart';
+import 'sync_transport.dart';
 
 /// Collects the single digest a chunked hash conversion produces.
 class _DigestSink implements Sink<crypto.Digest> {
@@ -63,6 +64,20 @@ const Duration kSyncPairDeadline = Duration(seconds: 60);
 /// of LAN timeout would only make a black-holed address feel slower.
 const Duration kSyncDialConnectTimeout = Duration(seconds: 3);
 
+/// Budget for one TCP connect towards a remote peer. The dial crosses the
+/// tailcat tunnel, whose first connection may need a relay round trip and NAT
+/// traversal, so the LAN budget would report every remote peer unreachable.
+const Duration kSyncRemoteDialConnectTimeout = Duration(seconds: 60);
+
+/// Budget for the control beats over a tunnel. The hello is the first request
+/// of a session and therefore pays for the tunnel coming up, which on a relayed
+/// path can take seconds; the LAN deadlines would time out mid-connect.
+const Duration kSyncRemoteHelloDeadline = Duration(seconds: 120);
+
+/// Budget for one liveness probe over a tunnel: a relayed path is slow, not
+/// gone, and a probe that falsely answers "offline" paints the card wrong.
+const Duration kSyncRemotePingDeadline = Duration(seconds: 30);
+
 /// The result of a hello: either the peer's hello or its refusal.
 class SyncHelloOutcome {
   final SyncHello? hello;
@@ -70,7 +85,8 @@ class SyncHelloOutcome {
   const SyncHelloOutcome(this.hello, this.refusal);
 }
 
-/// mTLS HTTP client for LAN sync.
+/// mTLS HTTP client for sync: direct against a LAN endpoint, tunneled through
+/// tailcat against a remote one (ADR-0021).
 ///
 /// The client pins the peer's certificate by hash: for a paired device the
 /// presented certificate's SHA-256 must equal the stored deviceId, or the
@@ -78,9 +94,141 @@ class SyncHelloOutcome {
 /// pinned — there we still bind the answer to the certificate actually seen,
 /// so a passive relay cannot impersonate the peer's identity.
 class SyncClient {
-  SyncClient({required this.identity});
+  SyncClient({required this.identity, this.transport});
 
   final SyncDeviceIdentity identity;
+
+  /// Rewrites remote (`tcat:`) endpoints and dials their tunnels. Null on a
+  /// build that has no tailcat runtime; LAN sync never touches it.
+  final SyncTransport? transport;
+
+  /// Whether [host] names a remote peer rather than a network address.
+  bool _isRemoteHost(String host) =>
+      transport != null && isTailcatEndpointHost(host);
+
+  /// The endpoint an HTTP client should dial for [host], and whether it is
+  /// remote. Both call sites that build a peer URL go through this, so the
+  /// remote rewrite cannot be bypassed.
+  ({SyncUriEndpoint endpoint, bool remote}) _dialTarget(String host, int port) {
+    final remote = _isRemoteHost(host);
+    return (
+      endpoint: remote
+          ? transport!.uriEndpointFor(host, port)
+          : (host: host, port: port),
+      remote: remote,
+    );
+  }
+
+  /// The HTTP client for a peer: direct for a LAN endpoint, tunneled for a
+  /// remote one. The remote factory is installed here and nowhere else, and so
+  /// is the TLS layer that goes on top of it.
+  ///
+  /// [certificateHandler] is the certificate pin. For a LAN client it is the
+  /// `HttpClient.badCertificateCallback`; for a remote one it is passed to the
+  /// TLS handshake this client performs itself, because a `HttpClient` with a
+  /// `connectionFactory` writes HTTP **without** wrapping the socket in TLS
+  /// (dart:io treats the factory as "already the transport this scheme needs").
+  /// A remote session therefore proves the peer's identity in the same
+  /// handshake as a LAN one — the socket underneath is just bytes from a
+  /// tunnel instead of a NIC.
+  ///
+  /// [expectedDeviceId] is the identity the tunneled certificate must have. The
+  /// callback refuses it, and [_secureTunnelSocket] checks it again after the
+  /// handshake; the LAN path keeps using the callback alone.
+  HttpClient _newClient({
+    required bool remote,
+    required bool Function(X509Certificate certificate) certificateHandler,
+    String? expectedDeviceId,
+  }) {
+    final client = SyncClient.directClient(identity.buildContext());
+    if (!remote) {
+      return client
+        ..badCertificateCallback = (cert, _, _) => certificateHandler(cert);
+    }
+    final factory = transport!.connectionFactory;
+    return client
+      ..connectionFactory = (uri, proxyHost, proxyPort) async {
+        final task = await _tunnelConnectionTask(
+          factory,
+          uri,
+          proxyHost,
+          proxyPort,
+        );
+        final secure = _secureTunnelSocket(
+          task,
+          certificateHandler,
+          expectedDeviceId,
+        );
+        return ConnectionTask.fromSocket(secure, task.cancel);
+      }
+      ..connectionTimeout = kSyncRemoteDialConnectTimeout;
+  }
+
+  /// Dials the tunnel, translating its failures into the dial taxonomy the
+  /// reachability code classifies on.
+  Future<ConnectionTask<Socket>> _tunnelConnectionTask(
+    Future<ConnectionTask<Socket>> Function(Uri, String?, int?) factory,
+    Uri uri,
+    String? proxyHost,
+    int? proxyPort,
+  ) async {
+    try {
+      return await factory(uri, proxyHost, proxyPort);
+    } on IOException catch (error) {
+      // A tailcat dial failure is an IOException but not a SocketException,
+      // while every sync dial path classifies reachability by the socket
+      // type. Translating at the seam keeps the tunnel's failures in the one
+      // taxonomy the callers already understand.
+      throw SocketException('remote tunnel: ${redactEndpointText('$error')}');
+    } on TimeoutException catch (error) {
+      throw TimeoutException('remote tunnel: ${redactEndpointText('$error')}');
+    }
+  }
+
+  /// Completes the TLS handshake the `HttpClient` skipped, over the tunnel's
+  /// plain socket.
+  ///
+  /// No `host` is passed, so the name the handshake verifies is the socket's
+  /// own address — the loopback relay (`127.0.0.1`), never a DNS name and never
+  /// the surrogate URI host (a tailcat address), which is not in the SNI
+  /// extension either.
+  ///
+  /// The context carries no trusted roots on purpose. A self-signed peer
+  /// certificate can never validate against it, so [SecureSocket.secure] always
+  /// asks [certificateHandler] and the pin is the deciding check. The default
+  /// context would trust the platform store: a certificate chaining to an
+  /// installed root (a corporate/MDM or user root, with an IP SAN for the
+  /// loopback address) would then complete the handshake without the callback
+  /// running at all. [expectedDeviceId] is checked once more after the
+  /// handshake so the pin does not depend on that context choice alone.
+  Future<Socket> _secureTunnelSocket(
+    ConnectionTask<Socket> task,
+    bool Function(X509Certificate certificate) certificateHandler,
+    String? expectedDeviceId,
+  ) async {
+    final socket = await task.socket;
+    try {
+      final secure = await SecureSocket.secure(
+        socket,
+        context: SecurityContext(withTrustedRoots: false),
+        onBadCertificate: certificateHandler,
+      );
+      if (expectedDeviceId != null) {
+        final peer = secure.peerCertificate;
+        if (peer == null ||
+            crypto.sha256.convert(peer.der).toString() != expectedDeviceId) {
+          throw const TlsException(
+            'the tunneled peer presented a certificate that is not the pinned '
+            'device',
+          );
+        }
+      }
+      return secure;
+    } catch (_) {
+      socket.destroy();
+      rethrow;
+    }
+  }
 
   /// Pairs with a peer that is showing [pin]. Returns the peer's identity and
   /// the certificate to pin (the one this TLS session actually presented).
@@ -107,20 +255,33 @@ class SyncClient {
     List<String> candidateHosts = const [],
   }) async {
     X509Certificate? presented;
-    final client = SyncClient.directClient(identity.buildContext())
-      ..badCertificateCallback = (cert, _, _) {
-        presented = cert;
-        if (expectedDeviceId != null) {
-          // Hard pin: reject inside the handshake, before any request byte.
-          return crypto.sha256.convert(cert.der).toString() == expectedDeviceId;
-        }
-        return true; // first contact: trust happens below, bound to this cert
-      }
-      ..connectionTimeout = kSyncDialConnectTimeout;
+    final target = _dialTarget(host, port);
+    final client =
+        _newClient(
+            remote: target.remote,
+            expectedDeviceId: target.remote ? expectedDeviceId : null,
+            certificateHandler: (cert) {
+              presented = cert;
+              if (expectedDeviceId != null) {
+                // Hard pin: reject inside the handshake, before any request byte.
+                return crypto.sha256.convert(cert.der).toString() ==
+                    expectedDeviceId;
+              }
+              return true; // first contact: trust happens below, bound to this cert
+            },
+          )
+          ..connectionTimeout = target.remote
+              ? kSyncRemoteDialConnectTimeout
+              : kSyncDialConnectTimeout;
     try {
       final request = await client.postUrl(
-        Uri.parse('https://${uriHost(host)}:$port/pair'),
+        Uri.parse(
+          'https://${uriHost(target.endpoint.host)}:${target.endpoint.port}/pair',
+        ),
       );
+      if (target.remote) {
+        request.headers.set(SyncServer.remoteHeader, '1');
+      }
       _writeJson(request, {
         'pin': pin,
         'deviceId': identity.deviceId,
@@ -182,25 +343,54 @@ class SyncClient {
     Duration pingDeadline = kSyncPingDeadline,
     Duration? connectTimeout,
   }) {
+    final target = _dialTarget(host, port);
     return SyncClientSession(
-      _httpForPeer(peer, connectTimeout: connectTimeout),
-      'https://${uriHost(host)}:$port',
+      _httpForPeer(
+        peer,
+        remote: target.remote,
+        // A probe-derived LAN budget (a small multiple of the measured round
+        // trip) says nothing about how long a tunnel takes to come up, so a
+        // remote session uses the tunnel budget whatever the caller derived.
+        connectTimeout: target.remote
+            ? kSyncRemoteDialConnectTimeout
+            : connectTimeout,
+      ),
+      'https://${uriHost(target.endpoint.host)}:${target.endpoint.port}',
       deviceId: identity.deviceId,
       token: peer.secret,
-      helloDeadline: helloDeadline,
+      // A tunneled session is the same protocol on a slower pipe: the data and
+      // blob budgets already allow for a large push, but the first control
+      // beat pays for the tunnel coming up and a probe must not be fooled by
+      // relay latency into reporting a present peer offline.
+      helloDeadline: target.remote ? kSyncRemoteHelloDeadline : helloDeadline,
       dataDeadline: dataDeadline,
       blobDeadline: blobDeadline,
-      pingDeadline: pingDeadline,
+      pingDeadline: target.remote ? kSyncRemotePingDeadline : pingDeadline,
+      remote: target.remote,
     );
   }
 
-  HttpClient _httpForPeer(SyncPeerRecord peer, {Duration? connectTimeout}) {
-    final client = SyncClient.directClient(identity.buildContext())
-      ..connectionTimeout = connectTimeout ?? kSyncDialConnectTimeout
-      // Pinning the listener's certificate is the whole server-side
-      // authentication: nothing else can answer as this peer.
-      ..badCertificateCallback = (cert, _, _) =>
-          crypto.sha256.convert(cert.der).toString() == peer.deviceId;
+  HttpClient _httpForPeer(
+    SyncPeerRecord peer, {
+    Duration? connectTimeout,
+    bool remote = false,
+  }) {
+    // Pinning the listener's certificate is the whole server-side
+    // authentication: nothing else can answer as this peer. A tunneled client
+    // names the expected identity so the pin is checked again after the
+    // handshake, independently of which context built the TLS layer.
+    final client =
+        _newClient(
+            remote: remote,
+            expectedDeviceId: remote ? peer.deviceId : null,
+            certificateHandler: (cert) =>
+                crypto.sha256.convert(cert.der).toString() == peer.deviceId,
+          )
+          ..connectionTimeout =
+              connectTimeout ??
+              (remote
+                  ? kSyncRemoteDialConnectTimeout
+                  : kSyncDialConnectTimeout);
     return client;
   }
 
@@ -214,9 +404,10 @@ class SyncClient {
   /// and many desktop users run) swallows every dial towards a peer whose
   /// address its `NO_PROXY` does not list — and that list is usually private
   /// ranges only, while a peer is remembered at whatever address its network
-  /// handed out: a NAT'd public address, or an IPv6 one. Sync is a LAN protocol
-  /// by construction; there is no situation in which a proxy can reach a peer
-  /// this device cannot.
+  /// handed out: a NAT'd public address, or an IPv6 one. A sync peer is reached
+  /// by its own address or through a tailcat tunnel (remote clients install
+  /// that factory, see [_newClient]); there is no situation in which a proxy
+  /// can reach a peer this device cannot.
   ///
   /// The probe is not a second exception to this rule any more: it goes through
   /// this same client (see `syncEndpointProbe`), so a proxied dial and a proxied
@@ -236,17 +427,31 @@ class SyncClient {
     required String host,
     required int port,
   }) async {
-    final client = _httpForPeer(peer)..connectionTimeout = _revokeTimeout;
+    final target = _dialTarget(host, port);
+    final budget = target.remote
+        ? kSyncRemoteDialConnectTimeout
+        : _revokeTimeout;
+    final client = _httpForPeer(
+      peer,
+      remote: target.remote,
+      connectTimeout: budget,
+    );
     try {
       final request = await client.postUrl(
-        Uri.parse('https://${uriHost(host)}:$port/sync/revoke'),
+        Uri.parse(
+          'https://${uriHost(target.endpoint.host)}:'
+          '${target.endpoint.port}/sync/revoke',
+        ),
       );
+      if (target.remote) {
+        request.headers.set(SyncServer.remoteHeader, '1');
+      }
       request.headers.set(SyncServer.deviceHeader, identity.deviceId);
       request.headers.set(SyncServer.tokenHeader, peer.secret);
       request.headers.contentType = ContentType.json;
       request.add(const []);
-      final response = await request.close().timeout(_revokeTimeout);
-      await response.drain<void>().timeout(_revokeTimeout);
+      final response = await request.close().timeout(budget);
+      await response.drain<void>().timeout(budget);
       if (response.statusCode != HttpStatus.ok) {
         throw SyncClientException(
           'revoke_failed',
@@ -308,6 +513,7 @@ class SyncClientSession {
     this.dataDeadline = kSyncDataDeadline,
     this.blobDeadline = kSyncBlobDeadline,
     this.pingDeadline = kSyncPingDeadline,
+    this.remote = false,
   }) : // Public names omit the private-field prefix (ChatService convention).
        // ignore: prefer_initializing_formals
        _deviceId = deviceId,
@@ -330,6 +536,11 @@ class SyncClientSession {
 
   /// Budget for one liveness probe.
   final Duration pingDeadline;
+
+  /// Whether this session crosses the tailcat tunnel. Every request carries
+  /// the server's remote marker so a peer does not remember its relay's
+  /// loopback source as this device's address (ADR-0021).
+  final bool remote;
 
   /// One authenticated liveness probe: a request answered with a bare 204.
   ///
@@ -716,5 +927,6 @@ class SyncClientSession {
   void _authenticate(HttpClientRequest request) {
     request.headers.set(SyncServer.deviceHeader, _deviceId);
     request.headers.set(SyncServer.tokenHeader, _token);
+    if (remote) request.headers.set(SyncServer.remoteHeader, '1');
   }
 }

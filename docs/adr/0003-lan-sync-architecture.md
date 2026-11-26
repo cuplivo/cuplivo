@@ -2694,3 +2694,12 @@ it keeps re-plans the same deletion. Filtering the send side alone is the defect
   — the apply gate alone would keep the peer's row safe — which is the point of three gates over one
   rule; the deletion cell is the one that only the announcement can pass.
 
+## Amendment (2026-11, remote sync): the transport grows a second pipe
+
+[ADR-0021](0021-remote-sync-over-tailcat.md) adds an experimental remote transport: a tailcat
+(WireGuard) tunnel relays bytes into this architecture's existing mTLS listener on both ends, so the
+pairing, certificate pinning and merge in this ADR are unchanged and only the socket underneath the
+sync client differs; ADR-0021 adds no protocol change of its own. The conversation transfer itself is
+the paged protocol 11 of [ADR-0020](0020-lan-sync-paging.md), shared by both transports — the push
+beat, wire payload and checkpoints described above are the paging amendment's, not a remote variant.
+LAN sync keeps this ADR's transport, pairing and merge behaviour exactly.

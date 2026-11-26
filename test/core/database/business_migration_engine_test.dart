@@ -322,6 +322,24 @@ void main() {
                       'createdAt': '2026-09-08T00:00:00Z',
                       'updatedAt': '2026-09-08T00:00:00Z',
                     },
+                    if (kind == BusinessEntityKind.compressionTemplate) ...{
+                      'formatVersion': 1,
+                      'name': 'Brief',
+                      'prompt': 'Summarise in five lines.',
+                    },
+                    if (kind == BusinessEntityKind.compressionRecipe) ...{
+                      'formatVersion': 1,
+                      'name': 'Tight',
+                      // A whole template: the recipe decoder parses this map, so
+                      // a reference would be a row the library cannot read back.
+                      'template': <String, Object?>{
+                        'formatVersion': 1,
+                        'id': 'template-a',
+                        'name': 'Brief',
+                        'prompt': 'Summarise in five lines.',
+                      },
+                      'settings': <String, Object?>{},
+                    },
                     'opaque': kind.name,
                   },
               ]),

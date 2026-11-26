@@ -885,6 +885,9 @@ class DataSync {
           databaseFile,
           scope: scope,
           target: target,
+          // The same call writes `settings.json` from the same scope, so the
+          // library is in that half and must not also stay in this one.
+          libraryInSettings: scope.includes(BackupCategory.instructions),
         );
       }
 
@@ -3501,6 +3504,7 @@ class DataSync {
     File file, {
     BackupScope scope = const BackupScope(),
     BackupTarget target = BackupTarget.cuplivo,
+    bool libraryInSettings = false,
   }) async {
     final database = AppDatabase.open(file: file);
     try {
@@ -3508,6 +3512,7 @@ class DataSync {
         database,
         scope: scope,
         target: target,
+        libraryInSettings: libraryInSettings,
       );
       for (final sql in MessageTimelineIndex.discardStatements) {
         await database.customStatement(sql);

@@ -24,6 +24,7 @@ import 'package:path/path.dart' as p;
 import 'image_preview_sheet.dart';
 import 'export_image_capture.dart';
 import 'export_progress_overlay.dart';
+import 'pdf_export_dialog.dart';
 import '../utils/export_image_processor.dart';
 import '../../subagent/widgets/subagent_mail_notice.dart'
     show subagentMailLabelText;

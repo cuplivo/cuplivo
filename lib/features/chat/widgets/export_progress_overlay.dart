@@ -17,19 +17,21 @@ class ExportProgressContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final label = switch (progress.stage) {
-      ExportImageStage.preparing => l10n.imageExportPreparing,
-      ExportImageStage.diagrams => l10n.imageExportDiagrams(
-        progress.completed,
-        progress.total,
-      ),
-      ExportImageStage.capturing => l10n.imageExportCapturing(
-        progress.completed,
-        progress.total,
-      ),
-      ExportImageStage.processing => l10n.imageExportProcessing,
-      ExportImageStage.saving => l10n.imageExportSaving,
-    };
+    final label =
+        progress.label ??
+        switch (progress.stage) {
+          ExportImageStage.preparing => l10n.imageExportPreparing,
+          ExportImageStage.diagrams => l10n.imageExportDiagrams(
+            progress.completed,
+            progress.total,
+          ),
+          ExportImageStage.capturing => l10n.imageExportCapturing(
+            progress.completed,
+            progress.total,
+          ),
+          ExportImageStage.processing => l10n.imageExportProcessing,
+          ExportImageStage.saving => l10n.imageExportSaving,
+        };
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       child: SizedBox(
@@ -61,14 +63,20 @@ class ExportProgressContent extends StatelessWidget {
 /// Holds a modal progress card for the duration of [task] and reports its
 /// stages. The card never outlives the operation, even when the operation
 /// opens another route of its own.
-Future<void> runWithExportProgressOverlay(
+///
+/// [task]'s answer is this call's answer, so an export that builds something
+/// worth keeping (a file, a document) does not have to smuggle it out through a
+/// captured variable. [initial] is the stage the card opens on, and [label]
+/// there is what it opens saying.
+Future<T> runWithExportProgressOverlay<T>(
   BuildContext context,
-  Future<void> Function(ValueNotifier<ExportImageProgress> progress) task,
-) async {
+  Future<T> Function(ValueNotifier<ExportImageProgress> progress) task, {
+  ExportImageProgress initial = const ExportImageProgress(
+    ExportImageStage.preparing,
+  ),
+}) async {
   final navigator = Navigator.of(context, rootNavigator: true);
-  final progress = ValueNotifier(
-    const ExportImageProgress(ExportImageStage.preparing),
-  );
+  final progress = ValueNotifier(initial);
   final route = DialogRoute<void>(
     context: context,
     barrierDismissible: false,
@@ -94,7 +102,7 @@ Future<void> runWithExportProgressOverlay(
   unawaited(navigator.push(route));
   try {
     await WidgetsBinding.instance.endOfFrame;
-    await task(progress);
+    return await task(progress);
   } finally {
     // Remove only this operation's dialog, even when another route was opened.
     if (route.isActive) navigator.removeRoute(route);

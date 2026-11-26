@@ -2110,6 +2110,27 @@ final class BusinessSettingsRouter {
           stringLists: const {'memberIds'},
         );
         return;
+      case BusinessEntityKind.compressionTemplate:
+        // A prompt the user wrote for the summariser: opaque to this router, so
+        // it is type-checked at the import boundary and never interpreted.
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name', 'prompt'},
+          strings: const {'scene', 'outputLanguage'},
+          integers: const {'formatVersion'},
+        );
+        return;
+      case BusinessEntityKind.compressionRecipe:
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name'},
+          strings: const {'focus'},
+          maps: const {'template', 'settings'},
+          integers: const {'formatVersion'},
+        );
+        return;
       case BusinessEntityKind.userProfileField:
         _validateKnownFields(
           kind,

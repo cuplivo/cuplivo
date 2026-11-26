@@ -4488,16 +4488,8 @@ class ChatDatabaseRepository {
       // exactly as the last build that maintained it left it. The placeholder
       // below is what keeps a stale (`null`) model value from clobbering it; an
       // insert still writes the model's value, which is null either way.
-      final updated =
-          await (_db.update(
-            _db.conversationRows,
-          )..where((row) => row.id.equals(conversation.id))).write(
-            _conversationCompanion(
-              conversation,
-              injectedMemoryHash: const Value.absent(),
-            ),
-          );
-      if (updated == 0) {
+      final stored = await syncReadConversationRow(conversation.id);
+      if (stored == null) {
         await _db
             .into(_db.conversationRows)
             .insert(
@@ -5013,13 +5005,27 @@ class ChatDatabaseRepository {
                 row.carriesMemorySnapshot.equals(true),
           ))
           .go();
-      final updated =
-          await (_db.update(
-            _db.conversationRows,
-          )..where((row) => row.id.equals(conversationId))).write(
-            ConversationRowsCompanion(
-              assistantId: Value(assistantId),
-              updatedAt: Value(updatedAt),
+      // Read after the grant strip above: this write carries the bag it left.
+      final stored = await syncReadConversationRow(conversationId);
+      if (stored == null) return false;
+      final clock = _nextConversationClock(
+        storedExtrasJson: stored['extras_json'],
+        storedUpdatedAtUs: (stored['updated_at'] as num).toInt(),
+        bumpDisplay: true,
+        displayAt: updatedAt,
+      );
+      await (_db.update(
+        _db.conversationRows,
+      )..where((row) => row.id.equals(conversationId))).write(
+        ConversationRowsCompanion(
+          assistantId: Value(assistantId),
+          updatedAt: Value(
+            DateTime.fromMicrosecondsSinceEpoch(clock.updatedAtUs),
+          ),
+          extrasJson: Value(
+            _extrasWithSyncClock(
+              _decodeExtrasJson(stored['extras_json'] as String),
+              clock.syncClock,
             ),
           ),
         ),
@@ -6025,6 +6031,51 @@ FROM conversation_rows;
     'injected_memory_hash',
   };
 
+  /// Conversation `extras_json` keys that are this device's own facts.
+  ///
+  /// A grant says *this device* approved — `tools.permission_mode`, plus the
+  /// `workspace.allowAll` an older build honoured — so it is not shared state and
+  /// must not cross. The keys live inside one JSON column that travels whole,
+  /// which is why the rule has two halves: the wire read strips them
+  /// ([syncReadWireConversationRow]) and the applier merges them back key by key
+  /// from the local row. A strip alone would erase the grant the first time a
+  /// peer wins the row; a merge alone would let the grant travel.
+  ///
+  /// `workspace.cwd` is deliberately *not* in the set, although it sits beside
+  /// the grants: it is a workspace-relative folder (`FileBrowserOps` validates
+  /// the picker's value as one, `WorkspacePaths.normalizeCwd` resolves it against
+  /// the workspace root), and the workspace's content is itself synced, so the
+  /// same relative folder exists on the peer. Stripping it would drop the
+  /// conversation onto the workspace root there. It follows the winner like the
+  /// rest of the bag, and a rebind is then handled by construction.
+  ///
+  /// Public because the backup sanitizer strips the same keys from an archive
+  /// (`BackupPortability.sanitizeDatabase`); two spellings of this list is how
+  /// one of the halves gets forgotten.
+  static const Set<String> syncLocalExtrasKeys =
+      ToolPermissionMode.grantExtrasKeys;
+
+  /// The conversation's identity as this device sees it now, composed from every
+  /// synced family by re-reading its rows.
+  ///
+  /// The slow, exact half of the same rule [syncFamilyDigestInputs] aggregates:
+  /// a checkpoint entry and a manifest entry built from identical state must be
+  /// equal, and `sync_family_registry_test.dart` holds the two readers to it.
+  Future<String> syncConversationDigest(String conversationId) async {
+    final contributions = <String, String>{};
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot ||
+          family.identity == SyncIdentityContribution.none) {
+        continue;
+      }
+      contributions[family.name] = syncFamilyDigestInput(
+        family,
+        await syncReadFamilyRows(family, conversationId),
+      );
+    }
+    return composeConversationDigest(contributions);
+  }
+
   Future<Map<String, dynamic>?> syncReadConversationRow(String id) async {
     final rows = await _db
         .customSelect(
@@ -6037,15 +6088,22 @@ FROM conversation_rows;
   }
 
   /// The row as it travels: [syncReadConversationRow] without this device's
-  /// memory bookkeeping.
+  /// memory bookkeeping or its own extras keys.
   ///
-  /// The apply side also builds its upsert from [currentSchemaColumns], so what
-  /// is left out here is put back from the local row there — the two halves of
-  /// one rule, which is why both read [_syncLocalConversationColumns].
+  /// The apply side also builds its upsert from [currentSchemaColumns] and
+  /// merges extras back by key, so what is stripped here is put back from the
+  /// local row there — the two halves of one rule, which is why both read
+  /// [_syncLocalConversationColumns] and [syncLocalExtrasKeys].
   Future<Map<String, dynamic>?> syncReadWireConversationRow(String id) async {
     final row = await syncReadConversationRow(id);
     if (row == null) return null;
     row.removeWhere((key, _) => _syncLocalConversationColumns.contains(key));
+    // An unreadable bag becomes `{}` on the wire rather than junk: this device's
+    // broken column is not something to push onto a peer.
+    final extras =
+        _decodeExtrasObject(row['extras_json']) ?? <String, dynamic>{};
+    extras.removeWhere((key, _) => syncLocalExtrasKeys.contains(key));
+    row['extras_json'] = jsonEncode(extras);
     return row;
   }
 
@@ -6329,6 +6387,20 @@ FROM conversation_rows;
         conversationRow = Map<String, dynamic>.from(merge.winner);
         conversationRowChanged = merge.incomingWon;
 
+        // The winner is decided by the sync clock, so it can be the row whose
+        // `updated_at` is *older*: a peer that pinned (a write that no longer
+        // moves the display clock) while this device appended a message wins the
+        // row without the newer content clock. Copying its `updated_at` would
+        // move this device's list backwards — a conversation from today dropping
+        // into yesterday — so the display clock only ever rises. Both peers keep
+        // their own, which is what "content clock" means; the sync clocks are
+        // equal because the winner's key is what the checkpoint records.
+        final winnerUpdatedAt = (conversationRow['updated_at'] as num).toInt();
+        final localUpdatedAt = (localConversation['updated_at'] as num).toInt();
+        if (localUpdatedAt > winnerUpdatedAt) {
+          conversationRow['updated_at'] = localUpdatedAt;
+        }
+
         // The extraction watermark is a fact about the conversation, not about
         // this device: the memory entries travel, so a message the peer already
         // extracted needs no second pass here. Whole-row LWW gets it wrong in
@@ -6376,6 +6448,22 @@ FROM conversation_rows;
         // writing the column back as null would erase what we know.
         for (final column in _syncLocalConversationColumns) {
           conversationRow[column] = localConversation[column];
+        }
+
+        // Same rule, one column deeper (see [syncLocalExtrasKeys]): the winner's
+        // extras follow the winner key by key, except for the grants, which are
+        // this device's own and come back from the local row. Written as part of
+        // the same upsert so `updated_at` stays the winner's — a second write
+        // would move the conversation's clock and make both peers re-push.
+        if (conversationRowChanged) {
+          conversationRow['extras_json'] = _mergeLocalExtras(
+            incoming: conversationRow['extras_json'],
+            local: localConversation['extras_json'],
+            restore: _sameWorkspaceBinding(
+              winner: conversationRow,
+              local: localConversation,
+            ),
+          );
         }
       }
       if (localConversation != null && conversationRowChanged) {

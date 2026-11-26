@@ -77,7 +77,11 @@ void main() {
       };
       expect(
         written.difference(pinned.entitySourceKeys),
-        {'group_chats_v1'},
+        {
+          'group_chats_v1',
+          'compression_templates_v1',
+          'compression_recipes_v1',
+        },
         reason:
             'Update KelivoVocabulary with a new frozen constant for a newer '
             'Kelivo release rather than editing v1_3_2 in place, and move the '

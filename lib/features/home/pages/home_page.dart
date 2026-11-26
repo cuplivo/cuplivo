@@ -98,6 +98,8 @@ import '../widgets/chat_selection_action_bar.dart';
 import '../widgets/user_message_edit_overlay.dart';
 import '../utils/model_display_helper.dart';
 import '../utils/chat_layout_constants.dart';
+import '../../../core/models/chat_owner.dart';
+import '../../harness/harness_navigation.dart';
 import '../controllers/home_page_controller.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
 import '../../subagent/services/subagent_coordinator.dart';
@@ -1033,6 +1035,28 @@ class _HomePageState extends State<HomePage>
         ),
       );
 
+  /// A sidebar row tap. A local assistant or a group opens its conversation; a
+  /// DeepSeek Harness is a remote application, so it opens its own page instead
+  /// — its connection settings first when no link was saved yet.
+  Future<void> _handleOpenOwner(ChatOwner owner) async {
+    if (!owner.isGroup) {
+      final assistant = context.read<AssistantProvider>().getById(owner.id);
+      if (assistant != null && assistant.isDeepSeekHarness) {
+        // The remote page is an opaque route, and the sidebar below it stops
+        // animating the moment the page covers it. Let the sidebar finish
+        // closing first: otherwise it is left half-open under the page and
+        // slides away again the moment the user comes back.
+        if (_drawerController.isAttached && !_drawerController.isClosed) {
+          await _drawerController.close();
+          if (!mounted) return;
+        }
+        await openHarnessForAssistant(context, assistant);
+        return;
+      }
+    }
+    await _controller.openOwner(owner);
+  }
+
   Widget _buildPage(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final desktop = !kIsWeb && _controller.isDesktopPlatform;
@@ -1120,7 +1144,7 @@ class _HomePageState extends State<HomePage>
       onNewConversation: () async {
         await _controller.createNewConversationAnimated();
       },
-      onOpenOwner: _controller.openOwner,
+      onOpenOwner: _handleOpenOwner,
       onOpenMiniMap: _openMiniMap,
       onCreateNewConversation: () async {
         await _controller.createNewConversationAnimated();
@@ -1265,7 +1289,7 @@ class _HomePageState extends State<HomePage>
         _controller.closeCompactSidebar();
         await _controller.createNewConversationAnimated();
       },
-      onOpenOwner: _controller.openOwner,
+      onOpenOwner: _handleOpenOwner,
       onRevealTopics: _controller.revealTopics,
       onCreateNewConversation: () async {
         await _controller.createNewConversationAnimated();

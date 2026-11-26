@@ -19387,4 +19387,127 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get remoteSyncQrErrorMalformed =>
       'The remote pairing QR code could not be read.';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => 'Remote DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'Enter the DeepSeek Harness WebUI access link';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'Use when DeepSeek Harness is on the same LAN or reachable over the internet.';
+
+  @override
+  String get assistantHarnessConfirm => 'Confirm';
+
+  @override
+  String get assistantHarnessConnected => 'Connected';
+
+  @override
+  String get assistantHarnessChecking => 'Connecting…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      'Connection failed. Check the link and your network, then try again.';
+
+  @override
+  String get assistantHarnessInvalidUrl => 'Enter a valid WebUI access link.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      'The link is missing its token. Paste the full access link printed by dsh web.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness rejected this link. Check that its token is still valid.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      'Could not reach that link. Check the address and network.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness did not answer its API.';
+
+  @override
+  String get assistantHarnessLoadFailed => 'Could not load DeepSeek Harness.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      'Embedded WebView is not supported on this platform.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => 'Open in browser';
+
+  @override
+  String get assistantHarnessRetry => 'Retry';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Connection method';
+
+  @override
+  String get assistantHarnessMethodLink => 'Public link';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu plugin';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'Enter the tailcat address';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Enter the tailcat address or pairing command shown under Remote access.';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'Could not open the tailcat tunnel. Check the address and network.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'tailcat connections are not supported on this platform.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'Opening the tailcat tunnel…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'Scan QR code';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'This device\'s public key (allow-list)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Add this key under Remote access → Security in DeepSeek Harness to allow only the devices you list. Without an allow-list, the address alone is enough.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Preparing this device\'s key…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Could not prepare this device\'s key.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Public key copied';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Remote access through the plugin. Install @ds-hu/dsh-tailcat-remote on the DeepSeek Harness and Cuplivo can open its WebUI without exposing a port.';
 }

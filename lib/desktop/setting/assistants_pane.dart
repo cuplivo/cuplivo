@@ -10,6 +10,21 @@ class _DesktopAssistantsBody extends StatelessWidget {
       for (final assistant in context.watch<AssistantProvider>().assistants)
         assistant.id: assistant,
     };
+    // Harness rows show the live connection answer. A pane without a harness
+    // assistant never reads the provider (and can be pumped without it).
+    final hasHarness = assistants.values.any((a) => a.isDeepSeekHarness);
+    final harnessConnections = hasHarness
+        ? context.watch<HarnessConnectionProvider>()
+        : null;
+    if (hasHarness) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        final harnesses = context.read<AssistantProvider>().assistants.where(
+          (assistant) => assistant.isDeepSeekHarness,
+        );
+        context.read<HarnessConnectionProvider>().ensureChecked(harnesses);
+      });
+    }
     final groups = {
       for (final group in context.watch<GroupChatProvider>().groups)
         group.id: group,
@@ -53,13 +68,17 @@ class _DesktopAssistantsBody extends StatelessWidget {
 
     Widget cardFor(ChatOwner owner) {
       final group = owner.isGroup ? groups[owner.id] : null;
-      return group != null
-          ? _DesktopGroupCard(group: group, assistants: assistants)
-          : _DesktopAssistantCard(
-              item: assistants[owner.id]!,
-              onTap: () =>
-                  showAssistantDesktopDialog(context, assistantId: owner.id),
-            );
+      if (group != null) {
+        return _DesktopGroupCard(group: group, assistants: assistants);
+      }
+      final item = assistants[owner.id]!;
+      return _DesktopAssistantCard(
+        item: item,
+        connections: harnessConnections,
+        onTap: item.isDeepSeekHarness
+            ? () => openHarnessSettings(context, owner.id)
+            : () => showAssistantDesktopDialog(context, assistantId: owner.id),
+      );
     }
 
     final cs = Theme.of(context).colorScheme;
@@ -129,10 +148,16 @@ class _DesktopAssistantsBody extends StatelessWidget {
                                   ChatOwner.assistant(assistant.id).key,
                               itemBuilder: (assistant) => _DesktopAssistantCard(
                                 item: assistant,
-                                onTap: () => showAssistantDesktopDialog(
-                                  context,
-                                  assistantId: assistant.id,
-                                ),
+                                connections: harnessConnections,
+                                onTap: assistant.isDeepSeekHarness
+                                    ? () => openHarnessSettings(
+                                        context,
+                                        assistant.id,
+                                      )
+                                    : () => showAssistantDesktopDialog(
+                                        context,
+                                        assistantId: assistant.id,
+                                      ),
                               ),
                               onReorder: (oldIndex, newIndex) =>
                                   owners.reorderWithin(
@@ -332,6 +357,12 @@ class _AddOwnerButtonState extends State<_AddOwnerButton> {
                 label: l10n.groupChatCreate,
                 onTap: () => _createGroup(context),
               ),
+              ActionSheetItem(
+                key: const Key('harness-create-item'),
+                svgAsset: DeepSeekHarnessIcon.asset,
+                label: l10n.assistantHarnessDefaultName,
+                onTap: () => _createHarnessAssistant(context),
+              ),
             ],
           );
         },
@@ -353,6 +384,16 @@ class _AddOwnerButtonState extends State<_AddOwnerButton> {
     if (name == null || name.trim().isEmpty) return;
     if (!context.mounted) return;
     await assistantProvider.addAssistant(name: name.trim(), context: context);
+  }
+
+  Future<void> _createHarnessAssistant(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final assistantProvider = context.read<AssistantProvider>();
+    final id = await assistantProvider.addHarnessAssistant(
+      name: l10n.assistantHarnessDefaultName,
+    );
+    if (!context.mounted) return;
+    await openHarnessSettings(context, id);
   }
 
   Future<void> _createGroup(BuildContext context) async {
@@ -830,8 +871,15 @@ class _DesktopGroupCardState extends State<_DesktopGroupCard> {
 }
 
 class _DesktopAssistantCard extends StatefulWidget {
-  const _DesktopAssistantCard({required this.item, required this.onTap});
+  const _DesktopAssistantCard({
+    required this.item,
+    required this.onTap,
+    this.connections,
+  });
   final Assistant item;
+
+  /// Live link state, only passed when the pane contains harness assistants.
+  final HarnessConnectionProvider? connections;
   final VoidCallback onTap;
   @override
   State<_DesktopAssistantCard> createState() => _DesktopAssistantCardState();
@@ -841,8 +889,13 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
   bool _hover = false;
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final item = widget.item;
+    final connected =
+        item.isDeepSeekHarness &&
+        (widget.connections?.isConnected(item.id) ?? false);
     final baseBg = context.appColors.surfaceCard;
     final borderColor = _hover
         ? cs.primary.withValues(alpha: isDark ? 0.35 : 0.45)
@@ -865,7 +918,7 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _AssistantAvatarDesktop(item: widget.item, size: 48),
+                _AssistantAvatarDesktop(item: item, size: 48),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -875,7 +928,7 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                         children: [
                           Expanded(
                             child: Text(
-                              widget.item.name,
+                              item.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -884,21 +937,23 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                               ),
                             ),
                           ),
-                          _CopyAssistantIcon(
-                            onCopy: () async {
-                              await copyAssistantWithScope(
-                                context,
-                                widget.item.id,
-                              );
-                            },
-                          ),
+                          // A pointer at a remote WebUI is not duplicated into a
+                          // second chat assistant, so harness rows offer no copy.
+                          if (!item.isDeepSeekHarness)
+                            _CopyAssistantIcon(
+                              onCopy: () async {
+                                await copyAssistantWithScope(context, item.id);
+                              },
+                            ),
                           _DeleteAssistantIcon(
                             onConfirm: () async {
                               final assistantProvider = context
                                   .read<AssistantProvider>();
-                              final l10n = AppLocalizations.of(context)!;
-                              final count = assistantProvider.assistants.length;
-                              if (count <= 1) {
+                              // Only a local assistant is protected as the last
+                              // chat owner; a harness delete is always allowed.
+                              if (!item.isDeepSeekHarness &&
+                                  assistantProvider.chatAssistants.length <=
+                                      1) {
                                 showAppSnackBar(
                                   context,
                                   message: l10n
@@ -911,11 +966,11 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                               if (ok == true) {
                                 if (!context.mounted) return;
                                 await ChatActions.cancelActiveGenerationsForAssistant(
-                                  widget.item.id,
+                                  item.id,
                                 );
                                 if (!context.mounted) return;
                                 final success = await assistantProvider
-                                    .deleteAssistant(widget.item.id);
+                                    .deleteAssistant(item.id);
                                 if (!context.mounted) return;
                                 if (success != true) {
                                   showAppSnackBar(
@@ -932,11 +987,11 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        (widget.item.systemPrompt.trim().isEmpty
-                            ? AppLocalizations.of(
-                                context,
-                              )!.assistantSettingsNoPromptPlaceholder
-                            : widget.item.systemPrompt),
+                        item.isDeepSeekHarness
+                            ? l10n.assistantHarnessRemoteSubtitle
+                            : (item.systemPrompt.trim().isEmpty
+                                  ? l10n.assistantSettingsNoPromptPlaceholder
+                                  : item.systemPrompt),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -948,6 +1003,17 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                     ],
                   ),
                 ),
+                if (connected) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: context.appColors.success,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -964,6 +1030,10 @@ class _AssistantAvatarDesktop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    // The whale mark is product identity: one implementation for every surface.
+    if (item.isDeepSeekHarness) {
+      return AssistantAvatar(assistant: item, size: size);
+    }
     final av = (item.avatar ?? '').trim();
     if (av.isNotEmpty) {
       if (av.startsWith('http')) {

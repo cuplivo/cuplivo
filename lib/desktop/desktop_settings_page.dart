@@ -119,6 +119,10 @@ import '../core/providers/group_chat_provider.dart';
 import '../features/group_chat/group_navigation.dart';
 import '../features/group_chat/widgets/group_member_list.dart';
 import '../shared/widgets/action_sheet.dart';
+import '../core/providers/harness_connection_provider.dart';
+import '../features/harness/harness_navigation.dart';
+import '../features/harness/widgets/deepseek_harness_icon.dart';
+import '../features/home/widgets/assistant_avatar.dart';
 
 part 'setting/assistants_pane.dart';
 part 'setting/providers_pane.dart';

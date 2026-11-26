@@ -19700,4 +19700,129 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get remoteSyncQrErrorMalformed =>
       'Не удалось прочитать QR-код удалённого сопряжения.';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => 'Удалённый DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'Введите ссылку доступа к DeepSeek Harness WebUI';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'Используйте, если DeepSeek Harness находится в той же локальной сети или доступен через интернет.';
+
+  @override
+  String get assistantHarnessConfirm => 'Подтвердить';
+
+  @override
+  String get assistantHarnessConnected => 'Подключено';
+
+  @override
+  String get assistantHarnessChecking => 'Подключение…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      'Не удалось подключиться. Проверьте ссылку и сеть, затем повторите попытку.';
+
+  @override
+  String get assistantHarnessInvalidUrl =>
+      'Введите действительную ссылку доступа к WebUI.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      'В ссылке отсутствует токен. Вставьте полную ссылку доступа, которую выводит dsh web.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness отклонил эту ссылку. Проверьте, действителен ли ещё её токен.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      'Не удалось получить доступ к этой ссылке. Проверьте адрес и сеть.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness не ответил на запрос к своему API.';
+
+  @override
+  String get assistantHarnessLoadFailed =>
+      'Не удалось загрузить DeepSeek Harness.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      'На этой платформе встроенный WebView не поддерживается.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => 'Открыть в браузере';
+
+  @override
+  String get assistantHarnessRetry => 'Повторить';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Способ подключения';
+
+  @override
+  String get assistantHarnessMethodLink => 'Публичная ссылка';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'Плагин ds-hu';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'Введите адрес tailcat';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'В боковой панели DeepSeek Harness откройте «Удалённый доступ» и скопируйте адрес tailcat или команду сопряжения.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Введите адрес tailcat или команду сопряжения, показанные в разделе «Удалённый доступ».';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'Не удалось открыть туннель tailcat. Проверьте адрес и сеть.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'Подключения tailcat не поддерживаются на этой платформе.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'Открываем туннель tailcat…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'Сканировать QR-код';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'Публичный ключ этого устройства (список разрешённых)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Добавьте этот ключ в разделе «Remote access → Security» DeepSeek Harness, чтобы подключались только устройства из списка. Если список пуст, достаточно адреса.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Подготовка ключа этого устройства…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Не удалось подготовить ключ этого устройства.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Публичный ключ скопирован';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Удалённый доступ через плагин. Установите @ds-hu/dsh-tailcat-remote на DeepSeek Harness, и Cuplivo сможет открыть его WebUI, не открывая порты.';
 }

@@ -3717,7 +3717,8 @@ void main() {
       expect(
         bTransport.dialed.sublist(reverseDialsBefore),
         isEmpty,
-        reason: 'no page carried a blob or a workspace file to pull back, so '
+        reason:
+            'no page carried a blob or a workspace file to pull back, so '
             'the responder had nothing to open a tunnel for',
       );
     },

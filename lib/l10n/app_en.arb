@@ -1456,6 +1456,18 @@
   "@subagentMailLabel": {
     "description": "Divider label for a message the other side of a subagent delegation sent; the sender's conversation title follows it."
   },
+  "subagentMailOpenConversation": "Open conversation",
+  "@subagentMailOpenConversation": {
+    "description": "Button in a subagent message dialog; opens the conversation the message came from."
+  },
+  "subagentMailCopy": "Copy",
+  "@subagentMailCopy": {
+    "description": "Button in a subagent message dialog; copies the message text."
+  },
+  "subagentMailCopied": "Copied",
+  "@subagentMailCopied": {
+    "description": "Confirmation shown after a subagent message is copied to the clipboard."
+  },
   "subagentStripRunning": "Subagent running ({elapsed}) {label}",
   "@subagentStripRunning": {
     "placeholders": {

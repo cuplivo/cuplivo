@@ -5616,5 +5616,8 @@
   "assistantHarnessTailcatKeyFailed": "baac95ed48f0a6298025c27a6efbd5788f74c724dc284c9b4a85f0395b0fc41b",
   "assistantHarnessTailcatKeyCopied": "5f47b0894f22277bddf9bd87e78b7b67112fc7895b577a367fe54f2b195e5b8b",
   "assistantHarnessTailcatPluginNote": "90b949434566c1f6736b46aff256f590689f5309ade978184102701c1519f165",
-  "subagentMailLabel": "d96f01bfe2bd3cfadcde51b19486e409a10bd239f4a629e642aad14b653edf40"
+  "subagentMailLabel": "d96f01bfe2bd3cfadcde51b19486e409a10bd239f4a629e642aad14b653edf40",
+  "subagentMailOpenConversation": "d56ad5e0af4d4569433dad8d396a7cc459adbdc58b687e105083713f4fa11ec7",
+  "subagentMailCopy": "8017cabd4afb5aa56d680b2b2ea70f350ba458f1cc9c3a65e194655a99f1d763",
+  "subagentMailCopied": "6893a2ca1f8f5f56aed40a8858114f8a3051b248237d98dacd89ad33f4bad912"
 }

@@ -5657,5 +5657,12 @@
   "assistantHarnessTailcatKeyPreparing": "782c5fd6735dc8e4c3f6a701c6092978eb2a9751de17f9d050043765515e63b1",
   "assistantHarnessTailcatKeyFailed": "6c2c0bc961ab01ab6c7263e4ffbdded8a2f129e2b4dbc6f0345251a3d4e4db1d",
   "assistantHarnessTailcatKeyCopied": "e5583e9ca682a120a215d237eda0ebfe7c7f34c71ce60137349a3a4137c0f9e6",
-  "assistantHarnessTailcatPluginNote": "43ee50ca55895d986a60095416b2365f07f13c387cd0d3512d7938fac3ba7244"
+  "assistantHarnessTailcatPluginNote": "43ee50ca55895d986a60095416b2365f07f13c387cd0d3512d7938fac3ba7244",
+  "subagentMailLabel": "15a27462b57e37a976dff6aa6c5f89c387de32329f4dd3e393a52a6f347dc17d",
+  "subagentMailOpenConversation": "d8a83219a0ff02acb54b551bc2cc7e037dfca7091308c94b55466d22990d743e",
+  "subagentMailCopy": "973f2b0ad760a3ad8a2929f64449716880042c35794294a1dd2e0ed529452497",
+  "subagentMailCopied": "7b87285e84d2b809854f7c3439c6ea204970d977d0d4730c0671898b571f1e5f",
+  "subagentMailDelegatorLabel": "cdccdce8e9f37f88a17adaa3523197d5f6f6ec4fa39329530ab0c394668097fb",
+  "assistantEditLocalToolSendMessageTitle": "1fe4ac61995f301b393bb558d6c4706133bb15de4b9361c895467e3b46c6ada8",
+  "assistantEditLocalToolInterruptTitle": "5b423d53561d0125196a32bec40ea483f765a969eb61a6f5f728f6c23f166586"
 }

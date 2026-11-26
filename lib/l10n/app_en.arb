@@ -1452,6 +1452,26 @@
   "@subagentResultInterrupted": {
     "description": "Divider label for a subagent whose run the app stopped (for example a restart)."
   },
+  "subagentMailLabel": "Subagent message",
+  "@subagentMailLabel": {
+    "description": "Divider label for a message the subagent sent in its parent conversation; the sender's conversation title follows it."
+  },
+  "subagentMailDelegatorLabel": "Delegator message",
+  "@subagentMailDelegatorLabel": {
+    "description": "Divider label for a message the delegator sent into a subagent conversation; the sender's conversation title follows it."
+  },
+  "subagentMailOpenConversation": "Open conversation",
+  "@subagentMailOpenConversation": {
+    "description": "Button in a subagent message dialog; opens the conversation the message came from."
+  },
+  "subagentMailCopy": "Copy",
+  "@subagentMailCopy": {
+    "description": "Button in a subagent message dialog; copies the message text."
+  },
+  "subagentMailCopied": "Copied",
+  "@subagentMailCopied": {
+    "description": "Confirmation shown after a subagent message is copied to the clipboard."
+  },
   "subagentStripRunning": "Subagent running ({elapsed}) {label}",
   "@subagentStripRunning": {
     "placeholders": {
@@ -8118,6 +8138,14 @@
   "assistantEditLocalToolAwaitJobTitle": "Wait for task",
   "@assistantEditLocalToolAwaitJobTitle": {
     "description": "Name of the capability that blocks until a delegated task finishes."
+  },
+  "assistantEditLocalToolSendMessageTitle": "Send message",
+  "@assistantEditLocalToolSendMessageTitle": {
+    "description": "Tool-call card title for a message one side of a delegation sends to the other."
+  },
+  "assistantEditLocalToolInterruptTitle": "Stop subagent",
+  "@assistantEditLocalToolInterruptTitle": {
+    "description": "Tool-call card title for asking a subagent to stop."
   },
   "defaultModelPageImageModelTitle": "Image Model",
   "@defaultModelPageImageModelTitle": {

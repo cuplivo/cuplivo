@@ -2988,6 +2988,21 @@ class AppLocalizationsRu extends AppLocalizations {
   String get subagentResultInterrupted => 'Субагент прерван';
 
   @override
+  String get subagentMailLabel => 'Сообщение субагента';
+
+  @override
+  String get subagentMailDelegatorLabel => 'Сообщение делегатора';
+
+  @override
+  String get subagentMailOpenConversation => 'Открыть чат';
+
+  @override
+  String get subagentMailCopy => 'Копировать';
+
+  @override
+  String get subagentMailCopied => 'Скопировано';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Субагент работает ($elapsed) $label';
   }
@@ -16399,6 +16414,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => 'Ожидание задачи';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => 'Отправить сообщение';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Остановить субагента';
 
   @override
   String get defaultModelPageImageModelTitle => 'Модель изображений';

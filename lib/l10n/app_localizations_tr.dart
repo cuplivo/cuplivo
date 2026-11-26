@@ -2961,6 +2961,21 @@ class AppLocalizationsTr extends AppLocalizations {
   String get subagentResultInterrupted => 'Alt ajan kesildi';
 
   @override
+  String get subagentMailLabel => 'Alt ajan mesajı';
+
+  @override
+  String get subagentMailDelegatorLabel => 'Görev veren mesajı';
+
+  @override
+  String get subagentMailOpenConversation => 'Sohbeti aç';
+
+  @override
+  String get subagentMailCopy => 'Kopyala';
+
+  @override
+  String get subagentMailCopied => 'Kopyalandı';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Alt ajan çalışıyor ($elapsed) $label';
   }
@@ -16217,6 +16232,12 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => 'Görev bekle';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => 'Mesaj gönder';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Alt ajanı durdur';
 
   @override
   String get defaultModelPageImageModelTitle => 'Görsel Modeli';

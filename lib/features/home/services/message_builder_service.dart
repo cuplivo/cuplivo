@@ -45,7 +45,8 @@ import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
 import '../../../core/services/api/builtin_tools.dart';
 import '../../../core/services/api/message_authorship.dart';
-import '../../subagent/services/subagent_rules.dart' show SubagentExtrasKeys;
+import '../../subagent/services/subagent_rules.dart'
+    show SubagentExtrasKeys, mailToChildText, mailToParentText, mayDelegate;
 import '../../../core/services/api/providers/claude/claude_container.dart';
 import '../../../core/services/api/providers/claude/claude_history.dart';
 import '../../../core/services/api/providers/claude/claude_thinking_recovery.dart';
@@ -147,6 +148,10 @@ class MessageBuilderService {
   /// Whether [message] is the notice a finished subagent wrote into a parent.
   static bool _isSubagentResult(ChatMessage message) =>
       hasSubagentResultPart(message.parts);
+
+  /// Whether [message] is mail one side of a delegation sent the other.
+  static bool _isSubagentMail(ChatMessage message) =>
+      hasSubagentMailPart(message.parts);
 
   MessageBuilderService({
     required this.chatService,
@@ -669,6 +674,27 @@ class MessageBuilderService {
           // for a real user turn to travel in — and the marker keeps carried
           // images on that turn as well.
           message[subagentResultKey] = true;
+        } else if (_isSubagentMail(m)) {
+          // Mail between the two sides of a delegation is a message neither
+          // person in this conversation typed: no revision id, and it must not
+          // become the turn carried images and the search query hang off.
+          message[subagentMailKey] = true;
+          // The row stores the body; the model needs to know who sent it, so
+          // the attribution is added here, once, where every provider reads the
+          // same sentence.
+          final mail = subagentMailPartOf(m.parts);
+          if (mail != null) {
+            message['content'] = mail.from == SubagentMailSender.delegator
+                ? mailToChildText(content)
+                : mailToParentText(
+                    label: _briefName(
+                      chatService
+                          .getConversation(mail.senderConversationId)
+                          ?.title,
+                    ),
+                    text: content,
+                  );
+          }
         } else if (ContextOperation.isSummary(m)) {
           message['_contextSummary'] = true;
         } else {
@@ -2237,7 +2263,7 @@ class MessageBuilderService {
     if (extras[SubagentExtrasKeys.depth] is! int) return false;
     _appendToSystemMessage(
       apiMessages,
-      _subagentPrompt,
+      _subagentBrief(conversation),
       // Folded into the system-prompt bucket on purpose: a source of its own
       // would be a context segment nothing counts, so the usage panel would
       // under-report by the whole block. The paragraph is part of the system
@@ -2247,16 +2273,62 @@ class MessageBuilderService {
     return true;
   }
 
-  static const String _subagentPrompt =
-      '<subagent_context>\n'
-      'You are a subagent: this conversation was started by another '
-      'conversation to carry out one task. That conversation cannot see this '
-      'one, so do not ask it questions, do not wait for clarification, and do '
-      'not address a user who is not here. Decide with the tools, the workspace '
-      'and the task text you were given. When you are done, finish with a short '
-      'conclusion of what you did and what you found — the conversation that '
-      'delegated reads that conclusion, not your transcript.\n'
-      '</subagent_context>';
+  /// What a subagent knows about itself: who delegated to it, what it is called,
+  /// and the two rules that keep a delegation readable — do not wait for an
+  /// answer, and put the conclusion in the reply.
+  ///
+  /// English, like the result brief: it travels into every provider's history,
+  /// and the app's own copy is localised where the user reads it.
+  String _subagentBrief(Conversation conversation) {
+    final extras = conversation.extras;
+    final depth = extras[SubagentExtrasKeys.depth] as int;
+    final parentId = extras[SubagentExtrasKeys.parent] as String?;
+    final label = _briefName(conversation.title);
+    final parentTitle = _briefName(
+      parentId == null ? null : chatService.getConversation(parentId)?.title,
+    );
+    final identity = StringBuffer('You are ');
+    identity.write(label.isEmpty ? 'a subagent' : '"$label"');
+    if (parentTitle.isNotEmpty) {
+      identity.write(', delegated by "$parentTitle"');
+    }
+    identity.write(', at depth $depth.');
+    // The depth is the child's own budget, carried in its extras. A child handed
+    // levels may delegate again; one that was not must not be told otherwise.
+    final canDelegate = mayDelegate(delegator: null, extras: extras);
+    // Levels say the chain may go deeper, not that this assistant was given the
+    // tool, so the line states the permission conditional on the tool.
+    final delegateLine = canDelegate
+        ? '- If `delegate` is among your tools, you may hand part of the work '
+              'to a subagent; the same depth and permission rules apply.\n'
+        : '- You cannot delegate further.\n';
+    return '<subagent_context>\n'
+        'You are a subagent: this conversation was started by another '
+        'conversation, the delegator, to carry out one task. The delegator\'s '
+        'model cannot see this conversation. It receives only what you send it '
+        'with `send_message` and, when your turn ends, your final reply. The '
+        'human user can open this conversation and may write in it directly.\n'
+        '\n'
+        '${identity.toString()}\n'
+        '\n'
+        '- Do not wait for the delegator to answer a question. Use '
+        '`send_message` to say what you found and what you need, then keep going '
+        'with what you have; sending a message does not end your turn. Write '
+        'only when a finding changes what the delegator should do next.\n'
+        '- A message from the delegator arrives as a new message in this '
+        'conversation, after the round you were in. It may end the round you '
+        'were in and start the next one; apply it before you continue.\n'
+        '- When you are done, finish with a short, self-contained conclusion: '
+        'what you did, what you found, what is still open. That conclusion is '
+        'the result; the delegator does not receive your transcript, tool '
+        'output or reasoning.\n'
+        '$delegateLine'
+        '</subagent_context>';
+  }
+
+  /// A conversation title as one clean line, or an empty string.
+  static String _briefName(String? title) =>
+      (title ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
 
   /// Inject the `<available_skills>` list after the workspace prompt.
   Future<bool> injectSkillsPrompt(

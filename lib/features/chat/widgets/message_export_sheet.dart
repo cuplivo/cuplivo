@@ -26,6 +26,8 @@ import 'export_image_capture.dart';
 import 'export_progress_overlay.dart';
 import 'pdf_export_dialog.dart';
 import '../utils/export_image_processor.dart';
+import '../../subagent/widgets/subagent_mail_notice.dart'
+    show subagentMailLabelText;
 import '../../subagent/widgets/subagent_result_divider.dart';
 
 import '../../../icons/lucide_adapter.dart';
@@ -958,6 +960,14 @@ Future<void> exportChatMessagesMarkdown(
         buf.writeln('\n---\n');
         continue;
       }
+      final mail = subagentMailPartOf(msg.parts);
+      if (mail != null) {
+        buf.writeln(
+          '### ${subagentMailLabelText(l10n, mail, chat.getConversation(mail.senderConversationId)?.title ?? '')}',
+        );
+        buf.writeln('\n---\n');
+        continue;
+      }
       final roleName = _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
@@ -1094,6 +1104,14 @@ Future<void> exportChatMessagesTxt(
       final notice = subagentResultPartOf(msg.parts);
       if (notice != null) {
         buf.writeln('[${SubagentResultDivider.labelOf(l10n, notice)}]');
+        buf.writeln('\n---\n');
+        continue;
+      }
+      final mail = subagentMailPartOf(msg.parts);
+      if (mail != null) {
+        buf.writeln(
+          '[${subagentMailLabelText(l10n, mail, chat.getConversation(mail.senderConversationId)?.title ?? '')}]',
+        );
         buf.writeln('\n---\n');
         continue;
       }
@@ -2776,28 +2794,42 @@ class _ExportedMessageCard extends StatelessWidget {
     final double containerMargin = isDesktop ? 12.0 : 16.0;
     final double containerPadding = isDesktop ? 12.0 : 16.0;
 
-    // A delegation's result is a divider here too: the image export draws a card
-    // per message with the speaker's name, and this row has no speaker.
+    // A delegation's result or its mail is a divider here too: the image export
+    // draws a card per message with the speaker's name, and these rows have no
+    // speaker in this conversation.
+    Widget dividerCard(String label) => Container(
+      margin: EdgeInsets.all(containerMargin),
+      padding: EdgeInsets.symmetric(horizontal: containerPadding, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.appColors.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: isDesktop ? 11.5 : 13,
+          color: cs.onSurface.withValues(alpha: .6),
+        ),
+      ),
+    );
+    final l10n = AppLocalizations.of(context)!;
     final notice = subagentResultPartOf(message.parts);
     if (notice != null) {
-      return Container(
-        margin: EdgeInsets.all(containerMargin),
-        padding: EdgeInsets.symmetric(
-          horizontal: containerPadding,
-          vertical: 10,
-        ),
-        decoration: BoxDecoration(
-          color: context.appColors.surfaceCard,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          SubagentResultDivider.labelOf(AppLocalizations.of(context)!, notice),
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: isDesktop ? 11.5 : 13,
-            color: cs.onSurface.withValues(alpha: .6),
-          ),
+      return dividerCard(SubagentResultDivider.labelOf(l10n, notice));
+    }
+    final mail = subagentMailPartOf(message.parts);
+    if (mail != null) {
+      return dividerCard(
+        subagentMailLabelText(
+          l10n,
+          mail,
+          context
+                  .read<ChatService?>()
+                  ?.getConversation(mail.senderConversationId)
+                  ?.title ??
+              '',
         ),
       );
     }
@@ -2984,12 +3016,26 @@ class _ExportedChatImage extends StatelessWidget {
               SizedBox(height: isDesktop ? 10.0 : 12.0),
               for (final m in messages) ...[
                 // A delegation's result is a divider here too: the bubble would
-                // print the user's name over a row they never wrote.
+                // print the user's name over a row they never wrote. Mail is the
+                // same kind of row.
                 if (subagentResultPartOf(m.parts) case final notice?)
                   _ExportedDivider(
                     label: SubagentResultDivider.labelOf(
                       AppLocalizations.of(context)!,
                       notice,
+                    ),
+                    isDesktop: isDesktop,
+                  )
+                else if (subagentMailPartOf(m.parts) case final mail?)
+                  _ExportedDivider(
+                    label: subagentMailLabelText(
+                      AppLocalizations.of(context)!,
+                      mail,
+                      context
+                              .read<ChatService?>()
+                              ?.getConversation(mail.senderConversationId)
+                              ?.title ??
+                          '',
                     ),
                     isDesktop: isDesktop,
                   )

@@ -5428,6 +5428,36 @@ abstract class AppLocalizations {
   /// **'Subagent interrupted'**
   String get subagentResultInterrupted;
 
+  /// Divider label for a message the subagent sent in its parent conversation; the sender's conversation title follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent message'**
+  String get subagentMailLabel;
+
+  /// Divider label for a message the delegator sent into a subagent conversation; the sender's conversation title follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegator message'**
+  String get subagentMailDelegatorLabel;
+
+  /// Button in a subagent message dialog; opens the conversation the message came from.
+  ///
+  /// In en, this message translates to:
+  /// **'Open conversation'**
+  String get subagentMailOpenConversation;
+
+  /// Button in a subagent message dialog; copies the message text.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get subagentMailCopy;
+
+  /// Confirmation shown after a subagent message is copied to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get subagentMailCopied;
+
   /// Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name.
   ///
   /// In en, this message translates to:
@@ -28415,6 +28445,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wait for task'**
   String get assistantEditLocalToolAwaitJobTitle;
+
+  /// Tool-call card title for a message one side of a delegation sends to the other.
+  ///
+  /// In en, this message translates to:
+  /// **'Send message'**
+  String get assistantEditLocalToolSendMessageTitle;
+
+  /// Tool-call card title for asking a subagent to stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop subagent'**
+  String get assistantEditLocalToolInterruptTitle;
 
   /// Settings row for choosing the model that draws pictures.
   ///

@@ -2942,6 +2942,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subagentResultInterrupted => 'Subagent interrupted';
 
   @override
+  String get subagentMailLabel => 'Subagent message';
+
+  @override
+  String get subagentMailDelegatorLabel => 'Delegator message';
+
+  @override
+  String get subagentMailOpenConversation => 'Open conversation';
+
+  @override
+  String get subagentMailCopy => 'Copy';
+
+  @override
+  String get subagentMailCopied => 'Copied';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return 'Subagent running ($elapsed) $label';
   }
@@ -16121,6 +16136,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => 'Wait for task';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => 'Send message';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Stop subagent';
 
   @override
   String get defaultModelPageImageModelTitle => 'Image Model';

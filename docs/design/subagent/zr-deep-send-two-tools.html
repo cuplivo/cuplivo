@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>深层委派：两个工具，方向写在名字里</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0E0E11; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; color: #E8E8EA; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 26px 18px 48px; }
+  h1 { font-size: 17px; margin: 0 0 6px; }
+  .lede { color: #9A9AA2; font-size: 13px; line-height: 1.7; margin: 0 0 22px; }
+  h2 { font-size: 13px; color: #9A9AA2; letter-spacing: .05em; margin: 26px 0 10px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: #17171B; border: 1px solid #26262C; border-radius: 14px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 8px; font-size: 13px; color: #C9C9D2; }
+  .role { color: #8E8E96; font-size: 12px; margin-bottom: 10px; }
+  pre { background: #121216; border: 1px solid #26262C; border-radius: 10px; padding: 12px; overflow: auto; font-size: 12px; line-height: 1.6; color: #D6D6DC; margin: 0; }
+  .k { color: #9DB4FF; } .s { color: #B5D6A0; } .c { color: #7E7E86; } .n { color: #E0C08A; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #26262C; vertical-align: top; }
+  th { color: #8E8E96; font-weight: 600; }
+  code { background: #26262D; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+  .flow { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.6; }
+  .flow .step { display: flex; gap: 8px; }
+  .flow .who { color: #8E8E96; min-width: 92px; }
+  .note { color: #8E8E96; font-size: 12.5px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>深层委派：两个工具，方向写在名字里</h1>
+  <p class="lede">向上和向下是两个名字：<code>reply_to_delegator</code> 只回委派方，<code>send_message</code> 永远发给自己的某个孩子。没有可选参数，也不会猜错方向。</p>
+
+  <h2>这个子代理看到的委派工具</h2>
+  <table>
+    <tr><th>工具</th><th>用途</th><th>参数</th></tr>
+    <tr><td><code>delegate</code></td><td>再派一层（受 <code>levels</code> 限制）</td><td>task, label（+ target）</td></tr>
+    <tr><td><code>await_job</code></td><td>等某个孩子结束</td><td>job_id</td></tr>
+    <tr><td><code>reply_to_delegator</code></td><td>向上回委派方</td><td>text</td></tr>
+    <tr><td><code>send_message</code></td><td>向下发给自己的孩子</td><td>job_id, text</td></tr>
+    <tr><td><code>interrupt</code></td><td>叫停自己的孩子</td><td>job_id</td></tr>
+  </table>
+
+  <h2>schema</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>深度 2 的子代理：向上</h3>
+      <div class="role">每个有委派方的对话都有</div>
+      <pre>{
+  "name": <span class="s">"reply_to_delegator"</span>,
+  <span class="k">"required"</span>: [<span class="s">"text"</span>],
+  <span class="k">"properties"</span>: {
+    <span class="s">"text"</span>: { <span class="c">// 说什么</span> }
+  }
+}</pre>
+    </div>
+    <div class="card">
+      <h3>深度 2 的子代理：向下</h3>
+      <div class="role">只有还能委派的人有</div>
+      <pre>{
+  "name": <span class="s">"send_message"</span>,
+  <span class="k">"required"</span>: [<span class="s">"job_id"</span>, <span class="s">"text"</span>],
+  <span class="k">"properties"</span>: {
+    <span class="s">"job_id"</span>: { <span class="c">// 哪个孩子</span> },
+    <span class="s">"text"</span>:   { <span class="c">// 说什么</span> }
+  }
+}</pre>
+    </div>
+  </div>
+
+  <h2>两种调用</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>向上：回委派方</h3>
+      <pre>reply_to_delegator({ <span class="s">"text"</span>: <span class="s">"读到第 3 层了，缺 config"</span> })</pre>
+      <p class="note">和今天子代理的 <code>send_message</code> 是同一件事，只是换了名字。</p>
+    </div>
+    <div class="card">
+      <h3>向下：给自己的孩子</h3>
+      <pre>send_message({
+  <span class="s">"job_id"</span>: <span class="s">"c-42"</span>,
+  <span class="s">"text"</span>:   <span class="s">"改用 YAML"</span>
+})</pre>
+      <p class="note">和根对话的 <code>send_message</code> 完全一样，同一个 schema。</p>
+    </div>
+  </div>
+
+  <h2>一轮的样子</h2>
+  <div class="flow">
+    <div class="step"><span class="who">深度 2 子代理</span><span>delegate → 拿到 <code>job_id: c-42</code>，继续干活</span></div>
+    <div class="step"><span class="who">c-42</span><span>reply_to_delegator → 深度 2 子的对话里出现「子代理消息」</span></div>
+    <div class="step"><span class="who">深度 2 子代理</span><span>send_message({job_id: c-42, text}) → c-42 里出现「委派方消息」</span></div>
+    <div class="step"><span class="who">深度 2 子代理</span><span>interrupt({job_id: c-42}) → c-42 停下；不写结果行</span></div>
+  </div>
+
+  <p class="note">代价：现有子代理的 <code>send_message</code> 要改名成 <code>reply_to_delegator</code>——简报文案、工具卡标题、测试与历史里的工具调用名都跟着动；子代理的工具数从 1 个消息工具变成 2 个。</p>
+</div>
+</body>
+</html>

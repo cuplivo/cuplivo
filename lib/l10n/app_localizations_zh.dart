@@ -2817,6 +2817,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subagentResultInterrupted => '子代理已中断';
 
   @override
+  String get subagentMailLabel => '子代理消息';
+
+  @override
+  String get subagentMailDelegatorLabel => '委派方消息';
+
+  @override
+  String get subagentMailOpenConversation => '打开对话';
+
+  @override
+  String get subagentMailCopy => '复制';
+
+  @override
+  String get subagentMailCopied => '已复制';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return '子代理运行中（$elapsed）$label';
   }
@@ -15287,6 +15302,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '发送消息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
 
   @override
   String get defaultModelPageImageModelTitle => '绘图模型';
@@ -21272,6 +21293,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get subagentResultInterrupted => '子代理已中断';
 
   @override
+  String get subagentMailLabel => '子代理消息';
+
+  @override
+  String get subagentMailDelegatorLabel => '委派方消息';
+
+  @override
+  String get subagentMailOpenConversation => '打开对话';
+
+  @override
+  String get subagentMailCopy => '复制';
+
+  @override
+  String get subagentMailCopied => '已复制';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return '子代理运行中（$elapsed）$label';
   }
@@ -33742,6 +33778,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '发送消息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
 
   @override
   String get defaultModelPageImageModelTitle => '绘图模型';
@@ -39730,6 +39772,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subagentResultInterrupted => '子代理已中斷';
+
+  @override
+  String get subagentMailLabel => '子代理訊息';
+
+  @override
+  String get subagentMailDelegatorLabel => '委派方訊息';
+
+  @override
+  String get subagentMailOpenConversation => '打開對話';
+
+  @override
+  String get subagentMailCopy => '複製';
+
+  @override
+  String get subagentMailCopied => '已複製';
 
   @override
   String subagentStripRunning(String elapsed, String label) {
@@ -52208,6 +52265,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => '等待任務';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '傳送訊息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
 
   @override
   String get defaultModelPageImageModelTitle => '繪圖模型';

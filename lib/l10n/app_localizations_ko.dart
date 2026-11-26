@@ -2877,6 +2877,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get subagentResultInterrupted => '서브에이전트 중단됨';
 
   @override
+  String get subagentMailLabel => '서브에이전트 메시지';
+
+  @override
+  String get subagentMailDelegatorLabel => '위임자 메시지';
+
+  @override
+  String get subagentMailOpenConversation => '대화 열기';
+
+  @override
+  String get subagentMailCopy => '복사';
+
+  @override
+  String get subagentMailCopied => '복사됨';
+
+  @override
   String subagentStripRunning(String elapsed, String label) {
     return '서브에이전트 실행 중 ($elapsed) $label';
   }
@@ -15631,6 +15646,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get assistantEditLocalToolAwaitJobTitle => '작업 대기';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '메시지 보내기';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '하위 에이전트 중지';
 
   @override
   String get defaultModelPageImageModelTitle => '이미지 모델';

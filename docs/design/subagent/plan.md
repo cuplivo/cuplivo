@@ -372,3 +372,106 @@ master 已经合并生图 job（`3c7e9b2b9`）。它带来的不是"又一个功
 - 澄清就在**本 worktree**继续：每轮一个决策、一个产物文件、一行"已锁定决定"；未锁定的项不进实现。
 - 调研已到"够用"边界：新资料只有直接影响 §9 待定项时才引入。
 - 若实现中发现 extras 放不下父子关系或工作区继承，先回到 clarity round，**不在实现中顺手加列**。
+
+---
+
+## 12. 已锁定决定：子会话的简报与留言（2026-11-23）
+
+本轮把 `plan.md:21` 推迟的两件事纳入：子会话的**简报**（`subagent:delegation` 节的移植）与 `send_message` / `interrupt`。`list_agents`、fork、深度 > 1 仍不做。三次 clarity round 的结论：
+
+1. **队列本身变成 steer，人与代理同一条规则。** 发送即写行；对话能生成就开一轮，正在生成就在下一个步骤边界结束这一段、用留言开下一段。设计见 `ze-steer-turn-split.md`。
+2. **手递手切一个新 run。** 段 A 收口为 `completed`，段 B 是新 run、从历史重新装配请求；`run ↔ assistant 行` 保持 1:1，7 处 adapter 插入与 provider 相邻规则都不需要。代价是「一轮 = 一串 run」：loading 连续、排空判断、子代理监视、终态读取都按轮看。被否的备选见 `zf-same-run-multi-row.md`。
+3. **压缩与生成的统一不在本切片**（`ze` §10）：它会把 `blocksSending`、`_pausedQueuedInputs`、composer 暂停锁与侧栏徽标一起删掉，但属于下一片。
+4. 结果行改为**每一段一条**（`messageIdFor(childId, runId)`）；面板最新优先；导出与 PDF 本来就按行处理，只有面板的 `known` 去重需要改。
+5. 子会话**不能**再委派（深度 1 不变）；它拿到 `send_message`，仍没有 `delegate` / `await_job`。
+
+调研：`zd-dsh-port-research.md`（DSH rc.5 源码：context injection 与 subagent communication 两套机制、可移植 / 不可移植清单、Cuplivo 管线与步骤边界、实现 steer 的八个隐患）。
+
+实现顺序（按层，每层可独立合入，编译与测试每层都要绿）：
+
+1. 留言 part（`SubagentMailPart`、`isUserInputMessage` 分支）与简报文案（`message_builder_service.dart:2250-2259`）。
+2. 三个工具与协调器：`send_message`（父 / 子两种说明）、`interrupt`、`stopped` 阶段、续聊、按段的结果行、按轮监视。
+3. 收件箱与手递手：`RequestHistoryContext` 的 `takeHandoff` 回调、`tool_loop_runner` 两个边界、`chat_actions` 收尾与段启动、`home_view_model` 忙分支与排空。
+
+未锁定的项不进实现：`waitingTool` 的写入、压缩统一、打断纯文本回复、fork、深度 > 1、`list_agents`、命名与目录。
+
+### 12.1 实现记录（2026-11-23）
+
+已落地，`dart analyze --fatal-infos lib test integration_test` 干净，相关测试 246 条通过：
+
+- **简报**：`message_builder_service.dart` 的 `_subagentPrompt` 换成 `_subagentBrief`（身份、来源规则、回报契约、不可再委派），仍归 `ContextSource.systemPrompt`。
+- **留言消息**：`SubagentMailPart`（`from`、`senderConversationId`、按 sender + toolCallId 派生的行 id）、`subagentMailKey`、`isUserInputMessage` 排除、OpenAI 序列化前剔除。
+- **工具**：`send_message` 两套 schema（父带 `job_id`，子只带 `text`）、`interrupt`；子会话拿到 `send_message`，仍没有 `delegate` / `await_job`；三者随 `delegate` 一格开关，不进 Local tools 标签页。
+- **协调器**：`sendToChild` / `sendToParent` / `interruptChild`；`stopped` 阶段（模型的 interrupt 可续，用户的 Stop 仍是终局）；按轮串监视（`latestGenerationRun` + `isTurnRunning` + `hasPendingMail`）；每段一条结果行（`messageIdFor(child, runId:)`）；面板最新优先。
+- **手递手**：`RequestHistoryContext.takeHandoff` + `handoffRequested`；`tool_loop_runner` 两个入口在 `append` 之后结束这一段并 `finish()`；`chat_actions` 收尾时启动下一段且不发布 idle；`home_view_model` 的 `takeHandoff` / `onHandoffRequested` 与 mail 收件箱、排空优先。
+
+**与设计的偏差（要做完的下一片）**：
+
+1. **人的消息还不是「发送即写行」**：忙时仍入 `_queue`（`QueuedUserInput`），只是投递时机从轮末提前到步骤边界。行在开段时才写，所以 composer 仍会在排队时锁定、仍显示排队 chip。要删掉这两处 UI，需要一条「把 `ChatInputData` 构造成持久行」的路径（复用 `beginUserMessage`，处理附件 / 引用 / 版本）。
+2. **`stopped` 没有自己的文案**：面板与分隔线暂用 `subagentPanelCancelled` / `subagentResultCancelled`，因为新增 l10n 键要走翻译管线与指纹门禁；补两个键是独立的小改动。
+3. `_pausedQueuedInputs` 仍有「排队失败」与「压缩审查」两个来源；压缩统一是下一片。
+
+**review 后的修正（同日）**：
+
+- 留言行在 `userTurnsFor` 与 `latestUserId` 两处也被排除——此前它们只排除 result part，导致留言行成为「用户最后一轮」，人先前附的图片会被预算驱逐（新增回归测试）。
+- 续聊的 20 秒 `turn_not_started` 不再在留言仍排队时触发：排队（后台、压缩审查）不是失败，等在队列里才是答案；只有留言已被取走却没有 run 时才报失败。
+- 面板：`stopped` 有自己的阶段映射；同一子会话多段结果取**最新**一条，不再被最旧的一条占位。
+- 留言行只存正文，模型看到的「The delegator sent a message:」在装配请求时加；界面用独立卡片（发送方标题 + 正文），导出不再带英文前缀，也不需要新的 l10n 键。
+- `interrupt` 增加与 `send_message` 相同的父子校验（处理器传 `parentConversationId`）。
+- 删除 review 留下的 `probes/` 目录。
+
+**结果行与留言行的最终形态（第二轮 clarity）**：
+
+- 结果行只在**模型没有通过工具调用拿到结果**时出现：`await_job` 由 `waiters` 抑制；模型 `interrupt` 成功也不写行、不唤醒——它只回 `accepted`，不回传内容，打断就是说到哪算哪，想要结论用 `await_job`，想让子代理尽快收口用 `send_message`。
+- 用户停止子代理：写分隔线，不唤醒父对话（用户刚按了 Stop，再生成一轮与意图相反；线已在历史里，下次发言时模型读得到）。父对话自己的 Stop 级联同样不唤醒。
+- 留言行不再是独立卡片：时间线里只留与结果行共用的一条 28px 分隔线（`subagentMailLabel` + 发送方标题），**不打印正文**——子代理的具体消息留在子会话里；点分隔线打开 dialog（桌面）/ sheet（移动），正文用 `MarkdownWithCodeHighlight`（与助手消息同一条 markstream 管线）渲染，底部是「复制 / 打开对话 / 关闭」。
+- 留言行与结果行在所有导出里都是同一条分隔线：单条消息 PNG（`_ExportedMessageCard`）、整段对话 PNG（`_ExportedChatImage`）、Markdown/纯文本导出、PDF（`buildExportDocument` 的 `subagentMailLabelOf`）五处都识别 `SubagentMailPart`，不会把子代理的消息印成用户自己的话（新增 `export_document_test` 回归）。
+- 新增 l10n 键 `subagentMailLabel`、`subagentMailOpenConversation`、`subagentMailCopy`、`subagentMailCopied`（6 个 ARB + 指纹 + `gen-l10n`，`translate.py check` 通过）。
+
+**review 修正（第二轮）**：
+
+- `interrupt` 的说明改成实情：停止是**静默**的，之后不会再来通知；要结论先 `await_job`，要续聊用 `send_message`。`stopped` 永远写不进存储（没有结果行），`SubagentResultDivider` 与面板里处理 `stopped` 的分支已删除。
+- 手递手的死锁：`_finishStreaming` 跑在旧段的顺序 drain 里，下一段 `_executeGeneration` 的 `await previousSub.cancel()` 会等这个 drain，只能等 3 秒超时。现在在启动下一段前把旧订阅从 `_conversationStreams` 移除（finish/done 处理器本来就是这样收尾的），不再触发取消等待。
+- 留言标签按方向取词：父对话里是「子代理消息」，子对话里是「委派方消息」（新增 `subagentMailDelegatorLabel`），导出共用同一个 helper。
+- `tool/l10n/state/*.json` 用字节写回，保持 LF（此前被文本模式改写成 CRLF，4 个键淹没在 2.2 万行改动里）。
+- 协调器：watcher 带 generation，续聊恰逢旧 watcher 结算时仍会有新的 watcher 跟；`stoppedByModel` 每次结算后清掉；暂停的队列（`_pausedQueuedInputs`）不再被手递手取走。
+- 待确认项之一（interrupt 未真正停下、之后用户 Stop 被误判为 stopped）仍存在：`stoppedByModel` 只在这段结算时生效，若中断停在审批上、随后用户 Stop，会走 `cancelled` 分支——这与「用户 Stop 写行」的规则一致，记为已知边界。
+
+**review 修正（第三轮）**：
+
+- Gemini 交替约束（review 提出）：核对后发现仓库既有的工具续聊形状本来就是 `user(functionResponse)` 紧跟 `user(text)`，四个测试锁定它、线上一直这样发；手递手没有改变这个形状。合并相邻同角色回合的改动因此**回滚**（会让这四个既有测试失败），评审结论记为「未证实」——真出现 400 再按窄条件处理。
+- 命名目标的子代理也要有 `send_message`：能不能委派是「它自己」的设置，能不能回复委派方不是。`buildToolDefinitions` 在 `isSubagent` 时无条件给出子 schema。
+- `send_message` / `interrupt` 的工具卡不再显示原始函数名，新增两个标题键（6 个 ARB + 指纹 + `gen-l10n`）。
+- 续聊时重置 `startedAt`，面板量的是这一段而不是总寿命。
+- 手递手就绪判断加上 `blocksSending`：压缩审查中不接管，避免结束当前轮却开不了下一轮。
+- 排队中的留言在用户 Stop 后仍会被投递：这与「Stop 结束当前轮、队列照常」的既有规则一致，保留并记录。
+
+**rebase 到「深度 1–3」（#1122）之后**：
+
+- 子代理简报里的「You cannot delegate further」改为跟随该会话的 `levels`：`mayDelegate(delegator: null, extras:)` 为真时告诉它可以继续委派，否则才说不能。深度不再假定为 1。
+- 已知缺口：能继续委派的子代理目前只拿到子 schema 的 `send_message`（向上回复），也拿不到 `interrupt`——它无法给自己的下一层发消息或叫停。链路的第五层以下没有这个能力是下一片要补的；本片先保证不谎报能力、不破坏既有链路。
+- 面板合并时 master 新增的 `descendants` 计数与「同一子会话取最新结果行」共存：最新行也带后代计数。
+
+**深度 >1 的双向消息（同轮补上）**：
+
+- 子代理的 `send_message` 增加可选 `job_id`：省略、或传父对话 ID，都是回委派方；传自己孩子的 `job_id` 是向下。父对话 ID 直接拼进工具描述，模型不必记。
+- 能继续委派的子代理同时拿到 `interrupt`，可以叫停自己的孩子；`delegate`/`await_job` 仍按 `levels` 与助手的工具开关决定。
+- 简报的委派行改成条件句（「如果 `delegate` 在你的工具里……」）：`levels` 只说明链可以更深，不保证这个助手拿到了工具。
+- 处理器按 `job_id` 路由：空或等于父 ID → `sendToParent`，否则 → `sendToChild`（父子校验照旧）。
+
+**第四轮 review 修正**：
+
+- 手递手失败不再丢消息：队头留在队列里直到投递成功，成功后用 `_dropQueuedHead` 出队（只在它仍是队头时）。旧写法先 `removeAt(0)` 并 `_queue.remove`，回插进的是已经脱离 `_queue` 的列表——输入框的排队气泡消失、排空也找不到它。
+- `_hasHandoffReady` 先判 `_pausedQueuedInputs`、`blocksSending`、`isGroupRoundLoading`，再判 mail/队列；mail 分支不再绕过这些闸。否则会截断当前回复、下一段却开不起来。
+- 设计文档 §6/§7 改成实际契约：模型发起的 `stopped` 不写行、不通知；用户 Stop 才写行。此前 §6 还写着「outcome stopped + notice」，与 §13.2 自相矛盾。
+- mail 待投加上限：2 分钟开不了轮就按 `mail_not_delivered` 结算，不再让条永远计时。正常轮次开始仍走原来的 20 秒 `turn_not_started`。
+- 邮件弹窗底部三个按钮从 `Row` 改为 `Wrap`：ru/tr 在 360 px 上会溢出。
+- 新增回归 `a handoff blocked by compression keeps the queued message`，并做过反向验证：把出队改回投递前，用例失败；恢复后通过（文件 SHA256 校验一致）。
+
+**第五轮 review 修正**：
+
+- 手递手在默认设置下原本是死代码：`_historyContext` 在「自动压缩关闭且不替换已消费工具」时返回 null，而 `takeHandoff` 只挂在这个对象上，于是 `RequestHistoryContext.current` 为空、两个段边界永远读到 false。默认值正是压缩关闭，所以只有打开自动压缩的用户才被 steer 到。现在这个对象无条件创建：压缩关闭时 `beforeRequest` 一次配置读取就返回 null，`nativeCompression` 仍为 false，唯一差别是边界可以问「有没有留言」。
+- watcher 的代际收尾：await 之后重新校验 `watchGeneration`，`_finish` 再带 generation 校验一次。此前一次轮询与结算之间被 `send_message` 续聊取代的 watcher，仍会把新一段结算掉，而 `_finish` 的 `isLive` 守卫拦不住（续聊刚把 entry 重置为 live），后续真正的终态反而被丢弃。
+- 遗留：成功的手递手仍没有端到端测试（只有被拒绝的路径与 runner 单测）；需要一次带工具调用的伪造 SSE。
+
+

@@ -876,7 +876,7 @@ class SubagentCoordinator extends ChangeNotifier {
         // told about; ask for that one before deciding it is gone.
         run = await repository.getGenerationRun(entry.runId!);
       }
-      if (_disposed) return;
+      if (_disposed || entry.watchGeneration != generation) return;
       if (run == null) {
         // The row outlives the process, so a missing one means the child's
         // conversation was deleted underneath us. The grace window covers the
@@ -884,7 +884,12 @@ class SubagentCoordinator extends ChangeNotifier {
         missingSince ??= DateTime.now();
         if (DateTime.now().difference(missingSince) >
             const Duration(seconds: 10)) {
-          await _finish(entry, SubagentPhase.interrupted, 'run_missing');
+          await _finish(
+            entry,
+            SubagentPhase.interrupted,
+            'run_missing',
+            generation: generation,
+          );
           return;
         }
         continue;
@@ -905,7 +910,12 @@ class SubagentCoordinator extends ChangeNotifier {
           mailPendingSince ??= DateTime.now();
           if (DateTime.now().difference(mailPendingSince) >
               const Duration(minutes: 2)) {
-            await _finish(entry, SubagentPhase.failed, 'mail_not_delivered');
+            await _finish(
+              entry,
+              SubagentPhase.failed,
+              'mail_not_delivered',
+              generation: generation,
+            );
             return;
           }
           settledSince = null;
@@ -915,7 +925,12 @@ class SubagentCoordinator extends ChangeNotifier {
         settledSince ??= DateTime.now();
         if (DateTime.now().difference(settledSince) >
             const Duration(seconds: 20)) {
-          await _finish(entry, SubagentPhase.failed, 'turn_not_started');
+          await _finish(
+            entry,
+            SubagentPhase.failed,
+            'turn_not_started',
+            generation: generation,
+          );
           return;
         }
         continue;
@@ -952,6 +967,7 @@ class SubagentCoordinator extends ChangeNotifier {
         _phaseOf(run.state),
         run.errorCode,
         targetMessageId: run.targetRevisionId,
+        generation: generation,
       );
       return;
     }
@@ -977,7 +993,13 @@ class SubagentCoordinator extends ChangeNotifier {
     SubagentPhase phase,
     String? reason, {
     String? targetMessageId,
+    int? generation,
   }) async {
+    // A newer watcher owns this entry now: the entry was continued while this
+    // one was between its poll and its settle, and settling here would report
+    // the old segment as final — the continuation's own result would then be
+    // dropped by `isLive`.
+    if (generation != null && entry.watchGeneration != generation) return;
     if (!entry.isLive) return;
     // A run row cannot say who pressed Stop. The model's own `interrupt` is a
     // pause the conversation can be continued from; the user's Stop is final.

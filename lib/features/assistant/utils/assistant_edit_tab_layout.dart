@@ -8,6 +8,10 @@ const String assistantEditTabQuickPhrase = 'quickPhrase';
 const String assistantEditTabCustom = 'custom';
 const String assistantEditTabRegex = 'regex';
 
+/// Roleplay tab ("角色扮演"): Ta的来信 and future roleplay
+/// features live here.
+const String assistantEditTabRoleplay = 'roleplay';
+
 const List<String> defaultAssistantEditTabIds = [
   assistantEditTabBasic,
   assistantEditTabPrompts,
@@ -19,6 +23,25 @@ const List<String> defaultAssistantEditTabIds = [
   assistantEditTabCustom,
   assistantEditTabRegex,
 ];
+
+/// Default tab order with the roleplay tab included, right after 记忆
+/// (memory) and before 本地工具 (local tools).
+const List<String> defaultAssistantEditTabIdsWithRoleplay = [
+  assistantEditTabBasic,
+  assistantEditTabPrompts,
+  assistantEditTabMemory,
+  assistantEditTabRoleplay,
+  assistantEditTabLocalTools,
+  assistantEditTabSkills,
+  assistantEditTabMcp,
+  assistantEditTabQuickPhrase,
+  assistantEditTabCustom,
+  assistantEditTabRegex,
+];
+
+/// The default order to use on this platform: includes roleplay tab across all supported platforms.
+List<String> platformDefaultAssistantEditTabIds() =>
+    defaultAssistantEditTabIdsWithRoleplay;
 
 List<String> orderAssistantEditTabIds({
   required List<String> savedOrder,

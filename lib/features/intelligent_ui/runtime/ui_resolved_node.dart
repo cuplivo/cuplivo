@@ -1,9 +1,9 @@
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
 import 'ui_chart_data.dart';
 import 'ui_table_data.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_ir.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_evaluator.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_ir.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_evaluator.dart';
 
 /// Presentation-independent values from one completed evaluation batch.
 final class UiResolvedNode {

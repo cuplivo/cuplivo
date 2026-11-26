@@ -1,9 +1,9 @@
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_handler.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_ids.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_handler.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_ids.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

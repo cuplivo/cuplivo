@@ -4,20 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/desktop/widgets/desktop_select_dropdown.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_boolean_input.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_choice_input.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_field_frame.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_slider.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_theme.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/form_sheet.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_segments.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/desktop/widgets/desktop_select_dropdown.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_boolean_input.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_choice_input.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_field_frame.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_slider.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_theme.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/form_sheet.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_segments.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 UiSurfaceController _controller(String source) {
   final c = UiSurfaceController(

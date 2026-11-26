@@ -11,9 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
-import 'package:Kelivo/features/browser/widgets/native_browser_glass.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/widgets/native_browser_glass.dart';
 
 // Explicit runtime probe, outside the default *_test.dart glob. No app storage,
 // network, Navigator flows, or BrowserService are involved. Run the same target

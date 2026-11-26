@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import 'package:flutter/material.dart';
 import '../../../core/models/chat_message.dart';
 import '../models/message_edit_result.dart';
@@ -7,7 +7,7 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../core/services/haptics.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../shared/widgets/long_message_editor.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<MessageEditResult?> showMessageEditSheet(
   BuildContext context, {

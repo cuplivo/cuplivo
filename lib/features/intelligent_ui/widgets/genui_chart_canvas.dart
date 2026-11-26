@@ -3,7 +3,7 @@ import '../text/ui_number_display.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../catalog/ui_catalog.dart';
 import '../runtime/ui_chart_data.dart';
 import 'genui_chart_paint.dart';

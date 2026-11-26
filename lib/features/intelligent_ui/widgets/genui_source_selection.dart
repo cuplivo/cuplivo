@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
 import '../catalog/ui_budgets.dart';
 
 /// Standalone source previews need selection too. Within a message the existing

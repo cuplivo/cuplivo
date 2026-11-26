@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/services/backup/restore_startup_gate.dart';
 import '../../l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Shown while the startup gate converges a published restore.
 ///

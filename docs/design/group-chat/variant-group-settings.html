@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>群设置 · 头像即入口</title>
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --ink: #1d1c1a;
+    --muted: #6f6b63;
+    --faint: #9b958b;
+    --accent: #0f6b5c;
+    --accent-soft: rgba(15,107,92,.09);
+    --line: rgba(29,28,26,.09);
+    --card: #fbf9f3;
+    --shadow: 0 18px 48px rgba(50,42,30,.14), 0 2px 6px rgba(50,42,30,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1180px; margin: 0 auto; padding: 40px 28px 64px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+  }
+  h1 { font-size: 30px; line-height: 1.18; margin: 10px 0 10px; letter-spacing: -.02em; }
+  .lede { font-size: 14px; line-height: 1.65; color: var(--muted); margin: 0; max-width: 760px; }
+  .stage {
+    display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 36px;
+    align-items: start; margin-top: 34px;
+  }
+  .stage > *, .stack { min-width: 0; }
+  .stack { display: grid; gap: 28px; }
+  .caption {
+    display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px;
+    font-size: 12px; color: var(--muted);
+  }
+  .caption b { color: var(--ink); font-size: 12px; letter-spacing: .02em; }
+
+  /* ---------- phone ---------- */
+  .phone {
+    width: 340px; border-radius: 32px; border: 7px solid #242321;
+    background: #f7f5ef; overflow: hidden; box-shadow: var(--shadow);
+    position: relative;
+  }
+  .phone.page { height: 640px; display: flex; flex-direction: column; }
+  .phone.sheetphone { height: 700px; }
+  .nav {
+    height: 44px; flex: none; display: flex; align-items: center; gap: 6px;
+    padding: 0 12px; border-bottom: 1px solid var(--line); font-size: 13px;
+    font-weight: 650;
+  }
+  .nav .back { color: var(--accent); display: grid; place-items: center; }
+  .nav .back svg { width: 15px; height: 15px; }
+  .body { flex: 1; min-height: 0; overflow: hidden; padding: 12px 14px 18px; }
+
+  /* ---------- identity ---------- */
+  .identity { display: flex; align-items: center; gap: 14px; padding: 2px 0 20px; }
+  .av-edit {
+    width: 64px; height: 64px; flex: none; border-radius: 50%; position: relative;
+    display: grid; place-items: center; font-size: 30px; cursor: pointer;
+    background: linear-gradient(150deg, #e9e3d2, #d8cfb9);
+    border: 1px solid rgba(29,28,26,.08);
+  }
+  .av-edit.is-cluster { background: #f0ece1; }
+  .av-edit .badge {
+    position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px;
+    border-radius: 50%; background: var(--card); border: 1px solid rgba(29,28,26,.12);
+    display: grid; place-items: center; color: #5c574f;
+    box-shadow: 0 2px 6px rgba(50,42,30,.12);
+  }
+  .av-edit .badge svg { width: 12px; height: 12px; }
+  .av-edit .veil {
+    position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(20,19,17,.52); color: #fff; font-size: 11px; font-weight: 600;
+    letter-spacing: .04em;
+  }
+  .field {
+    flex: 1; min-width: 0; display: flex; align-items: center;
+    background: #f0ece1; border: 1px solid rgba(29,28,26,.10);
+    border-radius: 12px; padding: 10px 12px; font-size: 16px; font-weight: 550;
+  }
+  .field .caret {
+    width: 1.5px; height: 17px; background: var(--accent); margin-left: 2px;
+    animation: blink 1.2s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .cluster { display: flex; align-items: center; padding-left: 4px; }
+  .cluster .a {
+    width: 30px; height: 30px; border-radius: 50%; border: 2px solid #f0ece1;
+    margin-left: -9px; font-size: 10px; font-weight: 750; color: #fff;
+    display: grid; place-items: center;
+  }
+  .cluster .a:first-child { margin-left: 0; }
+  .a.lin { background: linear-gradient(145deg,#51744a,#33502e); }
+  .a.lan { background: linear-gradient(145deg,#8a5b83,#5d3a58); }
+  .a.qi { background: linear-gradient(145deg,#4e6f8f,#304b66); }
+  .a.zhou { background: linear-gradient(145deg,#a1764d,#6c4b2e); }
+
+  /* ---------- rows ---------- */
+  .section-label {
+    font-size: 11.5px; font-weight: 650; color: var(--muted);
+    letter-spacing: .02em; padding: 0 4px 6px;
+  }
+  .row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    background: var(--card); border-radius: 14px; margin-bottom: 6px;
+    font-size: 14px;
+  }
+  .row .a {
+    width: 30px; height: 30px; border-radius: 50%; flex: none; display: grid;
+    place-items: center; font-size: 10.5px; font-weight: 750; color: #fff;
+  }
+  .row .label { flex: 1; min-width: 0; }
+  .row .label b { display: block; font-size: 14px; font-weight: 550; }
+  .row .label span {
+    display: block; margin-top: 2px; font-size: 11px; color: var(--faint);
+    line-height: 1.4;
+  }
+  .row .x { color: var(--faint); display: grid; place-items: center; }
+  .row .x svg { width: 15px; height: 15px; }
+  .row .chev { color: #a8a197; display: grid; place-items: center; }
+  .row .chev svg { width: 15px; height: 15px; }
+  .row .chip {
+    display: flex; align-items: center; gap: 4px; padding: 5px 8px;
+    border-radius: 9px; background: rgba(29,28,26,.05); font-size: 11px;
+    color: #4d4942; white-space: nowrap;
+  }
+  .row .chip svg { width: 12px; height: 12px; color: #7c766c; }
+  .row.plain { background: transparent; padding: 8px 12px; }
+  .row.dashed { background: transparent; border: 1px dashed rgba(15,107,92,.32); }
+  .glyph {
+    width: 30px; height: 30px; border-radius: 50%; flex: none; display: grid;
+    place-items: center; background: rgba(15,107,92,.10); color: var(--accent);
+  }
+  .glyph.muted { background: rgba(29,28,26,.06); color: #5c574f; }
+  .glyph.danger { background: rgba(160,60,50,.10); color: #a03c32; }
+  .glyph svg { width: 15px; height: 15px; }
+  .stepper { display: flex; align-items: center; gap: 0; }
+  .stepper .btn {
+    width: 26px; height: 26px; border-radius: 8px; background: rgba(29,28,26,.06);
+    display: grid; place-items: center; color: #5c574f;
+  }
+  .stepper .btn svg { width: 13px; height: 13px; }
+  .stepper .val { width: 26px; text-align: center; font-size: 13px; font-weight: 650; }
+  .spacer { height: 18px; }
+
+  /* ---------- dim + sheet ---------- */
+  .dim { position: absolute; inset: 0; background: rgba(20,19,17,.34); }
+  .sheetcard {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--card);
+    border-radius: 22px 22px 0 0; padding: 9px 12px 14px;
+    box-shadow: 0 -18px 40px rgba(20,19,17,.18);
+  }
+  .grabber {
+    width: 34px; height: 4px; border-radius: 4px; background: rgba(29,28,26,.18);
+    margin: 0 auto 10px;
+  }
+  .sheet-row {
+    display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 12px;
+    background: #f2eee3; border-radius: 13px; margin-bottom: 6px; font-size: 14px;
+  }
+  .sheet-row .ico { color: #5c574f; display: grid; place-items: center; }
+  .sheet-row .ico svg { width: 16px; height: 16px; }
+  .sheet-row .ico.qq { font-size: 10px; font-weight: 800; letter-spacing: 0; }
+  .sheet-row.danger .ico, .sheet-row.danger { color: #a03c32; }
+
+  /* ---------- desktop ---------- */
+  .desk { display: grid; gap: 26px; }
+  .dialog {
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: var(--shadow); padding: 18px 20px 14px; position: relative;
+  }
+  .dialog .title { font-size: 14px; font-weight: 650; margin-bottom: 14px; }
+  .dialog .close {
+    position: absolute; top: 14px; right: 16px; width: 26px; height: 26px;
+    border-radius: 50%; background: rgba(29,28,26,.06); display: grid;
+    place-items: center; color: var(--muted);
+  }
+  .dialog .close svg { width: 13px; height: 13px; }
+  .dialog .identity .av-edit { width: 68px; height: 68px; font-size: 32px; }
+  .dialog .row { padding: 11px 12px; }
+
+  .menu {
+    width: 268px; background: var(--card); border: 1px solid rgba(29,28,26,.10);
+    border-radius: 15px; padding: 6px; position: relative;
+    box-shadow: 0 22px 50px rgba(40,34,24,.22), 0 2px 6px rgba(40,34,24,.08);
+  }
+  .menu::after {
+    content: ""; position: absolute; left: 30px; top: -6px; width: 12px; height: 12px;
+    background: var(--card); border-left: 1px solid rgba(29,28,26,.10);
+    border-top: 1px solid rgba(29,28,26,.10); transform: rotate(45deg);
+  }
+  .menu .item {
+    display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+    border-radius: 9px; font-size: 13px; color: #2c2a26;
+  }
+  .menu .item .ico { color: #5c574f; display: grid; place-items: center; }
+  .menu .item .ico svg { width: 15px; height: 15px; }
+  .menu .item .ico.qq { font-size: 9px; font-weight: 800; }
+  .menu .item.danger { color: #a03c32; }
+  .menu .item.danger .ico { color: #a03c32; }
+  .menu .sep { height: 1px; background: var(--line); margin: 4px 8px; }
+
+  .identities { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+  .idside {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 10px 12px;
+  }
+  .idside .tag { font-size: 10px; color: var(--faint); margin-bottom: 8px; }
+  .siderow { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 550; }
+  .siderow .pic {
+    width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid;
+    place-items: center; font-size: 14px;
+    background: linear-gradient(150deg, #e9e3d2, #d8cfb9);
+    border: 1px solid rgba(29,28,26,.08);
+  }
+  .siderow .pic.img {
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,.55), transparent 42%),
+      linear-gradient(145deg,#6f8f72,#3f5a45);
+    color: #fff; font-size: 10px; font-weight: 700;
+  }
+  .siderow .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .siderow .meta { font-size: 10.5px; color: var(--faint); font-weight: 400; }
+
+  .notes {
+    margin-top: 40px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 18px;
+  }
+  .note {
+    background: rgba(255,253,248,.62); border: 1px solid var(--line);
+    border-radius: 16px; padding: 16px;
+  }
+  .note h3 { margin: 0 0 6px; font-size: 12px; }
+  .note p { margin: 0; font-size: 11.5px; line-height: 1.6; color: var(--muted); }
+
+  @media (max-width: 980px) {
+    .stage { grid-template-columns: 1fr; }
+    .phone { margin: 0 auto; }
+    .notes { grid-template-columns: 1fr; }
+    .identities { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 420px) {
+    .sheet { padding: 24px 14px 48px; }
+    h1 { font-size: 22px; }
+    .phone { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <header>
+    <div class="eyebrow">Cuplivo · 群聊 · 群设置与头像</div>
+    <h1>头像就是入口，菜单和助手共用一份</h1>
+    <p class="lede">群的头像不再是“只能看的那一叠头像”。它本身可点：手机弹出底部菜单，桌面在头像上方展开同一个菜单。五项动作与助手头像完全一致——同一份实现，不是两套长得像的东西。</p>
+  </header>
+
+  <section class="stage">
+    <div class="stack">
+      <div>
+        <p class="caption"><b>手机 · 群聊设置</b><span>头像 64，角标提示可换</span></p>
+        <div class="phone page">
+          <div class="nav">
+            <div class="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+            <span>群聊设置</span>
+          </div>
+          <div class="body">
+            <div class="identity">
+              <div class="av-edit">📚
+                <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/></svg></div>
+              </div>
+              <div class="field">读书会<span class="caret"></span></div>
+            </div>
+
+            <div class="section-label">成员</div>
+            <div class="row"><div class="a lin">林</div><div class="label"><b>林深</b></div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+            <div class="row"><div class="a lan">岚</div><div class="label"><b>阿岚</b></div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+            <div class="row"><div class="a qi">祁</div><div class="label"><b>祁野</b></div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+            <div class="row"><div class="a zhou">周</div><div class="label"><b>周周</b></div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+            <div class="row dashed"><div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></div><div class="label"><b>邀请助手</b></div></div>
+
+            <div class="spacer"></div>
+            <div class="section-label">编排</div>
+            <div class="row"><div class="glyph muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.4 5.8-1.9-5.8-1.9Z"/></svg></div><div class="label"><b>导演模型</b><span>选择下一个谁来发言的模型，建议选择快速且低成本的模型</span></div><div class="chip">默认模型<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></div></div>
+            <div class="row"><div class="glyph muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg></div><div class="label"><b>每轮最多发言</b><span>到上限后不再调用导演</span></div>
+              <div class="stepper"><div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></div><div class="val">3</div><div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+            </div>
+
+            <div class="spacer"></div>
+            <div class="row plain"><div class="glyph danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></div><div class="label"><b style="color:#a03c32">删除群聊</b></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>手机 · 点头像</b><span>与助手头像同一份菜单</span></p>
+        <div class="phone page sheetphone">
+          <div class="nav">
+            <div class="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+            <span>群聊设置</span>
+          </div>
+          <div class="body">
+            <div class="identity">
+              <div class="av-edit">📚</div>
+              <div class="field">读书会</div>
+            </div>
+            <div class="section-label">成员</div>
+            <div class="row"><div class="a lin">林</div><div class="label"><b>林深</b></div></div>
+            <div class="row"><div class="a lan">岚</div><div class="label"><b>阿岚</b></div></div>
+            <div class="row"><div class="a qi">祁</div><div class="label"><b>祁野</b></div></div>
+            <div class="row"><div class="a zhou">周</div><div class="label"><b>周周</b></div></div>
+            <div class="row dashed"><div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></div><div class="label"><b>邀请助手</b></div></div>
+          </div>
+          <div class="dim"></div>
+          <div class="sheetcard">
+            <div class="grabber"></div>
+            <div class="sheet-row"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>从相册选择</div>
+            <div class="sheet-row"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></div>选择表情</div>
+            <div class="sheet-row"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>输入链接</div>
+            <div class="sheet-row"><div class="ico qq">QQ</div>导入 QQ 头像</div>
+            <div class="sheet-row danger"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg></div>恢复默认头像</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div>
+        <p class="caption"><b>桌面 · 群聊设置（对话框）</b><span>同一份内容，头像悬停显示“更换”</span></p>
+        <div class="dialog">
+          <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+          <div class="title">群聊设置</div>
+          <div class="identity">
+            <div class="av-edit">📚<div class="veil">更换</div></div>
+            <div class="field">读书会</div>
+          </div>
+          <div class="section-label">成员</div>
+          <div class="row"><div class="a lin">林</div><div class="label"><b>林深</b></div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+          <div class="row"><div class="a lan">岚</div><div class="label"><b>阿岚</b></div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+          <div class="row"><div class="a qi">祁</div><div class="label"><b>祁野</b></div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+          <div class="row"><div class="a zhou">周</div><div class="label"><b>周周</b></div><div class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></div>
+          <div class="row dashed"><div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></div><div class="label"><b>邀请助手</b></div></div>
+          <div class="spacer"></div>
+          <div class="section-label">编排</div>
+          <div class="row"><div class="glyph muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.4 5.8-1.9-5.8-1.9Z"/></svg></div><div class="label"><b>导演模型</b><span>选择下一个谁来发言的模型，建议选择快速且低成本的模型</span></div><div class="chip">默认模型<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></div></div>
+          <div class="row"><div class="glyph muted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg></div><div class="label"><b>每轮最多发言</b><span>到上限后不再调用导演</span></div>
+            <div class="stepper"><div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></div><div class="val">3</div><div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+          </div>
+          <div class="spacer"></div>
+          <div class="row plain"><div class="glyph danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></div><div class="label"><b style="color:#a03c32">删除群聊</b></div></div>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>桌面 · 点头像</b><span>锚在头像上方，同样是那五项</span></p>
+        <div style="padding-left:24px">
+          <div class="menu">
+            <div class="item"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>从相册选择</div>
+            <div class="item"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></div>选择表情</div>
+            <div class="item"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div>输入链接</div>
+            <div class="item"><div class="ico qq">QQ</div>导入 QQ 头像</div>
+            <div class="sep"></div>
+            <div class="item danger"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg></div>恢复默认头像</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>群的身份出现在哪</b><span>侧栏一行；输入框里仍是成员叠</span></p>
+        <div class="identities">
+          <div class="idside">
+            <div class="tag">未设置 · 头像叠</div>
+            <div class="siderow">
+              <div class="cluster"><div class="a lin">林</div><div class="a lan">岚</div><div class="a qi">祁</div></div>
+              <div class="n">读书会</div>
+            </div>
+          </div>
+          <div class="idside">
+            <div class="tag">表情</div>
+            <div class="siderow"><div class="pic">📚</div><div class="n">读书会</div></div>
+          </div>
+          <div class="idside">
+            <div class="tag">图片</div>
+            <div class="siderow"><div class="pic img">图</div><div class="n">读书会</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="note">
+      <h3>头像即入口</h3>
+      <p>不加“更换头像”这一行：头像本身可点，手机 44 角标常驻，桌面悬停浮出“更换”。设置页因此只多一个可点目标，不多一行文字。</p>
+    </div>
+    <div class="note">
+      <h3>一份菜单，两处用</h3>
+      <p>相册、表情、链接、QQ、恢复默认——顺序和动作与助手头像一致，来自同一个组件。两边的差异只剩“当前值写回哪个实体”。</p>
+    </div>
+    <div class="note">
+      <h3>输入框里不换</h3>
+      <p>左下角那叠头像回答的是“谁会接话”，不是“这个群是谁”。自定义头像只替换侧栏与会话头的身份，输入框保持成员叠。</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

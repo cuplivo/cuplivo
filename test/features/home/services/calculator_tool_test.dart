@@ -3,9 +3,9 @@ import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/features/home/services/calculator_service.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/features/home/services/calculator_service.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 
 const _assistant = Assistant(
   id: 'calculator',

@@ -1,15 +1,15 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/quote_ref.dart';
-import 'package:Kelivo/core/providers/hotkey_provider.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/desktop/hotkeys/hotkey_event_bus.dart';
-import 'package:Kelivo/features/chat/widgets/quote_interaction_scope.dart';
-import 'package:Kelivo/features/side_panel/desktop_side_panel_controller.dart';
-import 'package:Kelivo/features/side_panel/widgets/desktop_side_panel.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/quote_ref.dart';
+import 'package:Cuplivo/core/providers/hotkey_provider.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/desktop/hotkeys/hotkey_event_bus.dart';
+import 'package:Cuplivo/features/chat/widgets/quote_interaction_scope.dart';
+import 'package:Cuplivo/features/side_panel/desktop_side_panel_controller.dart';
+import 'package:Cuplivo/features/side_panel/widgets/desktop_side_panel.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';

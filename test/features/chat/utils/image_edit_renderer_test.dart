@@ -4,12 +4,12 @@ import 'dart:ui';
 import 'package:flutter/painting.dart' show MatrixUtils;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
-import 'package:Kelivo/core/models/image_edit_document.dart';
-import 'package:Kelivo/core/models/composer_draft.dart';
-import 'package:Kelivo/core/models/image_upload_quality.dart';
-import 'package:Kelivo/features/chat/utils/image_edit_renderer.dart';
-import 'package:Kelivo/utils/image_compressor.dart';
-import 'package:Kelivo/utils/upload_dedupe.dart';
+import 'package:Cuplivo/core/models/image_edit_document.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/models/image_upload_quality.dart';
+import 'package:Cuplivo/features/chat/utils/image_edit_renderer.dart';
+import 'package:Cuplivo/utils/image_compressor.dart';
+import 'package:Cuplivo/utils/upload_dedupe.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

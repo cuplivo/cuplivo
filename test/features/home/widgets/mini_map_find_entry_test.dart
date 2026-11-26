@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/desktop/mini_map_popover.dart';
-import 'package:Kelivo/features/home/widgets/mini_map_sheet.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/desktop/mini_map_popover.dart';
+import 'package:Cuplivo/features/home/widgets/mini_map_sheet.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   for (final desktop in [false, true]) {

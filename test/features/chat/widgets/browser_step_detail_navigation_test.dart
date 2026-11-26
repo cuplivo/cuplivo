@@ -10,16 +10,16 @@ import 'package:provider/provider.dart';
 // ignore: depend_on_referenced_packages
 import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
 import '../../../support/fake_audioplayers_platform.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/features/browser/browser_panel_controller.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart';
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/features/browser/browser_panel_controller.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../../support/business_test_harness.dart';
 
 class _Paths extends PathProviderPlatform {

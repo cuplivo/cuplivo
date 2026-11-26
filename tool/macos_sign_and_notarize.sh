@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sign Kelivo.app with a Developer ID Application certificate, then notarize and
+# Sign Cuplivo.app with a Developer ID Application certificate, then notarize and
 # staple the DMG. Secrets are read from the environment. When they are all
 # absent (forks, pull requests), both commands exit 0 and leave the build
 # unsigned. Incomplete secrets fail the command so a release is not published
@@ -36,8 +36,8 @@ usage() {
   cat <<'EOF'
 Usage:
   macos_sign_and_notarize.sh check
-  macos_sign_and_notarize.sh sign-app <kelivo.app>
-  macos_sign_and_notarize.sh notarize-dmg <Kelivo.dmg> <kelivo.app>
+  macos_sign_and_notarize.sh sign-app <cuplivo.app>
+  macos_sign_and_notarize.sh notarize-dmg <Cuplivo.dmg> <cuplivo.app>
 
 check prints skip, api, or apple-id. sign-app and notarize-dmg sign with the
 Developer ID certificate. notarize-dmg also submits the DMG to notarytool,
@@ -162,7 +162,7 @@ cleanup() {
     fi
     KEYCHAIN_READY=0
   fi
-  if [[ "$WORK_DIR" == *kelivo-signing-* ]]; then
+  if [[ "$WORK_DIR" == *cuplivo-signing-* ]]; then
     rm -rf "$WORK_DIR"
     WORK_DIR=""
   fi
@@ -171,7 +171,7 @@ cleanup() {
 
 start_secure_workspace() {
   umask 077
-  WORK_DIR="${RUNNER_TEMP:-/tmp}/kelivo-signing-$$"
+  WORK_DIR="${RUNNER_TEMP:-/tmp}/cuplivo-signing-$$"
   mkdir -p "$WORK_DIR"
   chmod 700 "$WORK_DIR"
   trap cleanup EXIT
@@ -458,8 +458,8 @@ find_mounted_app() {
   while IFS= read -r candidate; do
     MOUNTED_APP=$candidate
     break
-  done < <(find "$MOUNT_POINT" -maxdepth 3 -type d -name 'kelivo.app')
-  [[ -n "$MOUNTED_APP" ]] || die "DMG 里没有 kelivo.app"
+  done < <(find "$MOUNT_POINT" -maxdepth 3 -type d -name 'cuplivo.app')
+  [[ -n "$MOUNTED_APP" ]] || die "DMG 里没有 cuplivo.app"
 }
 
 ensure_dmg_contains_signed_app() {
@@ -475,7 +475,7 @@ ensure_dmg_contains_signed_app() {
   echo "DMG 内的应用签名无效。create-dmg 写入 Finder 信息时会破坏签名，改用 hdiutil 从已签名的 .app 重新打包。"
   detach_mount
   rm -f "$DMG"
-  hdiutil create -volname Kelivo -srcfolder "$APP" -ov -format UDZO "$DMG"
+  hdiutil create -volname Cuplivo -srcfolder "$APP" -ov -format UDZO "$DMG"
   mount_dmg
   find_mounted_app
   if ! codesign --verify --deep --strict --verbose=2 "$MOUNTED_APP"; then
@@ -612,11 +612,11 @@ main() {
       cmd_check
       ;;
     sign-app)
-      [[ $# -eq 1 ]] || die "用法: $0 sign-app <kelivo.app>"
+      [[ $# -eq 1 ]] || die "用法: $0 sign-app <cuplivo.app>"
       cmd_sign_app "$1"
       ;;
     notarize-dmg)
-      [[ $# -eq 2 ]] || die "用法: $0 notarize-dmg <file.dmg> <kelivo.app>"
+      [[ $# -eq 2 ]] || die "用法: $0 notarize-dmg <file.dmg> <cuplivo.app>"
       cmd_notarize_dmg "$1" "$2"
       ;;
     -h | --help | help)

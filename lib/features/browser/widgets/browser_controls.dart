@@ -7,7 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../l10n/app_localizations.dart';
 import 'browser_glass.dart';
 import '../models/browser_models.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Browser controls intentionally have no Material ink or app-wide press paint.
 class BrowserActionButton extends StatelessWidget {

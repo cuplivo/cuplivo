@@ -1,10 +1,10 @@
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/desktop/desktop_context_menu.dart';
-import 'package:Kelivo/desktop/desktop_glass_popover.dart';
-import 'package:Kelivo/desktop/desktop_overlay_backdrop.dart';
-import 'package:Kelivo/features/browser/browser_panel_controller.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/desktop/desktop_context_menu.dart';
+import 'package:Cuplivo/desktop/desktop_glass_popover.dart';
+import 'package:Cuplivo/desktop/desktop_overlay_backdrop.dart';
+import 'package:Cuplivo/features/browser/browser_panel_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

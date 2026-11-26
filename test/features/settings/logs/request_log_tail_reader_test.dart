@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:Kelivo/features/settings/logs/request_log_tail_reader.dart';
+import 'package:Cuplivo/features/settings/logs/request_log_tail_reader.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

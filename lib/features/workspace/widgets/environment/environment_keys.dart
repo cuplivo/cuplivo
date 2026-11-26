@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:Kelivo/core/models/environment_state.dart';
+import 'package:Cuplivo/core/models/environment_state.dart';
 
 abstract final class EnvironmentPaneKeys {
   static const install = ValueKey<String>('workspace-env-install');

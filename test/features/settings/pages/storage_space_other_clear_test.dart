@@ -10,9 +10,9 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/settings/pages/storage_space_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/settings/pages/storage_space_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 class _FakePathProvider extends PathProviderPlatform {
   _FakePathProvider(this.root);

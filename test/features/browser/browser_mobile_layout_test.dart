@@ -4,10 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/pages/browser_mobile_layout.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
-import 'package:Kelivo/features/browser/widgets/browser_progressive_edge.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/pages/browser_mobile_layout.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_progressive_edge.dart';
 
 void main() {
   testWidgets(

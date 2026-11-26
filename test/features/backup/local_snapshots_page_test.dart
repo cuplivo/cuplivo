@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/local_snapshot_provider.dart';
-import 'package:Kelivo/core/services/backup/local_copy_catalog.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_settings.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/backup/pages/local_snapshots_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/core/providers/local_snapshot_provider.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_settings.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/features/backup/pages/local_snapshots_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

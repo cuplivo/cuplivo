@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/features/browser/browser_panel_controller.dart';
-import 'package:Kelivo/features/side_panel/desktop_side_panel_controller.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/features/browser/browser_panel_controller.dart';
+import 'package:Cuplivo/features/side_panel/desktop_side_panel_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _MemoryStore extends BrowserStore {

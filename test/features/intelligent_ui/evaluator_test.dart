@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_ir.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_stream_parser.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_evaluator.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_ir.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_stream_parser.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_evaluator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 UiEvaluationBatch _batch(

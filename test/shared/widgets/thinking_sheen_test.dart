@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/shared/widgets/thinking_sheen.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/shared/widgets/thinking_sheen.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
 
 void main() {
   testWidgets('thinking and loading effects leave no continuous ticker', (

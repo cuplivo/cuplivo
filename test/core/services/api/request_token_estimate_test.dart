@@ -1,7 +1,7 @@
-import 'package:Kelivo/core/models/native_compaction.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/request_history_context.dart';
-import 'package:Kelivo/core/services/api/request_token_estimate.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/api/request_token_estimate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

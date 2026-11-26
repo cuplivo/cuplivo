@@ -1,16 +1,16 @@
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_node.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_node.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_content.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_content.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 const _body = r'''$x: number = 0
 root = Column(children=[a,b,c])

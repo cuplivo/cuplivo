@@ -1,6 +1,6 @@
 // Derived from Termux terminal-emulator JNI (GPL-3.0-or-later):
 // https://github.com/termux/termux-app
-// JNI class: com.psyche.kelivo.workspace.PtyJni
+// JNI class: com.cuplivo.cuplivo.workspace.PtyJni
 
 #include <jni.h>
 #include <android/log.h>
@@ -16,7 +16,7 @@
 #include <vector>
 #include "workspace_process.h"
 
-#define LOG_TAG "KelivoPtyJni"
+#define LOG_TAG "CuplivoPtyJni"
 
 static char *copy_java_string(JNIEnv *env, jstring value) {
     if (value == nullptr) return nullptr;
@@ -59,7 +59,7 @@ static int open_pty_master(char *slave_name, size_t slave_name_size) {
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_psyche_kelivo_workspace_PtyJni_createSubprocess(
+Java_com_cuplivo_cuplivo_workspace_PtyJni_createSubprocess(
         JNIEnv *env,
         jclass,
         jstring cmd,
@@ -146,7 +146,7 @@ Java_com_psyche_kelivo_workspace_PtyJni_createSubprocess(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_psyche_kelivo_workspace_PtyJni_setPtyWindowSize(
+Java_com_cuplivo_cuplivo_workspace_PtyJni_setPtyWindowSize(
         JNIEnv *, jclass, jint fd, jint rows, jint columns) {
     winsize size = {};
     size.ws_row = static_cast<unsigned short>(rows);
@@ -155,7 +155,7 @@ Java_com_psyche_kelivo_workspace_PtyJni_setPtyWindowSize(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_psyche_kelivo_workspace_PtyJni_waitFor(JNIEnv *, jclass, jint pid) {
+Java_com_cuplivo_cuplivo_workspace_PtyJni_waitFor(JNIEnv *, jclass, jint pid) {
     int status = 0;
     int result;
     do {
@@ -168,6 +168,6 @@ Java_com_psyche_kelivo_workspace_PtyJni_waitFor(JNIEnv *, jclass, jint pid) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_psyche_kelivo_workspace_PtyJni_close(JNIEnv *, jclass, jint fd) {
+Java_com_cuplivo_cuplivo_workspace_PtyJni_close(JNIEnv *, jclass, jint fd) {
     close(fd);
 }

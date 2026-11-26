@@ -3,9 +3,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
 import '../../support/business_test_harness.dart';
 import '../../support/markdown_backdrop_host.dart';
 

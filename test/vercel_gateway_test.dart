@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/api_keys.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/providers/model_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/builtin_tools.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_history.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_handler.dart';
-import 'package:Kelivo/core/services/provider_balance_service.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/models/api_keys.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/providers/model_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/builtin_tools.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_history.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_handler.dart';
+import 'package:Cuplivo/core/services/provider_balance_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 

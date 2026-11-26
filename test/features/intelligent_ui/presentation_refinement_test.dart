@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_chart_data.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/text/ui_number_display.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_expansion.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_web_card.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/gallery/review_gallery.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_chart_data.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/text/ui_number_display.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_expansion.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_web_card.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/gallery/review_gallery.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import '../../support/business_test_harness.dart';
 
 UiSurfaceController controller(String body) {

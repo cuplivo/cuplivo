@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import '../../support/business_test_harness.dart';
 import '../../support/markdown_render_helpers.dart';

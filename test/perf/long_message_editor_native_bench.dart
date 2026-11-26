@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../shared/text_input/mirror_harness.dart';
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import 'package:re_editor/re_editor.dart';
 
 // Desktop widget harness, same fixture/operations as the original Kelivo

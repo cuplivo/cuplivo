@@ -5,11 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
-import 'package:Kelivo/core/services/backup/restore_receipt.dart';
-import 'package:Kelivo/core/services/backup/restore_startup_gate.dart';
-import 'package:Kelivo/core/services/backup/restore_workspace_lock.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_receipt.dart';
+import 'package:Cuplivo/core/services/backup/restore_startup_gate.dart';
+import 'package:Cuplivo/core/services/backup/restore_workspace_lock.dart';
 
 import 'support/restore_complete_bundle_fixture.dart';
 import 'support/restore_process_control.dart';

@@ -154,25 +154,24 @@ bool workspaceFileCarries(String name) {
 ///
 /// The caps are parameters so a test can prove the abort with three files
 /// instead of two thousand; production always takes the defaults.
+///
+/// There is one cap now, and it counts files rather than bytes: the walk has to
+/// stop somewhere (its cost is what a first sync spends before anything moves),
+/// but the *size* of a workspace is not a reason to refuse it — files cross one
+/// at a time, staged and renamed, with their own byte progress. A byte cap here
+/// refused a workspace the transfer could have carried.
 Future<WorkspaceContentIndex> indexWorkspaceContent(
   String rootPath, {
   int maxFiles = kMaxWorkspaceFiles,
-  int maxBytes = kMaxWorkspaceBytes,
-}) => Isolate.run(
-  () => indexWorkspaceContentSync(
-    rootPath,
-    maxFiles: maxFiles,
-    maxBytes: maxBytes,
-  ),
-);
+}) =>
+    Isolate.run(() => indexWorkspaceContentSync(rootPath, maxFiles: maxFiles));
 
 /// The walk itself, synchronous so it can run inside an isolate. Returns as
-/// soon as either cap is passed — the point is to never walk a tree that will
-/// not be transferred anyway.
+/// soon as the cap is passed — the point is to never walk a tree that will not
+/// be transferred anyway.
 WorkspaceContentIndex indexWorkspaceContentSync(
   String rootPath, {
   int maxFiles = kMaxWorkspaceFiles,
-  int maxBytes = kMaxWorkspaceBytes,
 }) {
   final files = <String, WorkspaceFileStamp>{};
   var totalBytes = 0;
@@ -217,7 +216,7 @@ WorkspaceContentIndex indexWorkspaceContentSync(
         mtimeMs: stat.modified.millisecondsSinceEpoch,
       );
       totalBytes += stat.size;
-      if (files.length > maxFiles || totalBytes > maxBytes) {
+      if (files.length > maxFiles) {
         return WorkspaceContentIndex(
           files,
           totalBytes: totalBytes,

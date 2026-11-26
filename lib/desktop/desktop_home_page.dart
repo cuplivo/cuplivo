@@ -11,6 +11,7 @@ import '../shared/responsive/screen_type_helper.dart';
 import '../shared/widgets/ios_tactile.dart';
 import '../icons/lucide_adapter.dart';
 import 'desktop_settings_page.dart';
+import 'setting/sync_pane.dart';
 import 'desktop_translate_page.dart';
 import '../features/markdown_export/pages/markdown_export_page.dart';
 import '../features/settings/pages/storage_space_page.dart';
@@ -45,6 +46,7 @@ class DesktopHomePage extends StatefulWidget {
 class _DesktopHomePageState extends State<DesktopHomePage> {
   DesktopTab _tab = DesktopTab.chat;
   bool _storageVisited = false;
+  bool _lanSyncVisited = false;
   bool _navigationOpen = false;
   bool _globalSearchActive = false;
   StreamSubscription<HotkeyAction>? _hotkeySub;
@@ -63,6 +65,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
           )];
     }
     _storageVisited = _tab == DesktopTab.storage;
+    _lanSyncVisited = _tab == DesktopTab.lanSync;
     _conversationOpenSub = NotificationService.conversationTaps.listen((_) {
       if (!mounted) return;
       setState(() {
@@ -214,6 +217,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
       _globalSearchActive = search;
       _navigationOpen = false;
       if (tab == DesktopTab.storage) _storageVisited = true;
+      if (tab == DesktopTab.lanSync) _lanSyncVisited = true;
     });
     ChatActionBus.instance.fire(
       search ? ChatAction.enterGlobalSearch : ChatAction.exitGlobalSearch,
@@ -244,6 +248,19 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
     DesktopTab.markdownImage => const MarkdownExportPage(
       key: ValueKey('markdown_export_page'),
     ),
+    // The pane the settings page mounts, on the surface the tabs are drawn on —
+    // it owns the padding, scroll view and max width. Built on first visit like
+    // [DesktopTab.storage]: the stack builds every tab at launch, and building a
+    // pane the user has not asked for is work spent on a screen they may never
+    // open. The provider is above the shell either way (`main.dart`).
+    DesktopTab.lanSync =>
+      _lanSyncVisited
+          ? Material(
+              key: const ValueKey('lan_sync_page'),
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child: const DesktopSyncPane(),
+            )
+          : const SizedBox.shrink(),
   };
 
   @override

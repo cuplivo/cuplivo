@@ -16,6 +16,7 @@ import '../../../shared/widgets/ios_tactile.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../../theme/app_semantic_colors.dart';
+import '../../home/utils/model_display_helper.dart';
 import '../../home/widgets/assistant_avatar.dart';
 import '../../model/pages/default_model_page.dart';
 import '../group_actions.dart';
@@ -327,7 +328,9 @@ class _GroupSettingsViewState extends State<GroupSettingsView> {
     if (provider == null || modelId == null) {
       return AppLocalizations.of(context)!.groupChatDirectorFollowDefault;
     }
-    return modelId;
+    // The row opens the default-model page, whose director card names the
+    // model the same way; the two must not disagree.
+    return modelDisplayName(settings, provider, modelId);
   }
 }
 
@@ -441,11 +444,19 @@ class _SettingRow extends StatelessWidget {
             if (value != null)
               Padding(
                 padding: const EdgeInsets.only(left: 10),
-                child: Text(
-                  value!,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                // A model name the user chose can be long; it is capped so the
+                // row's label keeps its room instead of the value pushing it out.
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(
+                    value!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: cs.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
               ),

@@ -206,6 +206,34 @@ void main() {
   );
 
   test(
+    'two rows that trade slots are moved, not written onto each other',
+    () async {
+      await seed([
+        (id: 'm1', order: 0, timestampUs: 1000000),
+        (id: 'm2', order: 1, timestampUs: 2000000),
+      ]);
+
+      // Both rows arrive again, each carried to the slot the other holds. Nothing
+      // else makes the shift necessary — no deletion, no untouched row out of
+      // place — so this is the case that decides whether "no slot is contested"
+      // is a proof or an assumption: writing either row first lands on a slot the
+      // other still holds, and the unique key aborts the apply.
+      final outcome = await apply(
+        payloadOf([
+          (id: 'm1', order: 1, timestampUs: 1500000),
+          (id: 'm2', order: 0, timestampUs: 2500000),
+        ]),
+      );
+
+      expect(outcome.deferred, isFalse);
+      expect(await storedOrder(), [
+        (id: 'm2', order: 0),
+        (id: 'm1', order: 1),
+      ], reason: 'the carried slot leads, and both rows moved to take it');
+    },
+  );
+
+  test(
     'an already-shifted conversation is repaired, not collided with',
     () async {
       // The state the old build could leave behind: orders far above the count.

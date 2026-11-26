@@ -24,9 +24,26 @@ void main() {
         {'conversation_id': 'c1', 'server_id': 's1', 'ordinal': 0},
       ],
     );
-    expect(payload.toJson().keys.toSet(), {
+    expect(
+      payload.toJson().keys.toSet(),
+      {for (final family in syncedConversationFamilies) family.wireKey, 'ids'},
+      reason:
+          'the wire is the registration plus one page footer: `ids` names '
+          'the sender\'s row set on the page that ends a transfer, and it is the '
+          'only key that is not a family',
+    );
+
+    // An intermediate page speaks the other footer instead, and never `ids`: a
+    // page proves what it carries, and an id set on one would read as a
+    // statement about rows that have not been sent yet.
+    final intermediate = SyncSubtreePayload(
+      conversation: const {'id': 'c1'},
+      more: true,
+    );
+    expect(intermediate.toJson().keys.toSet(), {
       for (final family in syncedConversationFamilies) family.wireKey,
-    }, reason: 'the wire is the registration, not a struct somebody grew');
+      'more',
+    }, reason: 'the page that is not last says so, and says nothing else');
   });
 
   test('a subtree survives a round trip through JSON', () {

@@ -17,7 +17,9 @@ import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
 import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
 import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
 import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -54,6 +56,8 @@ void main() {
     required AssistantProvider assistants,
     required Assistant selected,
     required Assistant author,
+    OnRegenerateMessage? onRegenerate,
+    bool Function(ChatMessage message)? canRegenerate,
   }) async {
     final message = ChatMessage(
       id: 'reply-1',
@@ -93,6 +97,8 @@ void main() {
               },
               assistant: selected,
               assistants: assistants,
+              onRegenerate: onRegenerate,
+              canRegenerate: canRegenerate,
             ),
           ),
         ),
@@ -151,6 +157,48 @@ void main() {
 
     expect(find.text('Quinn'), findsNothing);
   });
+
+  testWidgets('a reply with no author left offers no regeneration', (
+    tester,
+  ) async {
+    final members = await roster();
+    await pumpReply(
+      tester,
+      assistants: members.provider,
+      selected: members.optedIn,
+      author: const Assistant(id: 'gone', name: 'Gone'),
+      onRegenerate: (_) {},
+      // The host cannot ask a deleted assistant again, so it says so before the
+      // row is built rather than failing on tap.
+      canRegenerate: (_) => false,
+    );
+
+    expect(_regenerateButton(tester).onTap, isNull);
+  });
+
+  testWidgets('a reply with an author left offers regeneration', (
+    tester,
+  ) async {
+    final members = await roster();
+    await pumpReply(
+      tester,
+      assistants: members.provider,
+      selected: members.optedIn,
+      author: members.optedOut,
+      onRegenerate: (_) {},
+      canRegenerate: (_) => true,
+    );
+
+    expect(_regenerateButton(tester).onTap, isNotNull);
+  });
+}
+
+IosIconButton _regenerateButton(WidgetTester tester) {
+  final buttons = tester
+      .widgetList<IosIconButton>(find.byType(IosIconButton))
+      .where((button) => button.icon == Lucide.RefreshCw);
+  expect(buttons, hasLength(1), reason: 'one regenerate action per reply');
+  return buttons.single;
 }
 
 class _ListHarness extends StatefulWidget {
@@ -159,12 +207,16 @@ class _ListHarness extends StatefulWidget {
     required this.byGroup,
     required this.assistant,
     required this.assistants,
+    this.onRegenerate,
+    this.canRegenerate,
   });
 
   final List<ChatMessage> messages;
   final Map<String, List<ChatMessage>> byGroup;
   final Assistant assistant;
   final AssistantProvider assistants;
+  final OnRegenerateMessage? onRegenerate;
+  final bool Function(ChatMessage message)? canRegenerate;
 
   @override
   State<_ListHarness> createState() => _ListHarnessState();
@@ -211,6 +263,8 @@ class _ListHarnessState extends State<_ListHarness> {
       processingFilesMessageId: processingFilesMessageId,
       assistant: widget.assistant,
       assistants: widget.assistants,
+      onRegenerateMessage: widget.onRegenerate,
+      canRegenerateMessage: widget.canRegenerate,
     );
   }
 }

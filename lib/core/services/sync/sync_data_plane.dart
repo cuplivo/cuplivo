@@ -11,6 +11,7 @@ import '../recycle/recycle_service.dart';
 import '../skills/skill_directory_sync.dart';
 import 'blob_sync.dart';
 import '../business_state_reloader.dart';
+import 'sync_budget.dart';
 import 'sync_family_registry.dart';
 import 'sync_merge.dart';
 import 'sync_models.dart';
@@ -200,7 +201,267 @@ class SyncDataPlane {
         conversationId,
       );
     }
-    return SyncSubtreePayload(conversation: conversation, families: families);
+    final messageFamily = syncFamilyOfTable('message_rows');
+    return SyncSubtreePayload(
+      conversation: conversation,
+      families: families,
+      // A whole-conversation payload still has to name the sender's id set: the
+      // receiver's deletion oracle reads it, and a payload that carried none
+      // would read as "the sender holds nothing" — the one statement that
+      // deletes every row.
+      ids: [
+        for (final row in families[messageFamily.name] ?? const [])
+          row['id'] as String,
+      ],
+    );
+  }
+
+  /// How many message rows one database round trip fetches while a page is
+  /// being filled. Small enough that a page of huge rows still stops near its
+  /// budget, large enough that an ordinary conversation is one query.
+  static const int _kMessageChunk = 256;
+
+  static bool _isPagedFamily(SyncFamily family) =>
+      family.table == 'message_rows' || family.table == 'message_part_rows';
+
+  /// One page of [conversationId]'s subtree, or null when it no longer exists.
+  ///
+  /// A conversation crosses in as many pages as its size needs. [after] is the
+  /// last message id the peer is confirmed to hold, and the page stops once its
+  /// rows reach [rowBudget] bytes — a page is measured, never guessed, so no
+  /// single body approaches the receiving side's cap.
+  ///
+  /// The page that finds no more messages is the **last** one, and it carries
+  /// three things the others must not: every message id this device holds
+  /// ([SyncSubtreePayload.ids], the incoming set the receiver's deletion oracle
+  /// reads), the families that hang off a message revision (a document naming a
+  /// message the peer does not have yet is silently dropped by the apply's
+  /// foreign-key gate), and the rows a keyset cursor cannot see — a message
+  /// written during the transfer can sort *below* [after], so [sentIds] (what
+  /// earlier pages of this same transfer were confirmed to carry) is subtracted
+  /// from what the device holds and the difference rides here.
+  Future<({SyncSubtreePayload payload, String? nextAfter, int overflow})?>
+  readSubtreePage(
+    String conversationId, {
+    required String? after,
+    required int rowBudget,
+    required int pageBytes,
+    Set<String> sentIds = const {},
+  }) async {
+    final conversation = await repository.syncReadWireConversationRow(
+      conversationId,
+    );
+    if (conversation == null) return null;
+
+    // Page 0 carries everything that hangs off the conversation alone. The
+    // families that hang off a message revision cannot ride here: a document
+    // naming a message the peer does not have yet is dropped by the apply's
+    // foreign-key gate, silently, and the page that carried it proves nothing.
+    final shared = <String, List<Map<String, dynamic>>>{};
+    var fixed = wireBytesOf(conversation);
+    if (after == null) {
+      for (final family in syncedConversationFamilies) {
+        if (family.isSubtreeRoot || _isPagedFamily(family)) continue;
+        if (family.messageRevisionColumn != null) continue;
+        final rows = await repository.syncReadFamilyRows(
+          family,
+          conversationId,
+        );
+        if (rows.isEmpty) continue;
+        shared[family.name] = rows;
+        for (final row in rows) {
+          fixed += wireBytesOf(row) + 1;
+        }
+      }
+    }
+
+    final prefix = <Map<String, dynamic>>[];
+    String? cursor = after;
+    var more = false;
+    while (true) {
+      final chunk = await repository.syncReadMessageChunk(
+        conversationId,
+        after: cursor,
+        limit: _kMessageChunk,
+      );
+      if (chunk.isEmpty) break;
+      // The prose lives in the parts, and it is most of a page: a fill that
+      // counts the rows alone loads four to five times the budget, and the
+      // trim then removes what should never have been read — encoding the
+      // lot once to measure it. Reading each chunk's parts here is one query
+      // per chunk and makes the page end where the budget does.
+      final chunkParts = await repository.syncReadPartRowsByIds(
+        conversationId,
+        [for (final row in chunk) row['id'] as String],
+      );
+      final partBytes = <String, int>{};
+      for (final part in chunkParts) {
+        final id = part['revision_id'] as String;
+        partBytes[id] = (partBytes[id] ?? 0) + wireBytesOf(part) + 1;
+      }
+      for (final row in chunk) {
+        final bytes =
+            wireBytesOf(row) + 1 + (partBytes[row['id'] as String] ?? 0);
+        if (prefix.isNotEmpty && fixed + bytes > rowBudget) {
+          more = true;
+          break;
+        }
+        prefix.add(row);
+        fixed += bytes;
+        cursor = row['id'] as String;
+      }
+      if (more || chunk.length < _kMessageChunk) break;
+    }
+
+    // The rows an earlier page of this transfer stepped over: a message written
+    // while it ran sorts below the cursor and would be skipped by every page. It
+    // rides the last page, and is named in that page's id set.
+    var ids = <String>[];
+    final revisions = <String, List<Map<String, dynamic>>>{};
+    var rest = const <Map<String, dynamic>>[];
+    if (!more) {
+      ids = await repository.syncReadMessageIds(conversationId);
+      final carried = {
+        ...sentIds,
+        for (final row in prefix) row['id'] as String,
+      };
+      final late = [
+        for (final id in ids)
+          if (!carried.contains(id)) id,
+      ];
+      if (late.isNotEmpty) {
+        rest = await repository.syncReadMessagesByIds(conversationId, late);
+      }
+      for (final family in syncedConversationFamilies) {
+        if (family.isSubtreeRoot || _isPagedFamily(family)) continue;
+        if (family.messageRevisionColumn == null) continue;
+        final rows = await repository.syncReadFamilyRows(
+          family,
+          conversationId,
+        );
+        if (rows.isEmpty) continue;
+        revisions[family.name] = rows;
+      }
+    }
+
+    // Parts come in the two shapes the rows do, and neither reader covers both:
+    // one contiguous interval for the page's own run, and a lookup by id for the
+    // rows a cursor stepped over. A page that read them by interval alone would
+    // lose *every* part it has whenever a late row rode along — that row sorts
+    // below the page, so the interval from its first id to its last covers
+    // nothing at all.
+    final partsByRevision = <String, List<Map<String, dynamic>>>{};
+    void collect(Iterable<Map<String, dynamic>> parts) {
+      for (final part in parts) {
+        final revision = part['revision_id'];
+        if (revision is! String) continue;
+        (partsByRevision[revision] ??= <Map<String, dynamic>>[]).add(part);
+      }
+    }
+
+    if (prefix.isNotEmpty) {
+      collect(
+        await repository.syncReadPartRowsBetween(
+          conversationId,
+          prefix.first['id'] as String,
+          prefix.last['id'] as String,
+        ),
+      );
+    }
+    if (rest.isNotEmpty) {
+      collect(
+        await repository.syncReadPartRowsByIds(conversationId, [
+          for (final row in rest) row['id'] as String,
+        ]),
+      );
+    }
+
+    // One entry per message with its parts and its exact wire cost, so the trim
+    // below is arithmetic rather than another round trip: a page that has to
+    // drop a row must not re-read the database, still less re-encode the page,
+    // to find out what that row cost.
+    final entries = <({Map<String, dynamic> row, int cost})>[];
+    for (final row in [...prefix, ...rest]) {
+      final id = row['id'] as String;
+      var cost = wireBytesOf(row) + 1;
+      for (final part
+          in partsByRevision[id] ?? const <Map<String, dynamic>>[]) {
+        cost += wireBytesOf(part) + 1;
+      }
+      entries.add((row: row, cost: cost));
+    }
+
+    final messageFamily = syncFamilyOfTable('message_rows');
+    final partFamily = syncFamilyOfTable('message_part_rows');
+
+    SyncSubtreePayload payloadFor(bool last) {
+      final parts = <Map<String, dynamic>>[
+        for (final entry in entries)
+          ...?partsByRevision[entry.row['id'] as String],
+      ];
+      return SyncSubtreePayload(
+        conversation: conversation,
+        families: {
+          ...shared,
+          if (last) ...revisions,
+          if (entries.isNotEmpty)
+            messageFamily.name: [for (final entry in entries) entry.row],
+          if (parts.isNotEmpty) partFamily.name: parts,
+        },
+        more: !last,
+        ids: last ? ids : const [],
+      );
+    }
+
+    var last = !more;
+    // Measured once, then kept exact by arithmetic: the page's static part — the
+    // root row, the family keys, the revision families and the id footer — is the
+    // same whatever rows are kept, so a trim can subtract a row's cost without
+    // re-encoding the page. Guessing that static part instead of measuring it is
+    // what made a page four times smaller than its budget.
+    var total = conversationWireBytes(payloadFor(last));
+    var overflow = 0;
+    while (true) {
+      if (total <= pageBytes) break;
+      // A last page is not special: when it cannot fit, it becomes an ordinary
+      // one and the page after it finishes the job — but only while there is a
+      // row left to carry. A page that says "more" with nothing in it hands back
+      // no cursor, and the sender would re-read the same page for ever.
+      if (last && entries.isNotEmpty) {
+        last = false;
+        total = conversationWireBytes(payloadFor(false));
+        if (total <= pageBytes) break;
+      }
+      if (entries.length <= 1) {
+        overflow = total - pageBytes;
+        break;
+      }
+      total -= entries.removeLast().cost;
+    }
+    // Belt to the loop's braces: a page that is not last must carry a row.
+    if (!last && entries.isEmpty) {
+      last = true;
+      overflow = total - pageBytes;
+      if (overflow < 0) overflow = 0;
+    }
+
+    final payload = payloadFor(last);
+    // The cursor names the last id of the *ascending* run this page carried —
+    // carried, not read: the trim removes from the end of the run, and a
+    // cursor past the removed rows steps over them, so they can only come
+    // back as the next page's late set. A late row sorts below the resume
+    // point by definition, so it never decides the cursor either.
+    final keptPrefix = entries.length < prefix.length
+        ? entries.length
+        : prefix.length;
+    final cursorLast = keptPrefix == 0
+        ? after
+        : prefix[keptPrefix - 1]['id'] as String;
+    return (
+      payload: payload,
+      nextAfter: last ? null : cursorLast,
+      overflow: overflow,
+    );
   }
 
   /// Whether a generation is writing to this conversation right now. Such a
@@ -244,6 +505,7 @@ class SyncDataPlane {
     required String myDeviceId,
     required String peerDeviceId,
     required Map<String, Map<String, int>> checkpointRowsByConversation,
+    bool composeDigest = true,
     bool Function()? cancelled,
   }) async {
     final outcomes = <String, SyncSubtreeApplyOutcome>{};
@@ -260,6 +522,7 @@ class SyncDataPlane {
         peerDeviceId: peerDeviceId,
         checkpointRows:
             checkpointRowsByConversation[conversationId] ?? const {},
+        composeDigest: composeDigest,
       );
       outcomes[conversationId] = outcome;
       if (!outcome.deferred) touched.add(conversationId);

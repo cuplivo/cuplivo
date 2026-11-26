@@ -158,10 +158,29 @@ String syncPhaseLabel(AppLocalizations l10n, SyncSessionProgress progress) {
           : l10n.lanSyncPhaseConnectingTo(address);
     case SyncSessionPhase.exchanging:
       return l10n.lanSyncPhaseExchanging;
+    case SyncSessionPhase.preparing:
+      return l10n.lanSyncPhasePreparing;
     case SyncSessionPhase.sending:
-      return l10n.lanSyncPhaseSending;
+      return progress.total > 0
+          // gen-l10n orders a message's placeholders alphabetically, so this
+          // call is (bytes, done, total) — not the reading order of the
+          // sentence. All three are `Object`, so the analyzer cannot catch a
+          // call that passes them in the order the words appear.
+          ? l10n.lanSyncPhaseSendingOf(
+              formatBytes(progress.bytes),
+              progress.done,
+              progress.total,
+            )
+          : l10n.lanSyncPhaseSending;
     case SyncSessionPhase.receiving:
-      return l10n.lanSyncPhaseReceiving;
+      return progress.total > 0
+          // Same alphabetical order as the sending label.
+          ? l10n.lanSyncPhaseReceivingOf(
+              formatBytes(progress.bytes),
+              progress.done,
+              progress.total,
+            )
+          : l10n.lanSyncPhaseReceiving;
     case SyncSessionPhase.files:
       return progress.total > 0
           ? l10n.lanSyncPhaseFiles(progress.done, progress.total)
@@ -201,7 +220,6 @@ String syncReportMessage(AppLocalizations l10n, SyncSessionReport report) {
     deletedConversations: report.conversationsDeletedLocally,
     deletedBlocked: report.deletedBlocked,
     deferred: report.deferred,
-    conversationsOmittedForSize: report.conversationsOmittedForSize,
     entityRows: report.entityRows,
     preferenceRows: report.preferenceRows,
     blobsMoved: report.blobsMoved,
@@ -232,7 +250,6 @@ String _syncCountsMessage(
   required int deletedConversations,
   int deletedBlocked = 0,
   required int deferred,
-  int conversationsOmittedForSize = 0,
   required int entityRows,
   required int preferenceRows,
   int blobsMoved = 0,
@@ -296,12 +313,6 @@ String _syncCountsMessage(
     if (workspaceFoldersKept > 0)
       l10n.lanSyncReportWorkspacesKept(workspaceFoldersKept),
     if (deferred > 0) l10n.lanSyncReportDeferred(deferred),
-    // The size budget's own count, beside the deferred one: both mean "not this
-    // round", and only this one means "the conversation is bigger than a push".
-    if (conversationsOmittedForSize > 0)
-      l10n.lanSyncReportConversationsOmittedForSize(
-        conversationsOmittedForSize,
-      ),
     if (clockSkewMs != null)
       l10n.lanSyncReportClockSkew((clockSkewMs.abs() / 60000).round()),
   ];

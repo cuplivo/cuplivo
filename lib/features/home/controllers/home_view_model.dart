@@ -20,6 +20,7 @@ import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/group_chat.dart';
 import '../../../core/models/queued_turn.dart';
 import '../../../core/models/compress_context_options.dart';
 import '../../../core/models/conversation.dart';
@@ -1178,9 +1179,10 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Re-asks the question [userMessage] already asked, in a group topic.
   ///
-  /// Regeneration in a group means the round, not the reply — see
-  /// [ChatActions.restartGroupRound]. A group that lost its row or its members
-  /// is read-only here, the same way it is for a send.
+  /// The user turn re-asks the round (see [ChatActions.restartGroupRound]); a
+  /// member's reply re-asks that member alone, which is
+  /// [regenerateAtMessage] with the group. A group that lost its row or its
+  /// members is read-only here, the same way it is for a send.
   Future<bool> restartGroupRound({
     required Conversation conversation,
     required ChatMessage userMessage,
@@ -1364,6 +1366,9 @@ class HomeViewModel extends ChangeNotifier {
     bool allowImagesApiRouting = true,
     bool omitImages = false,
     String? expectedContextState,
+    Assistant? assistantOverride,
+    GroupChat? group,
+    List<Assistant> members = const [],
   }) async {
     final conversation = _chatService
         .getConversation(message.conversationId)
@@ -1376,9 +1381,11 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onScheduleImageSanitize = onScheduleImageSanitize;
 
     onHapticFeedback?.call();
-    final assistant = _contextProvider
-        .read<AssistantProvider>()
-        .resolveConversationAssistant(conversation.assistantId);
+    final assistant =
+        assistantOverride ??
+        _contextProvider.read<AssistantProvider>().resolveConversationAssistant(
+          conversation.assistantId,
+        );
     await _clearSuggestionsFor(conversation.id);
 
     final result = await _chatActions.regenerateAtMessage(
@@ -1389,6 +1396,8 @@ class HomeViewModel extends ChangeNotifier {
       assistantOverride: assistant,
       assistantAsNewReply: assistantAsNewReply,
       allowImagesApiRouting: allowImagesApiRouting,
+      group: group,
+      members: members,
     );
 
     if (!result.success) {

@@ -31,30 +31,31 @@ void main() {
     expect(kMaxReverseDialCandidates, lessThanOrEqualTo(kMaxPeerEndpoints));
   });
 
-  test('one push stays under the body cap the receiving side enforces', () {
+  test('one page stays under the body cap the receiving side enforces', () {
     expect(
-      kSyncDeltaByteBudget,
+      kSyncPageBytes,
       lessThan(kSyncMaxBodyBytes),
-      reason: 'the budget is derived from the cap, with room for the send path',
+      reason:
+          'the page budget is derived from the cap, with room for the send '
+          'path',
     );
     expect(
-      kSyncDeltaBudgetPercent,
+      kSyncPageBudgetPercent,
       inInclusiveRange(1, 99),
       reason: 'a share of 0 or 100 makes one of the two bounds meaningless',
     );
-    expect(kSyncDeltaByteBudget, lessThanOrEqualTo(kSyncMaxBodyBytes));
+    expect(kSyncPageBytes, greaterThan(0));
   });
 
-  test('a conversation is at most half a push, and two of them still fit', () {
+  test('a page is small enough to be held several times over', () {
+    // The send path holds the page's row maps, its JSON text, its UTF-8 buffer
+    // and its gzip buffer at once. The old single-push budget was 60% of the
+    // cap because of that multiplication; a page has to be far enough below it
+    // that four copies stay ordinary memory on a phone.
     expect(
-      kSyncMaxConversationBytes,
-      greaterThan(0),
-      reason: 'a cap of zero would send nothing at all',
-    );
-    expect(
-      2 * kSyncMaxConversationBytes,
-      lessThanOrEqualTo(kSyncDeltaByteBudget),
-      reason: 'one conversation may not displace the rest of the round',
+      kSyncPageBytes * 8,
+      lessThanOrEqualTo(kSyncMaxBodyBytes * 2),
+      reason: 'eight pages must cost no more than two body caps of memory',
     );
   });
 }

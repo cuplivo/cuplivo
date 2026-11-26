@@ -465,67 +465,76 @@ Stream<StreamChunk> sendGoogleStream(
             skipImageParsing: skipImageParsing,
           );
           if (parsed.text.isNotEmpty) parts.add({'text': parsed.text});
-          for (final ref in parsed.images) {
-            final normalized = normalizeSrc(ref.src);
-            if (!seenSources.add(normalized)) continue;
-            if (ref.kind == 'data') {
-              final mime = mimeFromDataUrl(ref.src);
-              final idx = ref.src.indexOf('base64,');
-              if (idx > 0) {
-                final b64 = ref.src.substring(idx + 7);
-                parts.add({
-                  'inlineData': {'mimeType': mime, 'data': b64},
-                });
-              } else {
-                parts.add({'text': ref.src});
-              }
-            } else if (ref.kind == 'path') {
-              final mime = mimeFromPath(ref.src);
-              final b64 = await tryEncodeBase64File(ref.src, withPrefix: false);
-              if (b64 == null) continue;
-              parts.add({
-                'inlineData': {'mimeType': mime, 'data': b64},
-              });
-            } else {
-              parts.add({'text': '(image) ${ref.src}'});
-            }
-          }
-          final supplementalRefs = supplementalMediaRefs(
-            internalRaw: msg[multimodalInternalMediaPathsKey],
-            userPaths: userImagePaths,
-            includeUserPaths: hasAttachedImages,
-          );
-          if (supplementalRefs.isNotEmpty) {
-            for (final mediaRef in supplementalRefs) {
-              final p = mediaRef.uri;
-              final inputMime = mimeForInternalMediaRef(mediaRef);
-              if (role == 'user' &&
-                  (isAudioMime(inputMime) ||
-                      isVideoMime(inputMime) ||
-                      isPdfMime(inputMime))) {
-                continue;
-              }
-              final normalized = normalizeSrc(p);
+          // A picture the assistant made never goes back on the wire: carrying
+          // it forward made the model read its own old work as a fresh upload.
+          // It stays a recallable asset for `view_image`; only user turns here
+          // carry pixels.
+          if (role != 'model') {
+            for (final ref in parsed.images) {
+              final normalized = normalizeSrc(ref.src);
               if (!seenSources.add(normalized)) continue;
-              if (p.startsWith('data:')) {
-                final mime = mimeForInternalMediaRef(mediaRef);
-                final idx = p.indexOf('base64,');
+              if (ref.kind == 'data') {
+                final mime = mimeFromDataUrl(ref.src);
+                final idx = ref.src.indexOf('base64,');
                 if (idx > 0) {
-                  final b64 = p.substring(idx + 7);
+                  final b64 = ref.src.substring(idx + 7);
                   parts.add({
                     'inlineData': {'mimeType': mime, 'data': b64},
                   });
+                } else {
+                  parts.add({'text': ref.src});
                 }
-              } else if (!(p.startsWith('http://') ||
-                  p.startsWith('https://'))) {
-                final mime = mimeForInternalMediaRef(mediaRef);
-                final b64 = await tryEncodeBase64File(p, withPrefix: false);
+              } else if (ref.kind == 'path') {
+                final mime = mimeFromPath(ref.src);
+                final b64 = await tryEncodeBase64File(
+                  ref.src,
+                  withPrefix: false,
+                );
                 if (b64 == null) continue;
                 parts.add({
                   'inlineData': {'mimeType': mime, 'data': b64},
                 });
               } else {
-                parts.add({'text': '(image) $p'});
+                parts.add({'text': '(image) ${ref.src}'});
+              }
+            }
+            final supplementalRefs = supplementalMediaRefs(
+              internalRaw: msg[multimodalInternalMediaPathsKey],
+              userPaths: userImagePaths,
+              includeUserPaths: hasAttachedImages,
+            );
+            if (supplementalRefs.isNotEmpty) {
+              for (final mediaRef in supplementalRefs) {
+                final p = mediaRef.uri;
+                final inputMime = mimeForInternalMediaRef(mediaRef);
+                if (role == 'user' &&
+                    (isAudioMime(inputMime) ||
+                        isVideoMime(inputMime) ||
+                        isPdfMime(inputMime))) {
+                  continue;
+                }
+                final normalized = normalizeSrc(p);
+                if (!seenSources.add(normalized)) continue;
+                if (p.startsWith('data:')) {
+                  final mime = mimeForInternalMediaRef(mediaRef);
+                  final idx = p.indexOf('base64,');
+                  if (idx > 0) {
+                    final b64 = p.substring(idx + 7);
+                    parts.add({
+                      'inlineData': {'mimeType': mime, 'data': b64},
+                    });
+                  }
+                } else if (!(p.startsWith('http://') ||
+                    p.startsWith('https://'))) {
+                  final mime = mimeForInternalMediaRef(mediaRef);
+                  final b64 = await tryEncodeBase64File(p, withPrefix: false);
+                  if (b64 == null) continue;
+                  parts.add({
+                    'inlineData': {'mimeType': mime, 'data': b64},
+                  });
+                } else {
+                  parts.add({'text': '(image) $p'});
+                }
               }
             }
           }
@@ -556,7 +565,12 @@ Stream<StreamChunk> sendGoogleStream(
             attachDummyWhenMissing: persistGeminiThoughtSigs,
           );
         }
-        contents.add({'role': role, 'parts': parts});
+        // An assistant turn whose only content was a picture contributes
+        // nothing once the pixels are dropped, and Gemini rejects an empty
+        // `parts` list. The model-turn branches above already skip one.
+        if (parts.isNotEmpty) {
+          contents.add({'role': role, 'parts': parts});
+        }
       } finally {
         RequestHistoryContext.mark(msg, contents.skip(sourceStart));
       }
@@ -929,70 +943,76 @@ Stream<StreamChunk> sendGoogleStream(
           skipImageParsing: skipImageParsing,
         );
         if (parsed.text.isNotEmpty) parts.add({'text': parsed.text});
-        // Images extracted from this message's text
-        for (final ref in parsed.images) {
-          final normalized = normalizeSrc(ref.src);
-          if (!seenSources.add(normalized)) continue;
-          if (ref.kind == 'data') {
-            final mime = mimeFromDataUrl(ref.src);
-            final idx = ref.src.indexOf('base64,');
-            if (idx > 0) {
-              final b64 = ref.src.substring(idx + 7);
-              parts.add({
-                'inlineData': {'mimeType': mime, 'data': b64},
-              });
-            } else {
-              // If malformed data URL, include as plain text fallback
-              parts.add({'text': ref.src});
-            }
-          } else if (ref.kind == 'path') {
-            final mime = mimeFromPath(ref.src);
-            final b64 = await tryEncodeBase64File(ref.src, withPrefix: false);
-            if (b64 == null) continue;
-            parts.add({
-              'inlineData': {'mimeType': mime, 'data': b64},
-            });
-          } else {
-            // Remote URL: Gemini official API doesn't fetch http(s) here; keep short reference
-            parts.add({'text': '(image) ${ref.src}'});
-          }
-        }
-        final supplementalRefs = supplementalMediaRefs(
-          internalRaw: msg[multimodalInternalMediaPathsKey],
-          userPaths: userImagePaths,
-          includeUserPaths: hasAttachedImages,
-        );
-        if (supplementalRefs.isNotEmpty) {
-          for (final mediaRef in supplementalRefs) {
-            final p = mediaRef.uri;
-            final inputMime = mimeForInternalMediaRef(mediaRef);
-            if (role == 'user' &&
-                (isAudioMime(inputMime) ||
-                    isVideoMime(inputMime) ||
-                    isPdfMime(inputMime))) {
-              continue;
-            }
-            final normalized = normalizeSrc(p);
+        // A picture the assistant made never goes back on the wire: carrying it
+        // forward made the model read its own old work as a fresh upload. It
+        // stays a recallable asset for `view_image`; only user turns here carry
+        // pixels.
+        if (role != 'model') {
+          for (final ref in parsed.images) {
+            final normalized = normalizeSrc(ref.src);
             if (!seenSources.add(normalized)) continue;
-            if (p.startsWith('data:')) {
-              final mime = mimeForInternalMediaRef(mediaRef);
-              final idx = p.indexOf('base64,');
+            if (ref.kind == 'data') {
+              final mime = mimeFromDataUrl(ref.src);
+              final idx = ref.src.indexOf('base64,');
               if (idx > 0) {
-                final b64 = p.substring(idx + 7);
+                final b64 = ref.src.substring(idx + 7);
                 parts.add({
                   'inlineData': {'mimeType': mime, 'data': b64},
                 });
+              } else {
+                // If malformed data URL, include as plain text fallback
+                parts.add({'text': ref.src});
               }
-            } else if (!(p.startsWith('http://') || p.startsWith('https://'))) {
-              final mime = mimeForInternalMediaRef(mediaRef);
-              final b64 = await tryEncodeBase64File(p, withPrefix: false);
+            } else if (ref.kind == 'path') {
+              final mime = mimeFromPath(ref.src);
+              final b64 = await tryEncodeBase64File(ref.src, withPrefix: false);
               if (b64 == null) continue;
               parts.add({
                 'inlineData': {'mimeType': mime, 'data': b64},
               });
             } else {
-              // http url fallback reference text
-              parts.add({'text': '(image) $p'});
+              // Remote URL: Gemini official API doesn't fetch http(s) here; keep short reference
+              parts.add({'text': '(image) ${ref.src}'});
+            }
+          }
+          final supplementalRefs = supplementalMediaRefs(
+            internalRaw: msg[multimodalInternalMediaPathsKey],
+            userPaths: userImagePaths,
+            includeUserPaths: hasAttachedImages,
+          );
+          if (supplementalRefs.isNotEmpty) {
+            for (final mediaRef in supplementalRefs) {
+              final p = mediaRef.uri;
+              final inputMime = mimeForInternalMediaRef(mediaRef);
+              if (role == 'user' &&
+                  (isAudioMime(inputMime) ||
+                      isVideoMime(inputMime) ||
+                      isPdfMime(inputMime))) {
+                continue;
+              }
+              final normalized = normalizeSrc(p);
+              if (!seenSources.add(normalized)) continue;
+              if (p.startsWith('data:')) {
+                final mime = mimeForInternalMediaRef(mediaRef);
+                final idx = p.indexOf('base64,');
+                if (idx > 0) {
+                  final b64 = p.substring(idx + 7);
+                  parts.add({
+                    'inlineData': {'mimeType': mime, 'data': b64},
+                  });
+                }
+              } else if (!(p.startsWith('http://') ||
+                  p.startsWith('https://'))) {
+                final mime = mimeForInternalMediaRef(mediaRef);
+                final b64 = await tryEncodeBase64File(p, withPrefix: false);
+                if (b64 == null) continue;
+                parts.add({
+                  'inlineData': {'mimeType': mime, 'data': b64},
+                });
+              } else {
+                // http url fallback reference text
+                parts.add({'text': '(image) $p'});
+              }
             }
           }
         }
@@ -1024,7 +1044,10 @@ Stream<StreamChunk> sendGoogleStream(
           attachDummyWhenMissing: persistGeminiThoughtSigs,
         );
       }
-      contents.add({'role': role, 'parts': parts});
+      // Same rule as the non-streaming builder: no empty model turn.
+      if (parts.isNotEmpty) {
+        contents.add({'role': role, 'parts': parts});
+      }
     } finally {
       RequestHistoryContext.mark(msg, contents.skip(sourceStart));
     }

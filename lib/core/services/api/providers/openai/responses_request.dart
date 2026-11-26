@@ -65,9 +65,6 @@ Future<Map<String, dynamic>> buildOpenAIResponsesBody(
   for (final tool in builtInPayload.tools) {
     addResponsesBuiltInTool(tool);
   }
-  // Collect assistant images to attach to the last user message.
-  // Use last *user* index so tool follow-ups still receive stashed media.
-  final List<String> lastAssistantImageUrls = <String>[];
   final lastResponsesUserIndex = lastUserInputIndex(messages);
   for (int i = 0; i < messages.length; i++) {
     final m = messages[i];
@@ -85,7 +82,9 @@ Future<Map<String, dynamic>> buildOpenAIResponsesBody(
         input.addAll([
           for (final (index, item) in native.output.indexed)
             {
-              ...item,
+              // A compaction window can hold any item type, so it takes the
+              // same payload strip as a replayed history item.
+              ...withoutImagePayload(item),
               nativeCompactionWireKey: true,
               if ((m[nativeUserSourcesKey] as Map?)?[index.toString()]
                   case final String source)
@@ -207,17 +206,8 @@ Future<Map<String, dynamic>> buildOpenAIResponsesBody(
           (m['role'] == 'user') &&
           i == lastResponsesUserIndex &&
           (userImagePaths?.isNotEmpty == true);
-      // For the last user message, also attach the last assistant image if available
-      final shouldAttachAssistantImage =
-          canImageInput &&
-          (m['role'] == 'user') &&
-          i == lastResponsesUserIndex &&
-          lastAssistantImageUrls.isNotEmpty;
 
-      if (hasMarkdownImages ||
-          hasAttachedImages ||
-          hasInternalMedia ||
-          shouldAttachAssistantImage) {
+      if (hasMarkdownImages || hasAttachedImages || hasInternalMedia) {
         final parsed = await parseTextAndImages(
           raw,
           literalText: internalLiteralText(m),
@@ -265,10 +255,13 @@ Future<Map<String, dynamic>> buildOpenAIResponsesBody(
             'text': parsed.text,
           });
         }
-        // Images extracted from this message's text
+        // Images extracted from this message's text. A picture the assistant
+        // produced is never replayed: it stays a recallable asset for
+        // `view_image`, and the request carries the reply's text only.
         for (final ref in parsed.images) {
           final normalized = normalizeSrc(ref.src);
           if (!seenImageSources.add(normalized)) continue;
+          if (isAssistant) continue;
           final String? url;
           if (ref.kind == 'data') {
             url = ref.src;
@@ -278,48 +271,25 @@ Future<Map<String, dynamic>> buildOpenAIResponsesBody(
           } else {
             url = ref.src; // http(s)
           }
-          // For assistant messages, collect images; for user messages, add directly
-          if (isAssistant) {
-            if (!lastAssistantImageUrls.contains(url)) {
-              lastAssistantImageUrls.add(url);
-            }
-          } else {
-            addImage(url);
-          }
+          addImage(url);
         }
-        // Structured / attached media refs (user + assistant history turns)
+        // Structured / attached media refs (user history turns and the composer)
         final supplementalRefs = supplementalMediaRefs(
           internalRaw: m[multimodalInternalMediaPathsKey],
           userPaths: userImagePaths,
           includeUserPaths: hasAttachedImages,
         );
         for (final mediaRef in supplementalRefs) {
+          if (isAssistant) continue;
           final p = mediaRef.uri;
           final String mime = mimeForInternalMediaRef(mediaRef);
           final bool isAv = isAudioMime(mime) || isVideoMime(mime);
-          if ((isAv || isPdfMime(mime)) && !isAssistant) continue;
-          if (isAv) {
-            // Responses path has no first-class A/V input parts here; never
-            // encode video/audio as input_image. Keep a text reference for both
-            // remote and local paths so pure A/V attachments do not become
-            // content: [] (API reject / silent drop).
-            final normalized = normalizeSrc(p);
-            if (seenImageSources.add(normalized)) {
-              parts.add({
-                'type': isAssistant ? 'output_text' : 'input_text',
-                'text': p,
-              });
-            }
-            continue;
-          }
+          if (isAv || isPdfMime(mime)) continue;
           if (!allowRemoteImages && isRemoteHttpUrl(p)) {
             // Keep the remote reference visible as text when image embed is off.
             final normalized = normalizeSrc(p);
             if (!seenImageSources.add(normalized)) continue;
-            parts.add({
-              'type': isAssistant ? 'output_text' : 'input_text',
-              'text': p,
-            });
+            parts.add({'type': 'input_text', 'text': p});
             continue;
           }
           final normalized = normalizeSrc(p);
@@ -328,21 +298,7 @@ Future<Map<String, dynamic>> buildOpenAIResponsesBody(
               ? p
               : await tryEncodeBase64DataUrl(p, explicitMime: mediaRef.mime);
           if (dataUrl == null) continue;
-          // Assistant Responses messages may only contain output_text/refusal.
-          // Mirror the markdown path: stash for the following user turn.
-          if (isAssistant) {
-            if (!lastAssistantImageUrls.contains(dataUrl)) {
-              lastAssistantImageUrls.add(dataUrl);
-            }
-          } else {
-            addImage(dataUrl);
-          }
-        }
-        // Attach all stashed assistant images to the last user message
-        if (shouldAttachAssistantImage) {
-          for (final url in lastAssistantImageUrls) {
-            addImage(url);
-          }
+          addImage(dataUrl);
         }
         // Use proper message object format for assistant messages
         if (isAssistant) {

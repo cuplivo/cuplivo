@@ -3674,6 +3674,56 @@ void main() {
   });
 
   test(
+    'a paged remote session opens no reverse tunnel for a page with nothing to pull',
+    () async {
+      // A push beat is one page since master's paging, and on a remote session
+      // opening the responder's reverse connection is a tunnel dial plus a ping.
+      // A text-only transfer has nothing to bring back, so the pages after the
+      // first — the only one that runs the workspace walk and skill planning —
+      // must not pay that per page.
+      const addressA = 'test-paged-address-a';
+      const addressB = 'test-paged-address-b';
+      const tinyPage = 1500;
+      final aTransport = _LoopbackTailcatTransport();
+      final bTransport = _LoopbackTailcatTransport();
+      final a = _Side('a', transport: aTransport, pageBytes: tinyPage);
+      final b = _Side('b', transport: bTransport);
+      await a.start(root);
+      await b.start(root);
+      sides.addAll([a, b]);
+      aTransport.addresses[addressB] = b.port;
+      bTransport.addresses[addressA] = a.port;
+      a.engine.extraAdvertisedHosts = [tailcatHost(addressA)];
+      b.engine.extraAdvertisedHosts = [tailcatHost(addressB)];
+
+      final pin = b.engine.openPairing();
+      await a.engine.pairWith(
+        host: tailcatHost(addressB),
+        port: kTailcatRemotePort,
+        pin: pin,
+        advertisedAddresses: [tailcatHost(addressA)],
+      );
+
+      // Six rows past a 1.5 kB page: the push crosses in several beats.
+      await _seedConversation(
+        a,
+        id: 'conv-paged',
+        contents: [for (var i = 0; i < 6; i++) 'row $i ${'x' * 900}'],
+      );
+      final reverseDialsBefore = bTransport.dialed.length;
+      final report = await a.engine.syncWithPeer(await a.peer(b));
+      expect(report.success, isTrue, reason: report.summary);
+      expect(await _messageIds(b, 'conv-paged'), hasLength(6));
+      expect(
+        bTransport.dialed.sublist(reverseDialsBefore),
+        isEmpty,
+        reason: 'no page carried a blob or a workspace file to pull back, so '
+            'the responder had nothing to open a tunnel for',
+      );
+    },
+  );
+
+  test(
     'a LAN session exchanges the tailcat endpoints both ways, once',
     () async {
       // A pair made on the LAN becomes remote-capable the first time the two

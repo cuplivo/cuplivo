@@ -19,10 +19,11 @@ request is to make the same sync work across networks without turning Cuplivo in
 
 The constraints this design had to satisfy:
 
-- **LAN sync does not change.** Not just "still works": the same protocol version, the same wire
-  formats, the same merge semantics, the same pairing window, the same LAN QR parser. The remote
-  path must be additive, because the LAN transport has years of behavioural detail behind it and
-  is the one that ships to everyone.
+- **The LAN transport does not change.** Not just "still works": the same wire formats, the same
+  merge semantics, the same pairing window, the same LAN QR parser, and no protocol bump of its
+  own. The remote path must be additive, because the LAN transport has years of behavioural detail
+  behind it and is the one that ships to everyone. (The paged protocol 11 of
+  [ADR-0020](0020-lan-sync-paging.md) landed after this decision and applies to both transports.)
 - **No Cuplivo account, control plane or relay fleet.** The sync face carries API keys and full
   conversations. Sending them through infrastructure Cuplivo runs would change the product's
   privacy story, and running reliable relays is an operational commitment this project does not
@@ -77,10 +78,11 @@ rejected alternatives and the platform and size cost the feature is accepted wit
 ## Decisions
 
 1. **A second transport, not a second sync engine.** Remote sync is the same engine, the same
-   wire protocol (10), the same hello/plan/apply/ack exchange, the same merge and the same
-   checkpoints. Only the socket underneath the sync client changes. A remote endpoint and a LAN
-   endpoint are two entries in the same peer record's endpoint set, and a peer may have both; the
-   session code does not know which one it dialed, and the LAN code path is untouched.
+   wire protocol (11 since [ADR-0020](0020-lan-sync-paging.md)'s paging), the same
+   hello/plan/apply/ack exchange, the same merge and the same checkpoints. Only the socket
+   underneath the sync client changes. A remote endpoint and a LAN endpoint are two entries in the
+   same peer record's endpoint set, and a peer may have both; the session code does not know which
+   one it dialed, and the LAN transport's code path is untouched by this decision.
 
 2. **The binding is a fork we pin and CI builds.** Cuplivo consumes
    [`cuplivo/libtailcat`](https://github.com/cuplivo/libtailcat), a fork of the libtailcat Dart
@@ -150,11 +152,11 @@ rejected alternatives and the platform and size cost the feature is accepted wit
 
 7. **The remote endpoint is a token in the existing endpoint vocabulary.** A paired peer stores
    its remote memory as the host `tcat:<tailcat address>` in the endpoint set it already keeps
-   (remembered addresses, probe order, per-endpoint names). No schema change, no protocol change,
-   no new table: the sync client's dial path rewrites the host only when the marker is present and
-   the tunnel runtime exists, and leaves every network address exactly as it was. A relayed
-   session also tells the listener that its source is loopback via the `x-cuplivo-remote` request
-   marker; the server uses that only to suppress remembering `127.0.0.1` as the peer's LAN
+   (remembered addresses, probe order, per-endpoint names). No schema change, no protocol change
+   of its own, no new table: the sync client's dial path rewrites the host only when the marker is
+   present and the tunnel runtime exists, and leaves every network address exactly as it was. A
+   relayed session also tells the listener that its source is loopback via the `x-cuplivo-remote`
+   request marker; the server uses that only to suppress remembering `127.0.0.1` as the peer's LAN
    endpoint, never as authentication. A failed remote endpoint is ordinary endpoint drift, not a
    new failure state. The endpoint is not pairing-only: a peer that runs remote sync advertises
    its `tcat:` endpoint in the hello — the initiator beside its LAN addresses, the responder as
@@ -239,7 +241,8 @@ rejected alternatives and the platform and size cost the feature is accepted wit
 
 ## What this does not change
 
-- Protocol version (10), wire formats, merge rules, checkpoints, schema version.
+- Protocol version (11, from [ADR-0020](0020-lan-sync-paging.md)'s paging; this decision adds no
+  change of its own), wire formats, merge rules, checkpoints, schema version.
 - The LAN transport: listener, candidate enumeration, QR parser, pairing window, pairing secret,
   LAN deadlines and probe behaviour.
 - Sync triggers: foreground round and manual sync; no background daemon, no push notifications.

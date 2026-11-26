@@ -2093,7 +2093,18 @@ class SyncEngine implements SyncServerHandler {
     // reference and the workspace files the push advertised both have to come
     // back over the initiator's own listener, and a peer that cannot be dialed
     // back is one answer, not two failures to diagnose separately.
-    final reverse = await _openReverseConnection(peerDeviceId, session);
+    //
+    // Only opened when the beat has something to bring back. A page after the
+    // first carries no workspace work (`firstBeat` above) and often no assets
+    // at all, while on a remote endpoint opening the connection is a tunnel
+    // dial plus a ping — a relay round trip per page for nothing.
+    final needsReverse =
+        wanted.isNotEmpty ||
+        (firstBeat &&
+            batch.workspaceFiles.values.any((files) => files.isNotEmpty));
+    final reverse = needsReverse
+        ? await _openReverseConnection(peerDeviceId, session)
+        : null;
     // This batch's per-conversation outcomes, declared outside the connection's
     // lifetime: the acknowledgement below is built after it closes, and what
     // this beat reports must not depend on when a socket went away.

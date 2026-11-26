@@ -69,6 +69,7 @@ import '../services/api/providers/claude/claude_thinking_recovery.dart';
 import '../services/api/providers/claude/claude_history.dart';
 import '../services/backup/restore_durability.dart';
 import '../services/backup/restore_previous_plan.dart';
+import '../services/recycle/recycle_service.dart';
 
 part 'chat_context_repository.dart';
 part 'chat_image_context_repository.dart';
@@ -194,10 +195,15 @@ class ChatDatabaseRepository {
     this._db, {
     File? databaseFile,
     ChatDatabaseObserver? observer,
+    this.recycle,
   }) : _databaseFile = databaseFile?.absolute,
        _observer = observer ?? ChatDatabaseObserver.instance;
 
   final AppDatabase _db;
+
+  /// The recycle bin, when one is installed for this database: the delete paths
+  /// stage what they remove through it before committing.
+  final RecycleService? recycle;
   late final compression = CompressionRepository(ExtensionEntityStore(_db));
   late final _timelineIndex = MessageTimelineIndex(_db);
   late final _contextIndex = ContextOperationIndex(_db);
@@ -7117,10 +7123,20 @@ class ChatDatabaseRepository {
   /// replacing the whole local state is not a cross-device deletion intent.
   /// Draft conversations never reach this method (they are not persisted), so
   /// no tombstone is written for them.
-  Future<void> deleteConversation(String id) async {
+  Future<void> deleteConversation(
+    String id, {
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleGroup? group,
+  }) async {
+    RecycleConversationCapture? capture;
     await composerDrafts.delete(
       id,
       deleteConversation: () async {
+        capture = await recycle?.captureConversationDeletion(
+          id,
+          origin: origin,
+          group: group,
+        );
         genUiStates.invalidateAfterCommit(conversations: {id});
         final deleted = await (_db.delete(
           _db.conversationRows,
@@ -7156,6 +7172,7 @@ class ChatDatabaseRepository {
         await _acknowledgeIntentionalEmptyState();
       },
     );
+    if (capture case final staged?) recycle?.stageCapturedConversation(staged);
   }
 
   /// Reads deletion tombstones, newest first, optionally filtered by [scope].

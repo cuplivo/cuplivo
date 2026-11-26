@@ -177,6 +177,30 @@ void main() {
     expect(directive, contains('no wrapper, no name prefix'));
   });
 
+  test('a speaker who left the group is not called a member', () {
+    final group = GroupChat(
+      id: 'g1',
+      name: 'Panel',
+      memberIds: const ['a1'],
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
+    final directive = GroupTranscript.rosterDirective(
+      group: group,
+      members: [alice],
+      speakerName: 'Bob',
+      spokeThisRound: const {},
+      speakerIsMember: false,
+    );
+
+    // The reply is still Bob's, so it can be written again — but the paragraph
+    // must not hand him a roster he is absent from.
+    expect(directive, contains('You are "Bob"'));
+    expect(directive, isNot(contains('one member of the group chat')));
+    expect(directive, contains('no longer one of its members'));
+    expect(directive, contains('Group members: Alice.'));
+  });
+
   test('the director transcript collapses one member speaking twice', () {
     final messages = [
       ChatMessage(

@@ -220,6 +220,57 @@ void main() {
     );
   });
 
+  group('ChatActions.speakerIdsBefore', () {
+    ChatMessage reply(String id, String? senderId) => ChatMessage(
+      id: id,
+      role: 'assistant',
+      content: id,
+      conversationId: 'conversation-1',
+      groupId: id,
+      version: 0,
+      senderId: senderId,
+    );
+
+    ChatMessage question(String id) => ChatMessage(
+      id: id,
+      role: 'user',
+      content: id,
+      conversationId: 'conversation-1',
+      groupId: id,
+      version: 0,
+    );
+
+    test('the members who replied in this round, not in the previous one', () {
+      final messages = <ChatMessage>[
+        reply('old-a', 'a'),
+        question('u1'),
+        reply('b', 'b'),
+        reply('c', 'c'),
+        reply('target', 'c'),
+      ];
+
+      expect(ChatActions.speakerIdsBefore(messages, 4), {'b', 'c'});
+    });
+
+    test('an author that is gone is skipped, not a stop', () {
+      final messages = <ChatMessage>[
+        question('u1'),
+        reply('a', 'a'),
+        reply('deleted', null),
+        reply('target', 'b'),
+      ];
+
+      expect(ChatActions.speakerIdsBefore(messages, 3), {'a'});
+    });
+
+    test('the first reply of a round has nobody before it', () {
+      expect(
+        ChatActions.speakerIdsBefore([question('u1'), reply('target', 'a')], 1),
+        isEmpty,
+      );
+    });
+  });
+
   group('ChatActions.buildRegenerationMessages', () {
     test('长会话窗口重试会保留目标消息之前的完整历史前缀', () {
       final messages = <ChatMessage>[

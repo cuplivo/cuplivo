@@ -723,12 +723,12 @@ class ChatActions {
 
   /// Re-asks the question [userMessage] already asked.
   ///
-  /// The round is the unit of "say that again" in a group: every reply after
-  /// this message answers it, so they are dropped together and the director
-  /// decides who answers the same question again. Regenerating one reply
-  /// instead would leave the rest answering text that no longer exists, and
-  /// would give a single member's version group a more recent, authorless
-  /// revision.
+  /// This is the whole-round answer to "say that again": every reply after this
+  /// message answered it, so they are dropped together and the director decides
+  /// who answers the same question again. A single member's reply is re-asked on
+  /// its own instead ([regenerateAtMessage] with a group), which leaves the rest
+  /// of the round in place — those replies were written against text that has
+  /// since changed, and the user can redo them one by one or restart the round.
   Future<ChatActionResult> restartGroupRound({
     required Conversation conversation,
     required GroupChat group,
@@ -1706,6 +1706,23 @@ class ChatActions {
     ];
   }
 
+  /// The members who already replied in the round [index] belongs to.
+  ///
+  /// A round is positional — the replies between one user turn and the next —
+  /// so the answer is the authors of the assistant turns directly before
+  /// [index]. It is a hint for the roster, never a permission check.
+  @visibleForTesting
+  static Set<String> speakerIdsBefore(List<ChatMessage> messages, int index) {
+    final spoke = <String>{};
+    for (var i = index - 1; i >= 0; i--) {
+      final message = messages[i];
+      if (message.role != 'assistant') break;
+      final senderId = message.senderId;
+      if (senderId != null) spoke.add(senderId);
+    }
+    return spoke;
+  }
+
   /// Transform raw content using assistant regexes.
   String _transformAssistantContent(
     stream_ctrl.StreamingState state, [
@@ -2202,6 +2219,11 @@ class ChatActions {
   /// - Adding new assistant placeholder
   /// - Showing snackbars on errors
   /// - Haptic feedback
+  /// Re-asks one message.
+  ///
+  /// [group] and [members] are set when [message] is a member's reply in a group
+  /// topic: the new version is written by that member, from the group transcript
+  /// the other members' turns travel in, with the roster in front of it.
   Future<ChatActionResult> regenerateAtMessage({
     required ChatMessage message,
     required Conversation conversation,
@@ -2216,9 +2238,15 @@ class ChatActions {
     bool scheduledNotify = true,
     bool scheduledPreview = true,
     String? expectedContextState,
+    GroupChat? group,
+    List<Assistant> members = const [],
   }) async {
     final claimToken = ++_sendInFlightClaimSerial;
     if (isSendInFlight(conversation.id) ||
+        // A round holds the conversation through the loading flag, which the
+        // send claim does not see: regenerating into it would put a second
+        // writer on the same transcript.
+        isGroupRoundLoading(conversation.id) ||
         chatService.contextCompression.blocksSending(conversation.id)) {
       return ChatActionResult.inFlight();
     }
@@ -2240,6 +2268,8 @@ class ChatActions {
         scheduled: scheduled,
         scheduledNotify: scheduledNotify,
         scheduledPreview: scheduledPreview,
+        group: group,
+        members: members,
       );
     } finally {
       _generationPreparations.remove(preparation);
@@ -2269,6 +2299,8 @@ class ChatActions {
     bool scheduledNotify = true,
     bool scheduledPreview = true,
     String? expectedContextState,
+    GroupChat? group,
+    List<Assistant> members = const [],
   }) async {
     // Avoid using BuildContext across async gaps (this class holds a BuildContext).
     final settings = contextProvider.read<SettingsProvider>();
@@ -2388,6 +2420,18 @@ class ChatActions {
       }
     }
 
+    // Who wrote the new reply. A group reply keeps its author — but only when
+    // the turn really is that author's: the group path hands the member in as
+    // [assistantOverride], while every other caller writes with the resolved
+    // conversation assistant (a group topic has no owner, so that is the
+    // currently selected one). Stamping a member's id on a reply its model did
+    // not write would rename another model's words to that member, which is
+    // worse than the authorless reply it replaces.
+    final authorId =
+        assistant != null && group != null && message.senderId == assistant.id
+        ? message.senderId
+        : null;
+
     late final ({ChatMessage assistantMessage, String? runId}) begin;
     final targetGroupId = versioning.targetGroupId;
     if (shouldBeginNewAssistantReply(
@@ -2402,6 +2446,7 @@ class ChatActions {
         providerKey: providerKey,
         anchorGroupId: message.groupId ?? message.id,
         truncateFuture: truncateFuture,
+        senderId: authorId,
       );
     } else {
       if (targetGroupId == null) {
@@ -2422,6 +2467,7 @@ class ChatActions {
         groupId: targetGroupId,
         version: nextVersion,
         truncateFuture: truncateFuture,
+        senderId: authorId,
       );
     }
     final assistantMessage = begin.assistantMessage;
@@ -2452,6 +2498,32 @@ class ChatActions {
             lastKeep: versioning.lastKeep,
             targetGroupId: versioning.targetGroupId,
             assistantPlaceholder: assistantMessage,
+          );
+
+    // A member's reply is written by that member, so it reads the transcript a
+    // speaker reads — peers as user turns under a name — and the roster in
+    // front. The window, the version selections and the injections stay the
+    // single-owner path's: only the two things a group adds are added.
+    final groupDirective = group != null && assistant != null
+        ? GroupTranscript.rosterDirective(
+            group: group,
+            members: members,
+            speakerName: assistant.name.trim().isEmpty
+                ? assistant.id
+                : assistant.name.trim(),
+            spokeThisRound: speakerIdsBefore(completeMessages, idx),
+            // A reply can outlive its author's membership: the reply is still
+            // theirs, so it is asked again, but not as a member.
+            speakerIsMember: members.any((member) => member.id == assistant.id),
+          )
+        : null;
+    final turnMessages = groupDirective == null
+        ? regenerationMessages
+        : GroupTranscript.forSpeaker(
+            regenerationMessages,
+            speakerId: assistant!.id,
+            resolve: (senderId) =>
+                senderId == null ? null : assistantProvider.getById(senderId),
           );
 
     // Keep the loaded window around the persisted generation message instead
@@ -2494,7 +2566,7 @@ class ChatActions {
         // Prepare API messages
         final prepared = await messageGenerationService
             .prepareApiMessagesWithInjections(
-              messages: regenerationMessages,
+              messages: turnMessages,
               omitImages: omitImages,
               versionSelections: regenerationVersionSelections,
               currentConversation: conversation.copyWith(truncateIndex: -1),
@@ -2507,6 +2579,12 @@ class ChatActions {
               askUserService: regenAskUserService,
               processingMessageId: assistantMessage.id,
             );
+        if (groupDirective != null) {
+          prepared.apiMessages.insert(0, {
+            'role': 'system',
+            'content': groupDirective,
+          });
+        }
 
         // Build user image paths
         final userImagePaths = messageGenerationService.buildUserImagePaths(

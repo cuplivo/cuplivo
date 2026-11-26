@@ -1,4 +1,5 @@
 import '../../features/chat/widgets/compression_template_library.dart';
+import '../../features/home/utils/model_display_helper.dart';
 import '../../features/home/widgets/model_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -962,22 +963,11 @@ class _ModelCardState extends State<_ModelCard> {
     if (effectiveProvider != null && effectiveModelId != null) {
       final cfg = settings.getProviderConfig(effectiveProvider);
       providerName = cfg.name.isNotEmpty ? cfg.name : effectiveProvider;
-      final ov = cfg.modelOverrides[effectiveModelId] as Map?;
-      if (ov != null) {
-        final overrideName = (ov['name'] as String?)?.trim();
-        if (overrideName != null && overrideName.isNotEmpty) {
-          modelDisplay = overrideName;
-        } else {
-          final apiId = (ov['apiModelId'] ?? ov['api_model_id'])
-              ?.toString()
-              .trim();
-          modelDisplay = (apiId != null && apiId.isNotEmpty)
-              ? apiId
-              : effectiveModelId;
-        }
-      } else {
-        modelDisplay = effectiveModelId;
-      }
+      modelDisplay = modelDisplayName(
+        settings,
+        effectiveProvider,
+        effectiveModelId,
+      );
     }
     if (usingFallback) {
       modelDisplay = widget.disabledWhenUnset

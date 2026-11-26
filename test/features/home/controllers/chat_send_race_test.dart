@@ -27,6 +27,8 @@ import '../../../support/gated_xfile.dart';
 import '../../../support/temp_directory_cleanup.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/composer_draft.dart';
@@ -163,6 +165,7 @@ class _GatedChatService extends ChatService {
       selectVersion: selectVersion,
       temporaryAfterGroupId: temporaryAfterGroupId,
       uiContext: uiContext,
+      senderId: senderId,
     );
   }
 
@@ -249,6 +252,9 @@ void main() {
   late HttpServer server;
   late SettingsProvider settings;
   late AssistantProvider assistantProvider;
+  GroupChatProvider? groupChats;
+
+  setUp(() => groupChats = null);
   var streamRequestCount = 0;
   final streamRequests = <Map<String, dynamic>>[];
   Completer<void>? streamHold;
@@ -401,6 +407,7 @@ void main() {
     bool withComposer = false,
     List<dynamic>? storedAssistants,
     BusinessPreferences? assistantPreferences,
+    bool withGroups = false,
   }) async {
     HomePageController? controller;
     late Zone sendZone;
@@ -451,6 +458,17 @@ void main() {
         );
         await assistantProvider.setCurrentAssistant(assistantId);
       }
+      if (withGroups) {
+        // Built inside this zone like every other provider: its loaded future
+        // belongs to the real-async zone, and awaiting it anywhere else waits
+        // forever.
+        groupChats = GroupChatProvider(
+          store: ExtensionEntityStore(
+            createBusinessTestPreferencesWithDatabase().database,
+          ),
+        );
+        await groupChats!.loaded;
+      }
     });
     await tester.pumpWidget(
       MultiProvider(
@@ -470,6 +488,8 @@ void main() {
           ChangeNotifierProvider<McpToolService>(
             create: (_) => McpToolService(),
           ),
+          if (groupChats != null)
+            ChangeNotifierProvider<GroupChatProvider>.value(value: groupChats!),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -5571,6 +5591,175 @@ void main() {
       },
     );
   }
+
+  testWidgets('a member reply in a group regenerates itself, not the round', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester, withGroups: true);
+    await tester.runAsync(() async {
+      final groups = groupChats!;
+      await settings.disableTitleGeneration();
+      await settings.setNewChatOnLaunch(false);
+      final firstId = await assistantProvider.addAssistant(name: 'First');
+      final secondId = await assistantProvider.addAssistant(name: 'Second');
+      for (final (id, model) in [
+        (firstId, 'first-model'),
+        (secondId, 'second-model'),
+      ]) {
+        await assistantProvider.updateAssistant(
+          assistantProvider
+              .getById(id)!
+              .copyWith(chatModelProvider: 'SiliconFlow', chatModelId: model),
+        );
+      }
+      final group = await groups.create(
+        name: 'Reading club',
+        memberIds: [firstId, secondId],
+      );
+      final conversation = await service.createConversation(
+        title: 'Topic',
+        groupChatId: group.id,
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'which book',
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'the republic',
+        modelId: 'first-model',
+        providerId: 'SiliconFlow',
+        senderId: firstId,
+      );
+      final secondReply = await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'the apology',
+        modelId: 'second-model',
+        providerId: 'SiliconFlow',
+        senderId: secondId,
+      );
+      await controller.chatController.setCurrentConversationAndLoad(
+        conversation,
+      );
+
+      // The reply is rewritten by the member who wrote it: its own model, the
+      // roster in front, and the peer's turn handed over as somebody else
+      // talking — the same request a round's turn would make.
+      await controller.regenerateAtMessage(secondReply);
+      await waitFor(() => streamRequestCount == 1, 'member regeneration');
+      await waitFor(
+        () => !controller.chatController.isConversationLoading(conversation.id),
+        'regenerated member reply',
+      );
+      expect(streamRequests.single['model'], 'second-model');
+      final requestMessages = streamRequests.single['messages'] as List;
+      final directive = requestMessages.first['content'] as String;
+      expect(directive, contains('You are "Second"'));
+      expect(directive, contains('Reading club'));
+      expect(directive, contains('First'));
+      expect(
+        jsonEncode(requestMessages),
+        contains('group_message'),
+        reason: 'the peer turn has to reach the member as somebody else',
+      );
+
+      // A new version of that message, still by the same member — not a new
+      // slot and not a reply somebody else wrote.
+      final after = await service.loadMessages(conversation.id);
+      final versions = after
+          .where(
+            (m) =>
+                (m.groupId ?? m.id) == (secondReply.groupId ?? secondReply.id),
+          )
+          .toList();
+      expect(versions, hasLength(2));
+      expect(versions.map((m) => m.senderId).toSet(), {secondId});
+    });
+  });
+
+  testWidgets('a topic without its group does not stamp the member as author', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester, withGroups: true);
+    await tester.runAsync(() async {
+      final groups = groupChats!;
+      await settings.disableTitleGeneration();
+      await settings.setNewChatOnLaunch(false);
+      final memberId = await assistantProvider.addAssistant(name: 'Member');
+      await assistantProvider.updateAssistant(
+        assistantProvider
+            .getById(memberId)!
+            .copyWith(
+              chatModelProvider: 'SiliconFlow',
+              chatModelId: 'member-model',
+            ),
+      );
+      final selected = assistantProvider.currentAssistant!;
+      await assistantProvider.updateAssistant(
+        selected.copyWith(
+          chatModelProvider: 'SiliconFlow',
+          chatModelId: 'selected-model',
+        ),
+      );
+      final group = await groups.create(
+        name: 'Reading club',
+        memberIds: [memberId],
+      );
+      final conversation = await service.createConversation(
+        title: 'Topic',
+        groupChatId: group.id,
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'which book',
+      );
+      final memberReply = await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'the republic',
+        modelId: 'member-model',
+        providerId: 'SiliconFlow',
+        senderId: memberId,
+      );
+      await controller.chatController.setCurrentConversationAndLoad(
+        conversation,
+      );
+      // The group row is gone, so the topic regenerates as an ordinary
+      // conversation with the selected assistant. That model did not write as
+      // the member, and the reply must not be renamed to it.
+      await groups.delete(group.id);
+      expect(groups.byId(group.id), isNull);
+
+      await controller.regenerateAtMessage(memberReply);
+      await waitFor(
+        () => streamRequestCount == 1,
+        'orphaned topic regeneration',
+      );
+      await waitFor(
+        () => !controller.chatController.isConversationLoading(conversation.id),
+        'orphaned topic reply',
+      );
+      expect(streamRequests.single['model'], 'selected-model');
+
+      final after = await service.loadMessages(conversation.id);
+      final versions = after
+          .where(
+            (m) =>
+                (m.groupId ?? m.id) == (memberReply.groupId ?? memberReply.id),
+          )
+          .toList();
+      expect(versions, hasLength(2));
+      expect(
+        versions.last.senderId,
+        isNull,
+        reason: 'another model wrote it; it is not the member\'s reply',
+      );
+    });
+  });
 }
 
 Map<String, dynamic> _nativeReasoning(String id) => {

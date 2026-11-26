@@ -227,15 +227,10 @@ class ClaudeHistory {
     final out = <Map<String, dynamic>>[];
     final pendingResults = <Map<String, dynamic>>[];
     final replayedClientCalls = <String>{};
-    // The API refuses `image` blocks in an assistant turn, yet a chart the
-    // model drew is what the user's next question is about. Such images wait
-    // here and open the following user message, so the model still sees them.
-    final carriedImages = <Map<String, dynamic>>[];
     _ReplayedTurn? turn;
     final turnSources = Expando<String>();
     final resultSources = <String, String>{};
     final lastUserIndex = lastUserInputIndex(messages);
-    final hasOwners = messages.any((m) => m.containsKey(imageContextOwnerKey));
 
     /// A result is sent only once the call it answers has been: the API
     /// rejects one pointing at a `tool_use` that is not in the history.
@@ -375,9 +370,11 @@ class ClaudeHistory {
       }
 
       if (role == 'assistant' && m['tool_calls'] is! List && _hasMedia(m)) {
+        // The API refuses image blocks in an assistant turn, and replaying the
+        // picture on a later user turn made the model read its own old work as
+        // a fresh upload. Only the text goes back; the picture stays on the
+        // message and `view_image` can recall it.
         final split = await _splitParts(m, includeUserPaths: false);
-        carriedImages.addAll(split.images);
-        // What is left of the message once its images have moved on.
         m = {
           ...m,
           'content': split.text.map((block) => block['text']).join('\n'),
@@ -388,7 +385,7 @@ class ClaudeHistory {
         while (turn.emitted < turn.responses.length) {
           emitResponse(turn);
         }
-        // With its images carried forward, an assistant message is plain text.
+        // The persisted assistant message aggregates the replayed turn's text.
         if (role == 'assistant' && m['tool_calls'] is! List) {
           foldTurnText(turn, m);
           turn = null;
@@ -448,10 +445,13 @@ class ClaudeHistory {
         m,
         role,
         isLast: i == lastUserIndex,
-        carriedImages: isUserInputMessage(m, hasOwners: hasOwners)
-            ? carriedImages
-            : <Map<String, dynamic>>[],
       );
+      // A reply that was nothing but a picture contributes no turn once the
+      // picture is dropped, and Anthropic rejects an empty text block — the
+      // same reason Gemini drops an empty `parts` list.
+      if (role == 'assistant' && _isEmptyContent(plainMessage['content'])) {
+        continue;
+      }
       RequestHistoryContext.mark(m, [plainMessage]);
       out.add(plainMessage);
     }
@@ -617,11 +617,18 @@ class ClaudeHistory {
       ) ||
       parseInternalMediaRefs(m[multimodalInternalMediaPathsKey]).isNotEmpty;
 
+  /// Whether a plain message carries no text at all, in either shape the
+  /// builder produces (a string, or a list of Anthropic blocks).
+  bool _isEmptyContent(Object? content) => switch (content) {
+    final String text => text.trim().isEmpty,
+    final List blocks => blocks.isEmpty,
+    _ => false,
+  };
+
   Future<Map<String, dynamic>> _plainMessage(
     Map<String, dynamic> m,
     String role, {
     required bool isLast,
-    required List<Map<String, dynamic>> carriedImages,
   }) async {
     final raw = (m['content'] ?? '').toString();
     final hasAttachedImages =
@@ -631,25 +638,16 @@ class ClaudeHistory {
       userPaths: isLast ? userImagePaths : null,
     );
     if (role != 'user' ||
-        !(_hasMedia(m) ||
-            hasAttachedImages ||
-            carriedImages.isNotEmpty ||
-            nativeParts.isNotEmpty)) {
+        !(_hasMedia(m) || hasAttachedImages || nativeParts.isNotEmpty)) {
       return {'role': role, 'content': raw};
     }
 
     final split = await _splitParts(m, includeUserPaths: hasAttachedImages);
     final parts = <Map<String, dynamic>>[
-      if (carriedImages.isNotEmpty) ...[
-        // Without the label the model takes its own chart for an upload.
-        {'type': 'text', 'text': 'Images from your previous reply:'},
-        ...carriedImages,
-      ],
       ...split.text,
       ...split.images,
       ...nativeParts,
     ];
-    carriedImages.clear();
     return {'role': role, 'content': parts.isEmpty ? raw : parts};
   }
 

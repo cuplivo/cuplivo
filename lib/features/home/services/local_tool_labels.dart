@@ -46,6 +46,8 @@ IconData localToolIcon(String id) {
       return Lucide.ListPlus;
     case LocalToolNames.remindersComplete:
       return Lucide.CheckCircle;
+    case LocalToolNames.generateImage:
+      return Lucide.Image;
     default:
       return Lucide.Wrench;
   }
@@ -85,6 +87,8 @@ String localToolTitle(AppLocalizations l10n, String id) {
       return l10n.assistantEditLocalToolRemindersCreateTitle;
     case LocalToolNames.remindersComplete:
       return l10n.assistantEditLocalToolRemindersCompleteTitle;
+    case LocalToolNames.generateImage:
+      return l10n.assistantEditLocalToolImageTitle;
     default:
       return id;
   }

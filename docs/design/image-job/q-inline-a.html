@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第十三轮 A — 卡插在 Markdown 图那一格</title>
+<style>
+  :root{
+    --bg:#0E0E12; --panel:#17171D; --tile:#22222B; --ink:#ECECF1; --muted:#9A9AA6;
+    --line:rgba(255,255,255,.08); --primary:#8E9BE8; --tint:rgba(142,155,232,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:860px;margin:0 auto;padding:26px 20px 48px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 10px;font-weight:650}
+  .lede{font-size:14px;line-height:1.7;color:var(--muted);margin:0 0 22px;max-width:56em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+       background:rgba(255,255,255,.07);border-radius:4px;padding:1px 4px}
+
+  /* phone */
+  .phone{width:360px;max-width:100%;background:var(--bg);border:1px solid var(--line);
+         border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+  .bar{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--line);
+       font-size:14px;color:var(--muted)}
+  .chat{padding:14px 14px 20px;display:flex;flex-direction:column;gap:12px}
+  .body{font-size:15px;line-height:1.62;margin:0;color:var(--ink)}
+  .tool{display:flex;align-items:center;gap:10px;background:var(--tile);border-radius:14px;
+        padding:12px 14px;font-size:14px;color:var(--ink)}
+  .tool .grow{flex:1}
+  .tool .chev{color:var(--muted);font-size:15px}
+
+  /* the control */
+  .card{background:var(--tint);border-radius:12px;overflow:hidden}
+  .card-head{display:flex;align-items:center;gap:8px;padding:7px 10px}
+  .card-head .ico{width:18px;height:18px;flex:none;display:flex;align-items:center;justify-content:center;
+                  color:rgba(255,255,255,.87)}
+  .card-head .t{font-size:13px;font-weight:600;color:rgba(255,255,255,.87);white-space:nowrap}
+  .card-head .e{font-size:13px;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums}
+  .card-head .grow{flex:1}
+  .card-head .more{color:rgba(255,255,255,.87);letter-spacing:1px;font-size:15px;line-height:1}
+
+  /* fake photo */
+  .pic{position:relative;aspect-ratio:3/2;overflow:hidden;background:#101828}
+  .pic .sky{position:absolute;inset:0;background:linear-gradient(160deg,#26456B 0%,#33587C 45%,#7FA3B8 100%)}
+  .pic .win{position:absolute;left:0;top:0;right:0;bottom:0;
+            background:linear-gradient(90deg,rgba(10,12,18,.55) 0 6%,transparent 6% 47%,
+                       rgba(10,12,18,.6) 47% 53%,transparent 53% 94%,rgba(10,12,18,.55) 94%)}
+  .pic .lamp{position:absolute;right:18%;top:22%;width:74px;height:74px;border-radius:50%;
+             background:radial-gradient(circle,rgba(255,214,140,.95),rgba(255,196,110,.25) 55%,transparent 72%)}
+  .pic .shelf{position:absolute;left:56%;top:38%;right:8%;height:30%;
+              background:repeating-linear-gradient(90deg,rgba(214,176,120,.85) 0 5px,
+                        rgba(120,86,52,.85) 5px 9px,transparent 9px 13px);
+              opacity:.75;border-radius:3px}
+  .pic .plant{position:absolute;left:62%;bottom:-6%;width:70px;height:70px;
+              background:radial-gradient(ellipse at 50% 60%,rgba(130,190,120,.9),rgba(70,120,70,.6) 60%,transparent 72%)}
+  .pic .cat{position:absolute;left:20%;bottom:16%;width:56px;height:34px;border-radius:50% 50% 45% 45%;
+            background:linear-gradient(160deg,#E8A25C,#B9702F)}
+
+  /* sidebar notes */
+  .stage{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+  .notes{flex:1 1 300px;min-width:260px}
+  h2{font-size:13px;font-weight:650;margin:0 0 8px;color:var(--ink)}
+  ul{margin:0 0 14px;padding-left:18px}
+  li{font-size:13.5px;line-height:1.68;color:#C9C9D4;margin-bottom:6px}
+  li b{color:#fff;font-weight:600}
+  .cap{font-size:11.5px;color:var(--muted);margin:0 0 10px;letter-spacing:.03em}
+  .closing{font-size:13px;line-height:1.72;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:22px}
+  .closing b{color:var(--ink)}
+  @media (max-width:700px){.page{padding:18px 10px 40px}.phone{width:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">生图 Job · 第十三轮 · 变体 A · 推荐</p>
+  <h1>整张卡就长在 Markdown 图那一格上</h1>
+  <p class="lede">模型在正文里写的 <code>![](uri)</code> 就是它想说"图放这儿"的位置。渲染器已经能拿到那个 image 节点（`imageBuilder` 就是它的挂载点，刚才隐藏重复图就是在这里做的），所以把<b>整张主控件</b>塞进去是同一处改动：卡头、骨架、成图、⋯ 全都在模型写的那一行上，正文在它下面继续。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="bar">慢下来</div>
+      <div class="chat">
+        <p class="body">好，我来画一张试试。</p>
+
+        <div class="tool">
+          <span>🔧</span><span class="grow">调用工具: generate_image</span><span class="chev">›</span>
+        </div>
+
+        <p class="body">我用了一张水彩风格的小练习：黄昏的独立书店，雨把窗玻璃淋成一道水痕，一只橘猫蜷在窗台的书堆上睡觉，店里是暖黄的灯，外面是冷蓝的雨。</p>
+
+        <!-- 这一块就是 Markdown 图片的位置 -->
+        <div class="card">
+          <div class="card-head">
+            <span class="ico">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/>
+                <path d="M21 15l-4.5-4.5L8 19"/>
+              </svg>
+            </span>
+            <span class="t">生成插图</span><span class="e">(12.2s)</span>
+            <span class="grow"></span>
+            <span class="more">⋯</span>
+          </div>
+          <div class="pic">
+            <div class="sky"></div><div class="win"></div><div class="lamp"></div>
+            <div class="shelf"></div><div class="plant"></div><div class="cat"></div>
+          </div>
+        </div>
+
+        <p class="body">你想换方向也行，比如改成扁平插画、3D 感、赛博朋克夜景，或者干脆换个题材：人物、建筑、产品海报、抽象图形都可以。有想调整的地方，跟我说，我可以在这张图上继续改。</p>
+      </div>
+    </div>
+
+    <div class="notes">
+      <p class="cap">同一段回复，A 的样子：第二段说完，图紧接着出现在「生成插图」里，第三段的建议在它下面。</p>
+
+      <h2>技术上怎么做（已经验证过的三点）</h2>
+      <ul>
+        <li><b>挂载点是现成的。</b><code>imageBuilder</code> 每画一个 Markdown 图都会回调，刚才用它把重复的图隐藏掉了，换成就地画卡是同一处。</li>
+        <li><b>不需要动流式管线。</b>图块不再从 <code>parts</code> 投影出来，那一行由 Markdown 自己渲染，所以不必在流里插 part、不必和 checkpoint 抢写。</li>
+        <li><b>part 仍然保留。</b>它继续负责持久化、重启后的「已中断」、出站跳过；只是它不再在正文末尾长出一个块。</li>
+      </ul>
+
+      <h2>代价</h2>
+      <ul>
+        <li>位置<b>由模型决定</b>：它把占位写在哪，卡就在哪。工具描述已经要求它写在"图该在的地方"，但它也可以写在最后 —— 那时 A 和现在一样靠后。做不到"模型没写也自动放到中间"。</li>
+        <li>卡片从此是 Markdown 文档里的一个块：要在行内布局里撑满宽度、别让段落间距把它挤扁，得单独收一次垂直间距。</li>
+        <li>模型如果压根没写占位，这张卡没有位置可去 —— 需要一个兜底（放回正文末尾），这条兜底永远测不到「中间」。</li>
+      </ul>
+
+      <h2>顺带修掉的两个现有缺陷</h2>
+      <ul>
+        <li><b>不自动刷新</b>：卡片改成自己订阅 job 状态（而不是等时间线整块重建），完成那一刻图就落进去。</li>
+        <li><b>⋯ 没右对齐</b>：卡头中间那段改成吃满剩余宽度，⋯ 自然贴右边 —— 这条已经改好了。</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="closing"><b>这一版要定的：</b>图的「主控件」跟着 Markdown 占位走。<b>没有定的：</b>模型没写占位时的兜底位置（这里按"正文末尾"处理）；以及卡头要不要在成图后继续显示 ⋯（面板入口）。</p>
+</main>
+</body>
+</html>

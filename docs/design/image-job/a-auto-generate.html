@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 A — 模型直接开始画</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92; --primary-ink:#2F3B66;
+    --rail:#EDEEF4;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:780px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:52em}
+  .lede b{color:var(--ink);font-weight:600}
+  .lede code,.closing code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .title{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 6px}
+  .row{display:flex;justify-content:flex-end;padding:6px 16px}
+  .bubble{max-width:78%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 20px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .body + .body{margin-top:10px}
+  .card{margin:12px 0 10px;border:1px solid var(--line);border-radius:12px;background:var(--card);
+        overflow:hidden}
+  .card-head{display:flex;align-items:center;gap:6px;padding:9px 12px;font-size:13px}
+  .card-head .label{font-weight:600;display:flex;align-items:center;gap:6px}
+  .card-head .elapsed{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .card-head .grow{flex:1}
+  .quiet-action{font-size:13px;color:var(--primary);font-weight:500}
+  .media{position:relative;aspect-ratio:16/10;overflow:hidden;
+         background:linear-gradient(135deg,#ECEEF4,#E2E5ED 46%,#EDEFF5)}
+  .media::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.7) 50%,transparent 68%);
+    transform:translateX(-100%);animation:shimmer 2.4s ease-in-out infinite}
+  .media .mark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+               color:rgba(77,92,146,.34);font-size:30px}
+  @keyframes shimmer{to{transform:translateX(100%)}}
+  .card-foot{padding:8px 12px 10px;font-size:12px;color:var(--muted);
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--primary);flex:none;
+       animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+  .caret{display:inline-block;width:2px;height:1.02em;background:var(--primary);
+         vertical-align:-2px;margin-left:2px;animation:blink 1.3s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+  .composer{padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line-soft);
+            display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:36px;border-radius:18px;border:1px solid var(--line);display:flex;
+         align-items:center;padding:0 12px;font-size:14px;color:rgba(32,32,32,.4);background:var(--card)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;
+        align-items:center;justify-content:center;flex:none}
+  .notes{flex:1 1 300px;min-width:280px;max-width:380px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  .note code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;
+             background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px;color:var(--ink)}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:520px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+    .msg{padding:12px 16px 4px}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">生图 Job · 第一轮 · 变体 A · 已被后续轮次取代（见 d-panel-dialog.html）</p>
+  <h1>模型直接开始画</h1>
+  <p class="lede">模型调用 <code>generate_image</code> 后立刻拿到 pending，文字继续往下写；用户在调用位置看到一张占位卡，画完原地换成图。<b>这一轮要定的只有一件事：默认由谁按下「开始画」。</b></p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">慢下来</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="row">
+          <div class="bubble">写一条关于「慢下来」的短文，配一张插图。</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">20:41</div>
+            </div>
+          </div>
+
+          <p class="body">慢下来不是停下来。是把日程里被塞满的缝隙重新撑开，让注意力有地方落脚。</p>
+
+          <div class="card">
+            <div class="card-head">
+              <span class="label"><span class="dot"></span>生成中</span>
+              <span class="elapsed">6 秒</span>
+              <span class="grow"></span>
+              <span class="quiet-action">取消</span>
+            </div>
+            <div class="media"><span class="mark">✦</span></div>
+            <div class="card-foot">「霓虹雨夜的旧书店，湿漉漉的招牌映在水洼里…」</div>
+          </div>
+
+          <p class="body">一天里总要有几段不被安排的时间。它们不产出什么，但正是它们让产出这件事还值得做。<span class="caret"></span></p>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="input">发消息…</div>
+        <div class="send">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <p class="note"><b>模型拿到什么：</b><code>{status:"pending", job_id, placeholder_id}</code>，文字继续流；默认 <code>visible_to_you:false</code>，不许假装看到了图。</p>
+      <p class="note"><b>用户在等什么：</b>占位卡在调用位置，比例固定，图到了原地替换；失败/取消留卡可重试。</p>
+      <p class="note"><b>要图当答案时：</b>模型另调 <code>await_image(job_id)</code> —— 阻塞留在那个工具里，不在默认路径上。</p>
+      <p class="note"><b>没变化的部分：</b>schema 仍为 5，不建 job 表；job 只活在消息/tool call 的 metadata 里。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li>工具是<b>非阻塞</b>的：返回 pending，回复节奏不被打断；需要结果时再显式 await。</li>
+      <li>占位卡属于<b>这次调用</b>，不新开一条图片消息；完成后原地替换。</li>
+      <li>模型默认不检查图；结果里写明它看不见，避免编造。</li>
+      <li>每会话并发 2，超限拒绝并提示；重启后未完成 → interrupted，不自动续跑。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li>没批准就花钱：模型判断失误的一次调用照样计费，重试是第二次花钱。</li>
+      <li>用户不能先改 prompt，只能取消；prompt 由模型写，可能跑偏。</li>
+      <li>模型可能已经写「图在下面」，而图最终失败 —— 只能靠失败卡兜底。</li>
+      <li>要让模型真的会调，得写工具描述、调提示词；不做就永远是摆设。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>分水岭</h2>
+    <p class="note">A 是模型按下「开始画」。好处是零点击、不打断；代价是钱在用户看见之前就花出去了。</p>
+  </section>
+
+  <p class="closing"><b>两个方案共用的部分：</b>job 生命周期（queued → running → completed / failed / cancelled / interrupted）、原位置换、失败与取消可重试、重启中断、schema 5、先接一个后端。<b>还没定的：</b>工具命名与 <code>await_image</code> 的具体形态、默认后端、图像模型放全局还是按助手、占位卡的具体视觉、VLM 检查、context injection —— 都排在这一轮之后。</p>
+
+</main>
+</body>
+</html>

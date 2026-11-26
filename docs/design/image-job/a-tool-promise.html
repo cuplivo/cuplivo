@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第二轮 A — 工具调用 + 承诺占位</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92; --tint:#F4F6FF; --tint-line:rgba(77,92,146,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:800px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:52em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+       background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px;margin:0 0 24px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .title{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 6px}
+  .row{display:flex;justify-content:flex-end;padding:6px 16px}
+  .bubble{max-width:78%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 20px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .body + .body{margin-top:10px}
+  .caret{display:inline-block;width:2px;height:1.02em;background:var(--primary);
+         vertical-align:-2px;margin-left:2px;animation:blink 1.3s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+
+  /* —— 图片块：头部与「深度思考 (11.8s)」同一套度量 —— */
+  .imgcard{margin:12px 0 10px;border-radius:12px;background:var(--tint);overflow:hidden}
+  .imgcard-head{display:flex;align-items:center;gap:8px;padding:6px 10px}
+  .imgcard-head .label{font-size:13px;font-weight:600;color:#33333B;letter-spacing:.01em}
+  .imgcard-head .elapsed{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .imgcard-head .grow{flex:1}
+  .imgcard-head svg{width:18px;height:18px;flex:none;color:#3D3D46}
+  .more{width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+        color:#3D3D46;border-radius:50%}
+  .more svg{width:18px;height:18px;color:#3D3D46}
+  .media{position:relative;aspect-ratio:3/2;overflow:hidden;
+         background:linear-gradient(135deg,#E7EBF7,#DEE4F3 46%,#E9EDF8)}
+  .media::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.72) 50%,transparent 68%);
+    transform:translateX(-100%);animation:shimmer 2.4s ease-in-out infinite}
+  .media .mark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+               color:rgba(77,92,146,.32);font-size:28px}
+  @keyframes shimmer{to{transform:translateX(100%)}}
+
+  .composer{padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line-soft);
+            display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:36px;border-radius:18px;border:1px solid var(--line);display:flex;
+         align-items:center;padding:0 12px;font-size:14px;color:rgba(32,32,32,.4);background:var(--card)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;
+        align-items:center;justify-content:center;flex:none}
+
+  /* —— ⋯ 打开的面板 —— */
+  .side{flex:1 1 290px;min-width:270px;max-width:330px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;
+         box-shadow:0 10px 28px rgba(20,20,25,.08);padding:14px 16px 16px}
+  .panel-head{display:flex;align-items:center;margin-bottom:10px}
+  .panel-title{font-size:15px;font-weight:600}
+  .panel-head .grow{flex:1}
+  .close{color:var(--muted);font-size:15px;line-height:1}
+  .kv{display:flex;justify-content:space-between;font-size:13px;padding:5px 0}
+  .kv .k{color:var(--muted)}
+  .kv .v{color:#2A2A32;font-variant-numeric:tabular-nums}
+  .divider{height:1px;background:var(--line);margin:8px 0 12px}
+  .prompt-head{display:flex;align-items:baseline;margin-bottom:5px}
+  .prompt-head .k{font-size:12px;color:var(--muted)}
+  .prompt-head .grow{flex:1}
+  .prompt-head .copy{font-size:12px;color:var(--primary);font-weight:500}
+  .prompt{font-size:13px;line-height:1.6;color:#2E2E36;margin:0 0 14px}
+  .panel-actions{display:flex;gap:8px}
+  .btn{height:34px;border-radius:17px;padding:0 14px;display:inline-flex;align-items:center;
+       justify-content:center;font-size:13px;font-weight:550}
+  .btn.primary{background:var(--primary);color:#fff;flex:1}
+  .btn.ghost{color:var(--primary);border:1px solid rgba(77,92,146,.25)}
+  .side .caption{font-size:12px;line-height:1.7;color:var(--muted);margin:10px 2px 0}
+
+  /* —— 机制四步 —— */
+  .steps{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:0 0 8px}
+  .step{flex:1 1 140px;background:var(--card);border:1px solid var(--line);border-radius:10px;
+        padding:9px 11px;font-size:12.5px;line-height:1.5;color:#33333A}
+  .step b{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-bottom:3px}
+  .mechanism-note{font-size:12.5px;line-height:1.7;color:var(--muted);margin:0 0 24px}
+
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:560px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .side{flex-basis:100%;max-width:none;min-width:0}
+    .msg{padding:12px 16px 4px}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">生图 Job · 第二轮 · 变体 A · 已采纳</p>
+  <h1>工具调用 + 承诺占位</h1>
+  <p class="lede">模型照常调工具，工具返回一个<b>已经分配好的 asset 路径</b>，字节还没写。消息里立刻出现一个图片块，头部按「深度思考 (11.8s)」的语言显示状态；画完骨架换图。提示词不进卡片 —— 它在 <code>⋯</code> 面板里。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">慢下来</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="row"><div class="bubble">写一条关于「慢下来」的短文，配一张插图。</div></div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">21:12</div>
+            </div>
+          </div>
+
+          <p class="body">慢下来不是停下来。是把日程里被塞满的缝隙重新撑开，让注意力有地方落脚。</p>
+
+          <div class="imgcard">
+            <div class="imgcard-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
+              <span class="label">生成插图</span>
+              <span class="elapsed">(6.0s)</span>
+              <span class="grow"></span>
+              <span class="more">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+              </span>
+            </div>
+            <div class="media"><span class="mark">✦</span></div>
+          </div>
+
+          <p class="body">一天里总要有几段不被安排的时间。它们不产出什么，但正是它们让产出这件事还值得做。<span class="caret"></span></p>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="input">发消息…</div>
+        <div class="send">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">生成插图</span>
+          <span class="grow"></span>
+          <span class="close">✕</span>
+        </div>
+        <div class="kv"><span class="k">模型</span><span class="v">Seedream 4.0</span></div>
+        <div class="kv"><span class="k">尺寸</span><span class="v">1024 × 1536</span></div>
+        <div class="kv"><span class="k">用时</span><span class="v">6.0 秒</span></div>
+        <div class="kv"><span class="k">用量</span><span class="v">1 张</span></div>
+        <div class="divider"></div>
+        <div class="prompt-head"><span class="k">提示词</span><span class="grow"></span><span class="copy">复制</span></div>
+        <p class="prompt">霓虹雨夜的旧书店，湿漉漉的招牌映在水洼里，赛博朋克风格插画</p>
+        <div class="panel-actions">
+          <span class="btn primary">编辑并重新生成</span>
+          <span class="btn ghost">重新生成</span>
+        </div>
+      </div>
+      <p class="caption">点卡片头部或 <b>⋯</b> 打开。手机是底部抽屉，桌面是对话框（仓库规则：桌面不用 bottom sheet）。生成中时按钮换成「取消」；失败时是「重试」。</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step"><b>1</b>模型发 tool_call</div>
+    <div class="step"><b>2</b>客户端分配 asset，写入 ImagePart</div>
+    <div class="step"><b>3</b>job 跑，字节落盘</div>
+    <div class="step"><b>4</b>part 刷新，骨架换图</div>
+  </div>
+  <p class="mechanism-note">工具结果为 <code>{assetId, uri, placeholder:true}</code>，不含图。结果回灌后模型接着把正文写完 —— 这是多出来的那一次调用；图本身 6–20 秒，通常把这一轮盖住。</p>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li><b>图不是工具卡</b>：它是消息里的图片块。<code>显示工具卡片</code>关掉时插图照样显示 —— 图是内容，不是工具日志。</li>
+      <li><b>工具返回承诺</b>：<code>uri</code> 已分配、字节未写；part 由工具结果创建，不从正文里解析路径，「这条路径是承诺的吗」有结构性的答案。</li>
+      <li><b>约定已存在</b>：<code>![alt](generated)</code> 今天就被认作占位（<code>_ImageLineKind.placeholder</code>），只是被吞掉、什么都不显示；本轮把它渲染成图片块并绑上 job。</li>
+      <li><b>刷新靠 part</b>：<code>ImagePart.unavailable</code> 已存在且持久化；字节落盘后 part 更新，骨架自动换成图。</li>
+      <li><b>提示词不在卡片上</b>：复制、编辑重生成、取消、模型、用量都在 <code>⋯</code> 面板里。</li>
+      <li><b>不需要 workspace</b>：图走现有 asset 存储，和粘贴图、宿主生图的图同一条路。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li>每次生图多一次模型续写：工具结果要回灌，上下文重发一遍。</li>
+      <li>图片块要在 timeline 里与工具 part 分开渲染，还要绕开「显示工具卡片」和导出里的工具卡裁剪 —— 一处新分支。</li>
+      <li>占位状态要进 parts，否则重启后分不清「还在画」和「已中断」。</li>
+      <li>工具参数每加一个（比例、质量、参考图），schema 长一截，模型选错的面积也大一分。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>分水岭</h2>
+    <p class="mechanism-note">A 的信任来自结构：part 由工具结果造出来。代价是那次续写。<br>B 的信任来自语法：part 由正文解析出来。省掉续写，换一层文本协议。</p>
+  </section>
+
+  <p class="closing"><b>两个方案共用：</b>图片块与 <code>(6.0s)</code> 状态行、<code>⋯</code> 面板、job 状态机（queued → running → completed / failed / cancelled / interrupted）、重启中断、schema 5、先接一个后端。<b>统计</b>只记卡片这一行的用量，不接统计页：kelivo#1492 要新增 <code>usage_events</code> 账本表，那是 schema 6 的事。<b>Gemini Image</b> 这类走 chat 接口、返回 markdown 链接的，是宿主的另一条路：渲染层已有 markdown 图片与独立图片行识别，不进 job，第一版不动。</p>
+
+</main>
+</body>
+</html>

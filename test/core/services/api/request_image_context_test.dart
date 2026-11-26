@@ -853,6 +853,79 @@ void main() {
     },
   );
 
+  test('an assistant picture is not reported as part of the request', () async {
+    final assistant = ChatMessage(
+      id: 'answer',
+      role: 'assistant',
+      conversationId: 'chat',
+      parts: [const ImagePart(uri: pixels)],
+    );
+    final request = RequestImageContext(
+      settings: const ImageContextSettings(),
+      images: RequestImageContext.collect([assistant]),
+      targetMessageId: 'answer',
+    );
+    final messages = <Map<String, dynamic>>[
+      {'role': 'user', 'content': 'draw it', imageContextOwnerKey: 'ask'},
+      {
+        'role': 'assistant',
+        'content': 'done',
+        imageContextOwnerKey: 'answer',
+        multimodalInternalMediaPathsKey: [encodeInternalMediaRef(uri: pixels)],
+      },
+    ];
+
+    await request.prepareMessages(
+      messages,
+      const [],
+      parseMarkdownImages: true,
+      allowRemoteImages: true,
+    );
+
+    final preview = await request.preview();
+    expect(preview, hasLength(1));
+    expect(
+      preview.single.included,
+      isFalse,
+      reason:
+          'the picture is never replayed, so the panel must not list it '
+          'as sent',
+    );
+    // The message itself keeps the ref: image editing reads it from history.
+    expect(messages[1][multimodalInternalMediaPathsKey], isNotEmpty);
+  });
+
+  test('a promised picture with no bytes is never part of the context', () {
+    // An image job reserves the uri and writes the part *before* the file
+    // exists. Letting that part into the catalog invents an image the provider
+    // cannot load — the same reason the outbound body skips it. `hasBytes` is
+    // the question; `unavailable` is a different one (bytes that went missing).
+    final owner = ChatMessage(
+      id: 'owner',
+      role: 'assistant',
+      conversationId: 'chat',
+      parts: [
+        const ImagePart(
+          uri: '/tmp/promised',
+          assetId: 'img_promised',
+          jobId: 'job-1',
+          state: ImagePartState.pending,
+        ),
+        const ImagePart(
+          uri: '/tmp/failed',
+          assetId: 'img_failed',
+          jobId: 'job-2',
+          state: ImagePartState.failed,
+        ),
+        const ImagePart(uri: '/tmp/done', assetId: 'img_done'),
+      ],
+    );
+
+    final collected = RequestImageContext.collect([owner]);
+
+    expect(collected.map((image) => image.uri), ['/tmp/done']);
+  });
+
   test(
     'composer paths reuse image references and leave other media untouched',
     () {

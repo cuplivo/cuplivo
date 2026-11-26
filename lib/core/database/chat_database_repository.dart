@@ -5170,6 +5170,48 @@ class ChatDatabaseRepository {
     );
   }
 
+  /// Appends one user turn and nothing else.
+  ///
+  /// A group conversation's reply is chosen after the user message is already
+  /// visible (the round asks who speaks next), so it cannot use
+  /// [beginSendGeneration]: that method's contract is "one user turn plus the
+  /// reply it is already waiting for".
+  Future<({Conversation conversation, ChatMessage userMessage})>
+  beginUserMessage({
+    required Conversation conversation,
+    required ChatMessage userMessage,
+    DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+  }) {
+    if (draftSubmission != null &&
+        (draftSubmission.conversationId != conversation.id ||
+            draftSubmission.id != userMessage.id ||
+            draftSubmission.editMessageId != null)) {
+      throw StateError('composer_submission_mismatch');
+    }
+    if (userMessage.conversationId != conversation.id ||
+        userMessage.role != 'user' ||
+        userMessage.isStreaming) {
+      throw ArgumentError.value(userMessage, 'userMessage');
+    }
+    return _observer.measure(
+      ChatDatabaseOperation.commandAppendMessage,
+      () => _writeTransaction(() async {
+        final resolvedUser = await _withUiContext(userMessage, uiContext);
+        final persisted = await _appendLinearMessageToConversation(
+          conversation: conversation,
+          message: resolvedUser,
+          selectVersion: false,
+          touchUpdatedAt: true,
+        );
+        if (draftSubmission != null) {
+          await composerDrafts.consumeInTransaction(draftSubmission);
+        }
+        return (conversation: persisted, userMessage: resolvedUser);
+      }),
+    );
+  }
+
   Future<GenerationBeginResult> beginRegeneration({
     required Conversation conversation,
     required ChatMessage assistantMessage,
@@ -5324,6 +5366,11 @@ class ChatDatabaseRepository {
     }
   }
 
+  /// A missing conversation row is materialised: this is how a draft becomes
+  /// real. A write that lost its row to a deletion cannot resurrect it — the
+  /// message it appends is ordered after an anchor that the deletion cascaded
+  /// away, and that lookup throws inside this transaction (see
+  /// `test/core/database/linear_message_behavior_matrix_test.dart`).
   Future<Conversation> _appendLinearMessageToConversation({
     required Conversation conversation,
     required ChatMessage message,
@@ -5614,6 +5661,7 @@ class ChatDatabaseRepository {
           role: original.role,
           parts: resolvedParts,
           quotes: quotes ?? original.quotes,
+          senderId: original.senderId,
           conversationId: original.conversationId,
           modelId: original.modelId,
           providerId: original.providerId,
@@ -9247,6 +9295,7 @@ FROM conversation_rows;
       reasoningSegmentsJson: row.reasoningSegmentsJson,
       groupId: row.groupId,
       version: row.version,
+      senderId: row.senderId,
       promptTokens: row.promptTokens,
       completionTokens: row.completionTokens,
       cachedTokens: row.cachedTokens,
@@ -9587,6 +9636,7 @@ FROM conversation_rows;
         ),
       ),
       messageOrder: messageOrder,
+      senderId: Value(message.senderId),
     );
   }
 
@@ -9614,6 +9664,11 @@ FROM conversation_rows;
       completionTokens: Value(message.completionTokens),
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
+      // A snapshot without an author must not erase one: the column is written
+      // only when the caller carries an id.
+      senderId: message.senderId == null
+          ? const Value.absent()
+          : Value(message.senderId),
     );
   }
 

@@ -14,6 +14,10 @@ import '../services/api/stream/sse_framing.dart';
 import '../services/model_override_payload_parser.dart';
 import '../services/custom_request_merger.dart';
 import '../services/api/embedding/embedding_api_service.dart';
+import '../services/decision/decision_client.dart';
+import '../services/decision/decision_dialect.dart';
+import '../services/decision/decision_outcome.dart';
+import '../services/decision/decision_question.dart';
 import '../services/api/google_service_account_auth.dart';
 import '../models/model_spec.dart';
 import '../services/model_spec/model_spec_resolver.dart';
@@ -293,8 +297,16 @@ class ProviderManager {
     String modelId, {
     bool useStream = false,
   }) {
-    if (ModelSpecResolver.instance.spec(cfg, modelId).isEmbedding) {
+    final spec = ModelSpecResolver.instance.spec(cfg, modelId);
+    if (spec.isEmbedding) {
       return EmbeddingApiService.requestUrl(cfg, modelId).toString();
+    }
+    if (spec.isDecision) {
+      return DecisionClient.endpointFor(
+        cfg,
+        modelId,
+        DecisionDialectSetting.of(cfg, modelId),
+      ).toString();
     }
     cfg = cfg.forModelProtocol(modelId);
     final ov = _modelOverride(cfg, modelId);
@@ -349,7 +361,8 @@ class ProviderManager {
     bool useStream = false,
     void Function(String)? onRequestUrl,
   }) async {
-    if (ModelSpecResolver.instance.spec(cfg, modelId).isEmbedding) {
+    final spec = ModelSpecResolver.instance.spec(cfg, modelId);
+    if (spec.isEmbedding) {
       onRequestUrl?.call(connectionTestUrl(cfg, modelId, useStream: useStream));
       await EmbeddingApiService.embed(
         config: cfg,
@@ -357,6 +370,32 @@ class ProviderManager {
         inputs: const ['hello'],
       );
       return;
+    }
+    // A decision model is verified by the protocol it actually speaks: asking
+    // it a chat question can only report a false failure, and it would never
+    // touch the address or the dialect the user is trying to confirm.
+    if (spec.isDecision) {
+      onRequestUrl?.call(connectionTestUrl(cfg, modelId, useStream: useStream));
+      final outcome = await DecisionClient.ask(
+        config: cfg,
+        modelId: modelId,
+        question: const YesNoQuestion(
+          key: 'reachable',
+          instructions: 'Is this endpoint answering a typed decision question?',
+          state: 'ping',
+        ),
+        timeout: const Duration(seconds: 15),
+      );
+      switch (outcome) {
+        case DecisionAnswer():
+          return;
+        case DecisionUnavailable(:final failure, :final status):
+          throw HttpException(
+            status == null
+                ? 'Decision endpoint did not answer ($failure)'
+                : 'Decision endpoint answered HTTP $status',
+          );
+      }
     }
     cfg = await ProviderOAuthService.instance.resolve(cfg);
     if (cfg.oauthProvider == OAuthProvider.chatgpt) useStream = true;

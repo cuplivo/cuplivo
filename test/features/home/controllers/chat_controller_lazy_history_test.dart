@@ -308,6 +308,7 @@ class _FakeLazyChatService extends ChatService {
   Future<Conversation> createDraftConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool temporary = false,
     bool reuseNewEntry = false,
   }) async {

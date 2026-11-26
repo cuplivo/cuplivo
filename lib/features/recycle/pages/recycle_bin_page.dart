@@ -21,7 +21,7 @@ import 'recycle_entry_detail_page.dart';
 /// every restore goes through [RecycleService], so the clock and the path rules
 /// stay in one implementation. Nothing here is shared state — the bin is this
 /// device's alone, which is why the page has no sync affordance at all.
-enum _BinFilter { all, conversations, assistants, settings, files }
+enum _BinFilter { all, conversations, assistants, groups, settings, files }
 
 /// One group header, emitted where a deletion event's entries begin.
 class _BinGroup {
@@ -171,6 +171,14 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
             entry.kindWire == 'assistant_rows')
           entry,
     ],
+    // A group is a chat owner, not a setting: it is an entity with topics under
+    // it, and the tab it lives in is where a user looks for one.
+    _BinFilter.groups => [
+      for (final entry in _entries)
+        if (entry.type == RecycleEntryType.businessEntity &&
+            entry.kindWire == 'groupChat')
+          entry,
+    ],
     _BinFilter.settings => [
       for (final entry in _entries)
         // A skill is one of these rows — user-managed configuration with a
@@ -179,7 +187,8 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         if (entry.type == RecycleEntryType.preference ||
             entry.type == RecycleEntryType.skillBody ||
             (entry.type == RecycleEntryType.businessEntity &&
-                entry.kindWire != 'assistant_rows'))
+                entry.kindWire != 'assistant_rows' &&
+                entry.kindWire != 'groupChat'))
           entry,
     ],
     _BinFilter.files => [
@@ -247,9 +256,6 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     RecycleEntryType.businessEntity => switch (entry.kindWire) {
       'assistant_rows' => Lucide.Bot,
       'groupChat' => Lucide.Users,
-      'conversationContext' => Lucide.History,
-      'conversationImageContext' => Lucide.Image,
-      'conversationCompression' => Lucide.Settings2,
       _ => Lucide.SlidersHorizontal,
     },
   };
@@ -262,6 +268,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
         RecycleEntryType.skillBody => l10n.recycleBinKindSkill,
         RecycleEntryType.businessEntity => switch (entry.kindWire) {
           'assistant_rows' => l10n.recycleBinKindAssistant,
+          'groupChat' => l10n.recycleBinKindGroup,
           'provider_rows' ||
           'provider_group_rows' => l10n.recycleBinKindProvider,
           'world_book_rows' => l10n.recycleBinKindWorldBook,
@@ -367,6 +374,7 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
               SegmentedTab(label: l10n.recycleBinFilterAll),
               SegmentedTab(label: l10n.recycleBinFilterConversation),
               SegmentedTab(label: l10n.recycleBinFilterAssistants),
+              SegmentedTab(label: l10n.recycleBinFilterGroups),
               SegmentedTab(label: l10n.recycleBinFilterSettings),
               SegmentedTab(label: l10n.recycleBinFilterFiles),
             ],

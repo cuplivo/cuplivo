@@ -269,11 +269,18 @@ void main() {
     await stageEntity(tester, 'p1', 'A provider', kindWire: 'provider_rows');
     await stagePreference(tester, 'stream_enabled');
     await stageFile(tester, 'notes/todo.md');
+    // A group is an entity with topics under it, not a setting: the bin has to
+    // name it and file it where a user looks for a deleted chat.
+    await stageEntity(tester, 'g1', 'Reading club', kindWire: 'groupChat');
 
     await pumpPage(tester);
     // Newest first: the file is the last thing staged, so it is the row that is
     // built first — a builder list only builds what the viewport shows.
     await pumpUntilFound(tester, find.text('notes/todo.md'));
+
+    // The newest entry, and not called "Configuration".
+    await pumpUntilFound(tester, find.text('Reading club'));
+    expect(find.text('Group · Deleted here'), findsOneWidget);
 
     await tester.tap(find.text('Assistants'));
     await tester.pumpAndSettle();
@@ -282,11 +289,19 @@ void main() {
     expect(find.text('A chat'), findsNothing);
     expect(find.text('notes/todo.md'), findsNothing);
 
+    await tester.ensureVisible(find.text('Groups'));
+    await tester.tap(find.text('Groups'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reading club'), findsOneWidget);
+    expect(find.text('A provider'), findsNothing);
+    expect(find.text('An assistant'), findsNothing);
+
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     expect(find.text('A provider'), findsOneWidget);
     expect(find.text('stream_enabled'), findsOneWidget);
     expect(find.text('An assistant'), findsNothing);
+    expect(find.text('Reading club'), findsNothing);
 
     await tester.tap(find.text('Conversations'));
     await tester.pumpAndSettle();

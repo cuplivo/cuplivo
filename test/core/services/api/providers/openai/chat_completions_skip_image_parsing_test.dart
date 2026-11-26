@@ -1,3 +1,4 @@
+import 'package:Cuplivo/core/services/api/message_authorship.dart';
 import 'package:Cuplivo/core/services/api/native_input_attachments.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/models/model_spec.dart';
@@ -17,6 +18,34 @@ final _nativeInputs = NativeInputAttachments(
 );
 
 void main() {
+  test('a group peer marker never reaches the request body', () async {
+    final messages = await buildOpenAIChatCompletionMessages(
+      [
+        <String, dynamic>{'role': 'user', 'content': 'plan the week'},
+        <String, dynamic>{
+          'role': 'user',
+          'content': '<group_message from="Bob">\nTuesday\n</group_message>',
+          groupPeerSenderKey: 'a2',
+        },
+        <String, dynamic>{'role': 'assistant', 'content': ''},
+      ],
+      nativeInputs: _nativeInputs,
+      canImageInput: false,
+      allowRemoteImages: false,
+      reasoningReplay: ReasoningReplayPolicy.none,
+      skipImageParsing: true,
+    );
+
+    expect(messages, hasLength(3));
+    expect(messages.any((m) => m.containsKey(groupPeerSenderKey)), isFalse);
+    // The peers' words survive as plain user text.
+    expect(messages[1]['role'], 'user');
+    expect(
+      messages[1]['content'],
+      '<group_message from="Bob">\nTuesday\n</group_message>',
+    );
+  });
+
   test('skipImageParsing leaves markdown images as plain text', () async {
     const raw = 'see ![x](data:image/png;base64,abc) later';
     final messages = await buildOpenAIChatCompletionMessages(

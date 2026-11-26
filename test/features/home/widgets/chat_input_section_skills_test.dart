@@ -224,7 +224,7 @@ void main() {
       expect(find.byTooltip('Skills'), findsNothing);
       final context = tester.element(find.byType(ChatInputBar));
       final l10n = AppLocalizations.of(context)!;
-      await tester.tap(find.byTooltip(l10n.chatInputBarMoreTooltip).first);
+      await tester.tap(find.byTooltip(l10n.chatInputBarOverflowTooltip));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Skills'));
       await tester.pumpAndSettle();
@@ -282,7 +282,10 @@ void main() {
         final skills = find.byTooltip(l10n.workspaceEntrySessionSkills);
         if (overflow) {
           expect(skills, findsNothing);
-          await tester.tap(find.byTooltip(l10n.chatInputBarMoreTooltip));
+          // The narrow composer collapses the toolbar into the overflow whose
+          // glyph is an ellipsis, not a second "+" (the phone group's composer
+          // is what draws the plus in the tools panel).
+          await tester.tap(find.byTooltip(l10n.chatInputBarOverflowTooltip));
           await tester.pumpAndSettle();
           await tester.tap(find.text(l10n.workspaceEntrySessionSkills));
         } else {

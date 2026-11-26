@@ -54,6 +54,7 @@ class _ModelProcessingData {
   final String currentModelKey;
   final List<String> providersOrder;
   final String? limitProviderKey;
+  final bool includeDecisionModels;
 
   _ModelProcessingData({
     required this.providerConfigs,
@@ -61,6 +62,7 @@ class _ModelProcessingData {
     required this.currentModelKey,
     required this.providersOrder,
     this.limitProviderKey,
+    this.includeDecisionModels = false,
   });
 }
 
@@ -113,17 +115,16 @@ _ModelProcessingResult _processModelsInBackground(_ModelProcessingData data) {
     final name = cfg.name;
     final list = <_ModelItem>[
       for (final mid in cfg.enabledModels)
-        () {
-          final spec = ModelSpecResolver.instance.spec(cfg, mid);
-          return _ModelItem(
+        if (data.includeDecisionModels ||
+            !ModelSpecResolver.instance.spec(cfg, mid).isDecision)
+          _ModelItem(
             providerKey: key,
             providerName: name.isNotEmpty ? name : key,
             id: mid,
-            info: spec,
+            info: ModelSpecResolver.instance.spec(cfg, mid),
             pinned: data.pinnedModels.contains('$key::$mid'),
             selected: data.currentModelKey == '$key::$mid',
-          );
-        }(),
+          ),
     ];
     groups[key] = _ProviderGroup(
       name: name.isNotEmpty ? name : key,
@@ -192,6 +193,10 @@ Future<ModelSelection?> showModelSelector(
   String? initialModelId,
   bool allowInherit = false,
   String? inheritLabel,
+  // Decision models answer typed questions and never a chat; only a decision
+  // slot asks for them. Every chat-facing picker keeps the default and so
+  // cannot offer a model that would answer with nothing.
+  bool includeDecisionModels = false,
 }) async {
   if (_modelSelectorOpen) return null;
   _modelSelectorOpen = true;
@@ -208,6 +213,7 @@ Future<ModelSelection?> showModelSelector(
         initialModelId: initialModelId,
         allowInherit: allowInherit,
         inheritLabel: inheritLabel,
+        includeDecisionModels: includeDecisionModels,
       );
     }
     return await showModalBottomSheet<ModelSelection>(
@@ -223,6 +229,7 @@ Future<ModelSelection?> showModelSelector(
         initialModelId: initialModelId,
         allowInherit: allowInherit,
         inheritLabel: inheritLabel,
+        includeDecisionModels: includeDecisionModels,
       ),
     );
   } finally {
@@ -236,12 +243,14 @@ Future<ModelSelection?> showModelSelectorWithCurrentChatFallback(
   BuildContext context, {
   String? initialProviderKey,
   String? initialModelId,
+  bool includeDecisionModels = false,
 }) {
   if (initialProviderKey != null && initialModelId != null) {
     return showModelSelector(
       context,
       initialProviderKey: initialProviderKey,
       initialModelId: initialModelId,
+      includeDecisionModels: includeDecisionModels,
     );
   }
 
@@ -263,6 +272,7 @@ Future<ModelSelection?> showModelSelectorWithCurrentChatFallback(
     context,
     initialProviderKey: current.providerKey,
     initialModelId: current.modelId,
+    includeDecisionModels: includeDecisionModels,
   );
 }
 
@@ -293,6 +303,11 @@ Future<void> showModelSelectSheet(
   final assistantProvider = context.read<AssistantProvider>();
   final perChat = settings.perChatModelEnabled;
   final conversation = controller.currentConversation;
+  // A group topic has no model of its own: its replies are written by the
+  // members, and a pin on the topic is ignored (resolveChatModel). Picking one
+  // here would write a setting that never applies — and with per-chat models off
+  // it would rewrite the resolved assistant's default for every other chat.
+  if (conversation?.isGroupConversation == true) return;
   final assistant = assistantProvider.resolveConversationAssistant(
     conversation?.assistantId,
   );
@@ -339,12 +354,14 @@ class _ModelSelectSheet extends StatefulWidget {
     this.initialModelId,
     this.allowInherit = false,
     this.inheritLabel,
+    this.includeDecisionModels = false,
   });
   final String? limitProviderKey;
   final String? initialProviderKey;
   final String? initialModelId;
   final bool allowInherit;
   final String? inheritLabel;
+  final bool includeDecisionModels;
   @override
   State<_ModelSelectSheet> createState() => _ModelSelectSheetState();
 }
@@ -455,6 +472,7 @@ class _ModelSelectSheetState extends State<_ModelSelectSheet> {
           providerConfigs.keys,
         ),
         limitProviderKey: widget.limitProviderKey,
+        includeDecisionModels: widget.includeDecisionModels,
       );
 
       final result = _processModelsInBackground(processingData);
@@ -511,6 +529,7 @@ class _ModelSelectSheetState extends State<_ModelSelectSheet> {
         providerConfigs.keys,
       ),
       limitProviderKey: widget.limitProviderKey,
+      includeDecisionModels: widget.includeDecisionModels,
     );
 
     final result = _processModelsInBackground(processingData);
@@ -1051,6 +1070,12 @@ class _ModelSelectSheetState extends State<_ModelSelectSheet> {
           final pk = parts[0];
           final mid = parts.sublist(1).join('::');
           if (settings.getProviderConfig(pk).disabledModels.contains(mid)) {
+            continue;
+          }
+          if (!widget.includeDecisionModels &&
+              ModelSpecResolver.instance
+                  .spec(settings.getProviderConfig(pk), mid)
+                  .isDecision) {
             continue;
           }
           final g = _groups[pk];
@@ -1739,6 +1764,7 @@ Future<ModelSelection?> _showDesktopModelSelector(
   String? initialModelId,
   bool allowInherit = false,
   String? inheritLabel,
+  bool includeDecisionModels = false,
 }) async {
   return showGeneralDialog<ModelSelection>(
     context: context,
@@ -1751,6 +1777,7 @@ Future<ModelSelection?> _showDesktopModelSelector(
       initialModelId: initialModelId,
       allowInherit: allowInherit,
       inheritLabel: inheritLabel,
+      includeDecisionModels: includeDecisionModels,
     ),
     transitionBuilder: (ctx, anim, _, child) {
       final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
@@ -1772,12 +1799,14 @@ class _DesktopModelSelectDialogBody extends StatefulWidget {
     this.initialModelId,
     this.allowInherit = false,
     this.inheritLabel,
+    this.includeDecisionModels = false,
   });
   final String? limitProviderKey;
   final String? initialProviderKey;
   final String? initialModelId;
   final bool allowInherit;
   final String? inheritLabel;
+  final bool includeDecisionModels;
   @override
   State<_DesktopModelSelectDialogBody> createState() =>
       _DesktopModelSelectDialogBodyState();
@@ -1866,6 +1895,7 @@ class _DesktopModelSelectDialogBodyState
         providerConfigs.keys,
       ),
       limitProviderKey: widget.limitProviderKey,
+      includeDecisionModels: widget.includeDecisionModels,
     );
     // Synchronous processing is fast enough here
     final result = _processModelsInBackground(data);
@@ -1943,6 +1973,12 @@ class _DesktopModelSelectDialogBodyState
           final pk = parts[0];
           final mid = parts.sublist(1).join('::');
           if (settings.getProviderConfig(pk).disabledModels.contains(mid)) {
+            continue;
+          }
+          if (!widget.includeDecisionModels &&
+              ModelSpecResolver.instance
+                  .spec(settings.getProviderConfig(pk), mid)
+                  .isDecision) {
             continue;
           }
           final g = _groups[pk];

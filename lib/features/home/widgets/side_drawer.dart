@@ -62,6 +62,7 @@ import 'sidebar_selection_bars.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 import '../../../shared/animations/status_animation.dart';
+import '../../../core/services/conversation_link.dart';
 
 class SideDrawer extends StatefulWidget {
   const SideDrawer({
@@ -325,6 +326,19 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
               await chatService.duplicateConversation(chat.id);
             },
           ),
+          if (ConversationLink.osRegistered &&
+              ConversationLink.supportsId(chat.id))
+            DesktopContextMenuItem(
+              icon: Lucide.Link,
+              label: l10n.sideDrawerMenuCopyLink,
+              onTap: () async {
+                await copyTextWithConfirmation(
+                  context,
+                  ConversationLink(conversationId: chat.id).url,
+                  message: l10n.conversationLinkCopied,
+                );
+              },
+            ),
           DesktopContextMenuItem(
             icon: Lucide.Shuffle,
             label: l10n.sideDrawerMenuMoveTo,
@@ -529,6 +543,19 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
                         await chatService.duplicateConversation(chat.id);
                       },
                     ),
+                    if (ConversationLink.osRegistered &&
+                        ConversationLink.supportsId(chat.id))
+                      row(
+                        icon: Lucide.Link,
+                        label: l10n.sideDrawerMenuCopyLink,
+                        action: () async {
+                          await copyTextWithConfirmation(
+                            context,
+                            ConversationLink(conversationId: chat.id).url,
+                            message: l10n.conversationLinkCopied,
+                          );
+                        },
+                      ),
                     row(
                       icon: Lucide.Shuffle,
                       label: l10n.sideDrawerMenuMoveTo,

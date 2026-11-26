@@ -24,6 +24,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'image_preview_sheet.dart';
 import 'export_image_capture.dart';
+import 'export_progress_overlay.dart';
+import 'pdf_export_dialog.dart';
 import '../utils/export_image_processor.dart';
 
 import '../../../icons/lucide_adapter.dart';
@@ -1960,6 +1962,32 @@ class _BatchExportDialogState extends State<_BatchExportDialog> {
     await exporting;
   }
 
+  /// The PDF is a format of this menu, not a sibling of it.
+  ///
+  /// The configuration dialog is its own surface, and the progress card and the
+  /// result panel it raises outlive this menu — so the menu closes first and the
+  /// dialog opens on the page. Asked for from a route that is about to be
+  /// disposed, those surfaces would go with it.
+  Future<void> _onExportPdf() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    final pctx = widget.parentContext;
+    final settings = pctx.read<SettingsProvider>();
+    await Navigator.of(context).maybePop();
+    if (!pctx.mounted) return;
+    await showPdfExportDialog(
+      pctx,
+      conversation: widget.conversation,
+      messages: widget.messages,
+      showThinkingAndToolCards: _showThinkingAndToolCards,
+      expandThinkingContent: _expandThinkingContent,
+      appFontPath: settings.appFontLocalPath,
+      codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
+    );
+  }
+
   Future<void> _onExportImage() async {
     if (_exporting) return;
     setState(() => _exporting = true);
@@ -1979,7 +2007,7 @@ class _BatchExportDialogState extends State<_BatchExportDialog> {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 720, maxHeight: 460),
+      constraints: const BoxConstraints(maxWidth: 720, maxHeight: 560),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Material(
@@ -2037,6 +2065,12 @@ class _BatchExportDialogState extends State<_BatchExportDialog> {
                           title: l10n.messageExportSheetPlainText,
                           subtitle: l10n.messageExportSheetBatchTxtSubtitle,
                           onTap: _exporting ? null : _onExportTxt,
+                        ),
+                        _ExportOptionTile(
+                          icon: Lucide.FileType,
+                          title: l10n.messageExportSheetPdf,
+                          subtitle: l10n.messageExportSheetBatchPdfSubtitle,
+                          onTap: _exporting ? null : _onExportPdf,
                         ),
                         _ExportOptionTile(
                           icon: Lucide.Image,
@@ -2189,6 +2223,29 @@ class _BatchExportSheetState extends State<_BatchExportSheet> {
     );
   }
 
+  /// A format of this menu, not a sibling of it: the menu closes and the
+  /// configuration opens on the page, which is what the export's progress card
+  /// and result panel have to outlive.
+  Future<void> _onExportPdf() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    final pctx = widget.parentContext;
+    final settings = pctx.read<SettingsProvider>();
+    if (mounted) Navigator.of(context).maybePop();
+    if (!pctx.mounted) return;
+    await showPdfExportDialog(
+      pctx,
+      conversation: widget.conversation,
+      messages: widget.messages,
+      showThinkingAndToolCards: _showThinkingAndToolCards,
+      expandThinkingContent: _expandThinkingContent,
+      appFontPath: settings.appFontLocalPath,
+      codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
+    );
+  }
+
   Future<void> _onExportImage() async {
     if (_exporting) return;
     setState(() => _exporting = true);
@@ -2261,6 +2318,16 @@ class _BatchExportSheetState extends State<_BatchExportSheet> {
                         ? null
                         : () {
                             _onExportTxt();
+                          },
+                  ),
+                  _ExportOptionTile(
+                    icon: Lucide.FileType,
+                    title: l10n.messageExportSheetPdf,
+                    subtitle: l10n.messageExportSheetBatchPdfSubtitle,
+                    onTap: _exporting
+                        ? null
+                        : () {
+                            _onExportPdf();
                           },
                   ),
                   _ExportOptionTile(

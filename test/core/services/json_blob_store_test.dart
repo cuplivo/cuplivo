@@ -1,15 +1,15 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_data.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/models/instruction_injection.dart';
-import 'package:Kelivo/core/models/quick_phrase.dart';
-import 'package:Kelivo/core/services/instruction_injection_store.dart';
-import 'package:Kelivo/core/services/memory_store.dart';
-import 'package:Kelivo/core/services/quick_phrase_store.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/models/instruction_injection.dart';
+import 'package:Cuplivo/core/models/quick_phrase.dart';
+import 'package:Cuplivo/core/services/instruction_injection_store.dart';
+import 'package:Cuplivo/core/services/memory_store.dart';
+import 'package:Cuplivo/core/services/quick_phrase_store.dart';
 
 void main() {
   late AppDatabase database;

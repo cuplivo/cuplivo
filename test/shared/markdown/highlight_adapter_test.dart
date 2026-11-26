@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/shared/markdown/highlight_adapter.dart';
+import 'package:Cuplivo/shared/markdown/highlight_adapter.dart';
 
 Iterable<(String, TextStyle)> runs(
   TextSpan span, [

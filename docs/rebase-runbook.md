@@ -1,0 +1,1249 @@
+# Re-base runbook
+
+Companion to [ADR-0004](adr/0004-follow-upstream-rebase.md): the decision is to re-base on the
+latest Kelivo **stable** and *re-do* Cuplivo's features on it, never to port the fork forward.
+This file records the mechanics of that replay, so the next re-base is a replay and not a porting
+project.
+
+Seven re-bases have been run: 4.0 → `df60f7425`, 4.1 → `3c92d1062`, 4.2 → `4742d2e28`, the 4.4 line →
+`cf2af98e6` (`v1.3.1-11`), 4.4 → `a83647077` (upstream master: the storage/backup rework, the
+recovery screens and the markdown theme tokens), 4.4 → `e15df5485` (upstream master, 31 commits
+on: the integrated browser over four vendored `flutter_inappwebview` forks plus
+`liquid_glass_widgets`, password-encrypted backups, MCP presentation groups, the long-image export
+rework and a markdown contrast pass) and 4.4 → `199647a5d` (upstream master, seven commits further
+on: iOS native selection menus, the world-book copy/batch transfer, macOS Developer-ID
+notarization, and the commit that commits both lockfiles and makes CI enforce them). The conflict
+counts quoted below are the 4.1 one's; the *rules* are what to carry forward. The unit list below
+is the 4.4 line's series as replayed onto `e15df5485` and then onto `199647a5d` (14 content units,
+normalized from the 34-commit line, each unit's l10n re-derived by `flutter gen-l10n`): baseline
+repair → features → four landing commits — the new baseline's own repairs, the lock and the release
+wiring, the record, and the mechanical reformat at the tip. The `199647a5d` landing was then
+normalized from 35 commits to 18 by materializing the landing commits' paths from the tip
+(§ *The landing is 18 commits*), which is lossless by construction.
+
+## The replay units, in order
+
+Each line is one unit, replayed onto the new baseline. Order matters because units share files: the
+composer and home units (`chat_input_bar.dart`, `home_page_controller.dart`) touch the same regions, so
+the baseline-repair unit — which restores the composer API — replays before them, and `#1008`'s composer
+fix now rides inside the care unit instead of standing alone. A follow-up folds into its unit when the
+only crossing files are the changelogs, `lib/l10n/`, `main.dart` or a document; rule 13 is the test, and
+every fold below names the crossings it accepts.
+
+| # | Unit | Notes |
+| --- | --- | --- |
+| 1 | `feat!: Cuplivo identity on the Kelivo baseline` | the re-brand, the sweep for files upstream added since the old baseline, the "clear the analyze gate" work, **plus the content carry folded in**: both READMEs, AGENTS.md, both changelogs, the `version:` line, the CI collapse to one `release.yml`, the release-notes CI step, the About mark asset, the runbook rewrite and the markstream audit. Mechanical: renames, application id, platform identity, removal of the built-in `kelivo` search service. **Over a thousand files**. Costs four `CHANGELOG*` unions in the early feature units. At a re-base the carry is still materialised with `git checkout <old-master> -- <paths>`, inside this unit's resolution |
+| 2 | `fix(tests): baseline repair — Windows suite, CI, l10n` | the l10n cleanup of the messages the new baseline retired, the `#1011` backup test, the two upstream test repairs, `#1032` (the flaky root causes and eight Windows failures), `#1041` (the eight full-suite failures plus the master CI trigger) and `f0f570358` (legacy Kelivo identities, upstream composer API). **Second on purpose**: every later unit then replays on a tree the gates can pass. Costs three `chat_input_bar.dart` crossings when 3, 6 and 7 replay, and the ARB hunks of five later units are re-resolved with `flutter gen-l10n` (rule 2) |
+| 3 | `feat(image): manual compression editor with explicit format control and bounded working memory` | ADR-0002 + ADR-0005 |
+| 4 | `feat(sync): LAN sync, the dual stack, candidate probing and a panel that tells the truth` | ADR-0003, **plus two follow-ups folded in**: `#1030` (workspace carriage, first-class endpoints, a rebuilt panel) and `#1037` (a close to the tray no longer stops the listener, [ADR-0015](adr/0015-close-to-tray-listener.md)). Only `main.dart`, the one-line registration site, crosses (rule 13) |
+| 5 | `feat(care): 「Ta的来信」跨平台回归，助手设置新增「角色扮演」页签` | proactive care: the port, the desktop entry points, the `#1007` trigger contract ([ADR-0006](adr/0006-proactive-care-trigger-contract.md)) and the `#1008` composer/assistant-name fix, folded in. Accepts crossings on `home_page_controller.dart` (units 6 and 8) and on `#1008`'s own Android alarm files |
+| 6 | `feat(image): crop the unsent image in its preview` | depends on 3 (the compression pipeline and its deferred crop step) and 5 (the composer it edits) |
+| 7 | `fix: re-port input focus retention on app resume (#1012)` | the desktop hotkey plus the composer it focuses |
+| 8 | `feat(chat): copy a conversation or message link (#1013)` | **plus `#1034` folded in** (Android deep links): iOS and Android links are one unit. Accepts one crossing on `test/message_more_sheet_test.dart` (`#1027`) |
+| 9 | `feat(chat): weigh the compression readout in tokens, tool results included (#1026)` | ADR-0011 |
+| 10 | `feat(export): a PDF laid out from markstream's tree, no WebView and no second renderer (#1028)` | ADR-0013 |
+| 11 | `feat(translate): user-managed target languages incl. Bengali (#1039)` | ADR-0014 |
+| 12 | `feat(suggestions): a chat-suggestions switch per assistant (#1040)` | — |
+| 13 | `feat(recycle): a recycle bin for deletions, losing merges and workspace files (#1035)` | ADR-0016 |
+| 14 | `fix: the new baseline's suite, fixtures and preference keys` | the landing repair: the two tests the baseline reshaped (`0bb6bc952`), the Windows-only assumptions the suite still carried (`6f4252bf5`), the non-nullable selection-toolbar items (`8407fbc88`), the migration retry's 1 s poll budget (`e4b111e31`), the browser cases the platform cannot run and the golden fixtures generated on the CI image (`71b0afa17`, `724affebc`), the two pre-rename ARB messages upstream still ships (`379fd2b35`), and the MCP presentation key the sync registry owed (`5efd382ff`). Not folded into unit 2, its natural home: the repairs touch test files units 3-13 own, so folding would mean replaying the whole series |
+| 15 | `chore(deps): the lock and the release wiring the gates run against` | `00d9c4580` (the seeded `pubspec.lock` every gate now runs against), `f75363461`'s `.gitignore` line for golden failures, and `515e807e2` — the notarization signs `cuplivo.app` and `Cuplivo_macos_*.dmg`, and `docs/homebrew/kelivo.rb` is deleted (rule 15) |
+| 16 | `docs(rebase): the invariants and the 199647a5d record` | `docs(agents)` `2eda72787` folded in, then `76993e753`, `956bec9fe`, `81271f940`, `e362f75bf`, `779452761`, `78436c40b`, `ea19c6cc1`, plus the document hunks of `f75363461` and `724affebc` |
+| 17 | `style: reformat the files the 3.47.6 formatter lays out differently` | re-derived at the tip (rule 10); never replayed, and never folded into a content unit — a mixed unit could be neither dropped nor re-derived. **Last on purpose**: the series tip is the reformat, which is what makes the `<old-master>~1` cut in the procedure correct again |
+
+The tail is no longer a run of one-commit chores: the l10n cleanup and every test/CI repair now belong
+to unit 2, and the content carry, the CI collapse, the release-notes step and the runbook itself belong
+to unit 1. The carry owns the version line, so it is also what replaces the old line's release commits
+— there is no release unit in the series. The mechanical reformat is re-derived last (rule 10) and is
+the series tip, which is what makes the `<old-master>~1` cut below correct.
+
+The `e15df5485` replay added tail commits after the units, and only because their corrections could
+not be folded back into the unit that owns them without replaying the whole series again: a
+`fix(tests)` for the two tests the new baseline reshaped, a `fix(l10n)` for the two messages upstream
+still ships under their pre-rename names, the re-derived reformat (unit 15 there), and — once the full
+Windows suite had been run — a second `fix(tests)` for the three test-side assumptions it found (see
+`docs/flaky-tests.md` §10) plus a `feat(sync)` for the one new upstream preference key that needed a
+disposition decision. A one-line correction belongs in its own unit when the replay is still open;
+once it is closed, a tail commit with the evidence in its message is the cheaper record.
+
+The `199647a5d` landing closed the same way and then folded itself: its 21 tails (that paragraph's
+commits, the nine this baseline added, and `docs(agents)`) became **four** — unit 15 the baseline's
+suite, fixtures and preference keys, 16 the lock and the release wiring, 17 the record, 18 the
+reformat at the tip. They are folded by *path from the tip* rather than by replaying their patches:
+each landing commit materializes its paths from the old tip
+(`git restore --source=<old-tip> --staged --worktree -- <paths>`), which reproduces the tip tree byte
+for byte as long as no path is split across two of them — `f75363461` and `724affebc` each hand their
+document hunks to 17 and the rest to 16 and 15. The fold is what removes the replay rounds; it does
+not move the conflict surface, which is the union of the same 77 paths.
+
+Units from earlier series that are **gone, and must not come back**:
+
+- **The composer-draft unit (`#930`) is discarded.** Upstream now ships its own per-conversation
+  draft (`lib/core/database/composer_draft_store.dart`, `lib/core/models/composer_draft.dart`), so
+  re-replaying ours would fight it. Before assuming a unit is still needed, check whether upstream
+  grew the same capability — a discarded unit leaves dead l10n keys behind, not dead code.
+- **The `await` gate fix is discarded as of this re-base** — upstream made the same four fixes
+  itself. See rule 7; this is the case that rule exists for.
+- **The proot-tooling unit is absorbed.** Upstream bundles the pinned PRoot runtime itself
+  (`707772844` sits in the baseline), so `tool/fetch_proot.sh` and `tool/proot_checksums.txt` are
+  upstream's files now and no Cuplivo commit touches them. Re-adding the unit would fight upstream's own
+  tooling — the same case as the `await` gate fix (rule 7).
+- **The message-reply unit (`#1027`) is retired.** 4.4 shipped it (`aa290f6fc`), but the rewrite that
+  produced this baseline replayed the unit as a shell — its docs, its hooks, and 24k lines of committed
+  `.merge`/`.rej` conflict scrap, with no implementation — and deleted the unit's tests in the same pass
+  (`c7fea7e5c`), so the suite could not notice. Upstream's own selection quotes (`7dd9b4e7d`, inside the
+  `4a7da9b6f` baseline) cover the same need, so the line keeps those and the reply is **not** replayed.
+  `docs/adr/0012-message-reply-quote.md` is withdrawn and `lib/l10n`, the hotkey table and the message
+  menus no longer carry its strings or hooks. Do not re-add the unit; a re-base that does would reintroduce
+  a second quoting model beside upstream's.
+- **There is no release unit.** A re-base is not a release: no version bump, no new tag, no
+  changelog section, no release dispatch. `pubspec.yaml` keeps the version line the old tip had
+  (`4.3.0+6` for the 4.3 line) while taking upstream's dependency changes — but the *content carry* is
+  what puts that line and the released changelog into the series, so the old line's release commits are
+  absorbed by the carry rather than replayed (`git log -S'4.1.0+4' -- pubspec.yaml` shows the carry
+  introducing the line on the last re-base). Re-tagging and re-dispatching is a separate, deliberate act
+  (AGENTS.md → Releases).
+
+## Rules
+
+1. **Replay features, not the fork's tree.** Cut a scratch branch at the last unit before the
+   reformat commit and replay onto the new baseline with
+   `git rebase --onto <new-baseline> <old-baseline> <scratch>`; never merge master into the fork.
+   Read the *real* conflicts rather than predicting them: on the 4.1 re-base the diffstat (+8626/−4388,
+   125 files) suggested heavy collisions and the actual count was 9 + 1 + 2 conflicting files across
+   three units. On `e15df5485` the surface was larger and the count still modest — a `git merge-tree`
+   of the whole series named ~300 files changed on both sides, the replay actually conflicted on 31
+   (25 in the identity unit, 2 in care, 1 in the link unit, 3 in the PDF export), and units 2, 3, 6,
+   7, 9, 10, 12, 13, 14 and 15 applied clean.
+2. **`lib/l10n/` is merged per key, then regenerated — never resolved by taking a side.** Every unit
+   touches the ARB files and the generated `app_localizations*.dart`, so they conflict everywhere, and
+   "take ours" stopped being safe the moment upstream's new code started calling messages the fork has
+   never had: this baseline alone added 200 of them, so a unit's own ARB is a *subset*, not a superset.
+   Merge at dict level, per key, in this order:
+   - upstream changed the value and our side still equals the old baseline's → take
+     `rename(upstream)`, `@`-metadata included, because the annotation describes its placeholders;
+   - our side changed it, or the key exists only in the fork → keep ours;
+   - upstream only → append `rename(upstream)`, **except** a key the identity unit renamed: that one is
+     dropped, not added beside the fork's name (`aboutPageKelivoSearch*` and `searchServiceNameKelivo`
+     are the two that have arrived this way, and they carry the fork's value byte for byte).
+
+   The brand rename applies to the incoming side: `Kelivo`/`kelivo` → `Cuplivo`/`cuplivo`, with the
+   whitelisted protocol/persisted names restored afterwards. Prove it before moving on:
+   `git grep -c Kelivo -- lib/l10n` prints nothing, then `flutter gen-l10n` from the package root and
+   confirm it is idempotent (`git status --short -- lib/l10n` empty). Never hand-splice ARB: write it
+   from a dict and validate with `json.loads` first, or you will ship truncated `@key` metadata.
+   `app_zh_Hans` deliberately carries 24 fewer messages than the other three locales — that gap is
+   pre-existing, so diff it against the old tip before treating it as a regression.
+3. **The identity unit must sweep upstream's new files, and the sweep belongs in that unit.** A
+   cherry-pick only merges *conflicting* files, so files upstream added after our old baseline keep
+   upstream's own `package:Cuplivo/` imports and branding because they never conflicted. Enumerate
+   `git diff --name-only --diff-filter=A <old-baseline> <new-baseline>` and run the rename set over
+   them. Fold the result into the identity commit rather than leaving a trailing sweep commit: a unit
+   has to be self-consistent, and with the sweep left out the identity commit's own tree imports a
+   package name that no longer exists.
+
+   On `e15df5485` that was 1193 added files, and the work came in four shapes: 86 added `.dart` files
+   importing `package:Kelivo/`; one Android unit test upstream added under
+   `android/app/src/test/kotlin/com/psyche/kelivo/`, which git had already *detected* as a rename into
+   our package path but not rewritten inside (the `package` line and imports); the platform identity in
+   new Swift/Kotlin and the two `Info.plist`s; and 113 added files carrying a brand token in prose.
+   Documentation under `docs/` and the vendored packages' own notes stay verbatim — they describe
+   upstream's project and record measurements of upstream's builds, and rewriting them would falsify
+   the record. What must not survive is the *code* referencing a package that no longer exists:
+   `git grep 'package:Kelivo/'` (only the runbook's own prose may match) plus a green
+   `flutter pub get`/`dart analyze` is the proof.
+   **The sweep is two rules, and 1095 of the identity unit's 1292 files are only those two rules.**
+   Diffing the identity commit against its parent and replaying the substitutions proves it: every
+   line of those 1095 files is `package:Kelivo/` → `package:Cuplivo/`, `com.psyche.kelivo` →
+   `com.cuplivo.cuplivo`, or a path move. That is what makes a conflicted identity file resolvable by
+   construction — `rename(upstream's new content)` — instead of by hand, and it is the check to run
+   first on any identity conflict: if `rename(base) == identity` for that file, take `rename(theirs)`.
+
+   **This is not a one-off: the sweep belongs to every replay, not only the one that builds the
+   identity commit.** The `199647a5d` replay reused the existing identity commit, and the base had
+   meanwhile grown files that did not exist at `e15df5485` — four new `.dart` tests importing
+   `package:Kelivo/…`, which no conflict will ever hand you because the identity unit's patch never
+   mentions them. Treat the sweep as "files added by the *incoming* range", whatever the replay
+   shape: `git grep 'package:Kelivo/'` after unit 1 is the check, `dart analyze` is what finds them
+   when you forget, and they are invisible in `git status` because nothing was ever in conflict.
+4. **Only sweep tokens upstream's new code *introduced*.** The tree is fully swept at the old tip, so
+   the exact work is the set difference: for every file upstream touched, compare its brand-matching
+   lines at the old tip against the current tree and take what is new. Classify every survivor against
+   the whitelist (`kelivo://workspace|chat|session|skills|tmp|mounts`, `kelivo-file://`,
+   `KelivoOpenURL`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`, `KelivoPtyJni`, `kelivo_*` tool
+   ids, `kelivo.db`, `kelivo_backups`, `kelivo-snapshot-<ms>.zip`, `kelivo.restore-*`, `.kelivo_restore`,
+   `kelivo.psycheas.top` / `search.psycheas.top`, `afdian.com/a/kelivo`, `KELIVO_PERF_SCENE`,
+   `PackageInfo` mock `appName:`/`packageName:` values, temp-dir prefixes, and the intentional
+   `Chevey339/kelivo` attribution in README / CONTEXT / `.github`). On this re-base that reduced 65
+   surviving brand lines in 10 files to 9 files' worth of import fixes.
+
+   The whitelist is only a policy until something greps for it, and the sweep is what breaks it: a
+   blind `Kelivo` → `Cuplivo` pass over the identity unit's file list rewrote the persisted snapshot
+   prefix in `test/shared/widgets/restore_failure_screen_test.dart` to `cuplivo-snapshot-…`, which no
+   production code reads — `recovery_file_discovery.dart` matches
+   `^(?:kelivo-snapshot-|kelivo_backup_|cuplivo_backup_)` — so the archive silently stopped being
+   discovered and the failure surfaced two layers away as
+   "validation failed". After the sweep, grep the tree for every entry in this list, not for the brand
+   tokens; a name the app persists is exactly the case where a passing analyzer proves nothing.
+
+5. **A token grep misses the disguised forms.** `[Kk]elivo` inside a regex (`xdotool search --class`)
+   contains neither the literal `Kelivo` nor `kelivo`, so a rename pass and a leftover grep both walk
+   past it. Grep for bracketed and escaped spellings too, and re-check any file that *inspects*
+   identity rather than stating it.
+6. **Verify by gate, not by tree equality.** A pure-substitution self-test is invalid: the identity
+   unit also rewrote whole documents and carried gate fixes, so only ~75% of files can ever match a
+   substitution — and a *clean* merge can still carry upstream's branding. The useful signal is the
+   classification (branding-only vs semantic). Close every unit with
+   `dart analyze --fatal-infos lib test integration_test`, and run the unit's own tests before moving
+   on, because a semantic conflict (a restructured function that merged silently) is exactly what the
+   analyzer and those tests exist to catch.
+
+   Two caveats from `e15df5485`:
+   - **An intermediate unit is allowed not to compile, and the identity unit usually does not.** The
+     identity commit in this series carries later-unit content in the files it shares with upstream
+     (the replay of the previous re-base resolved those conflicts by taking the fork's whole file), so
+     its tree can reference a file that arrives in unit 4 — `restore_bundle_mover.dart` imports
+     `../sync/sync_store.dart`, and `update_provider.dart` imports `device_info_plus` before the unit
+     that adds the dependency. The gate belongs to the tip: run the analyzer per unit for *its* own
+     damage, and do not spend a round making a unit compile that the series never did.
+   - **`dart analyze` is also the migration test for our own absorbed content.** On this replay it
+     found exactly two tests left speaking an API upstream had reshaped, and nothing else.
+7. **Ask whether upstream already made this change before replaying the unit.** A unit can be fully
+   absorbed: the `await` gate fix touched three files, and upstream's 9 commits had fixed all four
+   sites themselves — two of them byte-identically. Compare your delta against upstream's before
+   resolving anything; when upstream absorbed the unit, **discard it** rather than re-applying it.
+   Keep only a genuinely *additional* fix, and only if it is also the better one.
+8. **Two implementations of one defect: take upstream's and delete ours.** Our identity unit carried a
+   61-line `http_header_map.dart` plus its test to make OAuth header replacement case-insensitive;
+   upstream fixed the same defect inline in the same commit series. Keeping both leaves two mechanisms
+   for one behaviour. Delete the helper, its test and every call site — and before deleting, prove the
+   surviving call sites are real: the helper's stated premise was a `LinkedHashMap` crash that a
+   three-case probe could not reproduce against the pinned SDK.
+
+   The `e15df5485` replay hit the same shape in the export: our PDF unit had grown its own
+   `export_progress_overlay.dart` (one caller, no progress state) while upstream had meanwhile built
+   `_runWithExportingOverlay(context, (progress) …)`, `_ExportedImageResult` and a progress widget in
+   the same file. The resolution kept upstream's machinery, switched the PDF path to it, reported the
+   one stage the PDF owns (`saving`), and deleted the overlay file. The tell is a conflict whose two
+   sides are *the same idea with different names*; the test is whether the surviving side can absorb
+   the delta, not which side is newer.
+9. **Upstream can retire a mechanism your side's context still carries.** A conflict hands you the
+   *old* symbols along with your own additions: our sync unit's hunk still contained
+   `idleCacheBackfillSlotLimit` and `_scheduleIdleCacheBackfill`, which upstream had removed outright
+   in favour of windowed loading. Resolve by taking upstream's structure and keeping only your genuine
+   delta, then grep the whole tree for the retired symbols to prove nothing dangles.
+10. **The reformat commit is re-derived, never replayed.** Upstream reformats its own tree, so a
+    replayed formatter pass conflicts with the reformat it now sits on. Drop it and run the formatter
+    again on the rebased tree: conflict-free by construction, and the resulting commit touches only
+    files Cuplivo itself changes. This is also why the identity unit does *not* carry the gate-clearing
+    reformat. **It must also be the series tip:** on the 4.3.0 line it sat ten commits below the tip, so
+    the `~1` cut would have dropped the care `#1008` fix instead of the reformat. Normalize the series so
+    the reformat is last, or name it explicitly in a `rebase -i` todo.
+
+    **The pass covers `dependencies/markstream` too, and this is the gate that finds it.** CI's format
+    step names the Dart files a change touched, and on a rewrite that set is the whole re-base —
+    including the vendored package. `e15df5485` brings a markstream laid out for an older Dart, so the
+    first run on the rewritten `master` was red on 25 files there (7 `lib/src`, 18 `test/`) while the
+    root tree was already clean; the fix is the same `dart format` over
+    `dependencies/markstream/{lib,test}`, and it is style-only. Run the formatter over all five paths
+    before pushing and the format step has nothing to say. Note that a `flutter pub get` inside that
+    package rewrites its `analysis_options.yaml` with platform excludes — restore that file first, it
+    is upstream's.
+11. **Never hand-resolve a conflict block without reading what sits outside the markers.** Removing
+    the `<<<<<<<`/`=======`/`>>>>>>>` lines by hand silently drops the lines the conflict *didn't*
+    cover: upstream's `result.headers.addAll(authHeaders)` lived between two conflict blocks and would
+    have vanished. When your side's delta on a file was only the conflicting hunk,
+    `git checkout HEAD -- <file>` is exact and safe — verify that by reading your unit's full diff for
+    that file first. Afterwards, re-read the whole function rather than just the resolved region.
+12. **`git checkout --ours` during a cherry-pick means the branch you are on**, i.e. upstream's side —
+    not "our fork". Resolving the identity unit that way is how our own Windows portability fixes were
+    briefly lost and had to be re-applied by hand. Say "ours = upstream" out loud before using it.
+13. **Fold a follow-up into its unit only when the overlap is free.** Compare the follow-up's file set
+    with every commit between it and its unit: intersections that are only the changelogs, `lib/l10n/`
+    and a one-line registration site (`main.dart`) fold cleanly — the ARB files are regenerated anyway
+    and the changelog merges as a union. When the follow-up edits a file the intervening units own
+    semantically, it stays its own unit: the care `#1008` fix edits the composer's
+    `home_page_controller.dart` and `chat_message_widget.dart`, so folding it up would re-resolve the
+    crop, focus, markdown and link units for no gain. On the 4.3 series this folded the two sync
+    follow-ups and kept `#1008` separate.
+14. **A file with no conflict marker can still be wrong.** Git merges by hunk, so a commit that adds a
+    *new* line naming the other product lands silently: `639b60a51` added
+    `bash tool/macos_sign_and_notarize.sh sign-app "…/Release/kelivo.app"` and a `Kelivo_macos_*.dmg`
+    notarize step to the four macOS build jobs, our `release.yml` is the rename of one of them, and
+    the merge reported "Auto-merging .github/workflows/release.yml" with the paths still upstream's —
+    in a job whose every other line says `cuplivo.app`. The re-base is not done when the conflicts are
+    resolved; it is done when grepping for the other product's *identifiers* comes back clean:
+    `package:Kelivo/`, `kelivo.app`, `Kelivo_macos_`, and any path or bundle id a build produces. An
+    inconsistent file — one app name among several — is a conflict git failed to report.
+15. **A note that describes upstream's distribution is deleted, not swept.** `docs/homebrew/kelivo.rb`
+    arrived with the notarization commit as a cask draft for `Chevey339/kelivo`'s own releases. Swept
+    by the rename rules it would claim `com.cuplivo.cuplivo` as Kelivo's zap path; unswept it
+    advertises a cask this fork does not submit, and `docs/macos-signing.md` walked a reader through
+    filing it. Both went, and the signing doc's verification commands now name our artifacts. The
+    "docs stay verbatim" rule below covers notes that *record* upstream (CONTEXT.md, the ADRs,
+    measurement logs); it does not cover a procedure our own workflow executes.
+16. **The CI image is a platform, and a first run can be the first time it is exercised.** The
+    `199647a5d` replay's `pr-check.yml` run was the first one to get past `dart analyze` since the
+    baseline's browser and golden tests were added, and it reported 13 ubuntu-only failures: five
+    browser cases that mount a page on a platform where `BrowserService` has no engine
+    (`browser_platform_unsupported`), and eight `markdown_backdrop` goldens whose PNGs were generated
+    on a machine whose font stack differs from the runner (1.4–2.2 % here, 0.67–2.07 % on Windows).
+    Neither is a fork regression, and neither had ever been observed. The repair is one rule each:
+    a test that mounts a platform service asks that service's platform predicate and skips, and a
+    pixel fixture is **generated on the image that will compare it** — a one-off
+    `workflow_dispatch` job running `flutter test --update-goldens`, its artifact downloaded and
+    committed, the workflow then deleted. A fixture that fails on every platform is not a platform
+    failure to register; it is a fixture that was never generated where it runs.
+
+17. **Every re-base re-verifies that a backup still goes *back* into Kelivo, because no gate here
+    reads our data with an older build's vocabulary.** Every restore test in this tree is Cuplivo
+    reading Cuplivo, so a field the fork adds round-trips perfectly and breaks only once the archive
+    reaches Kelivo. The group-chat unit (`5136e617b`, `#1052`) is the case this rule exists for: it
+    added `BusinessEntityKind.groupChat` (`sourceKey: 'group_chats_v1'`), and
+    `exportSnapshotWithRowIds` writes a key for *every* kind, so every backup since carries
+    `"group_chats_v1": []` in the manifest's `businessEntityRowIds` — the list is empty and does not
+    save it, because the key is what the older reader rejects. Kelivo v1.3.2 — and every release after
+    it — reads that archive as **its own**: the unit moved neither the archive format
+    (`_backupFormatVersion` 3) nor the schema (`AppDatabase.currentSchemaVersion` 5), so no
+    compatibility decision is raised and nothing is stripped. The restore then dies inside the
+    business step, in `BusinessSettingsRouter._rowIdsByKind`, whose first loop throws on a source key
+    it has no kind for — `FormatException('group_chats_v1')`, after every check that exists has
+    already passed.
+    `_stripUnknownManifestKeys` cannot help even in principle:
+    `businessEntityRowIds` is a *known* manifest key, so the whole map is carried through verbatim,
+    and nothing inspects a known key's *contents* for a vocabulary the reader does not have.
+
+    So the export's vocabulary is a reader contract, not private storage. Four surfaces carry it, and
+    they do not fail alike — which is why each addition is a decision recorded in its unit's message
+    rather than an assumption:
+    - an added `BusinessEntityKind` reaches both the manifest and `settings.json`, and an unknown
+      `sourceKey` is **fatal** (`_rowIdsByKind`, above) — this is the one shape that has actually
+      broken the reverse import;
+    - an added `BackupCategory` reaches `manifest['scope']`, and is tolerated, because a reader only
+      looks for its own categories;
+    - an added key inside `settings.json` is tolerated while its value is a `String`, `bool`, `num`
+      or `List<String>` (`BackupSettingsValidator.validateValue`) — and note that a value it *would*
+      reject fails the same archive in our own build too, so this axis is the one the gates do see;
+    - an added `conversation.extras` key is opaque to the reader (and a group conversation's null
+      `assistantId` is legal upstream), so it rides along as baggage, not as a break;
+    - an added **root key in the manifest** reaches a check unlike any of the above: the reader
+      stages a candidate and compares the root key set *exactly*, and its unknown-key trim only runs
+      for an archive that declares a newer build. A key outside `KelivoVocabulary.manifestRootKeys`
+      is therefore refused **after** the user consented. `skippedEntries` (upstream 1.3.6) is the
+      case that shipped; the writer may only add such a key to an archive this build reads back.
+
+    Per re-base, after the gates: `test/core/database/kelivo_vocabulary_test.dart` is the mechanical
+    check — it refuses a `BusinessEntityKind` that is neither in the pinned vocabulary nor in
+    `unreadableKindDispositions`, so a new kind cannot ship without someone writing down what a Kelivo
+    user loses. Pinning a *newer* Kelivo release is the other half: add a constant to
+    `lib/core/models/backup_target.dart` generated from that tag
+    (`git show <kelivo-tag>:lib/core/database/business_data.dart`,
+    `.../lib/core/models/backup_scope.dart` and `.../lib/core/database/app_database.dart` for the
+    schema) beside `v1_3_2` rather than editing it, and check the reader at that tag —
+    `_rowIdsByKind`, `BackupScope.fromJson` and `BackupSettingsValidator.validateValue` — before
+    trusting the pin. The target labels itself from the constant's `release`, so a moved pin moves
+    「Kelivo {version}+」 with it; the schema assertion in `kelivo_vocabulary_test.dart` is what turns
+    "the floor no longer opens what we write" into a red suite instead of a stale label. The
+    end-to-end proof is still a restore of a backup taken from the rebased tree into the last released
+    Kelivo build; no local test can stand in for it, and its tell is that `flutter test` is entirely
+    green while the archive is unusable. What to *do* about a new kind stays a decision of its own — a
+    narrower export for archives Kelivo may read ([ADR-0017](adr/0017-kelivo-reverse-import.md) is the
+    first one), a format-version bump that makes the refusal loud and early, or nothing because the
+    kind is tolerated — and this rule asks only that the re-base knows which one the tree currently
+    does.
+18. **A built-in removal the identity unit only *claims* is a standing gate, not one commit.**
+    `87f613717`'s message says the built-in `KelivoIN` provider lost its seeding, defaults, prefill,
+    migration and free token; the tree deleted the token and kept the seeding, and the next baseline
+    (`b1702b3a9`) re-seeded the provider because "restore the provider list" reads as routine
+    baseline repair. `79696e6f6` then turned the three `'kelivoin'` key comparisons back on,
+    reactivating upstream's whole behaviour on a host an earlier sweep had already made dead. The
+    lesson is not "delete it again": a claim in a commit message is carried by nothing, so the
+    removal has to live in a check that the next replay runs. `test/core/providers/kelivoin_removal_test.dart`
+    is that check — one case per reachable state (fresh install, upstream's retired free backend, the
+    dead host this fork wrote, a real config on upstream's own host, the v4.5.0 OpenAI shell), the
+    same standing role `test/core/database/kelivo_vocabulary_test.dart` has for the backup vocabulary
+    (rule 17). Two things it does **not** forbid: a persisted `KelivoIN` config reappearing as an
+    ordinary dynamic provider (that is the user's data, and it is editable and deletable), and the
+    provider list gaining upstream's newest built-ins — but re-adding `KelivoIN` to
+    `_builtInProviderKeysInOrder`, or restoring its seeding, defaults, prefill or UI special cases, is
+    the boundary coming back ([ADR-0018](adr/0018-remove-built-in-kelivoin.md)).
+
+## The CI rule
+
+`.github/workflows/release.yml` is the only build workflow. Upstream publishes one workflow per
+Flutter stable line (`build-stable-<minor>.yml`); we do not keep them all. Derive ours from the
+newest one at re-base time:
+
+1. Copy upstream's `build-stable-<minor>.yml` to `release.yml`.
+2. Rename the identity: `Kelivo` → `Cuplivo`, `kelivo` → `cuplivo` (this covers artifact names,
+   the macOS `.app`, the Windows `.exe` and installer, and the DEB/RPM package and desktop entries),
+   then set the Windows `MyAppPublisher`, the installer `AppId` (ours is
+   `B924949D-FD7C-4688-B812-4ED64BFAACDC` — it must not collide with upstream's) and the RPM
+   changelog author.
+3. Update `tool/build_appimage.sh` / `tool/test_appimage.sh` with the same two renames, then re-check
+   rule 5 against them: the AppImage window-class probe is where the disguised form lives.
+4. Bump `FLUTTER_VERSION` in `pr-check.yml` to the same version, and update AGENTS.md's
+   "currently <version> -> Dart <version>" wording.
+5. Delete the other build workflows. Do not re-add per-Flutter-version copies.
+
+A re-base that does not move the Flutter line has no CI work to do: on `e15df5485` upstream's
+workflow files were byte-identical to the ones the previous re-base derived `release.yml` from, so the
+right answer was to leave `.github/workflows/` untouched. Check that first (`git diff --stat
+<old-baseline> <new-baseline> -- .github/workflows/`) instead of re-deriving by habit.
+
+The carry itself is a union, not a checkout: `pubspec.yaml` takes upstream's file (its new
+dependencies, path overrides and the `shaders:` section) and re-applies the fork's deltas — `name:
+Cuplivo`, the fork's `version:` line, `device_info_plus`, `basic_utils`, `pdf` with the `archive`
+override, and the About-mark asset. Same shape for `.gitignore` (ours wins) and the two READMEs (ours,
+with the baseline fact re-read from upstream's tree).
+
+## Procedure
+
+```bash
+# a scratch branch, so master is untouched until the line is verified
+# (the series ends with the mechanical reformat — unit 18 — so ~1 drops exactly that; the release
+#  commits are not in the series — the content carry owns their content)
+git branch --force rebase/onto-<new-baseline> <old-master>~1
+git rebase --onto <new-baseline> <old-baseline> rebase/onto-<new-baseline>
+
+# per conflict, in order
+#   ask first whether upstream already did this (rule 7) and whether our side still needs it (rule 9)
+#   l10n        -> dict-level three-way merge, then `flutter gen-l10n` (rule 2)
+#   imports     -> upstream's list, Cuplivo-prefixed
+#   identity    -> mechanical files resolve as rename(theirs); the rest by a real 3-way merge
+#   the sweep   -> rename set over `--diff-filter=A` files, folded into unit 1 (rules 3-5)
+dart analyze --fatal-infos lib test integration_test
+
+# identity sweep, folded into unit 1
+git commit --fixup=<identity-sha> && git rebase -i --autosquash <new-baseline>
+#   a job has no terminal: set `git config --local core.editor true` first, or `rebase --continue`
+#   blocks in Vim forever
+
+# the mechanical reformat, re-derived last (rule 10)
+dart format lib test integration_test
+
+# gates, in this order
+flutter gen-l10n && git status --short -- lib/l10n      # must be empty
+dart analyze --fatal-infos lib test integration_test
+dart format --output=none --set-exit-if-changed lib test integration_test
+flutter test                                            # only the registered known failures
+
+# the reverse direction, which none of the gates above can see (rule 17)
+flutter test test/core/database/kelivo_vocabulary_test.dart
+#   every added sourceKey/category is a Kelivo-side reader break until its disposition is decided,
+#   and the end-to-end proof is a restore of this tree's backup into the last released Kelivo build
+
+# land
+git branch -f master rebase/onto-<new-baseline>
+#   no tag, no version bump; the old tags stay on the backup branches
+```
+
+## What this line learned (keep — it is the point of the runbook)
+
+- **A unit that straddles two features cannot be reordered freely.** The crop unit edits files the
+  composer units also edit, so it replays after them. Splitting it to make the image series
+  contiguous costs more than it buys.
+- **A follow-up on a feature already in the series belongs in that feature's unit** — when the overlap
+  is free. Check it with rule 13 before deciding: on the 4.3 line the two sync follow-ups folded in and
+  the care `#1008` fix did not.
+- **Build tooling and release chores stay out of feature units**, or every cherry-pick drags them
+  along.
+- **Some units were authored against APIs that no longer exist.** The care unit asked for a global
+  `thinkingBudget` on `ChatApiService.generateMessage`; the new baseline retired that key in favour
+  of per-request `ReasoningRequest`. The fix is to port the unit's *intent* onto the new API (the
+  care flow now calls `selectReasoningRequest`, the same chain the file already documented for model
+  resolution) — not to reinstate the retired parameter or the retired preference key.
+- **A reused subsystem brings its *scheduling* half and its *reporting* half — on the platforms
+  that have one.** The care port took Kelivo's alarm plumbing and arrival notification but dropped
+  `PreparedScheduledTasks` (the in-app executor Kelivo's own iOS scheduler runs due work with) and
+  the exact-alarm state its task list reports — so care looked armed everywhere and delivered
+  nothing in the foreground on iOS. When a unit reuses an upstream subsystem, diff the whole
+  subsystem, not just the entry point it calls — and mirror only the halves upstream actually has
+  on that platform: Kelivo has no in-app executor on Android (`ScheduledTasksService.configureDevice`
+  returns early there), so care must not add one either
+  ([ADR-0006](adr/0006-proactive-care-trigger-contract.md)).
+- **Reusing an upstream channel means reusing its *identifiers*, its *replace-all semantics*, and
+  its *timing*.** `ScheduledTaskNotifications` prefixes `scheduled-task:` in both `schedule` and
+  `cancel`, so callers pass the bare id (`IosProactiveCareScheduler.notificationIdFor`) and
+  `rescheduleAll` must explicitly cancel conversations that dropped out of the pending set; and the
+  catch-up on a notification-tap cold start must run again at the end of `initChat` because
+  `resumed` precedes the conversation cache load. Both mistakes are invisible from a single call
+  site — read the adapter, check replace-all symmetry across platforms, and check when the
+  lifecycle event actually fires. ADR-0006 decisions 11-15 pin them down, and because no workflow
+  compiles `android/app/src/test/` at all, when a unit touches `scheduled/` or `ios/Runner/`, build
+  it and run its Kotlin tests deliberately rather than trusting the PR gates.
+- **Registering a test failure as "known" needs a control run.** Nine Windows failures looked like
+  our regression; running the same files in a clean worktree at upstream's own tip reproduced them
+  (ten, in fact). Only after that is a failure honestly "upstream's, on this platform".
+- **Adopting an upstream correction is not the same as taking upstream's file.** Upstream moved the
+  macOS deployment target from 11.0 to 12.0 and bumped its Flutter requirement; our README carries the
+  fork's own download table, so "take ours" would have kept a now-false system requirement. Resolve
+  the table from ours and the *facts* from upstream — the deployment target is verifiable in
+  `macos/Podfile` and the `MACOSX_DEPLOYMENT_TARGET` settings.
+- **Git writes inside the DSH sandbox fail for an environment reason, not a repository one.** The
+  confined subprocess runs at *low* mandatory integrity level while `.git` and other pre-existing
+  directories are unlabelled (medium), and Windows refuses that write regardless of the DACL — the
+  directory can grant the caller `FullControl` and the write still fails. Escalate git writes (or use
+  the bridge for `flutter`/`dart`) instead of repairing permissions; see AGENTS.md.
+
+  On the `e15df5485` re-base the deviation was per *object*, not per command: the workspace root and
+  anything created under it carried `Low Mandatory Level:(OI)(CI)(NW)`, but the 7711 files and 2330
+  directories checked out before DSH provisioned the workspace still carried no label — so the
+  sandbox could create a file in `.scratch/` and not overwrite a file git had written in `lib/`, with
+  `permission denied` and a DACL that grants everything. Labelling the tree once (the same Low label
+  with inheritance the root already carries, applied to files and directories, `.git`/`build`/
+  `.dart_tool` left alone) turned every later write into an ordinary one. `icacls` cannot set it from
+  inside the sandbox — do the relabel from a normal shell, once, before the replay.
+- **Normalize the series before the re-base, and prove the pass by tree equality.** The 4.3.0 line
+  needed one: fold the sync follow-ups into their unit, keep `#1008` separate, absorb the two release
+  commits into the content carry, and move the reformat to the tip. The proof that the pass lost nothing
+  is `git diff --quiet <old-master> reorg/series-<line>` at the series tip (the runbook rewrite aside):
+  the series reproduces the old tip's tree byte for byte. Fold *there* rather than inside the replay —
+  while the old tree is still the reference a hunk lost to a bad resolution shows up at once, and once
+  upstream's changes are mixed in it cannot. The 4.3 pass cost three conflicts (`CHANGELOG*.md` ×2, the
+  runbook's modify/delete) and produced a 16-commit series from a 20-commit line.
+- **A conflict's incoming side carries context that is not its intent.** The sync fold's `CHANGELOG.md`
+  conflict offered the whole 4.2.0 / 4.1.0 / 4.0.1 sections as "theirs", while the commit's actual
+  intent was one `### Fixed` entry under `## [Unreleased]`. Taking "theirs" wholesale would have
+  replayed three releases' worth of changelog inside a sync fix — rule 11, applied to a fold. Read the
+  hunk, then keep only what the commit was about.
+- **Materialize whole-file boundary commits from the target tree instead of replaying their patches.**
+  The content carry and the reformat are whole-file operations: `git checkout <old-master> -- <paths>`
+  plus `git rm` for the paths `<old-master>` no longer has makes them conflict-free by construction, and
+  it is what lets the tree-equality check above be exact. Their patches are never applied, so a
+  formatting-only conflict cannot invent one.
+- **Never resolve a conflicted file by taking one side wholesale.** `git checkout --theirs -- <file>` on
+  a conflict is not "take the incoming hunk": it restores the *old baseline's* whole file plus the unit,
+  so on the 4.4 replay it silently rewound 239 lines of newer upstream code in
+  `home_page_controller.dart` (twelve tests died at once) and dropped the keys Git had auto-merged into
+  the ARBs. Resolve by hunk — or, when the two sides' changes are disjoint, re-derive the file with a
+  real three-way merge (`git merge-file -p --diff3 ours base theirs`) rather than picking a side.
+- **A conflict preview is free.** `git merge-tree <base> <ours> <theirs>` prints the merge and its
+  conflict markers without touching the working tree or the index, so the plan can name the conflicting
+  files before anything is mutated. Its `changed in both` list is the *surface*, not the verdict: on 4.4
+  it named twelve files and the cherry-pick actually conflicted on four.
+- **A re-base never carries a patch to a package we consume.** The 4.4 line's hand-cursor fix (#1014)
+  needed two changes inside `dependencies/markstream`, and the vendored patch was written and reverted
+  on purpose: a local patch is the first thing the next re-base drops, and it makes the package's own
+  gate measure a tree nobody else has. File it upstream
+  ([Chevey339/kelivo#1269](https://github.com/Chevey339/kelivo/issues/1269)), record the gap in
+  `docs/markstream-delta-audit.md`, and leave the mechanism alone.
+- **A vendored package's gate needs a working directory, and `flutter test -C` does not exist.**
+  `flutter pub get -C dependencies/markstream` works; `analyze`/`test` need the caller to *be* there. In
+  the DSH sandbox that means a one-off `package.json` whose script `cd`s into the package and runs the
+  three commands, deleted afterwards — and `flutter pub get` rewrites
+  `dependencies/markstream/analysis_options.yaml`, so restore that file before the format gate.
+
+## Verification of the `e15df5485` replay
+
+Measured on Windows on 2026-10-23, in the order the gates were run. The point of the table is that
+the next replay can compare against numbers instead of an impression.
+
+| gate | result |
+| --- | --- |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found |
+| `flutter gen-l10n` | idempotent — `git status --short -- lib/l10n` empty |
+| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | 0 changed of 2216 files — `lib`, `test`, `integration_test`, `dependencies/markstream/{lib,test}` |
+| `flutter test` | **10005 passed, 62 skipped, 8 failed** — all eight the registered Windows golden cases |
+| `dependencies/markstream`: `pub get`, `dart analyze --fatal-infos`, `flutter test` | No issues found; **296 passed** |
+| `gradlew :app:testDebugUnitTest --tests '*BrowserWebViewHostTest*'` | BUILD SUCCESSFUL |
+| `flutter build windows --debug` | `√ Built build\windows\x64\runner\Debug\cuplivo.exe` (778 s) |
+| `gh workflow run release.yml -f publish_release=false` | run `40056162793`: macOS / Windows / Android / iOS / Linux **5/5 success** (the release-body job is skipped, by design) |
+| `pr-check.yml` on the rewritten `master` | green — analyze, both packages' tests, l10n and the format step on `ubuntu-latest`, which is the only place the POSIX path assumptions are exercised in the direction this machine cannot |
+
+The series itself: 15 replay units, the `docs(agents)` commit, and four tail commits — `fix(tests)`
+×2, `fix(l10n)`, `feat(sync)` — which is 20 commits on top of `e15df5485`;
+`git merge-base --is-ancestor e15df5485 HEAD` holds, no tag points at the tip, and `pubspec.yaml`
+still says `4.3.0+6`.
+
+## Verification of the `199647a5d` replay
+
+Measured on Windows on 2026-10-24, in the same order as the table above, against the **committed**
+lock (`flutter pub get --enforce-lockfile`) — which is what CI resolves too, so this table and the CI
+run finally describe the same dependency set.
+
+| gate | result |
+| --- | --- |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found — after dropping three `!` that became redundant when upstream made `AppTextSelectionToolbar.buttonItems` non-nullable |
+| `flutter gen-l10n` | idempotent — `git status --short -- lib/l10n` empty |
+| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | 0 changed of **2224** files |
+| `flutter test` | first run **10063 passed, 65 skipped, 9 failed**; after the `_waitUntil` deadline repair, **10064 passed, 65 skipped, 8 failed** — the eight registered golden cases and nothing else (against the baselines as they were; they have since been regenerated on ubuntu-24.04, so this machine now reports 0.67–2.07 % instead of 0.70–2.07 %, rule 16) |
+| `dependencies/markstream`: `pub get --enforce-lockfile`, `dart analyze --fatal-infos`, `flutter test` | No issues found; **296 passed** |
+| `gradlew -p android :app:testDebugUnitTest --tests '*BrowserWebViewHostTest*'` | BUILD SUCCESSFUL (119 s) |
+| `flutter build windows --debug` | `√ Built build\windows\x64\runner\Debug\cuplivo.exe` (706 s) |
+| `gh workflow run release.yml -f publish_release=false` | run `40075370914`: macOS / Windows / Android / iOS / Linux **5/5 success** (the release-body job is skipped, by design). The macOS job also ran the new Developer-ID sign and notarize steps, which no-op cleanly with no secrets configured |
+| `pr-check.yml` on the rewritten `master` | three runs, and the story is rule 16: `40075337329` red on 13 ubuntu-only tests (5 browser cases with no engine there, 8 goldens generated elsewhere); `40078790202` after the browser guards — **10111 passed, 8 failed, 18 skipped**; `40079570731` at the tip `724affebc` — **green on every step**, the last two read against the CI image's own baselines |
+
+The series is 14 replayed content units and four landing commits on top of `199647a5d` (§ *The
+landing is 18 commits*); `git rev-list --count 199647a5d..master` prints the live total — it moves
+with every follow-up commit, so this paragraph deliberately does not name it.
+`git merge-base --is-ancestor 199647a5d HEAD` holds, no tag points at the tip, and `pubspec.yaml`
+still says `4.3.0+6`.
+
+Two failures on this replay belonged to the machine, not the tree, and neither changed a line:
+`:mobile_scanner:compileDebugKotlin` died on a corrupted Kotlin incremental cache in the pub cache
+(re-running that one task cleared it, with an `org.jetbrains.kotlin.incremental.storage` stack trace in
+the log as the tell), and the first Windows link failed because `build/windows` still held objects
+from the previous `record` version — deleting that directory was the fix.
+
+### The landing is 18 commits
+The replay closed at 35 commits: 14 replayed content units, then 21 tails written while the gates were
+being cleared. Those 21 became four landing commits, so the next re-base replays 18 — and the pass is
+proved by the tip tree, not by inspection:
+
+| # | Landing commit | Folded in |
+| --- | --- | --- |
+| 15 | `fix: the new baseline's suite, fixtures and preference keys` | `0bb6bc952`, `6f4252bf5`, `8407fbc88`, `e4b111e31`, `71b0afa17`, `724affebc`'s fixtures and its one-off `regen-goldens.yml`, `379fd2b35` (`fix(l10n)`), `5efd382ff` (`feat(sync)`) |
+| 16 | `chore(deps): the lock and the release wiring the gates run against` | `00d9c4580`, `f75363461`'s `.gitignore` line, `515e807e2` |
+| 17 | `docs(rebase): the invariants and the 199647a5d record` | `2eda72787` (`docs(agents)`), `76993e753`, `956bec9fe`, `81271f940`, `e362f75bf`, `779452761`, `78436c40b`, `ea19c6cc1`, plus the document hunks of `f75363461` and `724affebc` |
+| 18 | `style: reformat the files the pinned SDK lays out differently` | `41288ec37`, `7eb2cc808` |
+
+Why those four and not fewer: the landing content cannot fold back into the unit that owns it — the
+repairs touch test files units 3-14 own, so folding them into unit 2 would mean replaying the whole
+series again — and the reformat must stay droppable (rule 10), so it is one commit of its own. Two
+landing commits are the floor after that (the repairs and the record, which is what a 16-commit series
+would look like); four is what keeps each concern reviewable. Sixteen is the floor overall: below it
+the reformat would have to share a commit with a content unit and could no longer be re-derived.
+
+The mechanism is one `git restore --source=<old-tip> --staged --worktree -- <paths>` per landing
+commit, on top of the last unit. Each path belongs to exactly one of them, so materializing the tip's
+content for it is exact — no patch is applied, so a formatting-only conflict cannot invent one. The
+partition is 29 paths in 15, 5 in 16, 7 in 17 and 36 in 18 out of the 77 the tails changed; the only
+deletion (`docs/homebrew/kelivo.rb`) goes through `git rm`, because `git restore` does not delete.
+
+Prove it in this order — tree first, ancestry and count after, per the rule above:
+`git diff --quiet <old-tip> <new-tip>`; `git diff --stat 6052bf812 <new-tip>` unchanged; then
+`git merge-base --is-ancestor 199647a5d <new-tip>` and
+`git rev-list --count 199647a5d..<new-tip>` = 18. The 14 units keep their hashes — nothing before
+`6052bf812` moves — so a unit's message and tree are still the ones the table describes.
+
+The landing changed no code: the only edits were these documents, so the green `pr-check` on the
+pre-normalization tip stays valid evidence for the tree, and the push re-runs it on the new one.
+
+### The baseline commits its lockfiles; a fork with extra packages seeds them
+`199647a5d` commits `pubspec.lock` and `dependencies/markstream/pubspec.lock`, un-ignores both, and
+switches `pr-check.yml` to `flutter pub get --enforce-lockfile`. That retires the whole class of failure
+the `e15df5485` replay hit, where CI resolved a fresh dependency set on every run while a long-lived
+worktree kept whatever lock it last wrote — the same tree, the same SDK, a different resolution:
+
+1. **`drift 2.35.3` deprecates a member the committed schema emits.** `app_database.g.dart` was
+   generated by `drift_dev 2.34.5` and calls `$_getPrefetchedData`; the 2.35 runtime deprecates it, so
+   `dart analyze --fatal-infos` reported **7 infos in that one generated file** — red on CI, green
+   locally. Regenerating with `drift_dev` 2.35 silences it, but the generated code then speaks the
+   newer runtime, which is why that replay capped the dependency instead.
+2. **`sqlite3 3.8.0` breaks the recycle bin.** A conversation delete stops staging its `RecycleEntry`
+   rows: 13 cases across `recycle_conversation_test`, `recycle_cascade_test` and `recycle_draft_test`
+   failed with an empty entry list, and two sync sessions re-deleted a conversation that was restored.
+   Bisected: 3.5.1, 3.5.2, 3.7.0 and 3.7.1 pass, 3.8.0 fails deterministically — and it reproduced
+   with the previous generated schema and `drift 2.34.4`, so the code generator was not implicated.
+
+That replay left two ceilings in `pubspec.yaml`, each with its measurement in a comment. The next
+baseline made them unnecessary: its lock pins `drift 2.35.3`, `drift_dev 2.35.2`, `sqlite3 3.5.2` and
+`archive 4.5.2`, and its `app_database.g.dart` *is* drift_dev 2.35 output — so the `199647a5d` replay
+deleted both ceilings while resolving the very commit that had added them. The measurement survives
+here; the constraint does not need to.
+
+**The rule for a fork:** it cannot inherit upstream's lock verbatim, because it adds packages upstream
+does not have (`pdf`, `basic_utils`, `device_info_plus` here). Seed, then re-resolve once: the lock
+arrives with the baseline, a single `flutter pub get` keeps every version it can still satisfy (all
+four above stayed put) and adds only the fork's own packages, and that result is committed. Prove it
+with `flutter pub get --enforce-lockfile` — exactly what CI runs — and put that command in the gate
+list beside `dart analyze`. From then on a dependency bump is a commit that changes the lock, so a
+regression like `sqlite3 3.8.0` cannot arrive without one.
+
+Two things to know if you do regenerate the schema with `build_runner`:
+
+- **It prunes `chat_message.g.dart` and `conversation.g.dart`.** Both are `part` files
+  `chat_message.dart` / `conversation.dart` declare, and the current builder no longer emits them;
+  `conversation.dart` says in a comment that its part file is *intentionally* stale. Restore both from
+  git — deleting them breaks the compile.
+- **Regenerate before the reformat, not after.** `drift_dev` writes its own formatting; the pinned
+  `dart format` is what decides whether the committed file passes CI's format step, so check the
+  regenerated file with it (`0 changed` here).
+
+## Verification of the `b1702b3a9` replay
+
+`master` at `d28bc1cbb` was an 18-commit series on `199647a5d`: 14 content units and four landing
+commits, the last of which was the mechanical reformat. This pass replayed the 14 units and the three
+landing commits that are not the reformat, added eight of its own — the repository rebuild, the
+untrack, the identity finish, the rename of the newest baseline's Windows data-directory tests, the
+line-ending restore, the repair of the thirteen cases that baseline's own Windows-only run left
+failing, the record, and the re-derived reformat (rule 10). The shape is therefore fourteen units and
+eleven landing commits on the newest baseline, and `git rev-list --count b1702b3a9..HEAD`
+prints the live total. It moves with every follow-up commit, so this paragraph deliberately does not
+name it.
+
+**The target moved four times while the gates were running, and the move is cheap on purpose.**
+`a02ee457a` was the first tip; `3924a5d0e` replaced it when upstream advanced again; `4671dbe48`
+replaced that for a reason worth recording. `ccd0815e9` — one of the six commits in
+`3924a5d0e..4671dbe48` — deletes `test/goldens/` outright: nine golden test files and every PNG
+baseline. Until then the pass was carrying 259 `kind: "platform"` registrations for those cases, each
+one a Windows-versus-CI-image pixel difference. A registration names a test that must still exist, and
+the registry would have gone on answering a question upstream had just stopped asking. Retargeting was
+one `git rebase --onto`, and the registry lost 252 entries in the same edit (320 -> 68, then 70 with
+the two additions below); `docs/flaky-tests.md` §14 carries that record. The last hop, `b1702b3a9`,
+brought four commits: a Windows custom-data-directory feature with its own settings tile and two
+hundred lines of tests, an iOS blur replacement that deletes the legacy glass harness, an iOS Live
+Activity build-version sync, and upstream's own `1.3.2+81` bump — which the repair landing commit
+overwrites with the fork's `4.3.0+6`.
+
+**The conflict surface is computable before the rebase runs.** 14 of the 40 files in
+`4671dbe48..b1702b3a9` are also touched by our series; a `git diff --name-only` over both ranges and
+an intersection names them in one command. Ten of those fourteen stopped the replay, and the other
+four auto-merged (`lib/main.dart`, `lib/utils/app_directories.dart`, and two tests).
+
+| file | why it conflicts | resolution |
+|---|---|---|
+| `ios/Runner.xcodeproj/project.pbxproj` | upstream moved the Live Activity extension to `MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)"`; ours carries the renamed bundle ids | upstream's version line, our `com.cuplivo.cuplivo.GenerationActivityExtension`, three times |
+| `lib/features/settings/pages/storage_space_page.dart` | the recycle unit rewrote the page wholesale while upstream adds one tile to it — a whole-file conflict with a one-line delta | the unit's page, then upstream's import and its `if (PlatformUtils.isWindows)` row re-applied by hand |
+| `lib/l10n/app_en.arb`, `app_zh.arb`, `app_zh_Hans.arb`, `app_zh_Hant.arb` | 24 new keys for the data-directory dialog land at the position our renamed block occupies | dictionary three-way merge per key, then `flutter gen-l10n` (the generated files are re-derived, never merged) |
+| `lib/l10n/app_localizations*.dart` (3) | generated | `flutter gen-l10n` from the package root; re-running it on the merged ARBs is what proves the merge |
+| `test/features/home/widgets/chat_input_bar_attachment_cleanup_test.dart` | upstream imports `windows_data_directory.dart` into the same block the identity unit had renamed | the union of both import lists, branded |
+
+The two earlier hops had their own surfaces, and much of what follows was learned on them: 24
+conflicting paths between `a02ee457a` and `3924a5d0e` (upstream's tools-popover deletion, the
+`SandboxPathResolver` union, and the `home_page.dart` three-way merge), then 25 between `3924a5d0e`
+and `4671dbe48` (the tool-detail rewrite, seven l10n files, and the seventeen golden files upstream
+deletes).
+
+**Resolution rules that held up, extended by one:**
+
+- **When our side's only change to a conflicted file is the identity substitution, the resolution is
+  `rename(upstream)`.** The substitution is mechanical (rule 4's whitelist aside), so the merged
+  content is the new upstream text with the brand applied to it — never a side. The one path whose
+  fork change was nothing but that substitution (`tool_detail_text_section.dart`) resolved this way
+  in a single scripted step, and the marker scan afterwards is the only check that matters.
+- **A file the fork owns keeps the fork's content, and upstream's change to it is dropped with a
+  reason.** `.github/workflows/release.yml` is the only build workflow here; git reports the incoming
+  `build-stable-47.yml` change as a rename conflict against it, and the answer is the fork's file.
+- **An upstream deletion wins over a fork addition that only fed it.** `bd354c5f6` removed the
+  workspace section from the desktop tools popover; the fork's `Conversation? conversation` parameter
+  existed to feed that section, so it goes too — except that the *care* row needs the conversation,
+  which is why the parameter comes back and the workspace rows do not.
+- **Two sides adding a helper at the same place is a union, not a choice.** `dedupeKey` (upstream)
+  and `_nativeForIo` (ours) both landed at the end of `SandboxPathResolver`; keeping one dropped the
+  other and 12 analyzer errors named the victims.
+- **A whole-file conflict on a file both sides rewrote is not a side to pick.** Diff the halves and
+  merge hunk by hunk: 4 hunks in `message_generation_service.dart`, 3 in `storage_usage_service.dart`.
+- **A file upstream rewrote and the fork also rewrote deserves a real three-way merge**, not a side.
+  `home_page.dart` came back through `git merge-file` with upstream's tip, the fork tip and their
+  common ancestor.
+
+**Damage the replay left, and how it was repaired** (tail commits, not folded back into the units —
+each item is a fact about the merge, not about a feature):
+
+| symptom | cause | repair |
+|---|---|---|
+| 47 `package:Kelivo/` imports in 12 files, and 9 more in `chat_tool_summary_unicode_test.dart` | the identity sweep renames files *the units add*; files the new baseline adds never pass through it | rename `package:Kelivo/` to `package:Cuplivo/` across the tree, then `dart analyze` |
+| `backupPageIosSystemBackupNote` said "Kelivo's local data" in four ARBs | same shape, in the dictionary rather than in code | rename the value, `flutter gen-l10n`, and re-prove `git grep -c Kelivo -- lib/l10n` is empty |
+| `SandboxPathResolver.canonicalStorage` gone, 12 analyzer errors | the union above kept `dedupeKey` and `_nativeForIo` but the merge body was the *old* resolver | restore `canonicalStorage` from the fork tip |
+| `tools_popover.dart` did not compile (`widget.` in a `StatelessWidget`) | the care block was written for the stateful popover and upstream turned `_ToolsContent` stateless | take it as a field, and thread `conversation` from the entry point |
+| 48 generated files committed in unit 1 | `git add -A` in a rebase whose tree held `test/goldens/failures/` and vendored plugin build products from earlier runs | untrack both, extend `.gitignore`, and never `git add -A` without a marker and ignore check |
+| the browser workspace feature threw `FormatException: Use a relative workspace PNG path` on every platform (7 + 1 cases) | the identity sweep renamed `uri.scheme == 'kelivo'` to `'cuplivo'` in `browser_workspace_resources.dart` while the file's own producers kept the protected `kelivo://`. A half-renamed protocol is worse than an unrenamed one: the *feature* is dead, and only the upstream test suite said so | revert the four scheme comparisons to `kelivo`; keep the staging prefix, which is per-run. The branded pseudo-host looked per-run too and was kept — the next baseline showed why that is the wrong test (see the `4a7da9b6f` replay below) |
+| 14 `package:Kelivo/` imports in the newest baseline's four Windows data-directory test files | `b1702b3a9` adds the feature and its tests in one commit, so the files arrive after the sweep has run | rename them in a tail commit of their own, and re-run `dart analyze` |
+| 27 committed blobs carried CRLF where both the old fork and upstream hold LF | a resolution step wrote them through a Windows text path, which no gate reads | convert them back in one mechanical commit; `git diff --ignore-cr-at-eol` reduces `settings_provider.dart` from 6 885 deleted / 6 960 added to 27 / 102, and prints nothing for the staged set |
+| 13 deterministic failures in six files, none of them load | `b1702b3a9` moved `BrowserStore` onto `AppDirectories`, seeded a new provider (`KelivoIN`), made `cancelQueuedMessage` a `Future`, and shipped its data-directory tests from a run that only happens on POSIX | three path spellings joined per segment, `p.equals` in a durability double, a basename filter, one fake path provider, the provider list, one `await`, and a key found by its tail instead of by a spelling the fixture cannot reproduce |
+| `backup_encryption_test`'s cancellation case failed on teardown, not on its assertion | a cancelled derivation's isolate still holds the file for a moment, and Windows refuses to remove a directory that is still open (errno 32) | retry the temporary directory's removal, up to 20 attempts at 25 ms; the case then passes alone |
+| a tap on a notification or link whose conversation is not on this device was swallowed again | the fork's branch in `_openPendingNotificationConversation` (snackbar + dropping the stale anchor) was lost when the controller was merged against upstream's rewritten version | restore the branch from the fork tip; the fork's own switch suite is what caught it (1 case of 1237 lines) |
+
+**The one process rule worth repeating:** during a rebase, before every `git add`, scan the tree for a
+conflict marker. Twice in the two passes before this one, a resolution that reported "markers 0" for
+the file it had just written was followed by an `add -A` that staged a *different* conflicted file. On
+this pass the scan was the gate that let nine scripted resolutions land in one commit.
+
+### The gates
+
+Measured on Windows against the committed lock, in the order the runbook prescribes.
+
+| gate | result |
+| --- | --- |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found (466 s), after renaming the 14 `package:Kelivo/` imports the newest baseline's data-directory tests arrived with |
+| `flutter gen-l10n` | idempotent — `git status --short -- lib/l10n` empty after the merge that produced the ARBs |
+| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | 16 files changed, then `0 changed` of 2363 after the reformat commit — the same shape as unit 18 of the old series |
+| `flutter test` (the sync suite held aside, §15 of `docs/flaky-tests.md`) | **11248 passed, 70 skipped, 67 failed.** 65 are the registered platform set (63 `browser_native_engine_test`, `storage_image_usage_test`'s inline-code classification, `browser_page_card_test`'s teardown). The other two were not the baseline's: `backup_encryption_test`'s cancelled-derivation *teardown* (a Windows handle race, repaired with a bounded retry and green alone) and `search_request_logging_test` (green alone; the full run's load). All thirteen that `b1702b3a9` left failing are gone |
+| `dependencies/markstream`: `pub get --enforce-lockfile`, `dart analyze --fatal-infos`, `flutter test` | the lock resolves as committed; No issues found; 306 passed |
+| `flutter build windows --debug` | `\ Built build\windows\x64\runner\Debug\cuplivo.exe` (205 s) |
+| identity | `git grep -c Kelivo master -- lib/l10n` prints nothing; no `package:Kelivo` outside this document |
+| ancestry | `git merge-base --is-ancestor 4671dbe48 HEAD` holds; no tag points at the tip; `pubspec.yaml` says `4.3.0+6` at the replay tip, and the release commit after it moves to `4.4.0+7` |
+
+### The `4a7da9b6f` replay
+
+Twelve upstream commits, 78 files, +4 678 / −355; 42 units replayed; **six stops**, against a forecast
+of 25 (see §18 of `docs/flaky-tests.md` for why overlap rank over-predicts: the identity unit rewrites
+whole files, so upstream edits inside them are absorbed instead of conflicting). Three tail commits,
+none of them folded back:
+
+| commit | what it carries |
+|---|---|
+| `a29d043ac` | the incoming side's `package:Kelivo/` in six files, the stray `)` a split hunk left in the browser engine, and the protocol test restored to upstream's file plus the rename |
+| `5619d84aa` | the workspace pseudo-host back to `kelivo` (upstream's `isInternalHost` and its new test both require it), and the crypto vectors' 2-minute timeout |
+| `bce8b656f` | the MCP harness's teardown tolerating the client it outran — §4's oldest registry entry, repaired instead of registered |
+
+The gates on this tip:
+
+| gate | result |
+| --- | --- |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found (two runs: before and after the tail repairs) |
+| `flutter gen-l10n` | idempotent at the tip, and re-run *inside* the l10n-regen unit so that commit kept real content instead of becoming empty |
+| `dart format --output=none --set-exit-if-changed` (pinned Dart 3.13.0) | `0 changed` of 2 515 |
+| `:app:testDebugUnitTest` | BUILD SUCCESSFUL (6 m 2 s) |
+| `flutter test` | see the tail of `docs/flaky-tests.md` §18 — three runs, and the two that failed did so on the crypto vectors' timeout and the MCP teardown, both now repaired |
+| identity | `git grep -l 'package:Kelivo/'` matches only this document; `git grep -c Kelivo -- lib/l10n` prints nothing; `git grep cuplivo.invalid` prints nothing |
+| ancestry | `git merge-base --is-ancestor 4a7da9b6f HEAD` holds; 45 commits above the baseline (42 units + 3 repairs); `pubspec.yaml` still says `4.5.0+8` |
+
+**Two rules this replay adds.** A whole-file conflict block must not be resolved by prefixing "lines
+theirs has that ours lacks" — on `message_generation_protocol_test.dart` that put a statement above
+`import 'dart:convert'`, and only `dart analyze` said so. And a hunk boundary is not a semantic
+boundary: the identity hunk on the settings literal ended one argument before upstream's new block
+began, so "ours + theirs" kept a `)` that upstream's code no longer has.
+
+### The 4.6 line's normalization (34 → 20 units)
+
+The line that carried Cuplivo 4.6.0 into the `v1.3.5` replay was 34 commits above `4a7da9b6f`. It took
+two passes to become 20 units.
+
+**Pass 1 folds adjacent pairs into their upper commit** — `git reset --soft <lo>^` at the upper one, so
+the survivor's tree is the *upper* commit's tree byte for byte and no patch application can invent a
+conflict. The fold keeps every folded body under `folded from <sha>:`; those bodies are the evidence the
+next replay reads, and `git commit -C` would have dropped them.
+
+| folded | into |
+|---|---|
+| `2184720ca` the 4.5 landing | `b264ef05a` the line's fixes |
+| `8b9e15859` release 4.5.0, `237c9a097` the replayed baseline's repairs | `fbe7e11dc` the `4a7da9b6f` record |
+| `7e5e8fdb6` crop in preview | `28e800170` focus retention |
+| `4718e1d67` compression readout | `d8d0445e3` the reply's ADR-0012 hooks |
+| `ef0d5280f` KelivoIN removal | `27f1beeaf` its follow-ups |
+
+**Pass 2 reorders into feature families.** A later member of a family is folded *back* into the
+family's unit: cherry-pick its patch onto that unit, then `git reset --soft <unit>^` and commit, so the
+merged unit sits where the family starts and every unit between replays onto it. That replay is what
+makes this pass different from pass 1 — the earlier commits now apply to content that already contains
+the later ones — so each fold is closed by comparing the *tip tree* with `master`'s, not by reading the
+resolution.
+
+| family unit | members |
+|---|---|
+| image | #925/#946 compression editor, #992 crop + #1012 focus, #1067 viewer paging, #1070 view-image test |
+| sync | LAN sync, #1068 policy table |
+| care | care port, #1064 backgrounded letter |
+| group-chat | #1052 topics, #1092 owner switch (replaces #1069 group exit: the owner pipeline owns those hunks), #1072 phone composer |
+| markdown-image | #1075 render, #1077 per-tab input |
+
+The fold conflicts were 0-1 files each except sync's policy table (7) and the group-chat quick entries
+(5); the *replay* conflicts were the same few files, and the resolution that holds is "the later
+commit's content wins", because a family's later member already contains its earlier members' changes.
+Proved the usual way: `git diff --name-only master reorg/series-4.6` is empty outside `docs/`,
+`git merge-base --is-ancestor 4a7da9b6f reorg/series-4.6` holds, and the count is 21 = 20 units plus
+the record. Units 1 and 2 keep their hashes.
+
+**The one family member that would not fold, and why it is the instructive one.** #1081 (the composer's
+quick entries follow the roster) into the group-chat unit conflicted on five files; the mechanical
+resolution left `home_page.dart` carrying the `isGroup` block **twice** — no conflict marker anywhere,
+and only the tip-tree comparison said so. A reorder makes the same change arrive by two routes, and git
+auto-merges both. That is rule 14's class, one level up: the marker scan cannot catch it, so it stays
+its own unit until someone resolves it by hand.
+
+What pass 1 alone could not reach, measured before pass 2 was attempted: the care follow-up into care
+crosses 40 files, the two group-chat follow-ups 30 and 49, the sync policy table 39, and the
+markdown-image tab 10 — one of them semantic (`side_drawer.dart`, owned in between by the chat-owners
+and composer units). The reply *pair* (`d8d0445e3` add, `fbe7e11dc` retire) cannot fold across its
+ten-commit gap for the same reason; the retire instead rides in the 4.5 close-out.
+
+**Two consequences for the next replay.** The series tip is the `chore(release)` commit, not the
+mechanical reformat, so the procedure's `<old-master>~1` cut no longer drops exactly the reformat:
+name the release commit explicitly. And
+[ADR-0011](adr/0011-context-compression-readout.md) is withdrawn — Kelivo's own compaction rework
+deleted the pre-flight estimate surface (`compressUsage*` survive unreferenced,
+`estimateCompressionTokens` has no `lib/` caller, and the operations panel reports real `task.usage`),
+so the unit that carries the readout replays as a deletion.
+
+## Verification of the `cb95d6af0` replay
+
+Landed on `reorg/onto-v1.3.5`, 23 commits above `cb95d6af0`: the 22 units plus one
+`fix(rebase)` tail that carries the sweep and everything the suite found afterwards
+(see "why a tail" below). `git merge-base --is-ancestor cb95d6af0 HEAD` holds,
+`dart analyze --fatal-infos lib test integration_test` is clean, `dart format
+--output=none --set-exit-if-changed` names no file, and `flutter gen-l10n` is
+idempotent.
+
+### The conflict census
+
+Units 2, 3 and 6 applied clean, and units 5, 15 and 16 needed only the ARB
+regeneration. The rest:
+
+| unit | files | shape |
+| --- | --- | --- |
+| 1 identity | 74 | 50 `rename(base) == fork` (take `rename(upstream)`), 3 three-way merges in the fork namespace, 8 hand, 4 ARB dict merges, 3 generated, 6 add/delete shapes |
+| 4 sync | 5 | tray / main / exit-flush test (the fork's two-registry model), the `KeyPolicy` registry, `BackupPortability` |
+| 9 translate | 4 | upstream's `ValueNotifier` destination, the fork's settings-driven target |
+| 12 4.5 landing | 11 | the `cuplivo`->`kelivo` scheme revert (already resolved in unit 1), a stray `)`, ARBs |
+| 13 group-chat | 19 | the provider layer, the composer, `home_page`, ARBs |
+| 14 4.5.0 close-out | 21 | the withdrawn readout and reply, the recycle field, ARBs |
+| 18 KelivoIN | 3 | the built-in list, the provider page, the test |
+
+The whole series conflicted on fewer files than the forecast's 153 distinct paths
+predicted, and the reconciliation was finer-grained than a file count suggests: on
+`google_common.dart` the fork's entire delta was one line
+(`messages.lastIndexWhere` -> `lastUserIndex`) under a block upstream had
+rewritten, which is why every block was diffed against its base before choosing a
+side rather than picked whole.
+
+### The identity sweep is two tokens, not a brand rename
+
+Measured over the unit's 1711 comparable files: **1432** are explained exactly by
+`package:Kelivo/` -> `package:Cuplivo/`, `com.psyche.kelivo` ->
+`com.cuplivo.cuplivo` and the 76 path moves. The fork does *not* rename code
+identifiers: `git grep -i kelivo` still finds ~3400 lines at the tip
+(`KelivoLink`, `KelivoFileUri`, `KelivoISH*`, `KelivoApplication`, `kelivo://`,
+`kelivo.db`). The first attempt at this replay used a blanket brand rename and had
+to be abandoned with `git rebase --abort` after 56 files had been resolved that
+way; the measurement above replaced it.
+
+The sweep still has to run over the *incoming* range (rule 3): 85 files upstream
+added since `4a7da9b6f` kept `package:Kelivo/`. And the compatibility names must
+survive it — a first pass rewrote the known-bundle-id whitelist in
+`lib/utils/kelivo_file_uri.dart` and the legacy on-disk fixtures in the path
+tests. What must move is the Java package declaration and its process-test
+fixture; what must not is anything naming where data already lives.
+
+One ARB exception, recorded because the standing gate says `git grep -c Kelivo
+master -- lib/l10n/` prints **nothing**: at this tip it prints two keys.
+`backupPageTargetKelivo` ("Kelivo {version}+") and `backupPageTargetKelivoNote`
+("Imports into Kelivo, but group chats are lost") exist on the fork's old tip and
+on neither `4a7da9b6f` nor `cb95d6af0`, and they name the *other* application as a
+backup target. Renaming them would rename a third-party product, not this one, so
+the sweep leaves them. The gate's real subject is the brand rename of the fork's own
+strings; when the two disagree, this is what the difference is.
+
+### What the suite found, and the seven root causes
+
+119 failures on the first full run; seven causes, not 119 problems:
+
+1. **A preference key with no registry row** (16). Upstream added
+   `display_use_legacy_code_block_style_v1`, `environment_native_shell_path_v1`,
+   `ollama_model_metadata_v1` and `compress_new_conversation`; the fork's
+   `KeyPolicy` registry is fail-closed, so `BusinessPreferences.setMany` asserts.
+2. **Every timeline row rendered twice** (30). The group-chat resolution kept the
+   fork's `Row(...)` and upstream's `if (importedEntry != null) ... else Row(...)`
+   in the same `Column`. Rule 14's class, at file scale.
+3. **The recycle bin captured nothing** (10). `json_group_array`'s result reached
+   the outer `json_object` as TEXT on this SQLite build, so every subtree arrived
+   as one quoted string. `json(...)` around the subquery is correct on old and new
+   builds alike. Found by printing the captured JSON, not by reasoning about it.
+4. **One image on two users** (5). Unit 13 kept the fork's `lastHumanUserIndex` as
+   the attachment anchor; it skips a group *peer* but not a tail-lore `user` row.
+   Upstream's `lastUserInputIndex` asks the ownership marker and subsumes both.
+5. **POSIX-only assertions** (8). `backup_scope_test` compared a `p.join`ed
+   Windows path to a `/` literal, `browser_workspace_resources_test` asserted
+   `endsWith('/index.html')`, `model_avatar_test` `startsWith('...avatars/')`, and
+   the new `viewport_block_list_image_test` gave an HTML `<img>` a bare `C:/...`
+   src, which has no scheme and renders a placeholder. `p.equals` / `p.basename` /
+   `p.isWithin` / `Uri.file` respectively.
+6. **A dedupe that cut too much.** Removing a duplicated `case 'ru'` from
+   `languageDisplayName` also deleted the six cases between the two `ru` arms.
+7. **A budget that had a reason.** `workspace_prompt_test`'s 1200-character cap is
+   now 1300 because upstream's shell-invocation line costs 12 characters.
+
+### A captured reporter stream is not an inventory
+
+The first run that came back clean printed
+
+```
+12:41 +13330 ~79: All other tests passed!
+```
+
+and the next hour was spent disproving it, wrongly. De-duplicating the file paths
+in the bridge's copy of the log gave **489** test files against **1203** on disk,
+which looked like a 41% run. It was not: **`--reporter compact` redraws its
+progress line in place**, and the log the bridge keeps merges those redraws, so the
+set of file names in it is a sample of the stream, not an inventory of the run.
+
+The measurement that settles it, and the one to use instead:
+
+```bash
+flutter test test/features/browser --reporter json
+# then count the events, not the text
+grep -c '"type":"suite"'   # -> 34, and the directory holds exactly 34 files
+grep -c '"type":"testStart"'
+```
+
+The same directory under `--reporter compact` shows only 25 file names in its log.
+Two further symptoms had the same cause and dissolve with it: the 13,330 against
+12,952 in two clean runs is the 378 tests in the 30 top-level files the second
+invocation did not name, and every "file that never ran" — `request_consistency_test`,
+all of `test/core/models/`, `business_preferences_test` — runs and passes when named
+directly (50 tests, 1,028 tests, 64 tests).
+
+So the number to trust is the summary line's counter, and the number to distrust is
+any file list read back out of a captured compact stream. For coverage, ask the
+JSON reporter for `suite` events.
+
+### The one product decision this re-base needed
+
+The desktop reasoning popover lost upstream's `#1367` response-speed control: the
+fork's `bf48a5ab9 fix(reasoning): restore the original reasoning picker look`
+replaced the picker *body*, and the speed control lived inside it. Decided with the
+two UIs side by side: **upstream's picker wins**. The popover is upstream's
+route-based 260-wide panel hosting `ReasoningLevelPicker`, the group popover
+(`#1081`) hosts the same picker for the selected member, and the fork's tile test
+gives way to upstream's slider one. Note that upstream's own
+`response_speed_picker_test` needed its desktop call site to pass `conversationId`
+-- without it `speedVisible` is false and the control the test taps cannot exist.
+
+### Why the replay ends with a tail commit
+
+The sweep belongs in the identity unit (rule 3) and the residue in the units that
+produced it, but folding either here means replaying all 22 patches over a changed
+unit-1 tree — re-opening every hand resolution, including the 19-conflict
+group-chat unit. The tail carries its evidence in the message instead, which is
+what this runbook asks of a closed replay.
+
+### What is deliberately left open
+
+- **`release.yml` was not re-derived from upstream's `build-stable-47.yml`.**
+  `FLUTTER_VERSION` already matches (3.47.6), and upstream's workflow now builds
+  an Impeller/Skia matrix and injects a siliconflow fallback key — both upstream
+  product decisions this fork has not taken. The CI rule expects a re-derivation;
+  this replay records the deviation instead of adopting the matrix silently.
+- **`desiredFileName.txt` lists ~1153 untranslated strings**: the fork's keys have
+  no `ko`/`ru`/`tr` translations, because those locales arrived with v1.3.5. The
+  `tool/l10n` decision (adopt the tool, seed the new locales with English, or keep
+  the fork's own gate) is still open, and the three locales' ARBs are otherwise
+  swept.
+- **The `v4.6.0` tag** still points at the pre-rewrite tip; re-creating it on the
+  new one is a release act (AGENTS.md -> Releases), not part of the replay.
+
+### The landing
+
+`master` moved to `eec03c044`: 23 commits above `cb95d6af0` (the 22 replayed
+units plus the tail), `cb95d6af0` an ancestor, working tree clean, `dart analyze
+--fatal-infos` clean, `dart format --set-exit-if-changed` reporting 2,656 files and
+0 changed, and the full suite at `+13330 ~79: All other tests passed!`. Both
+backups are pushed — `backup/master-ea626d893` (the pre-replay `master`) and
+`backup/series-v1.3.5-cb95d6af0` (this series, for the next re-base). The
+force-push of `master` is the repository owner's to run:
+`git push --force-with-lease origin master`.
+
+## Verification of the `4857da608` replay
+
+The same 23 units, replayed a second time onto `4857da608` — upstream's `v1.3.5`
+plus the three commits it published while the previous landing was being pushed
+(`8813d09ef` oauth usage, `9442e39e6` compression planning, `4857da608` the 1M
+default). What makes this pass a different product from the last one is not the
+baseline: it is that **every unit now ships its own l10n**. The `cb95d6af0` landing
+left that to the tail, so its own tip carried 432 messages with no ru/ko/tr text
+and 397 with no `@description`, and no commit in between could be read as finished
+on its own. Here each one can.
+
+### What "its own l10n" means, per commit
+
+At every one of the 23 commits, `tool/l10n/translate.py check` exits 0 and these
+hold in that commit's tree:
+
+- the same message inventory in all seven ARBs (`en`, `zh`, `zh_Hans`, `zh_Hant`,
+  `ru`, `ko`, `tr`), `app_zh.arb` byte-equal to `app_zh_Hans.arb`;
+- an `@description` for every message in `app_en.arb`, and a non-empty value in
+  every locale;
+- `tool/l10n/state/*.json` carrying a fingerprint for every message — the tool
+  decides "pending" by comparing against that file, so a commit that writes a
+  translation without refreshing it reports the message as stale at itself;
+- `ios/Runner/{ru,ko,tr}.lproj/InfoPlist.strings`,
+  `ios/ShareExtension/{ru,ko,tr}.lproj/Localizable.strings` and
+  `android/app/src/main/res/values-{ru,ko,tr}/phone_control.xml` consistent with
+  `native_messages()`, digest included;
+- `lib/l10n/app_localizations*.dart` re-derived by `flutter gen-l10n` in that
+  commit, and no `package:Kelivo/` import anywhere in `lib`, `test`,
+  `integration_test` or `tool`.
+
+Those seven were checked by a scratch script run once per commit, not by anything
+in the tree — the repo's own gate is `translate.py check` plus `gen-l10n`, and the
+rest is what a person had to look at. It grew the brand check only after the first
+defect below, which is the honest way to say it was not looking for that class at
+first.
+
+### The four defects this pass found in itself
+
+1. **The brand sweep never reached the translated ARBs' values.** `en`, `zh` and
+   `zh_Hant` arrive from the fork already carrying Cuplivo, so only the keys a unit
+   adds needed writing. `ru`, `ko` and `tr` arrive from the *new baseline*, and the
+   ~4,700 values they inherit still read "Kelivo" — `aboutPageAppName`, the
+   restart/backup/startup-recovery sentences, the QQ-group labels. Writing the new
+   translations on top left **70 (ru), 68 (ko), 70 (tr)** values naming the other
+   app, and no ARB-level gate notices: the key sets match, every message is
+   described, and the fingerprints cover the source text rather than the target.
+   Rebound in the identity unit, and only where the template does not name Kelivo on
+   purpose — a whitelist *read off* `app_en.arb` (a key whose name or English value
+   names Kelivo), so a message that stops naming it drops out by itself. This is the
+   runbook's "the rename applies to the incoming side too" seen from the other end:
+   not a fork value that should have been `rename(upstream[k])`, but an upstream
+   value that was never renamed at all.
+2. **A conflict that is an insertion, not a disagreement.** Two units' ARB hunks
+   conflicted on keys that were already in the tree under their renamed names
+   (`aboutPageCuplivoSearch*`, `searchServiceNameCuplivo`): the incoming side
+   re-inserts upstream's pre-rename keys next to the fork's, which is the shape rule
+   "drop upstream's pre-rename key" exists to refuse. Taking the incoming side would
+   have duplicated three keys and put a second `Kelivo` value beside `Cuplivo`.
+3. **A native resource is a fourth face of the same commit.** The sync unit adds
+   `NSLocalNetworkUsageDescription` to `ios/Runner/Info.plist`, which by itself makes
+   the three translated native files stale — the digest covers
+   `native_messages()`, and one more plist key changes it. `translate.py check` said
+   so, two units later, because that is where the next l10n gate ran; the three
+   sentences and the digests now land *in* the unit that adds the plist key.
+4. **The PDF route outlived its move.** Moving PDF into the export menu also drops
+   `HomePageController.exportSelectedAsPdf` and the `onExportPdf` argument two tests
+   pass to a version-selection bar; only part of that reached the replay, so the
+   first `dart analyze --fatal-infos` of the finished series reported six
+   `undefined_named_parameter` errors. Repaired in the tail (the route it removes
+   was re-introduced by the 4.5.0 release unit, which runs after the unit that
+   moved PDF).
+
+### Generated files conflict, so regenerate them
+
+Six of the units conflicted on `lib/l10n/app_localizations*.dart` and nothing else:
+both sides had run the generator over different ARBs. The resolution is always the
+same and is not a merge — restore ours and let `flutter gen-l10n` re-derive the
+file. A hand-merged generated file is a file the next generator run disagrees with,
+and CI regenerates and compares.
+
+### The units do not compile individually, and that is inherited
+
+Tested, not assumed: the first attempt at a per-commit gate ran the unit's own test
+files. Unit 2's tree cannot even load them — `restore_bundle_mover.dart` imports
+`../sync/sync_store.dart` (unit 4), `chat_input_bar.dart` uses
+`_retainedImageSources` (unit 3), `settings_provider.dart` names a
+`CuplivoOptions` that no commit defines. The old series has the same property, byte
+for byte, because it was assembled by splitting the fork's final file contents by
+feature rather than by replaying compiling steps: **the tip builds, the units do
+not**. So the per-commit gate is ARB-level (above) and `dart analyze` /
+`flutter test` run once, at the tip. Making each unit compile is a different
+normalization pass — the identity unit would have to stop carrying hunks of shared
+files — and is named here rather than silently assumed.
+
+### The tree, against the old tip
+
+`git diff --name-only 299862c63 <tip>` is **37 paths**, and every one is intended:
+
+| paths | why |
+| --- | --- |
+| 7 ARBs + 4 generated + 7 `tool/l10n/state/*.json` | the l10n this pass carries (descriptions, ru/ko/tr text, fingerprints) |
+| 9 iOS/Android native resource files | the rebrand reached them, and the sync unit's new plist key |
+| 6 compression files | upstream's three commits |
+| 5 PDF-share-menu files + 2 selection tests | the stashed placement, folded |
+| `lib/features/provider/widgets/oauth_account_card.dart` | upstream's oauth usage fix |
+| `test/core/services/chat/compression_engine_test.dart` | the import list upstream's `9442e39e6` lengthened |
+
+Nothing else moved: `app_zh.arb`, `app_zh_Hans.arb` and `app_zh_Hant.arb` are
+byte-identical to the old tip, and the message inventory is 5,320 — the same number
+the old tip ended on, which is the arithmetic check that this replay added every
+message the old one had and no other.
+
+### Gates
+
+| gate | result |
+| --- | --- |
+| `translate.py check` | `ru/ko/tr/zh_Hant: 0 pending / 5320 messages`, exit 0 — and at each of the 23 commits, with that commit's inventory |
+| `desiredFileName.txt` | `{}` — the tool's own untranslated report is empty |
+| `git grep -l 'package:Kelivo/'` over `lib test integration_test tool` | 0 files |
+| `dart analyze --fatal-infos lib test integration_test` | No issues found (44 s) |
+| `dart format --output=none --set-exit-if-changed` | 2,657 files, 0 changed |
+| `flutter gen-l10n` | idempotent: a second run changes nothing |
+| `flutter test`, run 1 | `+13344 ~79`, **1 failed**: `search_request_logging_test`'s `tearDown` deleting a directory a request-log write still held (`errno 32`) |
+| `flutter test`, run 2 | `+13344 ~79`, **1 failed**: `message_list_view_image_anchor_test`'s pending 120 ms `TtsProvider` timer |
+
+Both failures are in files byte-identical to the old tip and both pass alone (1 and 5 tests),
+so neither is this replay's defect: they are the "the failure needs the rest of the suite
+competing for the machine" shape `docs/flaky-tests.md` §16 records, and §19 has the detail. The
+first is repaired in the tree — `tearDown` now calls `deleteDirectoryWhenReleased` from
+`test/support/`, the helper the image and backup tests use — and did not recur in run 2. The
+second is recorded rather than patched: the timer belongs to a provider the tree mounts, and a
+repair would be a wait on a timer the test does not own.
+
+### The landing
+
+`reorg/onto-4857da608` ends at 25 commits above `4857da608`: the 23 replayed units, a `fix(test)`
+for the request-log teardown the full run surfaced, and this record. `4857da608` is an ancestor and
+the working tree is clean. Both backups are pushed: `backup/master-299862c63` (the `master` this
+replaces — the previous landing's tip) and `backup/series-4857da608` (this series, for the next
+re-base). The force-push of `master` is the repository owner's to run.
+
+## Verification of the v1.3.6 replay
+
+Eight upstream commits, and the fork's own line had moved twice since the 4.6
+landing, so this pass is mostly carry: the fifteen units the `00a2b7de0` round
+proved, plus the two commits that round never contained. The record is
+`docs/rebase-v1.3.6.md`; these are the four rules it adds.
+
+- **A new upstream preference key needs a registry row, and the fork's own gate
+  is what says so.** Upstream's optional reply bubble writes
+  `display_show_assistant_body_bubble_v1`; with no row in
+  `BusinessKeyRegistry.rules`, `business_key_registry_sync_test` failed and five
+  widget cases died in `business_preferences.dart:232` (`Unregistered preference
+  key`). The row belongs to the unit that introduces the table (here unit 4), not
+  to the tip: the table is that unit's subject. Policy: `backupOnly` /
+  `deviceViewState` — a view choice this device makes, carried by a backup, not
+  by LAN sync.
+- **`AppDirectories` composes `'<root>/<name>'`, so a scanned row's path is a
+  mixed spelling on Windows.** The scan appends the host separator to that
+  string, giving `<root>/upload\<file>`, while a fixture that builds its own path
+  gives `<root>/upload/<file>`; the two differ by one character and a
+  `ValueKey('storage-image-<path>')` comparison then misses. Normalise **at the
+  key**, never at the entry: the entry path is what the recycle bin and the
+  attachment-usage map compare, and normalising it (tried here, measured) turned
+  an Android storage-filter case red. This is the blast-radius rule with a
+  number on it.
+- **`verify.py --exact` is an identity-commit gate, not a tip gate.** The
+  mechanical set is defined against the baseline, and later units edit those
+  files legitimately (fifteen of them at this tip), so `--exact` at the tip
+  reports drift by construction. Run `--forward` and `--inverse` at the tip;
+  prove `--exact` by comparing the identity commit's blobs with
+  `apply(substitutions, baseline)` — 1516 mechanical plus 67 path-moved files
+  here, zero mismatches.
+- **Carry the commits the last series could not have.** `b091ffa2a` was not an
+  ancestor of the previous landing, so the previous series reproduced
+  `827b54d75` and silently lacked #1083 and #1084 — 4,600 lines that no diff
+  between "old tip" and "new tip" would show, because both ends were missing
+  them. The check is one command per stop: does the new series' content equal the
+  *branch* it claims to reproduce, at the files the branch's last commits touch?
+  For Cuplivo-only trees (sync, recycle, skills) the replay is nearly free — the
+  conflicts here were three imports, `main.dart`'s indentation, and four l10n
+  state files that resolve in our favour (no state entry means "pending", which
+  is where the other 79 messages already wait).
+
+Measured cost of the carry, for the next forecast: the pre-flight
+`merge-tree` census predicted 62 files and 93 conflict rows across the fifteen
+stops; the actual rebase stopped **twice** (identity, 5 files; links, 2 files)
+and the reformat unit was re-derived from `dart format` instead of replayed
+(same five files, one fewer than the 4.6 line's six).
+
+### What the landing paid after it was pushed
+
+Three of the five commits this pass added after its landing fix defects no
+Windows gate can see. They are rules now.
+
+- **The identity sweep renames contents; a project file's `path = …` is not
+  content.** `project.pbxproj` named 15 files `Cuplivo…` while the tree and every
+  source said `Kelivo…`: 44 literals against 211 `KelivoISH` and 21
+  `KelivoGeneration…` in the sources, and zero `Cuplivo…` in either. Xcode stops
+  at the first one ("Build input file cannot be found"), so iOS had been
+  unbuildable since `v4.6.0` — and that release's iOS job was *cancelled* rather
+  than failed, which is the real lesson: a cancelled job is not evidence that a
+  platform builds. Sweep the project's `path = …;` entries against the tree before
+  tagging, and repair by reverting the literals when the sources still carry the
+  old name (renaming the 15 files would mean the Swift type, the ObjC symbols and
+  their includes as well).
+- **A native l10n state attests source freshness, not output completeness.**
+  `InfoPlist.strings` for ru/ko/tr came from upstream v1.3.6 (its own 13-key
+  plist), while `native_*.json` came from the released line, whose digest was
+  computed with the fork's extra key present. The digest matched, so `native_sync`
+  returned before writing and `sync` could never repair the missing key; only
+  `check` said so. Restore the line from the released line when its source text is
+  byte-identical, then re-measure the native key count — 25 wanted, 25 present,
+  nothing extra here.
+- **The tool writes CRLF on Windows.** `write()` opens a text-mode handle, so four
+  ARBs and four state files came back with every line changed — 10921-line diffs
+  each, against a real diff of 1834/1525. Normalise to LF as bytes before staging;
+  the same trap applies to any `Path.write_text` in a script.
+- **A platform no gate covers needs its own dry run before the tag.** Everything
+  else in this repo is exercised on Windows; iOS exists only on CI. A one-platform
+  dispatch (`build_ios=true`, the rest false, `publish_release=false`) is what
+  proved the repair, and it costs 12m18s.

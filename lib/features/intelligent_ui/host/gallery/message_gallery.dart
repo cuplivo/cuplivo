@@ -2,21 +2,21 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/core/providers/user_provider.dart';
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/features/home/widgets/message_list_view.dart';
-import 'package:Kelivo/features/chat/widgets/chat_assistant_background.dart';
-import 'package:Kelivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_text_button.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/core/providers/user_provider.dart';
+import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_assistant_background.dart';
+import 'package:Cuplivo/features/chat/widgets/frosted/chat_frosted_backdrop.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import '../../catalog/ui_catalog.dart';
 import '../../widgets/gallery/chart_gallery.dart';
 import '../../widgets/gallery/table_gallery.dart';
@@ -24,7 +24,7 @@ import '../ui_host_scope.dart';
 import 'web_gallery.dart';
 
 const genUiMessageFixture = r'''ui 1 catalog "kelivo.native/1"
-$name: string = "Kelivo"
+$name: string = "Cuplivo"
 $amount: number = 3
 root = Column(children=[form,total,ask,reset])
 form = Form(children=[nameField,amountField])

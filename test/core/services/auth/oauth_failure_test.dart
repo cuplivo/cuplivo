@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/services/auth/provider_oauth_service.dart';
-import 'package:Kelivo/core/services/auth/provider_oauth_adapter.dart';
-import 'package:Kelivo/core/services/network/dio_http_client.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_service.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_adapter.dart';
+import 'package:Cuplivo/core/services/network/dio_http_client.dart';
 import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';

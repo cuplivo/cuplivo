@@ -1,17 +1,17 @@
-import 'package:Kelivo/features/intelligent_ui/host/ui_runtime_registry.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
-import 'package:Kelivo/utils/protected_text.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_runtime_registry.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/utils/protected_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream_core.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/message_part_snapshot.dart';
-import 'package:Kelivo/features/chat/utils/thinking_tag_parser.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_source_map.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_generation_state.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_part_snapshot.dart';
+import 'package:Cuplivo/features/chat/utils/thinking_tag_parser.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_source_map.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_generation_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
 
 const _body =
     'ui 1 catalog "kelivo.native/1"\nroot = Text(text="你好 😀 <think>literal</think>")';

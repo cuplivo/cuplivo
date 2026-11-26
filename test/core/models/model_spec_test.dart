@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
 
 void main() {
   group('ModelSpec normalization', () {

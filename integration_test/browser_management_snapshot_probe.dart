@@ -8,16 +8,16 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:Kelivo/core/services/browser/browser_service.dart';
-import 'package:Kelivo/core/services/browser/browser_store.dart';
-import 'package:Kelivo/features/browser/browser_management_route.dart';
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/pages/browser_management_page.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
-import 'package:Kelivo/features/browser/widgets/browser_progressive_edge.dart';
-import 'package:Kelivo/features/browser/widgets/browser_settings.dart';
-import 'package:Kelivo/features/browser/widgets/browser_transition_snapshot.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/browser/browser_service.dart';
+import 'package:Cuplivo/core/services/browser/browser_store.dart';
+import 'package:Cuplivo/features/browser/browser_management_route.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/pages/browser_management_page.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_progressive_edge.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_settings.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_transition_snapshot.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 // Explicit real-Impeller image/performance probe. Uses no app user data or WK
 // view; comparison isolates the opaque Flutter management page's filter cost.

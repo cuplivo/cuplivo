@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/builtin_tools.dart';
-import 'package:Kelivo/desktop/search_provider_popover.dart';
-import 'package:Kelivo/features/search/widgets/search_settings_sheet.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/builtin_tools.dart';
+import 'package:Cuplivo/desktop/search_provider_popover.dart';
+import 'package:Cuplivo/features/search/widgets/search_settings_sheet.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import '../../../support/business_test_harness.dart';
 

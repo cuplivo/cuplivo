@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/empty_database_recovery_guard.dart';
-import 'package:Kelivo/core/database/startup_recovery_service.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/empty_database_recovery_guard.dart';
+import 'package:Cuplivo/core/database/startup_recovery_service.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,18 +11,18 @@ import 'package:hive/hive.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/hive_migration_marker.dart';
-import 'package:Kelivo/core/services/backup/restore_business_lease.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
-import 'package:Kelivo/core/services/backup/restore_startup_gate.dart';
-import 'package:Kelivo/features/migration/hive_to_sqlite_migration_service.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/hive_migration_marker.dart';
+import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_startup_gate.dart';
+import 'package:Cuplivo/features/migration/hive_to_sqlite_migration_service.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 class _FakePathProviderPlatform extends PathProviderPlatform {

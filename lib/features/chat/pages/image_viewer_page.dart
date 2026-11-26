@@ -5,7 +5,7 @@ import 'package:syncfusion_flutter_core/theme.dart';
 import '../../../core/models/image_upload_quality.dart';
 import '../models/image_viewer_draft_mode.dart';
 import 'dart:convert';
-import 'package:Kelivo/utils/svg_image_provider.dart';
+import 'package:Cuplivo/utils/svg_image_provider.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -28,7 +28,7 @@ import '../../../utils/safe_resize_image.dart';
 import '../../../utils/clipboard_images.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 @visibleForTesting
 const int kMaxViewerDecodeEdge = 4096;

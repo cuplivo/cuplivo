@@ -10,7 +10,7 @@ People who use multiple LLM providers across mobile and desktop and need a depen
 
 ## Product Purpose
 
-Kelivo makes advanced LLM capabilities practical in one cross-platform client while keeping conversations, settings, and user-owned data portable and recoverable.
+Cuplivo makes advanced LLM capabilities practical in one cross-platform client while keeping conversations, settings, and user-owned data portable and recoverable.
 
 ## Brand Personality
 

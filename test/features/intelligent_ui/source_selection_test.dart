@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_content.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_diagnostic_source.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
-import 'package:Kelivo/shared/widgets/app_text_selection_toolbar.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_content.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_diagnostic_source.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/shared/widgets/app_text_selection_toolbar.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 Widget _app(Widget child) => MaterialApp(
   builder: (_, child) => AppSnackBarOverlay(child: child!),

@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/desktop/window_size_manager.dart';
+import 'package:Cuplivo/desktop/window_size_manager.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

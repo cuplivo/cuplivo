@@ -8,14 +8,14 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/empty_database_recovery_guard.dart';
-import 'package:Kelivo/core/database/private_data_storage.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_schedule.dart';
-import 'package:Kelivo/core/services/backup/restore_startup_gate.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/restore_failure_screen.dart';
-import 'package:Kelivo/utils/app_directories.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/empty_database_recovery_guard.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
+import 'package:Cuplivo/core/services/backup/restore_startup_gate.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/restore_failure_screen.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
 
 import '../test/support/recovery_snapshot_fixture.dart';
 

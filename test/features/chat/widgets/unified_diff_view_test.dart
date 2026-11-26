@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/chat/widgets/unified_diff_view.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/chat/widgets/unified_diff_view.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   test('classifies unified diff lines', () {

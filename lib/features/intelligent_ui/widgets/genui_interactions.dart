@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_ir.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_interaction_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_ir.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_interaction_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
 
 typedef GenUiAskHandler = Future<void> Function(UiAskIntent intent);
 

@@ -1,24 +1,24 @@
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
 import 'genui_diagnostic_source.dart';
 import 'genui_motion.dart';
 import 'genui_control_region.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:markstream/markstream.dart' as ms;
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/settings/widgets/custom_theme_widgets.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/ios_text_button.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
 import 'genui_content.dart';
 import 'genui_interactions.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_interaction_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_interaction_controller.dart';
 import 'genui_localizations.dart';
 import 'genui_node.dart';
 import 'genui_theme.dart';
-import 'package:Kelivo/shared/responsive/screen_type_helper.dart';
+import 'package:Cuplivo/shared/responsive/screen_type_helper.dart';
 
 /// Native card chrome. The host retains controller ownership across message
 /// rebuilds and supplies actions only when their integration is available.

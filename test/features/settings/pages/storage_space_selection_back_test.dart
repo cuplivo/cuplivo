@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -8,10 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/settings/pages/storage_space_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/settings/pages/storage_space_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import '../../../support/business_test_harness.dart';
 

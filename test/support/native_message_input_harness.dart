@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/text_input/compact_edit.dart';
+import 'package:Cuplivo/shared/text_input/compact_edit.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

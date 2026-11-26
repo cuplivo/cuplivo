@@ -5,13 +5,11 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'app_database.dart';
 import '../models/backup_scope.dart';
 import '../models/backup_target.dart';
-import '../models/compression_config.dart';
-import '../models/tool_permission_mode.dart';
-import '../models/workspace_binding.dart';
 import 'backup_content_filter.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
 import 'business_settings_router.dart';
+import 'kelivo_vocabulary.dart';
 
 /// Device state stays in SQLite at runtime, but must not travel in a backup.
 final class BackupPortability {
@@ -95,11 +93,17 @@ final class BackupPortability {
 
   /// Only call on a temporary database, never the live database. This also
   /// handles old backups whose raw SQLite payload still has device-only rows.
+  ///
+  /// [target] decides which business kinds the archive may still name. A backup
+  /// written for a Kelivo release drops every kind that release has no word for,
+  /// because the settings export already dropped those keys — leaving the rows
+  /// would make the archive contradict its own manifest, and leaving the
+  /// conversation link would land chats that point at an entity the reader will
+  /// never have.
   static Future<void> sanitizeDatabase(
     AppDatabase database, {
     BackupScope scope = const BackupScope(),
     BackupTarget target = BackupTarget.cuplivo,
-    bool libraryInSettings = false,
   }) async {
     // Erase removed payloads from SQLite cells as well as its logical rows.
     await database.customStatement('PRAGMA secure_delete = ON;');
@@ -111,19 +115,6 @@ final class BackupPortability {
       await database.customStatement(
         "DELETE FROM extension_entity_rows WHERE kind IN ('externalMounts', 'composerDraft', 'composerNewEntry', 'composerShareReceipt', 'composerPrivateFile');",
       );
-      // One fact, one carrier. The compression library travels in `settings.json`
-      // as two business kinds now, so the same rows in the snapshot database are
-      // a second copy of it: a merge restore imports both — the database's under
-      // `merge-…` ids, the settings' under the original ids — and the user sees
-      // every template twice. An archive written before those keys existed has
-      // the database as its only carrier, which is why the caller states this
-      // rather than it being implied by the table.
-      if (libraryInSettings) {
-        await database.customStatement(
-          'DELETE FROM extension_entity_rows WHERE kind IN (?, ?);',
-          [CompressionTemplate.entityKind, CompressionRecipe.entityKind],
-        );
-      }
       await _dropUnreadableKinds(database, target);
       // Chat history remains readable, but imported chats cannot inherit a
       // directory grant or silently authorize shell execution on this device.
@@ -161,28 +152,6 @@ final class BackupPortability {
       ''');
     });
   }
-
-  /// [key]'s member path in `extras_json`, as a SQL string literal.
-  ///
-  /// The keys are code constants naming extras members, never user data, so
-  /// interpolating them follows the rule `currentSchemaColumns` does. Two quote
-  /// characters still have to be escaped, and they are different ones: `"` closes
-  /// the JSON path's label, `'` closes the SQL literal wrapped around that path.
-  /// Missing either turns the statement into something else, which is why
-  /// `backup_portability_test.dart` runs a quote-bearing key through SQLite
-  /// rather than trusting the format string.
-  @visibleForTesting
-  static String extrasSqlLiteral(String key) =>
-      _sqlStringLiteral(_jsonPath(key));
-
-  static String _jsonPath(String key) => '\$."${key.replaceAll('"', r'\"')}"';
-
-  /// [value] as a single-quoted SQL string literal.
-  static String _sqlStringLiteral(String value) =>
-      "'${value.replaceAll("'", "''")}'";
-
-  static String _jsonRemoveArguments(Set<String> keys) =>
-      [for (final key in keys) extrasSqlLiteral(key)].join(', ');
 
   /// Takes every kind [target] cannot read out of the archive: its rows, and
   /// every conversation link that points at them.

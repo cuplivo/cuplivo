@@ -66,24 +66,6 @@ const unreadableKindDispositions = <String, UnreadableKindDisposition>{
         'travel, so the topics survive as ordinary chats.',
     conversationLink: Conversation.groupChatIdKey,
   ),
-  'compression_templates_v1': (
-    loss:
-        'Compression templates have no Kelivo equivalent. A Kelivo-target '
-        'archive drops them; the conversations still travel, and one that used a '
-        'dropped template falls back to the built-in prompt.',
-    // No chat points at a template through `extras`: the reference lives in the
-    // conversation's own compression settings, which is why the app already has
-    // a state for "the template this names is gone".
-    conversationLink: null,
-  ),
-  'compression_recipes_v1': (
-    loss:
-        'Compression recipes have no Kelivo equivalent either. A Kelivo-target '
-        'archive drops them; the per-conversation settings that named one still '
-        'travel, so the conversation keeps its configuration and loses only the '
-        'saved combination.',
-    conversationLink: null,
-  ),
 };
 
 /// The extension storage [kind]'s rows live in, for a kind that must be dropped.

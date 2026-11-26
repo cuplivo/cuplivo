@@ -8,6 +8,7 @@ import 'package:Cuplivo/core/providers/local_snapshot_provider.dart';
 import 'package:Cuplivo/core/services/backup/backup_cancel_token.dart';
 import 'package:Cuplivo/core/services/backup/backup_task_progress.dart';
 import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
 import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
 import 'package:Cuplivo/core/services/backup/local_snapshot_service.dart';
 import 'package:Cuplivo/core/services/backup/local_snapshot_settings.dart';
@@ -116,6 +117,29 @@ void main() {
 
       gate.complete();
       await holding;
+    });
+
+    test('an exported copy is named for this build', () async {
+      final vm = build();
+      await vm.takeNow();
+      expect(
+        vm.exportFileNameFor(vm.copies.single),
+        allOf(startsWith('cuplivo-snapshot-'), endsWith('.zip')),
+      );
+      // A displaced family is exported as a recovery, and takes the same brand:
+      // the name is minted at hand-over, while the on-disk snapshot prefix is a
+      // recovery contract with older builds.
+      final displaced = LocalCopy(
+        kind: LocalCopyKind.displaced,
+        id: 'stamp',
+        file: File(p.join(root.path, 'kelivo.db')),
+        createdAt: DateTime.utc(2026, 11, 19),
+        bytes: 1,
+      );
+      expect(
+        vm.exportFileNameFor(displaced),
+        allOf(startsWith('cuplivo-recovered-'), endsWith('.zip')),
+      );
     });
 
     test('a copy being exported cannot be deleted', () async {

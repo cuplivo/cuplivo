@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../../utils/app_directories.dart';
+import 'backup_archive_naming.dart';
 import 'restore_durability.dart';
 
 /// Working files only. User exports and published snapshots live elsewhere.
@@ -86,11 +87,12 @@ abstract final class BackupStaging {
   static bool _legacy(FileSystemEntity entry, String name) {
     if (name == directoryName) return false;
     if (entry is Directory) {
-      return name.startsWith('kelivo_backup_') ||
+      // A crashed run's working directory carries the archive prefix.
+      return BackupArchiveNaming.isReadable(name) ||
           name.startsWith('kelivo_decrypted_');
     }
     return entry is File &&
-        (RegExp(r'^kelivo_backup_.+\.(zip|kbackup)$').hasMatch(name) ||
+        (BackupArchiveNaming.isArchiveName(name) ||
             RegExp(r'^kelivo_restore_.+\.zip$').hasMatch(name) ||
             const {
               '_bk_settings.json',

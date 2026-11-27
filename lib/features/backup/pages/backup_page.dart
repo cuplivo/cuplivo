@@ -36,6 +36,7 @@ import '../forward_compat_consent_dialog.dart';
 import '../backup_restart_dialog.dart';
 import '../widgets/backup_reminder_helpers.dart';
 import '../widgets/backup_scope_tile.dart';
+import '../widgets/backup_target_tile.dart';
 import '../widgets/backup_encryption_tile.dart';
 import '../widgets/storage_migration_notice_button.dart';
 import 'package:Cuplivo/theme/app_semantic_colors.dart';
@@ -283,6 +284,20 @@ class _BackupPageState extends State<BackupPage> {
                 onChanged: busy || vm.busy || s3Vm.busy
                     ? null
                     : settings.setBackupScope,
+              ),
+              _iosDivider(context),
+              BackupTargetTile(
+                target: cfg.target,
+                onChanged: busy || vm.busy || s3Vm.busy
+                    ? null
+                    : (target) async {
+                        final newCfg = vm.config.copyWith(target: target);
+                        final newS3Cfg = s3Vm.config.copyWith(target: target);
+                        vm.updateConfig(newCfg);
+                        s3Vm.updateConfig(newS3Cfg);
+                        await settings.setWebDavConfig(newCfg);
+                        await settings.setS3Config(newS3Cfg);
+                      },
               ),
               _iosDivider(context),
               BackupEncryptionTile(busy: busy || vm.busy || s3Vm.busy),

@@ -34,6 +34,7 @@ enum SettingsSearchDestination {
   memory,
   networkProxy,
   backup,
+  lanSync,
   storage,
   scheduledTasks,
   hotkeys,
@@ -63,7 +64,7 @@ extension SettingsSearchDestinationDetails on SettingsSearchDestination {
       l.displaySettingsPageHapticsSettingsTitle,
     SettingsSearchDestination.background => l.backgroundSettingsTitle,
     SettingsSearchDestination.phoneControl => l.phoneControlTitle,
-    SettingsSearchDestination.assistant => l.settingsPageAssistant,
+    SettingsSearchDestination.assistant => l.settingsPageChatOwners,
     SettingsSearchDestination.providers => l.settingsPageProviders,
     SettingsSearchDestination.defaultModel => l.settingsPageDefaultModel,
     SettingsSearchDestination.search => l.settingsPageSearch,
@@ -78,6 +79,7 @@ extension SettingsSearchDestinationDetails on SettingsSearchDestination {
     SettingsSearchDestination.memory => l.settingsPageMemory,
     SettingsSearchDestination.networkProxy => l.settingsPageNetworkProxy,
     SettingsSearchDestination.backup => l.settingsPageBackup,
+    SettingsSearchDestination.lanSync => l.settingsPageSync,
     SettingsSearchDestination.storage => l.settingsPageChatStorage,
     SettingsSearchDestination.scheduledTasks => l.scheduledTasksTitle,
     SettingsSearchDestination.hotkeys => l.settingsPageHotkeys,
@@ -116,6 +118,7 @@ extension SettingsSearchDestinationDetails on SettingsSearchDestination {
     SettingsSearchDestination.memory => LucideIcons.brain,
     SettingsSearchDestination.networkProxy => LucideIcons.ethernetPort,
     SettingsSearchDestination.backup => LucideIcons.database,
+    SettingsSearchDestination.lanSync => LucideIcons.refreshCw,
     SettingsSearchDestination.storage => LucideIcons.hardDrive,
     SettingsSearchDestination.scheduledTasks => LucideIcons.clock,
     SettingsSearchDestination.hotkeys => LucideIcons.keyboard,
@@ -340,10 +343,10 @@ class SettingsSearchIndex {
     add(
       'assistant',
       SettingsSearchDestination.assistant,
-      (l) => l.settingsPageAssistant,
+      (l) => l.settingsPageChatOwners,
       page: true,
       keywords:
-          'assistant system prompt temperature top p 人设 人設 系统提示词 系統提示詞 助手',
+          'assistant system prompt temperature top p 人设 人設 系统提示词 系統提示詞 助手 群聊 群組 group',
     );
     add(
       'providers',
@@ -450,6 +453,14 @@ class SettingsSearchIndex {
       page: true,
       keywords:
           'backup restore export import webdav s3 cloud sync 备份 備份 恢复 還原 导入 匯入 导出 匯出 同步 快照',
+    );
+    add(
+      'lanSync',
+      SettingsSearchDestination.lanSync,
+      (l) => l.settingsPageSync,
+      page: true,
+      keywords:
+          'lan sync remote tailcat device pair pairing local network 局域网 區域網路 同步 配对 配對 设备 裝置 局域网同步 远程 遠端',
     );
     if (!desktop) {
       add(

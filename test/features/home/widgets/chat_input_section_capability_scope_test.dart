@@ -1,22 +1,22 @@
-import 'package:Kelivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import '../../../support/mcp_presentation_harness.dart';
 import 'dart:convert';
 
-import 'package:Kelivo/core/providers/asr_provider.dart';
-import 'package:Kelivo/core/models/reasoning_request.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/instruction_injection_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/quick_phrase_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/world_book_provider.dart';
-import 'package:Kelivo/desktop/tools_popover.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_section.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/providers/asr_provider.dart';
+import 'package:Cuplivo/core/models/reasoning_request.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/quick_phrase_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/world_book_provider.dart';
+import 'package:Cuplivo/desktop/tools_popover.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_section.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -80,6 +80,7 @@ void main() {
     VoidCallback? openBrowser,
     VoidCallback? configureReasoning,
     GlobalKey? reasoningButtonKey,
+    VoidCallback? openSearch,
   }) async {
     final settings = settingsOverride ?? SettingsProvider(preferences);
     final inputBarKey = GlobalKey();
@@ -134,6 +135,9 @@ void main() {
                       request.level != ReasoningLevel.off,
                   onConfigureReasoning: configureReasoning,
                   onOpenBrowser: desktopTools ? openBrowser ?? () {} : null,
+                  // An action with no handler is not drawn, so a fixture that
+                  // wants the search slot has to say what it opens.
+                  onOpenSearch: openSearch,
                   onOpenTools: desktopTools
                       ? () => showDesktopToolsPopover(
                           context,
@@ -314,9 +318,12 @@ void main() {
         desktopTools: true,
         composerWidth: 220,
         openBrowser: () => opened = true,
+        openSearch: () {},
       );
       expect(find.byTooltip('Tools'), findsNothing);
-      await tester.tap(find.byTooltip('Add'));
+      // The bar's overflow is not the tools panel's "+": it reaches the actions
+      // that did not fit, so it has its own tooltip.
+      await tester.tap(find.byTooltip('More actions'));
       await tester.pumpAndSettle();
       expect(find.text('Open browser'), findsOneWidget);
       await tester.tap(find.text('Open browser'));

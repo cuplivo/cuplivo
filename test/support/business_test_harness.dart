@@ -3,10 +3,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/business_settings_router.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/business_settings_router.dart';
 
 final class BusinessTestHarness {
   BusinessTestHarness._(this.database, this.repository, this.preferences);
@@ -63,4 +63,20 @@ BusinessPreferences createBusinessTestPreferences({
   SharedPreferences.setMockInitialValues(localInitial);
   final database = AppDatabase(NativeDatabase.memory());
   return BusinessPreferences(BusinessRepository(database));
+}
+
+/// [createBusinessTestPreferences] plus the database behind it, for providers
+/// that need both: a group chat store sits on the same database its preferences
+/// do, so a drawer test that must provide one needs the handle.
+({AppDatabase database, BusinessPreferences preferences})
+createBusinessTestPreferencesWithDatabase({
+  Map<String, Object> localInitial = const <String, Object>{},
+}) {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  SharedPreferences.setMockInitialValues(localInitial);
+  final database = AppDatabase(NativeDatabase.memory());
+  return (
+    database: database,
+    preferences: BusinessPreferences(BusinessRepository(database)),
+  );
 }

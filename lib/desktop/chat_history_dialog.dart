@@ -10,7 +10,7 @@ import '../core/services/chat/chat_service.dart';
 import '../core/models/conversation.dart';
 import '../theme/app_font_weights.dart';
 import '../features/home/controllers/chat_actions.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<String?> showChatHistoryDesktopDialog(
   BuildContext context, {
@@ -59,7 +59,10 @@ class _ChatHistoryDesktopDialogState extends State<_ChatHistoryDesktopDialog> {
           (c) =>
               widget.assistantId == null ||
               c.assistantId == widget.assistantId ||
-              c.assistantId == null,
+              // An assistant-less conversation is a legacy global chat — but a
+              // group topic is also assistant-less, and it belongs to its group,
+              // not to whichever assistant's history is open.
+              (c.assistantId == null && c.groupChatId == null),
         )
         .toList();
 

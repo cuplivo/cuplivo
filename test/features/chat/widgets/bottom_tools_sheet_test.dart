@@ -1,32 +1,32 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/conversation_prompt_settings.dart';
-import 'package:Kelivo/core/models/instruction_injection.dart';
-import 'package:Kelivo/core/models/skills_binding.dart';
-import 'package:Kelivo/core/models/world_book.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/providers/instruction_injection_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/providers/world_book_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/sandbox/environment_manager.dart';
-import 'package:Kelivo/core/services/skills/skills_service.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/features/chat/widgets/bottom_tools_sheet.dart';
-import 'package:Kelivo/features/chat/widgets/tools_sheet_row.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/features/workspace/pages/skills_page.dart';
-import 'package:Kelivo/features/workspace/widgets/skills/conversation_skills_sheet.dart';
-import 'package:Kelivo/features/workspace/widgets/workspace_section.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/conversation_prompt_settings.dart';
+import 'package:Cuplivo/core/models/instruction_injection.dart';
+import 'package:Cuplivo/core/models/skills_binding.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/providers/world_book_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_manager.dart';
+import 'package:Cuplivo/core/services/skills/skills_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/features/chat/widgets/bottom_tools_sheet.dart';
+import 'package:Cuplivo/features/chat/widgets/tools_sheet_row.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/features/workspace/pages/skills_page.dart';
+import 'package:Cuplivo/features/workspace/widgets/skills/conversation_skills_sheet.dart';
+import 'package:Cuplivo/features/workspace/widgets/workspace_section.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +71,7 @@ class _FakeChatService extends ChatService {
   Future<Conversation> createDraftConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool temporary = false,
     bool reuseNewEntry = false,
   }) async {
@@ -156,6 +157,7 @@ void main() {
     VoidCallback? onCamera,
     VoidCallback? onPhotos,
     VoidCallback? onUpload,
+    List<Assistant>? members,
   }) async {
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
@@ -189,6 +191,7 @@ void main() {
               body: BottomToolsSheet(
                 assistantId: assistantId,
                 conversationId: conversation?.id,
+                members: members,
                 onCamera: onCamera,
                 onPhotos: onPhotos,
                 onUpload: onUpload,
@@ -201,6 +204,29 @@ void main() {
     await tester.pump();
     return AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
   }
+
+  testWidgets('the strip starts on the composer assistant, not the first', (
+    tester,
+  ) async {
+    late Assistant composer;
+    late Assistant other;
+    await tester.runAsync(() async {
+      final otherId = await assistants.addAssistant(name: 'Other');
+      composer = assistants.getById(assistantId)!;
+      other = assistants.getById(otherId)!;
+      await worldBooks.initialize();
+      await worldBooks.addBook(const WorldBook(id: 'wb1', name: 'Lore'));
+      // Only the composer's own assistant has a world book on, so the count the
+      // panel opens with says whose list it is reading.
+      await worldBooks.setActiveBookIds(['wb1'], assistantId: composer.id);
+    });
+
+    // The composer is on the *second* member of the roster.
+    await pumpSheet(tester, members: [other, composer]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('1/1'), findsOneWidget);
+  });
 
   testWidgets('more sheet retains browser entry with a window icon', (
     tester,

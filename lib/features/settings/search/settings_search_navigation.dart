@@ -25,6 +25,7 @@ import '../pages/network_proxy_page.dart';
 import '../pages/phone_control_settings_page.dart';
 import '../pages/sponsor_page.dart';
 import '../pages/storage_space_page.dart';
+import '../pages/sync_settings_page.dart';
 import '../pages/theme_advanced_settings_page.dart';
 import '../pages/theme_settings_page.dart';
 import '../pages/tool_schema_settings_page.dart';
@@ -51,7 +52,7 @@ Future<void> openMobileSettingsSearchResult(
     SettingsSearchDestination.haptics => const HapticsSettingsPage(),
     SettingsSearchDestination.background =>
       const MobileBackgroundSettingsPage(),
-    SettingsSearchDestination.assistant => const AssistantSettingsPage(),
+    SettingsSearchDestination.assistant => const ChatOwnerSettingsPage(),
     SettingsSearchDestination.phoneControl => const PhoneControlSettingsPage(),
     SettingsSearchDestination.providers => const ProvidersPage(),
     SettingsSearchDestination.defaultModel => const DefaultModelPage(),
@@ -67,6 +68,7 @@ Future<void> openMobileSettingsSearchResult(
     SettingsSearchDestination.memory => const MemorySettingsPage(),
     SettingsSearchDestination.networkProxy => const NetworkProxyPage(),
     SettingsSearchDestination.backup => const BackupPage(),
+    SettingsSearchDestination.lanSync => const SyncSettingsPage(),
     SettingsSearchDestination.storage => const StorageSpacePage(),
     SettingsSearchDestination.scheduledTasks => const ScheduledTasksPage(),
     SettingsSearchDestination.stats => const StatsPage(),

@@ -229,4 +229,71 @@ class Conversation extends HiveObject {
     }
     return const <String, dynamic>{};
   }
+
+  /// Conversation-level proactive-care ("Ta的来信") state, stored in
+  /// [extras] (drift feature bag) — null inherits the assistant setting.
+  static const String proactiveCareEnabledOverrideKey =
+      'proactiveCare.enabledOverride';
+
+  static const String proactiveCareNextMessageAtKey =
+      'proactiveCare.nextMessageAt';
+
+  /// Null inherits the assistant's proactive-care enabled setting.
+  bool? get proactiveCareEnabledOverride {
+    final v = extras[proactiveCareEnabledOverrideKey];
+    return v is bool ? v : null;
+  }
+
+  /// Next proactive-care message scheduled specifically for this
+  /// conversation (ISO 8601), or null when none is scheduled.
+  DateTime? get proactiveCareNextMessageAt {
+    final v = extras[proactiveCareNextMessageAtKey];
+    if (v is! String || v.isEmpty) return null;
+    return DateTime.tryParse(v);
+  }
+
+  /// Returns a copy with the conversation-level proactive-care override
+  /// replaced. [enabledOverride] null clears the override (inherit).
+  Conversation setProactiveCareEnabledOverride(bool? enabledOverride) {
+    return _withExtrasMap({
+      ...extras,
+      if (enabledOverride == null)
+        proactiveCareEnabledOverrideKey: null
+      else
+        proactiveCareEnabledOverrideKey: enabledOverride,
+    });
+  }
+
+  /// Returns a copy with this conversation's next care time replaced.
+  Conversation setProactiveCareNextMessageAt(DateTime? nextAt) {
+    return _withExtrasMap({
+      ...extras,
+      proactiveCareNextMessageAtKey: nextAt?.toIso8601String(),
+    });
+  }
+
+  /// Extras key linking a conversation to the group chat that owns it.
+  ///
+  /// A group conversation carries no assistant: the speaker is chosen per
+  /// message ([ChatMessage.senderId]), so `assistantId` stays null exactly as it
+  /// does for a global conversation, and every path that reads a null
+  /// `assistantId` as "the default assistant" has to ask [isGroupConversation]
+  /// first.
+  static const String groupChatIdKey = 'groupChat.id';
+
+  String? get groupChatId {
+    final value = extras[groupChatIdKey];
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
+  bool get isGroupConversation => groupChatId != null;
+
+  /// Returns a copy linked to [groupChatId], or unlinked when it is null.
+  Conversation withGroupChatId(String? groupChatId) =>
+      _withExtrasMap({...extras, groupChatIdKey: groupChatId});
+
+  Conversation _withExtrasMap(Map<String, dynamic> next) {
+    next.removeWhere((k, v) => v == null);
+    return copyWith(extras: next);
+  }
 }

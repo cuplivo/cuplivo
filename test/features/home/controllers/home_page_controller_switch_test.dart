@@ -7,22 +7,25 @@ import 'package:provider/provider.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../../../support/business_test_harness.dart';
-import 'package:Kelivo/core/database/composer_draft_store.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/composer_draft.dart';
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/notification_service.dart';
-import 'package:Kelivo/features/home/controllers/home_page_controller.dart';
-import 'package:Kelivo/features/home/controllers/scroll_controller.dart';
-import 'package:Kelivo/features/home/controllers/stream_controller.dart'
+import 'package:Cuplivo/core/database/composer_draft_store.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/notification_service.dart';
+import 'package:Cuplivo/features/home/controllers/home_page_controller.dart';
+import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
+import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
     show ReasoningData, ReasoningSegmentData;
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/source_rect_scroll.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/source_rect_scroll.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 class _PageRequest {
   _PageRequest({required this.conversationId, required this.completer});
@@ -32,9 +35,13 @@ class _PageRequest {
 }
 
 class _ControlledChatService extends ChatService {
-  _ControlledChatService(this._messagesByConversation);
+  _ControlledChatService(
+    this._messagesByConversation, {
+    Map<String, String>? groupOf,
+  }) : _groupOf = groupOf ?? const <String, String>{};
 
   final Map<String, List<ChatMessage>> _messagesByConversation;
+  final Map<String, String> _groupOf;
   final Map<String, Conversation> _draftConversations =
       <String, Conversation>{};
   final List<_PageRequest> pageRequests = <_PageRequest>[];
@@ -114,6 +121,10 @@ class _ControlledChatService extends ChatService {
       id: id,
       title: 'Conversation $id',
       messageIds: messages.map((message) => message.id).toList(),
+      extras: {
+        if (_groupOf[id] case final groupId?)
+          Conversation.groupChatIdKey: groupId,
+      },
     );
   }
 
@@ -121,12 +132,16 @@ class _ControlledChatService extends ChatService {
   Future<Conversation> createDraftConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool temporary = false,
     bool reuseNewEntry = false,
   }) async {
     final conversation = Conversation(
       title: title ?? 'Draft',
       assistantId: assistantId,
+      extras: {
+        if (groupChatId != null) Conversation.groupChatIdKey: groupChatId,
+      },
     );
     _draftConversations[conversation.id] = conversation;
     _messagesByConversation[conversation.id] = <ChatMessage>[];
@@ -266,6 +281,7 @@ void main() {
     WidgetTester tester,
     _ControlledChatService service, {
     Widget Function(HomePageController)? timeline,
+    GroupChatProvider? groups,
   }) async {
     HomePageController? controller;
     await tester.pumpWidget(
@@ -279,6 +295,8 @@ void main() {
             create: (_) =>
                 AssistantProvider(preferences: createBusinessTestPreferences()),
           ),
+          if (groups != null)
+            ChangeNotifierProvider<GroupChatProvider>.value(value: groups),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -1015,6 +1033,78 @@ void main() {
     );
 
     testWidgets(
+      'a target that is not on this device is reported, not ignored',
+      (tester) async {
+        await runAsDesktop(() async {
+          final service = _ControlledChatService({
+            'conv-a': [_message('conv-a', 0)],
+          });
+          final controller = await pumpHarness(tester, service);
+          await switchAndSettle(tester, controller, service, 'conv-a');
+          controller.debugSetChatInitialized();
+          final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+          // A copied link whose conversation never reached this device (or a
+          // notification whose run was deleted) must say so: the tap would
+          // otherwise look like the app ignoring it.
+          NotificationService.openConversation(
+            'missing-conversation',
+            messageId: 'anchor-1',
+          );
+          for (var i = 0; i < 20; i++) {
+            await tester.pump(const Duration(milliseconds: 10));
+          }
+
+          expect(
+            AppSnackBarManager().activeToasts.any(
+              (entry) =>
+                  entry.notification.message == l10n.conversationLinkMissing,
+            ),
+            isTrue,
+          );
+          expect(controller.currentConversation?.id, 'conv-a');
+          // The anchor that arrived with it is dropped with it: a later,
+          // anchor-less open of that id must not scroll to this request's
+          // message.
+          expect(
+            NotificationService.takePendingMessageId('missing-conversation'),
+            isNull,
+          );
+          // Let the toast auto-dismiss and its controller dispose before the
+          // tree goes away, or the manager's ticker outlives the Navigator.
+          await tester.pump(const Duration(seconds: 4));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+        });
+      },
+    );
+
+    testWidgets('an anchor is consumed by the open it belongs to', (
+      tester,
+    ) async {
+      await runAsDesktop(() async {
+        final service = _ControlledChatService({
+          'conv-a': [_message('conv-a', 0)],
+        });
+        final controller = await pumpHarness(tester, service);
+        await switchAndSettle(tester, controller, service, 'conv-a');
+        controller.debugSetChatInitialized();
+
+        NotificationService.openConversation('conv-a', messageId: 'anchor-1');
+        for (var i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 10));
+        }
+
+        // The open that resolves takes its anchor with it, so nothing is left
+        // for a later, anchor-less open of the same conversation.
+        expect(NotificationService.takePendingMessageId('conv-a'), isNull);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      });
+    });
+
+    testWidgets(
       'notification tap closes settings and opens the saved conversation',
       (tester) async {
         await runAsMobile(() async {
@@ -1327,6 +1417,61 @@ void main() {
         expect(controller.currentConversation?.id, 'conv-a');
         expect(controller.selecting, isTrue);
         expect(controller.selectedItems, selectedBefore);
+      });
+    });
+
+    testWidgets('a new chat inside a group stays in that group', (
+      tester,
+    ) async {
+      await runAsMobile(() async {
+        final service = _ControlledChatService(
+          {
+            'conv-g': [_message('conv-g', 0)],
+          },
+          groupOf: {'conv-g': 'g1'},
+        );
+        final controller = await pumpHarness(tester, service);
+        await switchAndSettle(tester, controller, service, 'conv-g');
+        expect(controller.currentConversation?.groupChatId, 'g1');
+
+        final future = controller.createNewConversationAnimated();
+        await pumpUntilDone(tester, [future]);
+
+        // A group topic has no assistant; opening a 1:1 chat instead would
+        // silently leave the group for whichever assistant was current.
+        expect(controller.currentConversation?.groupChatId, 'g1');
+        expect(controller.currentConversation?.assistantId, isNull);
+        expect(controller.currentConversation?.id, isNot('conv-g'));
+      });
+    });
+
+    testWidgets('a new chat in a topic whose group is gone starts a 1:1', (
+      tester,
+    ) async {
+      await runAsMobile(() async {
+        final service = _ControlledChatService(
+          {
+            'conv-g': [_message('conv-g', 0)],
+          },
+          groupOf: {'conv-g': 'g1'},
+        );
+        final groups = GroupChatProvider(
+          store: ExtensionEntityStore(
+            createBusinessTestPreferencesWithDatabase().database,
+          ),
+        );
+        await groups.loaded;
+        final controller = await pumpHarness(tester, service, groups: groups);
+        await switchAndSettle(tester, controller, service, 'conv-g');
+        expect(controller.currentConversation?.groupChatId, 'g1');
+
+        final future = controller.createNewConversationAnimated();
+        await pumpUntilDone(tester, [future]);
+
+        // The group row is gone, so the topic is an ordinary conversation:
+        // carrying its id over would mint another topic tagged with the dead
+        // group, and it would silently rejoin the group if that came back.
+        expect(controller.currentConversation?.groupChatId, isNull);
       });
     });
 

@@ -1,22 +1,23 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/skills_binding.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/haptics.dart';
-import 'package:Kelivo/core/services/skills/skills_service.dart';
-import 'package:Kelivo/features/settings/widgets/custom_theme_widgets.dart';
-import 'package:Kelivo/features/workspace/widgets/skills/skill_detail.dart';
-import 'package:Kelivo/features/workspace/widgets/skills/skill_labels.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/features/workspace/workspace_layout.dart';
-import 'package:Kelivo/shared/widgets/form_sheet.dart';
-import 'package:Kelivo/shared/widgets/ios_settings_rows.dart';
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/skills_binding.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
+import 'package:Cuplivo/core/services/skills/skills_service.dart';
+import 'package:Cuplivo/features/group_chat/widgets/group_member_strip.dart';
+import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
+import 'package:Cuplivo/features/workspace/widgets/skills/skill_detail.dart';
+import 'package:Cuplivo/features/workspace/widgets/skills/skill_labels.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/workspace/workspace_layout.dart';
+import 'package:Cuplivo/shared/widgets/form_sheet.dart';
+import 'package:Cuplivo/shared/widgets/ios_settings_rows.dart';
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,11 +25,15 @@ Future<void> showConversationSkillsSheet(
   BuildContext context, {
   required String conversationId,
   required Assistant? assistant,
+  bool scopeToAssistant = false,
+  List<Assistant>? members,
 }) {
   final l10n = AppLocalizations.of(context)!;
-  final panel = ConversationSkillsPanel(
+  final panel = _ConversationSkillsSurface(
     conversationId: conversationId,
     assistant: assistant,
+    scopeToAssistant: scopeToAssistant,
+    members: members,
   );
   if (useDesktopWorkspaceLayout(context)) {
     return showAppDialog<void>(
@@ -58,12 +63,77 @@ Future<void> showConversationSkillsSheet(
   );
 }
 
+/// The panel, plus the roster strip that says whose list it edits.
+///
+/// A group has no current assistant, so the sheet cannot inherit one: without
+/// the strip every member would write the conversation's shared override, and
+/// switching which member is on show would re-read the same rows. The strip's
+/// selection scopes the panel to that member's own list, which is the same
+/// rule the desktop popover applies.
+class _ConversationSkillsSurface extends StatefulWidget {
+  const _ConversationSkillsSurface({
+    required this.conversationId,
+    required this.assistant,
+    required this.scopeToAssistant,
+    required this.members,
+  });
+
+  final String conversationId;
+  final Assistant? assistant;
+  final bool scopeToAssistant;
+  final List<Assistant>? members;
+
+  @override
+  State<_ConversationSkillsSurface> createState() =>
+      _ConversationSkillsSurfaceState();
+}
+
+class _ConversationSkillsSurfaceState
+    extends State<_ConversationSkillsSurface> {
+  String? _selectedId;
+
+  @override
+  Widget build(BuildContext context) {
+    final members = widget.members;
+    if (members == null || members.isEmpty) {
+      return ConversationSkillsPanel(
+        conversationId: widget.conversationId,
+        assistant: widget.assistant,
+        scopeToAssistant: widget.scopeToAssistant,
+      );
+    }
+    final byId = {for (final member in members) member.id: member};
+    final selected =
+        byId[_selectedId] ?? byId[widget.assistant?.id] ?? members.first;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (members.length > 1)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: GroupMemberStrip(
+              members: members,
+              selectedId: selected.id,
+              onSelect: (member) => setState(() => _selectedId = member.id),
+            ),
+          ),
+        ConversationSkillsPanel(
+          conversationId: widget.conversationId,
+          assistant: selected,
+          scopeToAssistant: true,
+        ),
+      ],
+    );
+  }
+}
+
 class ConversationSkillsPanel extends StatelessWidget {
   const ConversationSkillsPanel({
     super.key,
     required this.conversationId,
     required this.assistant,
     this.compact = false,
+    this.scopeToAssistant = false,
     this.footerAction,
   });
 
@@ -71,6 +141,16 @@ class ConversationSkillsPanel extends StatelessWidget {
   final Assistant? assistant;
   final bool compact;
   final Widget? footerAction;
+
+  /// Write [assistant]'s own list, whatever the conversation carries.
+  ///
+  /// A group panel puts a member strip above this one, so the rows claim to be
+  /// that member's. Two of the three write paths would break that claim: the
+  /// global switch flips a skill for every assistant, and the conversation-wide
+  /// override is shared by the whole roster — switching chips would then re-read
+  /// the same list. A scoped panel therefore materialises the member's own list
+  /// on the first toggle and never shows the inherit switch.
+  final bool scopeToAssistant;
 
   Widget _group({required List<Widget> children}) => compact
       ? Column(mainAxisSize: MainAxisSize.min, children: children)
@@ -188,8 +268,12 @@ class ConversationSkillsPanel extends StatelessWidget {
     final skillsService = context.watch<SkillsService>();
     final live = _liveAssistant(context);
     final binding = _binding(chat);
+    // A scoped panel writes the member's own list, so the conversation layer is
+    // not consulted: neither the shared override nor the global switch can be
+    // what the strip above it selects.
+    final scoped = scopeToAssistant;
     final inherit = binding.skillIds == null;
-    final followGlobal = inherit && live?.skillIds == null;
+    final followGlobal = !scoped && inherit && live?.skillIds == null;
     final listed = followGlobal
         ? skillsService.skills
         : [
@@ -198,7 +282,7 @@ class ConversationSkillsPanel extends StatelessWidget {
           ];
     final active = skillsService.resolveForAssistant(
       live,
-      conversationOverride: binding.skillIds,
+      conversationOverride: scoped ? null : binding.skillIds,
     );
     final activeIds = {for (final skill in active) skill.record.id};
 
@@ -218,7 +302,7 @@ class ConversationSkillsPanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!compact) ...[
+        if (!compact && !scoped) ...[
           _group(
             children: [
               _switchRow(
@@ -265,7 +349,7 @@ class ConversationSkillsPanel extends StatelessWidget {
                   label: listed[i].name,
                   value: followGlobal
                       ? listed[i].record.enabled
-                      : inherit
+                      : (scoped || inherit)
                       ? activeIds.contains(listed[i].record.id)
                       : (binding.skillIds ?? const <String>[]).contains(
                           listed[i].record.id,
@@ -282,7 +366,7 @@ class ConversationSkillsPanel extends StatelessWidget {
                       unawaited(_writeGlobal(context, skillId, checked));
                       return;
                     }
-                    if (inherit) {
+                    if (scoped || inherit) {
                       final ids = {
                         for (final skill in skillsService.resolveForAssistant(
                           live,
@@ -309,48 +393,52 @@ class ConversationSkillsPanel extends StatelessWidget {
               ],
             ],
           ),
-        if (compact) ...[
+        if (compact && (footerAction != null || !scoped)) ...[
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(
-                child: IosCardPress(
-                  key: inheritKey,
-                  baseColor: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  haptics: false,
-                  onTap: () => setInherit(!inherit),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IosCheckbox(
-                        value: inherit,
-                        onChanged: setInherit,
-                        size: 16,
-                        hitTestSize: 20,
-                        borderWidth: 1.5,
-                        activeColor: cs.primary,
-                        enableHaptics: false,
-                        semanticLabel: l10n.skillsInheritAssistant,
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          l10n.skillsInheritAssistant,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: cs.onSurface),
+              // The compact inherit switch writes the conversation, which a
+              // scoped panel must never do — it is the same control as the one
+              // this panel drops when it is not compact.
+              if (!scoped)
+                Flexible(
+                  child: IosCardPress(
+                    key: inheritKey,
+                    baseColor: Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    haptics: false,
+                    onTap: () => setInherit(!inherit),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IosCheckbox(
+                          value: inherit,
+                          onChanged: setInherit,
+                          size: 16,
+                          hitTestSize: 20,
+                          borderWidth: 1.5,
+                          activeColor: cs.primary,
+                          enableHaptics: false,
+                          semanticLabel: l10n.skillsInheritAssistant,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            l10n.skillsInheritAssistant,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: cs.onSurface),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               if (footerAction != null) ...[
                 const SizedBox(width: 8),
                 footerAction!,

@@ -1,24 +1,24 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/skills_binding.dart';
-import 'package:Kelivo/core/providers/asr_provider.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/instruction_injection_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/quick_phrase_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/world_book_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/skills/skills_service.dart';
-import 'package:Kelivo/desktop/skills_popover.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_section.dart';
-import 'package:Kelivo/features/workspace/widgets/skills/conversation_skills_sheet.dart';
-import 'package:Kelivo/features/workspace/widgets/skills/skills_pane.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/form_sheet.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/skills_binding.dart';
+import 'package:Cuplivo/core/providers/asr_provider.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/quick_phrase_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/world_book_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/skills/skills_service.dart';
+import 'package:Cuplivo/desktop/skills_popover.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_section.dart';
+import 'package:Cuplivo/features/workspace/widgets/skills/conversation_skills_sheet.dart';
+import 'package:Cuplivo/features/workspace/widgets/skills/skills_pane.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/form_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -224,7 +224,7 @@ void main() {
       expect(find.byTooltip('Skills'), findsNothing);
       final context = tester.element(find.byType(ChatInputBar));
       final l10n = AppLocalizations.of(context)!;
-      await tester.tap(find.byTooltip(l10n.chatInputBarMoreTooltip).first);
+      await tester.tap(find.byTooltip(l10n.chatInputBarOverflowTooltip));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Skills'));
       await tester.pumpAndSettle();
@@ -282,7 +282,10 @@ void main() {
         final skills = find.byTooltip(l10n.workspaceEntrySessionSkills);
         if (overflow) {
           expect(skills, findsNothing);
-          await tester.tap(find.byTooltip(l10n.chatInputBarMoreTooltip));
+          // The narrow composer collapses the toolbar into the overflow whose
+          // glyph is an ellipsis, not a second "+" (the phone group's composer
+          // is what draws the plus in the tools panel).
+          await tester.tap(find.byTooltip(l10n.chatInputBarOverflowTooltip));
           await tester.pumpAndSettle();
           await tester.tap(find.text(l10n.workspaceEntrySessionSkills));
         } else {

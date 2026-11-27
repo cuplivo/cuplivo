@@ -115,6 +115,7 @@ class SidebarSelectionActionBar extends StatelessWidget {
     super.key,
     required this.selectedCount,
     required this.allSelectedPinned,
+    required this.canMove,
     required this.onPin,
     required this.onMove,
     required this.onDelete,
@@ -122,6 +123,10 @@ class SidebarSelectionActionBar extends StatelessWidget {
 
   final int selectedCount;
   final bool allSelectedPinned;
+
+  /// Whether the selection holds at least one conversation the move picker can
+  /// actually move. A group's topics belong to the group, not to an assistant.
+  final bool canMove;
   final VoidCallback onPin;
   final VoidCallback onMove;
   final VoidCallback onDelete;
@@ -177,16 +182,18 @@ class SidebarSelectionActionBar extends StatelessWidget {
                           dense: compact,
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _SidebarSelectionActionButton(
-                          icon: Lucide.Shuffle,
-                          label: l10n.sideDrawerSelectionMove,
-                          color: cs.primary,
-                          onTap: enabled ? onMove : null,
-                          dense: compact,
+                      if (canMove) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _SidebarSelectionActionButton(
+                            icon: Lucide.Shuffle,
+                            label: l10n.sideDrawerSelectionMove,
+                            color: cs.primary,
+                            onTap: enabled ? onMove : null,
+                            dense: compact,
+                          ),
                         ),
-                      ),
+                      ],
                       const SizedBox(width: 10),
                       Expanded(
                         child: _SidebarSelectionActionButton(

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第十三轮 B — 图在正文，状态留在工具卡</title>
+<style>
+  :root{
+    --bg:#0E0E12; --panel:#17171D; --tile:#22222B; --ink:#ECECF1; --muted:#9A9AA6;
+    --line:rgba(255,255,255,.08); --primary:#8E9BE8; --tint:rgba(142,155,232,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:860px;margin:0 auto;padding:26px 20px 48px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 10px;font-weight:650}
+  .lede{font-size:14px;line-height:1.7;color:var(--muted);margin:0 0 22px;max-width:56em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+       background:rgba(255,255,255,.07);border-radius:4px;padding:1px 4px}
+
+  .phone{width:360px;max-width:100%;background:var(--bg);border:1px solid var(--line);
+         border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+  .bar{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--line);
+       font-size:14px;color:var(--muted)}
+  .chat{padding:14px 14px 20px;display:flex;flex-direction:column;gap:12px}
+  .body{font-size:15px;line-height:1.62;margin:0;color:var(--ink)}
+
+  /* 工具卡承担状态：头一行是名字 + 用时 + ⋯，第二行是一句状态 */
+  .tool{background:var(--tile);border-radius:14px;overflow:hidden}
+  .tool-row{display:flex;align-items:center;gap:10px;padding:11px 14px;font-size:14px}
+  .tool-row .grow{flex:1}
+  .tool-row .e{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .tool-row .more{color:rgba(255,255,255,.87);letter-spacing:1px;font-size:15px}
+  .tool-sub{display:flex;align-items:center;gap:8px;padding:0 14px 11px;font-size:12.5px;color:var(--muted)}
+  .tool-sub .ok{color:#7FC58A}
+  .tool-sub .warn{color:#E0A458}
+
+  /* 正文里只出现图本身 */
+  .inline{position:relative;aspect-ratio:3/2;overflow:hidden;background:#101828;border-radius:12px}
+  .sky{position:absolute;inset:0;background:linear-gradient(160deg,#26456B 0%,#33587C 45%,#7FA3B8 100%)}
+  .win{position:absolute;inset:0;
+       background:linear-gradient(90deg,rgba(10,12,18,.55) 0 6%,transparent 6% 47%,
+                  rgba(10,12,18,.6) 47% 53%,transparent 53% 94%,rgba(10,12,18,.55) 94%)}
+  .lamp{position:absolute;right:18%;top:22%;width:74px;height:74px;border-radius:50%;
+        background:radial-gradient(circle,rgba(255,214,140,.95),rgba(255,196,110,.25) 55%,transparent 72%)}
+  .shelf{position:absolute;left:56%;top:38%;right:8%;height:30%;
+         background:repeating-linear-gradient(90deg,rgba(214,176,120,.85) 0 5px,
+                   rgba(120,86,52,.85) 5px 9px,transparent 9px 13px);
+         opacity:.75;border-radius:3px}
+  .plant{position:absolute;left:62%;bottom:-6%;width:70px;height:70px;
+         background:radial-gradient(ellipse at 50% 60%,rgba(130,190,120,.9),rgba(70,120,70,.6) 60%,transparent 72%)}
+  .cat{position:absolute;left:20%;bottom:16%;width:56px;height:34px;border-radius:50% 50% 45% 45%;
+       background:linear-gradient(160deg,#E8A25C,#B9702F)}
+
+  .stage{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+  .notes{flex:1 1 300px;min-width:260px}
+  h2{font-size:13px;font-weight:650;margin:0 0 8px;color:var(--ink)}
+  ul{margin:0 0 14px;padding-left:18px}
+  li{font-size:13.5px;line-height:1.68;color:#C9C9D4;margin-bottom:6px}
+  li b{color:#fff;font-weight:600}
+  .cap{font-size:11.5px;color:var(--muted);margin:0 0 10px;letter-spacing:.03em}
+  .closing{font-size:13px;line-height:1.72;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:22px}
+  .closing b{color:var(--ink)}
+  @media (max-width:700px){.page{padding:18px 10px 40px}.phone{width:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">生图 Job · 第十三轮 · 变体 B</p>
+  <h1>位置留给图，卡头留在工具卡上</h1>
+  <p class="lede">同样是"在 Markdown 图那一格渲染"，但那里<b>只画图</b>：生成中是同尺寸的骨架，完成后是图。用多久、失败原因、重试、⋯ 全都收在上面的工具卡里 —— 不做成一张带卡头的块。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="bar">慢下来</div>
+      <div class="chat">
+        <p class="body">好，我来画一张试试。</p>
+
+        <!-- 工具卡承担全部状态 -->
+        <div class="tool">
+          <div class="tool-row">
+            <span>🔧</span><span class="grow">调用工具: generate_image</span>
+            <span class="e">12.2s</span><span class="more">⋯</span>
+          </div>
+          <div class="tool-sub"><span class="ok">✓</span><span>已生成，见下方插图</span></div>
+        </div>
+
+        <p class="body">我用了一张水彩风格的小练习：黄昏的独立书店，雨把窗玻璃淋成一道水痕，一只橘猫蜷在窗台的书堆上睡觉，店里是暖黄的灯，外面是冷蓝的雨。</p>
+
+        <!-- 这一块就是 Markdown 图片的位置，只有图 -->
+        <div class="inline">
+          <div class="sky"></div><div class="win"></div><div class="lamp"></div>
+          <div class="shelf"></div><div class="plant"></div><div class="cat"></div>
+        </div>
+
+        <p class="body">你想换方向也行，比如改成扁平插画、3D 感、赛博朋克夜景，或者干脆换个题材：人物、建筑、产品海报、抽象图形都可以。有想调整的地方，跟我说，我可以在这张图上继续改。</p>
+      </div>
+    </div>
+
+    <div class="notes">
+      <p class="cap">同一段回复，B 的样子：图夹在两段之间，状态和入口在上面那张工具卡里。</p>
+
+      <h2>好在哪</h2>
+      <ul>
+        <li><b>一眼就是图。</b>正文里没有第二个"卡"，读起来和图床插图一样自然。</li>
+        <li><b>状态只有一处。</b>工具卡本来就在调用位置，生成中/失败/重试不必再造一个头。</li>
+        <li><b>失败时正文只留一个空框</b>，原因写在工具卡下面，不打断阅读。</li>
+      </ul>
+
+      <h2>代价</h2>
+      <ul>
+        <li><b>眼睛要走两处</b>：图在中间，用时和重试在上面。图很长时要往回滚才知道成没成。</li>
+        <li><b>工具卡要长大</b>：得从"一行名字"变成"名字 + 状态 + ⋯"，其它工具卡不长这样。</li>
+        <li>和 A 一样，位置由模型写的占位决定；没写就没有位置。</li>
+      </ul>
+
+      <h2>和 A 的真正差别</h2>
+      <ul>
+        <li>A：卡头跟着图走 —— 「生成插图 (12.2s) ⋯」就在图上面，一个东西一个位置。</li>
+        <li>B：状态跟着调用走 —— 图和它的元信息被拆到两处，但正文更干净。</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="closing"><b>这一版要定的：</b>图的位置固定给"图本身"，状态留在工具卡。<b>代价写在这里：</b>要不要为了正文干净，接受元信息和图分开。</p>
+</main>
+</body>
+</html>

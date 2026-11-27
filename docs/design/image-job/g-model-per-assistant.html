@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第五轮 B — 每个助手选绘图模型</title>
+<style>
+  :root{--bg:#F7F7F7;--card:#FFF;--ink:#202020;--muted:#6B6B73;--line:rgba(20,20,25,.08);
+        --line-soft:rgba(20,20,25,.05);--primary:#4D5C92;--tint:rgba(77,92,146,.06)}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:760px;margin:0 auto;padding:26px 20px 48px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:52em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:rgba(20,20,25,.05);
+       border-radius:4px;padding:1px 4px}
+  .stage{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+  .phone{width:360px;max-width:100%;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .bar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+       border-bottom:1px solid var(--line-soft)}
+  .bar .t{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .bar .save{font-size:15px;color:var(--primary);font-weight:600}
+  .bar svg{width:20px;height:20px;opacity:.7}
+  .section{padding:16px 16px 6px;font-size:12px;color:var(--muted);letter-spacing:.04em}
+  .row{display:flex;align-items:flex-start;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line-soft)}
+  .row .grow{flex:1;min-width:0}
+  .row .name{font-size:15px;font-weight:500}
+  .row .sub{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.5}
+  .row .val{font-size:13px;color:var(--muted);white-space:nowrap}
+  .chev{color:rgba(32,32,32,.3);font-size:15px;margin-top:2px}
+  .row.new{background:var(--tint)}
+  .row.new .name{color:var(--primary);font-weight:600}
+  .hint{padding:10px 16px 18px;font-size:12px;color:var(--muted);line-height:1.6;
+        border-bottom:1px solid var(--line-soft)}
+  .notes{flex:1 1 240px;min-width:220px}
+  h2{font-size:13px;font-weight:650;margin:0 0 8px;color:var(--ink)}
+  ul{margin:0 0 16px;padding-left:18px}
+  li{font-size:13.5px;line-height:1.7;color:#3A3A42;margin-bottom:5px}
+  .caption{font-size:12.5px;line-height:1.7;color:var(--muted);margin:10px 2px 0}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:22px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){.page{padding:18px 10px 40px}.phone{width:100%}.notes{flex-basis:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">生图 Job · 第五轮 · 变体 B</p>
+  <h1>每个助手各选一个</h1>
+  <p class="lede">助手编辑页多一段「绘图」：可以指定 provider + model，不选就<b>回落到设置里的全局绘图模型</b>。写实助手用真照片模型、插画助手用插画模型，各调各的。</p>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="t">编辑助手</div>
+        <div class="save">保存</div>
+      </div>
+
+      <div class="section">基本</div>
+      <div class="row">
+        <div class="grow"><div class="name">模型</div><div class="sub">GPT-5</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="row">
+        <div class="grow"><div class="name">系统提示词</div><div class="sub">写一条关于「慢下来」的短文…</div></div>
+        <div class="chev">›</div>
+      </div>
+
+      <div class="section">绘图</div>
+      <div class="row new">
+        <div class="grow"><div class="name">绘图模型</div><div class="sub">跟随默认模型（gpt-image-1）</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="row">
+        <div class="grow"><div class="name">默认比例</div><div class="sub">3:2</div></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="hint">不选就跟随 设置 → 默认模型 → 绘图模型。</div>
+
+      <div class="section">工具</div>
+      <div class="row">
+        <div class="grow"><div class="name">本地工具</div><div class="sub">时间、剪贴板、生图…</div></div>
+        <div class="chev">›</div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>这一版定下的</h2>
+      <ul>
+        <li>每个助手一处配置：provider + model，可覆盖全局。</li>
+        <li>未选时回落到全局，「跟随默认模型」写明当前实际值。</li>
+        <li>第一版就带上比例，按助手记。</li>
+      </ul>
+      <h2>必须接受的代价</h2>
+      <ul>
+        <li>两个层级：助手 → 全局。用户很难一眼确定「这张图到底是哪个模型画的」，除非每处都显示实际值。</li>
+        <li>助手编辑页多一段，设置面变大；每个新助手都要做一次选择（或依赖回落）。</li>
+        <li>工具与后端要多读一层配置，测试也要覆盖两条路径。</li>
+      </ul>
+      <p class="caption">分水岭：B 是「先建两层」，A 是「先一层，需要时再加一层」。加一层不破坏已有配置；拆一层会。</p>
+    </div>
+  </div>
+
+  <p class="closing"><b>共用：</b>工具拿到的都是一个 provider + model；第一版只接 <code>/images/generations</code> 形状的端点。<b>注意：</b>「未选回落到全局」本身也要实现，等于 A 的一层加上 B 的覆盖。</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 第二片 · 委派目标为助手 · A v3</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92; --green:#34C759;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:60em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;line-height:1.6;
+    background:rgba(20,20,25,.04);border:1px solid var(--line-soft);border-radius:12px;
+    padding:12px 14px;margin:0 0 18px;overflow:auto;white-space:pre}
+  pre .c{color:var(--muted)}
+  .row2{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:52px;display:flex;align-items:center;padding:0 8px 0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .av{width:28px;height:28px;border-radius:50%;background:rgba(77,92,146,.12);
+              color:var(--primary);display:flex;align-items:center;justify-content:center;
+              font-size:12px;font-weight:700;flex:none}
+  .appbar .tt{flex:1;min-width:0}
+  .appbar .tt .t{font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .tt .s{font-size:11px;color:rgba(32,32,32,.6);font-weight:500;margin-top:2px;
+                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .act{display:flex;align-items:center;gap:2px;flex:none;color:var(--primary);font-size:16px;font-weight:600;padding-right:6px}
+  .appbar .x{width:20px;height:20px;color:rgba(32,32,32,.7)}
+  .chat{background:var(--bg);padding:12px 0 6px}
+  .msg{padding:0 16px}
+  .body{font-size:15px;line-height:1.6;margin:0 0 10px}
+  .card{margin:0 16px 10px;padding:9px 12px;border:1px solid var(--line-soft);border-radius:12px;
+        background:var(--card);display:flex;align-items:center;gap:8px;font-size:13px;
+        color:rgba(32,32,32,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card svg{width:15px;height:15px;flex:none;color:rgba(32,32,32,.55)}
+  .card .tgt{color:var(--primary);font-weight:600}
+  .list{padding:12px 16px}
+  .seccard{background:var(--card);border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 2px rgba(20,20,25,.05)}
+  .iosrow{display:flex;align-items:center;padding:11px 12px;border-bottom:1px solid var(--line-soft);font-size:15px;color:rgba(32,32,32,.9)}
+  .iosrow:last-child{border-bottom:none}
+  .iosrow .ic{width:36px;flex:none;display:flex;align-items:center}
+  .iosrow .ic svg{width:20px;height:20px;color:rgba(32,32,32,.8)}
+  .iosrow .lb{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .iosrow .tip{width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex:none}
+  .iosrow .tip svg{width:16px;height:16px;color:rgba(32,32,32,.45)}
+  .iosrow .dt{font-size:13px;color:rgba(32,32,32,.6);margin-right:6px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .iosrow .ch{width:16px;height:16px;color:var(--ink);flex:none}
+  .iosrow.new .lb{color:var(--primary);font-weight:600}
+  .iosrow .sw{width:51px;height:31px;border-radius:16px;background:rgba(20,20,25,.16);position:relative;flex:none}
+  .iosrow .sw.on{background:var(--green)}
+  .iosrow .sw::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .iosrow .sw.on::after{left:22px}
+  .ellipsis{padding:4px 12px 0;text-align:center;color:rgba(32,32,32,.35);font-size:14px;letter-spacing:2px}
+  .sheet{padding:0 0 6px}
+  .handle{width:40px;height:4px;border-radius:999px;background:rgba(32,32,32,.2);margin:12px auto 10px}
+  .shead{display:flex;align-items:center;padding:0 12px 8px;gap:4px}
+  .shead .t{flex:1;text-align:center;font-size:16px;font-weight:600}
+  .shead .act{font-size:15px;color:var(--primary);font-weight:600;padding:0 6px;min-width:44px}
+  .shead .x{width:20px;height:20px;color:rgba(32,32,32,.7);margin-left:6px}
+  .shead .act.sec{color:var(--muted);font-weight:500;font-size:13px}
+  .field{margin:6px 16px 10px;padding:11px 12px;border:1px solid rgba(20,20,25,.18);border-radius:12px;
+         font-size:14.5px;color:rgba(32,32,32,.38);background:var(--card)}
+  .field.filled{color:rgba(32,32,32,.85);border-color:rgba(77,92,146,.5)}
+  .note12{margin:0 16px 12px;font-size:12px;line-height:1.4;color:rgba(32,32,32,.6)}
+  .prow{display:flex;align-items:center;gap:10px;padding:11px 20px;border-bottom:1px solid var(--line-soft)}
+  .prow:last-child{border-bottom:none}
+  .prow .cav{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+             font-size:12px;font-weight:700;background:rgba(77,92,146,.12);color:var(--primary)}
+  .prow .nm{flex:1;min-width:0;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .nm small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cb{width:22px;height:22px;border-radius:6px;border:1.5px solid rgba(20,20,25,.25);flex:none;position:relative}
+  .cb.on{background:var(--primary);border-color:var(--primary)}
+  .cb.on::after{content:"";position:absolute;left:7px;top:3px;width:5px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .cfg{padding:20px 20px 10px}
+  .cfg h3{font-size:17px;font-weight:600;margin:0 0 4px}
+  .cfg .sub{font-size:12.5px;line-height:1.45;color:var(--muted);margin:0 0 8px}
+  .crow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+  .crow:last-child{border-bottom:none}
+  .crow .tx{flex:1;min-width:0}
+  .crow .tx .l{font-size:14.5px}
+  .crow .tx .d{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+  .crow .v{font-size:14px;color:var(--muted);white-space:nowrap}
+  .crow.new .tx .l{color:var(--primary);font-weight:600}
+  .crow.new .v{color:var(--ink)}
+  .notes{flex:1 1 300px;min-width:260px;max-width:520px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.6;margin:0 0 10px}
+  th{text-align:left;font-size:12px;letter-spacing:.04em;color:var(--muted);font-weight:600;
+     padding:6px 10px;border-bottom:1px solid var(--line)}
+  td{padding:7px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:#33333a}
+  td:first-child{white-space:nowrap;color:var(--ink);font-weight:600}
+  .diff{border-left:3px solid var(--primary);padding:2px 0 2px 12px;margin:0 0 18px}
+  .diff .h{font-size:12px;letter-spacing:.04em;color:var(--primary);font-weight:600;margin:0 0 6px}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第二片 · 委派目标为助手 · 方案 A · v3（按五条意见改）</p>
+  <h1>显式 target、来源侧筛选、描述进设置卡</h1>
+  <p class="lede">v2 的核心不变：<code>delegate(task, label, target)</code>，<code>target</code> 是 <code>general</code> 或 <code>assistant:&lt;id&gt;</code>，原样落进 <code>subagent.target</code>；工作区、授权、深度只来自调用方。这一版补上三件：<b>可委派的目标</b>进了子代理弹窗（不再「以后」）；<code>Assistant.description</code> 挪到设置卡「默认工作区」之后，带悬停问号；工具卡助手名在前。</p>
+
+  <div class="diff">
+    <p class="h">相对 v2 改了什么</p>
+    <ul>
+      <li><b>卡片</b>：<code>派遣 SQL 专家：查慢用例</code>——助手名在前，任务在后。<code>general</code> 仍是 <code>派遣子代理：查慢用例</code>。</li>
+      <li><b>描述</b>：不在身份卡。基本页设置卡里一个导航行，紧跟「默认工作区」；<code>TipIcon</code> 悬停问号；点开是 Max tokens 那种弹层。</li>
+      <li><b>删了一行失败态</b>：「写了调用方自己的 id」——枚举里没有自己，模型在 1:1 里也拿不到自己的 id，这件事没有发生路径。名单外一律 <code>unknown_target</code>，一条规则。</li>
+      <li><b>可委派的目标</b>：<code>Assistant.subagentTargetIds</code>，<code>null</code> = 全部（默认）、<code>[]</code> = 无、列表 = 指定的。子代理弹窗多一行，点开多选。id 的令牌成本从此由用户控制。</li>
+    </ul>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="appbar">
+        <svg style="width:20px;height:20px;opacity:.7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="av">登</span>
+        <div class="tt"><div class="t">登录页重构</div><div class="s">GPT-5 (OpenAI)</div></div>
+      </div>
+      <div class="chat">
+        <div class="msg"><p class="body">查询语句我不熟，交给 SQL 专家去查这三个用例为什么慢。</p></div>
+        <div class="card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          派遣 <span class="tgt">SQL 专家</span>：查慢用例
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <h2>时间线：助手名在前</h2>
+      <p class="note"><b>新键</b> <code>chatMessageWidgetDelegateTo(assistant, label)</code>；<code>general</code> 走原键，一字不改。名字在渲染时按 id 查，查不到（助手已删）就回落到原键。</p>
+      <p class="note"><b>面板</b>第二行仍是 <code>SQL 专家 · 13 秒</code>——名字本来就在前。条、分隔线、侧边栏、子会话标题栏、工具箱摘要都不动。</p>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="appbar"><svg style="width:20px;height:20px;opacity:.7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><div class="tt"><div class="t">编辑助手 · 基本</div></div></div>
+      <div class="list" style="padding-top:10px">
+        <div class="seccard">
+          <div class="iosrow"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 14.6V20h16v-5.4M4 12h16M4 12l1.5-5h13L20 12"/></svg></div><div class="lb">Max tokens</div><div class="dt">不限</div><svg class="ch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="iosrow"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div><div class="lb">默认工作区</div><div class="dt">cuplivo</div><svg class="ch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="iosrow new"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div><div class="lb">描述</div><div class="tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg></div><div class="dt">把需求写成 SQL 并解释执行计划</div><svg class="ch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+          <div class="iosrow"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0114 0v1"/></svg></div><div class="lb">使用助手头像</div><div class="sw on"></div></div>
+          <div class="iosrow"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M9 20h6M12 5v15"/></svg></div><div class="lb">使用助手名称</div><div class="sw on"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="sheet" style="background:var(--card)">
+        <div class="handle"></div>
+        <div class="shead">
+          <svg class="x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          <div class="t">描述</div>
+          <div class="act">保存</div>
+        </div>
+        <div class="field filled">把需求写成 SQL 并解释执行计划</div>
+        <p class="note12">只有模型会读它：群聊选人、子代理委派时作参考。不用这些功能可以不填。</p>
+      </div>
+    </div>
+    <div class="notes">
+      <h2>描述：一个设置，不是身份</h2>
+      <p class="note"><b>为什么不在名称下面</b>：身份卡回答「它是谁」；描述回答「其它模型眼中的它能做什么」，只有群聊和委派两处读。放进名称旁边，是给一个多数人不填的字段占最好的位置。</p>
+      <p class="note"><b>为什么在「默认工作区」之后</b>：上面五个是模型参数，「默认工作区」是它在哪工作，描述是它对外是什么——三个「关于这个助手」的导航行连在一起，下面四个开关仍是一整组。导航行不被开关切开。</p>
+      <p class="note"><b>形状照抄 Max tokens</b>：行右侧是值（空着就空着，不写「未填」），点开是同一个弹层——X / 标题 / 保存、自动聚焦的输入框、下面一行 12px 说明。说明与问号同一句话。</p>
+      <p class="note"><b>问号</b>是现成的 <code>TipIcon</code>（<code>_iosNavRow(tip:)</code>）：桌面悬停、手机点一下或长按。<b>桌面端</b>不走弹层：<code>labelWithHelp</code> + 行内输入框，和桌面版 Max tokens 一致。</p>
+      <p class="note"><b>占位</b>：「例如：把需求写成 SQL 并解释执行计划」——教的是写能做什么。</p>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="cfg">
+        <h3>子代理</h3>
+        <p class="sub">在本会话自己的工作区里派一个分身去做完一件任务。</p>
+        <div class="crow"><div class="tx"><div class="l">开启</div></div><div class="v" style="width:51px;height:31px;border-radius:16px;background:var(--green);position:relative"><span style="position:absolute;top:2px;left:22px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></div></div>
+        <div class="crow"><div class="tx"><div class="l">深度</div><div class="d">允许子代理再派子代理的层数</div></div><div class="v">1</div></div>
+        <div class="crow new"><div class="tx"><div class="l">可委派的目标</div><div class="d">本助手派活时，模型可以指名哪些助手</div></div><div class="v">2 个 ›</div></div>
+        <div class="crow"><div class="tx"><div class="l">模型</div><div class="d">用哪个模型跑子代理</div></div><div class="v">继承本助手</div></div>
+        <div class="crow"><div class="tx"><div class="l">子代理提权访问</div></div><div class="v">询问</div></div>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="appbar" style="height:44px"><div class="tt"><div class="t" style="font-size:15px">可委派的目标</div></div><div class="act sec">全不选</div><div class="act">完成</div></div>
+      <div class="prow"><div class="cav">S</div><div class="nm">SQL 专家<small>把需求写成 SQL 并解释执行计划</small></div><div class="cb on"></div></div>
+      <div class="prow"><div class="cav">翻</div><div class="nm">翻译官<small>中英互译，保留术语与格式</small></div><div class="cb on"></div></div>
+      <div class="prow"><div class="cav">审</div><div class="nm">审稿人<small></small></div><div class="cb"></div></div>
+      <div class="prow"><div class="cav">助</div><div class="nm">助手 2</div><div class="cb"></div></div>
+    </div>
+    <div class="notes">
+      <h2>可委派的目标：一行 + 多选</h2>
+      <p class="note"><b>行</b>放在「深度」和「模型」之间——多深、派给谁、用什么模型、能花多少权限，四个问题按这个顺序。值只有三种：<b>全部助手</b>（默认，<code>null</code>）／<b>无</b>／<b>N 个</b>。没有其它助手时整行不出现。</p>
+      <p class="note"><b>多选</b>沿用 <code>showAssistantMoveSelector</code> 的行（头像 + 名字，按用户拖好的顺序），勾选框换成 <code>IosCheckbox</code>；名字下面的小字就是描述——这一屏顺便让用户看到「描述」是给谁看的。手机弹层、桌面对话框，和「提权访问」同一个开关。</p>
+      <p class="note"><b>全选 / 全不选</b>在弹层标题栏。全选保存写回 <code>null</code>（「全部助手」= 以后新建的也算），全不选写 <code>[]</code>——「无」就是今天的行为，<code>target</code> 参数整个不出现。</p>
+      <p class="note"><b>删掉的助手</b>从别人的名单里顺手摘掉，不让死 id 进备份和同步。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>工具契约：名单来自筛选，其余不变</h2>
+<pre>{ "name": "delegate",
+  "parameters": {
+    "task": "…", "label": "…",
+    "target": {
+      "type": "string",
+      "enum": ["general", "assistant:&lt;id₁&gt;", "assistant:&lt;id₂&gt;"],   <span class="c">// 筛选后的名单，永远不含自己</span>
+      "description":
+        "Who runs the task, in this same workspace:\n" +
+        "general — a copy of yourself.\n" +
+        "assistant:&lt;id₁&gt; — SQL 专家：把需求写成 SQL 并解释执行计划\n" +
+        "assistant:&lt;id₂&gt; — 翻译官" } },                       <span class="c">// 描述空着就只有名字</span>
+  "required": ["task", "label", "target"] }
+<span class="c">// 名单为空（只有一个助手，或筛成「无」）→ target 参数整个不出现，schema 与今天逐字节相同。</span>
+<span class="c">// 名单外 → { "status": "rejected", "reason": "unknown_target" }。回执原样带回 target。</span></pre>
+  </section>
+
+  <section>
+    <h2>谁贡献什么（与 v2 相同，不再展开）</h2>
+    <ul>
+      <li>目标出系统提示 / 模型 / 工具集 / MCP / 技能 / 记忆；调用方出工作区（<code>defaultWorkspaceId</code> 永不参与）/ 提权 + 上限 / 深度；父会话的续写仍是调用方。</li>
+      <li><b>模型解析的接缝</b>：<code>resolveSubagentModel(delegator, target)</code>，签名带 target；今天两种目标同一答案（调用方覆盖 → 目标自己的 → 全局），测试按 kind 各钉一格。</li>
+      <li><b>一个词表一处解析</b>：<code>subagent.target = 'general' | 'assistant:&lt;id&gt;'</code>，工具参数原样落库，单一 <code>parse</code> / <code>encode</code>。schema 仍是 5。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>数据</h2>
+    <ul>
+      <li><b><code>Assistant.description</code></b>：<code>String</code>，默认空。读者只有两处：委派名单；群聊导演的 roster（<code>group_director.dart:205-212</code>）与决策 state（<code>:359-362</code>）——非空才加键，老用户请求字节不变。</li>
+      <li><b><code>Assistant.subagentTargetIds</code></b>：<code>List&lt;String&gt;?</code>。<code>null</code> = 全部；<code>[]</code> = 无；否则指定的。名单按它解析，不存在的 id 跳过。</li>
+      <li><code>SubagentEntry.assistant</code> 不动（调用方），多 <code>targetName</code> 给面板。幂等键、结果消息、分隔线、队列不变。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>失败模式</h2>
+    <table>
+      <tr><th>什么坏了</th><th>系统做什么</th></tr>
+      <tr><td>写了名单外的 target</td><td><code>rejected: unknown_target</code>——删在请求与调用之间，或筛选在中间收窄，或模型写错 id。模型改派 <code>general</code> 或告诉用户，不留空子会话。</td></tr>
+      <tr><td>目标在子代理跑的时候被删</td><td>子会话按既有规则解析助手，不中断；卡片名字查不到就回落到 <code>派遣子代理：&lt;label&gt;</code>。</td></tr>
+      <tr><td>目标的模型 / provider 没了</td><td>既有的 <code>turn_not_started</code>：子会话留空、条不出现、模型拿到拒绝。</td></tr>
+      <tr><td>目标一个工具都没开</td><td>子代理就是没工具，和直接跟它聊一样。</td></tr>
+      <tr><td>描述空着</td><td>名单里只有名字。</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>代价</h2>
+    <ul class="cost">
+      <li><b>不筛就全付。</b>一个 UUID 约 15 个 token，名单里出现两次：5 个助手约 250 token，40 个约 2000。筛成 3 个就只付 3 个——这是筛选存在的理由。</li>
+      <li><b>模型要照抄 id。</b>抄错 → <code>unknown_target</code> → 重派。导演按 id 选人已经跑通，同一种用法。</li>
+      <li><b>两个新字段</b>走 <code>Assistant</code> 的 copyWith / JSON / update 管线；基本页多一个导航行，子代理弹窗多一行和一个多选。</li>
+      <li><b>助手一多，模型可能选错人。</b>代价是一次失败的委派，不是数据损坏。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>这一轮确认一件事：</b>按五条意见改后的 A——目标筛选进这一版（弹窗那一行与多选的 UI 如上）、描述放设置卡「默认工作区」之后带问号、卡片助手名在前。过了就动工。</p>
+
+</main>
+</body>
+</html>

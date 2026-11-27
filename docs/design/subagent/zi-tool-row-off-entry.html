@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工具行对齐 · 关闭时留一行灰字入口</title>
+<style>
+  :root{--bg:#0b0c0f;--card:#15171c;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34);--primary:#7aa2ff;--warn:#e0a34a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:26px 16px 44px}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:17px;font-weight:600;margin:0 0 6px}
+  h2{font-size:13px;font-weight:600;color:var(--muted);margin:24px 0 8px}
+  .lead{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .tag{display:inline-block;font-size:11px;font-weight:500;color:var(--warn);border:1px solid var(--warn);
+    border-radius:999px;padding:0 8px;margin-left:8px;vertical-align:2px}
+  .phone{max-width:360px;border:1px solid var(--line);border-radius:22px;padding:10px;background:#0f1115}
+  .sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px}
+  .stitle{font-size:11.5px;font-weight:600;color:var(--muted);padding:6px 2px 4px}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 2px;font-size:13.5px}
+  .row + .row{border-top:1px solid rgba(255,255,255,.05)}
+  .row .t{flex:1;min-width:0}
+  .row .tick{color:var(--primary);font-size:13px}
+  .row .blank{display:inline-block;width:13px}
+  .sub{display:flex;align-items:center;gap:8px;padding:2px 2px 8px 26px;font-size:11.5px;color:var(--muted)}
+  .sub.dim{color:var(--warn)}
+  .sub .chev{font-size:11px;color:var(--dim)}
+  .sw{width:34px;height:19px;border-radius:999px;background:var(--primary);position:relative;flex:none}
+  .sw::after{content:"";position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;background:#fff}
+  .sw.off{background:rgba(255,255,255,.18)}
+  .sw.off::after{right:auto;left:2px}
+  .note{color:var(--muted);font-size:12px;margin:10px 0 0}
+  .note b{color:var(--fg);font-weight:600}
+  .warn{color:var(--warn)}
+  code{font:12px ui-monospace,Consolas,monospace;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px}
+  ol{margin:0;padding-left:18px}
+  li{color:var(--muted);font-size:13px;margin:7px 0}
+  li b{color:var(--fg);font-weight:600}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>工具行对齐<span class="tag">变体 B</span></h1>
+<p class="lead">主行、对话框、开关位置都和 A 一样；唯一的差别是关着的时候副行不消失，而是变成一行灰字「未配置 · 去选择」，点它照样进配置。</p>
+
+<h2>桌面 · 工具面板</h2>
+<div class="phone"><div class="sheet">
+  <div class="stitle">本地工具</div>
+  <div class="row"><span class="t">绘图</span><span class="tick">✓</span></div>
+  <div class="sub"><span>模型 · gpt-image-1</span><span class="chev">›</span></div>
+  <div class="row"><span class="t">子代理</span><span class="blank"></span></div>
+  <div class="sub dim"><span>未配置 · 去选择</span><span class="chev">›</span></div>
+  <div class="row"><span class="t">计算</span><span class="blank"></span></div>
+</div></div>
+<p class="note">关着的子代理行下面仍有第二行，和绘图行在「没配模型」时的警告样式一致——这一行是<b>常驻</b>的，不是只在开着时。</p>
+
+<h2>手机 · 工具面板</h2>
+<div class="grid">
+  <div class="phone"><div class="sheet">
+    <div class="stitle">开</div>
+    <div class="row"><span class="t">子代理</span><span class="sw"></span></div>
+    <div class="sub"><span>gpt-5.2 · 深度 1</span><span class="chev">›</span></div>
+  </div></div>
+  <div class="phone"><div class="sheet">
+    <div class="stitle">关</div>
+    <div class="row"><span class="t">子代理</span><span class="sw off"></span></div>
+    <div class="sub dim"><span>未配置 · 去选择</span><span class="chev">›</span></div>
+  </div></div>
+</div>
+<p class="note">两态都有副行：开着说「gpt-5.2 · 深度 1」，关着说「未配置 · 去选择」。</p>
+
+<h2>配置对话框</h2>
+<div class="phone"><div class="sheet">
+  <div class="stitle">子代理</div>
+  <div class="row"><span class="t">深度</span><span class="note" style="margin:0">1</span><span class="chev">›</span></div>
+  <div class="row"><span class="t">可委派的目标</span><span class="note" style="margin:0">本助手</span><span class="chev">›</span></div>
+  <div class="row"><span class="t">模型</span><span class="note" style="margin:0">gpt-5.2</span><span class="chev">›</span></div>
+  <div class="row"><span class="t">子代理提权访问</span><span class="note" style="margin:0">询问</span><span class="chev">›</span></div>
+</div></div>
+<p class="note">和 A 相同：「开启」行删除。</p>
+
+<h2>和 A 的差别只有这一处</h2>
+<ol>
+<li><b>关着时仍能配置。</b>模型、深度、目标、提权都可以先设好再开——A 要求先开一次。</li>
+<li><b>代价是每个关着的工具有一行常驻灰字。</b>注意这条只给子代理：绘图在关着时副行仍然消失，于是两行的行为又不一致了。</li>
+<li><b>与你的原话有出入。</b>你要求「副行仅在开启时出现」，B 把副行变成常驻，只是在关闭时换一句话。</li>
+<li><b>文案要新增 1 条。</b>「未配置 · 去选择」在绘图里是 <code>imageJobNotConfigured</code>，语义是「没配模型」；子代理这里指「但还没开」，需要独立的一条（× 7 个语言）。</li>
+</ol>
+</div>
+</body>
+</html>

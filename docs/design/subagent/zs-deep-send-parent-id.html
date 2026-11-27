@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>深层委派：父对话 ID 写进描述</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0E0E11; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; color: #E8E8EA; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 26px 18px 48px; }
+  h1 { font-size: 17px; margin: 0 0 6px; }
+  .lede { color: #9A9AA2; font-size: 13px; line-height: 1.7; margin: 0 0 22px; }
+  h2 { font-size: 13px; color: #9A9AA2; letter-spacing: .05em; margin: 26px 0 10px; font-weight: 600; }
+  .card { background: #17171B; border: 1px solid #26262C; border-radius: 14px; padding: 14px 16px; }
+  pre { background: #121216; border: 1px solid #26262C; border-radius: 10px; padding: 12px; overflow: auto; font-size: 12.5px; line-height: 1.65; color: #D6D6DC; margin: 0; white-space: pre-wrap; }
+  .k { color: #9DB4FF; } .s { color: #B5D6A0; } .c { color: #7E7E86; } .n { color: #E0C08A; } .p { color: #E8A0A0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #26262C; vertical-align: top; }
+  th { color: #8E8E96; font-weight: 600; }
+  code { background: #26262D; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+  .note { color: #8E8E96; font-size: 12.5px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>深层委派：父对话 ID 写进描述</h1>
+  <p class="lede">深度 2 子代理的 <code>send_message</code>：<code>job_id</code> 可选；省略、或传入父对话的 ID，都是回委派方；传孩子的 <code>job_id</code> 是向下。父对话 ID 直接写在工具描述里，模型不用猜。</p>
+
+  <h2>子代理看到的 schema 与描述</h2>
+  <div class="card">
+    <pre>{
+  "name": <span class="s">"send_message"</span>,
+  "description": <span class="s">"Send a message to another conversation in this
+    delegation. Omit `job_id`, or pass the delegator's conversation id
+    `<span class="n">c-123</span>`, to reply to your delegator. Pass the `job_id`
+    of one of your own subagents to message it."</span>,
+  <span class="k">"required"</span>: [<span class="s">"text"</span>],
+  <span class="k">"properties"</span>: {
+    <span class="s">"job_id"</span>: { <span class="c">// optional: a child's id, or the delegator's id</span> },
+    <span class="s">"text"</span>:   { <span class="c">// what to say</span> }
+  }
+}</pre>
+  </div>
+
+  <h2>三种调用</h2>
+  <table>
+    <tr><th>调用</th><th>落到哪</th></tr>
+    <tr><td><code>send_message({"text": "缺 config"})</code></td><td>父对话（默认）</td></tr>
+    <tr><td><code>send_message({"job_id": "c-123", "text": "缺 config"})</code></td><td>父对话（显式 ID，同一个结果）</td></tr>
+    <tr><td><code>send_message({"job_id": "c-42", "text": "改用 YAML"})</code></td><td>自己的孩子 <code>c-42</code></td></tr>
+  </table>
+
+  <h2>根对话的 schema 不变</h2>
+  <div class="card">
+    <pre>{
+  "name": <span class="s">"send_message"</span>,
+  "description": <span class="s">"Send a message to a subagent you started; it arrives
+    in that conversation and does not end your turn."</span>,
+  <span class="k">"required"</span>: [<span class="s">"job_id"</span>, <span class="s">"text"</span>]
+}</pre>
+  </div>
+
+  <h2>处理器的路由</h2>
+  <div class="card">
+    <pre><span class="c">// 子代理的 send_message</span>
+target = args[<span class="s">"job_id"</span>]  <span class="c">// 可空</span>
+<span class="k">if</span> target.isEmpty <span class="k">or</span> target == parentConversationId:
+    sendToParent(text)
+<span class="k">else</span>:
+    sendToChild(jobId: target, text)   <span class="c">// 父子校验照旧</span></pre>
+  </div>
+
+  <p class="note">孩子的 <code>job_id</code> 来自 <code>delegate</code> 的返回值，不额外列名单；描述只多一句父对话 ID。</p>
+</div>
+</body>
+</html>

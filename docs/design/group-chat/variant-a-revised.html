@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 A 修订 · 群聊混排与左下角成员</title>
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --ink: #1d1c1a;
+    --muted: #6f6b63;
+    --line: rgba(29, 28, 26, .10);
+    --card: #fffdf8;
+    --accent: #0f6b5c;
+    --accent-soft: #dcefe9;
+    --amber: #b46a2a;
+    --shadow: 0 24px 60px rgba(50, 42, 30, .16), 0 2px 8px rgba(50, 42, 30, .08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1360px; margin: 0 auto; padding: 40px 28px 72px; }
+  .doc-head { max-width: 860px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+  }
+  h1 { font-size: 30px; line-height: 1.2; margin: 10px 0 10px; letter-spacing: -.02em; }
+  .lede { font-size: 14px; line-height: 1.65; color: var(--muted); margin: 0; }
+  .stage {
+    display: grid; grid-template-columns: 340px minmax(0, 1fr);
+    gap: 32px; align-items: start; margin-top: 34px;
+  }
+  .stack { display: grid; gap: 26px; }
+  .caption {
+    display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px;
+    font-size: 12px; color: var(--muted);
+  }
+  .caption b { color: var(--ink); font-size: 12px; letter-spacing: .02em; }
+  .phone {
+    width: 340px; height: 700px; border-radius: 38px; background: #f7f5ef;
+    border: 7px solid #242321; box-shadow: var(--shadow); overflow: hidden;
+    position: relative; display: flex; flex-direction: column;
+  }
+  .phone.nav { height: 560px; }
+  .notch {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 96px; height: 22px; border-radius: 20px; background: #242321; z-index: 3;
+  }
+  .statusbar {
+    height: 38px; flex: none; display: flex; align-items: flex-end;
+    justify-content: space-between; padding: 0 18px 5px; font-size: 11px;
+    font-weight: 600; color: #2f2d29;
+  }
+  .appbar {
+    flex: none; display: flex; align-items: center; gap: 9px;
+    padding: 8px 12px 10px;
+  }
+  .iconbtn {
+    width: 32px; height: 32px; border-radius: 12px; display: grid; place-items: center;
+    color: #3d3a35; flex: none;
+  }
+  .iconbtn svg { width: 19px; height: 19px; }
+  .group-avatar {
+    width: 34px; height: 34px; border-radius: 12px; position: relative; flex: none;
+    background: linear-gradient(145deg, #146b5e, #0c4e45); color: #fff;
+    display: grid; place-items: center; font-size: 13px; font-weight: 700;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+  }
+  .group-avatar .mini {
+    position: absolute; right: -5px; bottom: -5px; width: 15px; height: 15px;
+    border-radius: 50%; border: 2px solid #f7f5ef; background: #d8a15c;
+    color: #3b2a16; font-size: 7px; font-weight: 800; display: grid; place-items: center;
+  }
+  .titleblock { min-width: 0; flex: 1; }
+  .titleblock h2 {
+    margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .titleblock p {
+    margin: 2px 0 0; font-size: 10.5px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chat {
+    flex: 1; min-height: 0; overflow: hidden; padding: 6px 14px 0;
+    display: flex; flex-direction: column; gap: 14px;
+    mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 20px), transparent 100%);
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,.7), transparent 60%),
+      #f7f5ef;
+  }
+  .day { text-align: center; font-size: 10px; color: #9a958c; margin: 2px 0 0; }
+  .msg { display: flex; gap: 8px; align-items: flex-start; }
+  .msg.me { justify-content: flex-end; }
+  .avatar {
+    width: 26px; height: 26px; border-radius: 9px; flex: none; display: grid;
+    place-items: center; font-size: 10px; font-weight: 750; color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.22);
+  }
+  .avatar.lin { background: linear-gradient(145deg, #51744a, #33502e); }
+  .avatar.lan { background: linear-gradient(145deg, #8a5b83, #5d3a58); }
+  .avatar.qi { background: linear-gradient(145deg, #4e6f8f, #304b66); }
+  .avatar.zhou { background: linear-gradient(145deg, #a1764d, #6c4b2e); }
+  .bubble-wrap { max-width: 232px; }
+  .speaker {
+    font-size: 10px; color: var(--muted); margin: 0 0 3px 3px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .speaker b { color: #3b3833; font-weight: 650; }
+  .badge {
+    font-size: 8.5px; padding: 1px 5px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 700;
+  }
+  .bubble {
+    background: #fffdf8; border: 1px solid rgba(29,28,26,.07);
+    border-radius: 4px 15px 15px 15px; padding: 9px 11px; font-size: 12px;
+    line-height: 1.55; color: #2c2a26; box-shadow: 0 3px 10px rgba(50,42,30,.05);
+  }
+  .bubble.user {
+    background: #11695b; color: #fff; border-color: transparent;
+    border-radius: 15px 4px 15px 15px; box-shadow: 0 6px 16px rgba(15,107,92,.20);
+  }
+  .meta { margin-top: 4px; font-size: 9px; color: #a09a90; }
+  .msg.me .meta { text-align: right; }
+  .composer {
+    flex: none; padding: 8px 10px 10px; background: rgba(247,245,239,.94);
+    border-top: 1px solid rgba(29,28,26,.06);
+  }
+  .roster {
+    display: flex; align-items: center; gap: 7px; padding: 2px 2px 8px;
+    overflow: hidden;
+  }
+  .avatar.group { position: relative; overflow: visible; }
+  .avatar.group span { font-size: 9px; }
+  .avatar.group i.g {
+    position: absolute; right: -5px; bottom: -5px; width: 12px; height: 12px;
+    border-radius: 50%; border: 1.5px solid #f7f5ef; background: #d8a15c;
+    color: #3b2a16; display: grid; place-items: center;
+  }
+  .avatar.group i.g svg { width: 7px; height: 7px; }
+  .member-stack {
+    display: flex; align-items: center; flex: none; margin-right: 5px;
+  }
+  .member-stack .avatar {
+    width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #f7f5ef;
+    margin-left: -5px; font-size: 7px; cursor: pointer;
+  }
+  .member-stack .avatar:first-child { margin-left: 0; }
+  .member-stack .add {
+    width: 18px; height: 18px; border-radius: 50%; margin-left: -3px;
+    border: 1px dashed rgba(15,107,92,.45); color: var(--accent);
+    display: grid; place-items: center; background: #f7f5ef;
+  }
+  .member-stack .add svg { width: 9px; height: 9px; }
+  .toolbar .tool { width: 27px; height: 27px; }
+  .toolbar .tool svg { width: 16px; height: 16px; }
+  .toolbar .send { width: 31px; height: 31px; }
+  .toolbar .ctx-ring .ring { width: 22px; height: 22px; }
+  .toolbar .ctx-ring .ring::after { width: 15px; height: 15px; }
+  .roster .stack {
+    display: flex; padding-left: 2px;
+  }
+  .roster .stack .avatar {
+    width: 26px; height: 26px; border: 2px solid #f7f5ef; margin-left: -7px;
+    border-radius: 50%;
+  }
+  .roster .stack .avatar:first-child { margin-left: 0; }
+  .roster-label {
+    font-size: 9.5px; color: #8b857b; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .edit-hint {
+    margin-left: auto; flex: none; width: 24px; height: 24px; border-radius: 8px;
+    background: rgba(15,107,92,.10); color: var(--accent); display: grid;
+    place-items: center;
+  }
+  .edit-hint svg { width: 13px; height: 13px; }
+  .input-shell {
+    background: #fffdf8; border: 1px solid rgba(29,28,26,.10);
+    border-radius: 17px; padding: 9px 10px 7px; box-shadow: 0 4px 14px rgba(50,42,30,.06);
+  }
+  .attachments { display: flex; gap: 6px; margin-bottom: 7px; }
+  .thumb {
+    width: 40px; height: 40px; border-radius: 9px; position: relative;
+    background: linear-gradient(145deg, #cfd8c4, #93a486);
+  }
+  .thumb.file { background: #eee8db; display: grid; place-items: center; color: #7a6a52; }
+  .thumb.file svg { width: 17px; height: 17px; }
+  .thumb .x {
+    position: absolute; top: -5px; right: -5px; width: 14px; height: 14px;
+    border-radius: 50%; background: #3b3833; color: #fff; font-size: 8px;
+    display: grid; place-items: center; border: 1.5px solid #fffdf8;
+  }
+  .inputline {
+    display: flex; align-items: center; min-height: 24px; font-size: 12.5px;
+    color: #a39c91; padding: 0 2px;
+  }
+  .cursor { display: inline-block; width: 1.5px; height: 15px; background: var(--accent);
+    margin-left: 1px; animation: blink 1.2s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .toolbar {
+    display: flex; align-items: center; gap: 2px; margin-top: 7px;
+    color: #5c574f;
+  }
+  .tool {
+    width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  }
+  .tool svg { width: 17px; height: 17px; }
+  .tool.active { background: rgba(15,107,92,.10); color: var(--accent); }
+  .ctx-ring { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .ring {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: conic-gradient(var(--accent) 0 218deg, rgba(29,28,26,.12) 218deg 360deg);
+    display: grid; place-items: center;
+  }
+  .ring::after {
+    content: ""; width: 17px; height: 17px; border-radius: 50%; background: #f7f5ef;
+  }
+  .send {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent);
+    color: #fff; display: grid; place-items: center; margin-left: 4px;
+    box-shadow: 0 5px 12px rgba(15,107,92,.25);
+  }
+  .send svg { width: 16px; height: 16px; }
+
+  /* navigation phone */
+  .nav-screen { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; overflow: hidden; }
+  .search {
+    height: 32px; border-radius: 11px; background: rgba(29,28,26,.055);
+    display: flex; align-items: center; gap: 7px; padding: 0 10px;
+    font-size: 11px; color: #928c82; margin: 2px 0 8px;
+  }
+  .search svg { width: 14px; height: 14px; }
+  .section-label {
+    font-size: 9.5px; letter-spacing: .10em; color: #9a948a; font-weight: 700;
+    text-transform: uppercase; padding: 10px 6px 5px;
+  }
+  .navrow {
+    display: flex; align-items: center; gap: 9px; padding: 7px 7px;
+    border-radius: 12px; font-size: 12.5px;
+  }
+  .navrow.selected { background: rgba(15,107,92,.10); }
+  .navrow .avatar { width: 28px; height: 28px; border-radius: 9px; font-size: 10px; }
+  .navrow .txt { flex: 1; min-width: 0; }
+  .navrow .txt b { display: block; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .navrow .txt span { font-size: 9.5px; color: #8f897f; }
+  .navrow .count { font-size: 9.5px; color: #8f897f; }
+  .topic {
+    display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 16px;
+    font-size: 12px; color: #4a463f; border-radius: 10px;
+  }
+  .topic.selected { background: #fffdf8; box-shadow: 0 2px 8px rgba(50,42,30,.06); }
+  .topic .dot { width: 5px; height: 5px; border-radius: 50%; background: #b8b1a5; flex: none; }
+  .topic.selected .dot { background: var(--accent); }
+  .topic span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .new-chat {
+    display: flex; align-items: center; gap: 7px; padding: 8px 9px; margin: 4px 6px;
+    color: var(--accent); font-size: 11.5px; font-weight: 600;
+  }
+  .new-chat svg { width: 14px; height: 14px; }
+
+  /* desktop */
+  .desktop-frame {
+    width: 100%; height: 640px; border-radius: 18px; background: #f7f5ef;
+    box-shadow: var(--shadow); overflow: hidden; display: flex;
+    border: 1px solid rgba(29,28,26,.14);
+  }
+  .desk-side {
+    width: 252px; flex: none; border-right: 1px solid rgba(29,28,26,.07);
+    background: rgba(255,253,248,.56); display: flex; flex-direction: column;
+    padding: 12px 10px;
+  }
+  .desk-side .brand {
+    display: flex; align-items: center; gap: 8px; padding: 2px 6px 12px;
+    font-size: 12px; font-weight: 650; color: #3b3833;
+  }
+  .brand-mark {
+    width: 20px; height: 20px; border-radius: 6px; background: var(--accent);
+    color: #fff; display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  }
+  .desk-search {
+    height: 28px; border-radius: 9px; background: rgba(29,28,26,.055);
+    display: flex; align-items: center; gap: 6px; padding: 0 8px;
+    font-size: 10.5px; color: #928c82; margin-bottom: 6px;
+  }
+  .desk-search svg { width: 13px; height: 13px; }
+  .desk-side .section-label { padding: 9px 6px 4px; }
+  .desk-side .navrow { padding: 5px 6px; font-size: 11.5px; }
+  .desk-side .navrow .avatar { width: 24px; height: 24px; font-size: 9px; }
+  .desk-topics {
+    margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(29,28,26,.06);
+    overflow: hidden;
+  }
+  .desk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .desk-appbar {
+    height: 46px; flex: none; display: flex; align-items: center; gap: 9px;
+    padding: 0 14px; border-bottom: 1px solid rgba(29,28,26,.06);
+    background: rgba(255,253,248,.62);
+  }
+  .desk-appbar .titleblock h2 { font-size: 13.5px; }
+  .desk-appbar .titleblock p { font-size: 9.5px; }
+  .capsule {
+    display: flex; align-items: center; gap: 5px; padding: 3px 8px;
+    border-radius: 999px; background: rgba(15,107,92,.09); color: var(--accent);
+    font-size: 9.5px; font-weight: 650; white-space: nowrap;
+  }
+  .capsule .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .desk-chat {
+    flex: 1; min-height: 0; padding: 14px 22px; display: flex; flex-direction: column;
+    gap: 15px; overflow: hidden;
+    background:
+      radial-gradient(90% 50% at 50% 0%, rgba(255,255,255,.72), transparent 65%),
+      #f7f5ef;
+  }
+  .desk-chat .bubble-wrap { max-width: 520px; }
+  .desk-chat .bubble { font-size: 12.5px; }
+  .desk-composer {
+    flex: none; padding: 8px 22px 14px; border-top: 1px solid rgba(29,28,26,.05);
+    background: rgba(247,245,239,.72);
+  }
+  .desk-composer .input-shell { max-width: 760px; margin: 0 auto; }
+  .desk-roster {
+    max-width: 760px; margin: 0 auto 6px; display: flex; align-items: center; gap: 8px;
+  }
+  .pill-roster {
+    display: flex; align-items: center; gap: 4px; padding: 3px 8px 3px 4px;
+    border-radius: 999px; background: rgba(255,253,248,.92);
+    border: 1px solid rgba(29,28,26,.07); box-shadow: 0 2px 8px rgba(50,42,30,.05);
+  }
+  .pill-roster .avatar {
+    width: 21px; height: 21px; border-radius: 50%; border: 1.5px solid #fffdf8;
+    margin-left: -5px; font-size: 8px;
+  }
+  .pill-roster .avatar:first-child { margin-left: 0; }
+  .pill-roster .add {
+    width: 21px; height: 21px; border-radius: 50%; border: 1px dashed rgba(15,107,92,.4);
+    color: var(--accent); display: grid; place-items: center; margin-left: 1px;
+  }
+  .pill-roster .add svg { width: 11px; height: 11px; }
+  .pill-roster .label { font-size: 9.5px; color: #7d776d; margin: 0 3px; }
+  .notes {
+    margin-top: 40px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .note {
+    background: rgba(255,253,248,.62); border: 1px solid rgba(29,28,26,.07);
+    border-radius: 16px; padding: 16px 16px 14px;
+  }
+  .note h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: .02em; }
+  .note p { margin: 0; font-size: 11.5px; line-height: 1.6; color: var(--muted); }
+  .note kbd {
+    font: inherit; font-size: 10px; background: rgba(15,107,92,.09);
+    color: var(--accent); padding: 1px 5px; border-radius: 5px;
+  }
+  @media (max-width: 1040px) {
+    .stage { grid-template-columns: 340px minmax(0, 1fr); }
+    .desk-side { width: 220px; }
+    .notes { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 820px) {
+    .sheet { padding: 24px 16px 56px; }
+    h1 { font-size: 22px; }
+    .stage { grid-template-columns: 1fr; gap: 28px; }
+    .phone { width: 100%; max-width: 340px; margin: 0 auto; }
+    .desktop-frame { height: 560px; }
+    .desk-side { display: none; }
+    .desk-chat { padding: 12px 14px; }
+    .desk-composer { padding: 8px 12px 12px; }
+    .capsule { display: none; }
+  }
+</style>
+</head>
+<body>
+<main class="sheet">
+  <header class="doc-head">
+    <div class="eyebrow">Cuplivo · 群聊 v4 · 方案 A · 修订 1</div>
+    <h1>群聊是一个拥有多个会话的实体</h1>
+    <p class="lede">群聊与助手混排在同一个列表里，可以一起拖拽排序；选中群聊后，下方话题列表切换成它的会话。成员入口收进 composer 左下角：头像就是入口，点谁就改谁。聊天界面与 1:1 同源，不再有单独的一行成员栏。</p>
+  </header>
+
+  <section class="stage">
+    <div class="stack">
+      <div>
+        <p class="caption"><b>手机 · 群聊会话</b><span>成员栏、消息作者、完整工具行</span></p>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="statusbar"><span>9:41</span><span>􀙇 􀛨 􀛪</span></div>
+          <div class="appbar">
+            <div class="iconbtn" aria-label="返回">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </div>
+            <div class="group-avatar">读<span class="mini">4</span></div>
+            <div class="titleblock">
+              <h2>读书会</h2>
+            </div>
+            <div class="iconbtn" aria-label="群设置">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </div>
+          </div>
+          <div class="chat">
+            <div class="day">今天 14:06</div>
+            <div class="msg me">
+              <div class="bubble-wrap">
+                <div class="bubble user">这周读《人类简史》第三章，谁来带一下？</div>
+                <div class="meta">14:06 已读</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="avatar lin">林</div>
+              <div class="bubble-wrap">
+                <div class="speaker"><b>林深</b><span>14:06</span></div>
+                <div class="bubble">我来。第三章的核心是“虚构的故事”如何让陌生人协作。先抛一个问题：如果共同想象失效，现代社会最先崩的是哪一层？</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="avatar lan">岚</div>
+              <div class="bubble-wrap">
+                <div class="speaker"><b>阿岚</b><span>14:07</span></div>
+                <div class="bubble">我补一个反例：货币是最纯粹的互信实验。它没有实体价值，却能让完全不认识的人交换劳动。</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="avatar qi">祁</div>
+              <div class="bubble-wrap">
+                <div class="speaker"><b>祁野</b><span>14:08</span></div>
+                <div class="bubble">那第三章和“想象的共同体”可以对照读。我把两边的段落标出来，晚点发群文件。</div>
+              </div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="input-shell">
+              <div class="attachments">
+                <div class="thumb"><span class="x">×</span></div>
+                <div class="thumb file">
+                  <span class="x">×</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+                </div>
+              </div>
+              <div class="inputline">发消息，或粘贴图片…<span class="cursor"></span></div>
+              <div class="toolbar">
+                <div class="member-stack" aria-label="群成员，点按编辑助手">
+                  <div class="avatar lin">林</div><div class="avatar lan">岚</div><div class="avatar qi">祁</div><div class="avatar zhou">周</div>
+                  <div class="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+                </div>
+                <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m21.4 11.6-8.4 8.4a6 6 0 0 1-8.5-8.5l8.4-8.4a4 4 0 0 1 5.7 5.7l-8.5 8.4a2 2 0 0 1-2.8-2.8l8.4-8.4"/></svg></div>
+                <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="3"/></svg></div>
+                <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>
+                <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+                <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></div>
+                <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></svg></div>
+                <div class="ctx-ring"><div class="ring"></div></div>
+                <div class="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p class="caption"><b>手机 · 侧栏</b><span>群聊与助手同级；选中后显示它的话题</span></p>
+        <div class="phone nav">
+          <div class="notch"></div>
+          <div class="statusbar"><span>9:41</span><span>􀙇 􀛨 􀛪</span></div>
+          <div class="nav-screen">
+            <div class="search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              搜索助手、群聊或消息
+            </div>
+            <div class="section-label">助手</div>
+            <div class="navrow"><div class="avatar" style="background:linear-gradient(145deg,#5b7ea0,#35526f)">默</div><div class="txt"><b>默认助手</b><span>最近：周一 · 12 个会话</span></div></div>
+            <div class="navrow"><div class="avatar" style="background:linear-gradient(145deg,#8d6a4d,#61452f)">翻</div><div class="txt"><b>翻译官</b><span>最近：周五 · 3 个会话</span></div></div>
+            <div class="navrow selected"><div class="avatar group" style="background:linear-gradient(145deg,#146b5e,#0c4e45)"><span>读</span><i class="g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></i></div><div class="txt"><b>读书会</b><span>群聊</span></div><div class="count">3</div></div>
+            <div class="navrow"><div class="avatar group" style="background:linear-gradient(145deg,#9a6a43,#6a4529)"><span>产</span><i class="g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></i></div><div class="txt"><b>产品评审</b><span>群聊</span></div></div>
+            <div class="section-label">读书会 · 话题</div>
+            <div class="topic selected"><span class="dot"></span><span>第三章：虚构的故事</span></div>
+            <div class="topic"><span class="dot"></span><span>第二章：农业革命</span></div>
+            <div class="topic"><span class="dot"></span><span>第一章：认知革命</span></div>
+            <div class="new-chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>在读书会中新开话题</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div>
+        <p class="caption"><b>桌面 · 同一信息架构</b><span>侧栏、话题、消息流与 1:1 一致；设置走对话框</span></p>
+        <div class="desktop-frame">
+          <aside class="desk-side">
+            <div class="brand"><span class="brand-mark">C</span>Cuplivo</div>
+            <div class="desk-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              搜索
+            </div>
+            <div class="section-label">助手与群聊</div>
+            <div class="navrow"><div class="avatar" style="background:linear-gradient(145deg,#5b7ea0,#35526f)">默</div><div class="txt"><b>默认助手</b></div></div>
+            <div class="navrow"><div class="avatar" style="background:linear-gradient(145deg,#8d6a4d,#61452f)">翻</div><div class="txt"><b>翻译官</b></div></div>
+            <div class="navrow selected"><div class="avatar group" style="background:linear-gradient(145deg,#146b5e,#0c4e45)"><span>读</span><i class="g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></i></div><div class="txt"><b>读书会</b><span>群聊</span></div></div>
+            <div class="navrow"><div class="avatar group" style="background:linear-gradient(145deg,#9a6a43,#6a4529)"><span>产</span><i class="g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></i></div><div class="txt"><b>产品评审</b><span>群聊</span></div></div>
+            <div class="desk-topics">
+              <div class="section-label">话题</div>
+              <div class="topic selected"><span class="dot"></span><span>第三章：虚构的故事</span></div>
+              <div class="topic"><span class="dot"></span><span>第二章：农业革命</span></div>
+              <div class="topic"><span class="dot"></span><span>第一章：认知革命</span></div>
+              <div class="new-chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>新话题</div>
+            </div>
+          </aside>
+          <div class="desk-main">
+            <div class="desk-appbar">
+              <div class="iconbtn" aria-label="收起侧栏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></div>
+              <div class="group-avatar" style="width:30px;height:30px;border-radius:10px;font-size:12px">读<span class="mini">4</span></div>
+              <div class="titleblock">
+                <h2>第三章：虚构的故事</h2>
+              </div>
+              <div style="flex:1"></div>
+              <div class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></div>
+            </div>
+            <div class="desk-chat">
+              <div class="msg me">
+                <div class="bubble-wrap"><div class="bubble user">这周读《人类简史》第三章，谁来带一下？</div><div class="meta">14:06</div></div>
+              </div>
+              <div class="msg">
+                <div class="avatar lin" style="width:28px;height:28px">林</div>
+                <div class="bubble-wrap">
+                  <div class="speaker"><b>林深</b><span>14:06</span></div>
+                  <div class="bubble">我来。第三章的核心是“虚构的故事”如何让陌生人协作。先抛一个问题：如果共同想象失效，现代社会最先崩的是哪一层？</div>
+                </div>
+              </div>
+              <div class="msg">
+                <div class="avatar lan" style="width:28px;height:28px">岚</div>
+                <div class="bubble-wrap">
+                  <div class="speaker"><b>阿岚</b><span>14:07</span></div>
+                  <div class="bubble">我补一个反例：货币是最纯粹的互信实验。它没有实体价值，却能让完全不认识的人交换劳动。</div>
+                </div>
+              </div>
+              <div class="msg">
+                <div class="avatar qi" style="width:28px;height:28px">祁</div>
+                <div class="bubble-wrap">
+                  <div class="speaker"><b>祁野</b><span>14:08</span></div>
+                  <div class="bubble">那第三章和“想象的共同体”可以对照读。我把两边的段落标出来，晚点发群文件。</div>
+                </div>
+              </div>
+            </div>
+            <div class="desk-composer">
+              <div class="input-shell">
+                <div class="attachments">
+                  <div class="thumb"><span class="x">×</span></div>
+                  <div class="thumb file"><span class="x">×</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></div>
+                </div>
+                <div class="inputline">发消息，或粘贴图片…<span class="cursor"></span></div>
+                <div class="toolbar">
+                  <div class="member-stack" aria-label="群成员，点按编辑助手">
+                    <div class="avatar lin">林</div><div class="avatar lan">岚</div><div class="avatar qi">祁</div><div class="avatar zhou">周</div>
+                    <div class="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+                  </div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m21.4 11.6-8.4 8.4a6 6 0 0 1-8.5-8.5l8.4-8.4a4 4 0 0 1 5.7 5.7l-8.5 8.4a2 2 0 0 1-2.8-2.8l8.4-8.4"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="3"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></div>
+                  <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></svg></div>
+                  <div class="ctx-ring" style="margin-left:auto"><div class="ring" style="background:conic-gradient(#0f6b5c 0 214deg, rgba(29,28,26,.12) 214deg 360deg)"></div></div>
+                  <div class="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div class="note">
+      <h3>混排，共用一套排序</h3>
+      <p>群聊和助手在同一个列表里，拖拽顺序就是用户看到的顺序，不再维护两套排序。群头像用叠放的成员缩写表达“这是多个人”，不靠文字标签。</p>
+    </div>
+    <div class="note">
+      <h3>成员入口在左下角</h3>
+      <p>头像叠放在 composer 工具行最左侧。点某个头像就打开那个助手的编辑界面；旁边的 <kbd>＋</kbd> 邀请新成员。不占一整行，也不和工具按钮争夺视线。</p>
+    </div>
+    <div class="note">
+      <h3>导演只存在于设置里</h3>
+      <p>头部不显示导演模型，避免“群里有一个隐形人”的观感。选发言者的模型放在群设置中，配一个每轮发言人数上限，默认值偏保守；费用由这个上限约束，而不是靠提示语。</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>结果行何时出现：用户停止不唤醒</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0E0E11; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; color: #E8E8EA; }
+  .wrap { max-width: 620px; margin: 0 auto; padding: 26px 18px 48px; }
+  h1 { font-size: 17px; margin: 0 0 6px; }
+  .lede { color: #9A9AA2; font-size: 13px; line-height: 1.7; margin: 0 0 22px; }
+  .rule { border-left: 3px solid #4A4A55; padding: 10px 14px; background: #17171B; border-radius: 0 10px 10px 0; font-size: 14px; line-height: 1.75; margin: 0 0 14px; }
+  .rule code { color: #B9C8FF; }
+  .why { color: #9A9AA2; font-size: 13px; line-height: 1.75; margin: 0 0 26px; }
+  h2 { font-size: 13px; color: #9A9AA2; letter-spacing: .05em; margin: 26px 0 10px; font-weight: 600; }
+  .phone { max-width: 420px; background: #141417; border: 1px solid #232327; border-radius: 18px; padding: 14px 14px 8px; }
+  .thread { display: flex; flex-direction: column; gap: 14px; }
+  .bubble { align-self: flex-end; max-width: 80%; background: #2A2A30; padding: 9px 13px; border-radius: 15px; font-size: 14px; line-height: 1.55; }
+  .assistant { font-size: 14px; line-height: 1.65; }
+  .meta { display: flex; align-items: center; gap: 7px; color: #8E8E96; font-size: 11.5px; margin-bottom: 5px; }
+  .avatar { width: 20px; height: 20px; border-radius: 50%; background: #2E3350; }
+  .divider { display: flex; align-items: center; gap: 10px; height: 28px; color: #8E8E96; font-size: 12.5px; }
+  .divider .line { flex: 1; height: 1px; background: #33333A; }
+  .divider .label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .tool { border: 1px solid #2A2A31; background: #17171B; border-radius: 12px; padding: 10px 12px; font-size: 12.5px; line-height: 1.6; color: #C9C9D0; }
+  .tool .name { display: flex; align-items: center; gap: 7px; color: #9A9AA2; font-size: 12px; margin-bottom: 6px; }
+  .tool code { display: block; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, Consolas, monospace; color: #B9C8FF; font-size: 12px; }
+  .none { color: #6E6E76; font-size: 12.5px; font-style: italic; }
+  pre { background: #121216; border: 1px solid #26262C; border-radius: 12px; padding: 14px; overflow: auto; font-size: 12.5px; line-height: 1.65; color: #D6D6DC; }
+  .k { color: #9DB4FF; } .c { color: #7E7E86; } .s { color: #B5D6A0; }
+  .note { color: #8E8E96; font-size: 12.5px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>结果行何时出现</h1>
+  <p class="lede">它只负责把模型还不知道的结果送进对话；模型已经通过工具调用拿到结果时，它不该出现。用户取消是例外——那条线是给人看的。</p>
+
+  <div class="rule">
+    <code>delegate</code> 异步跑完 / 失败 → 出现，并唤醒父对话<br>
+    <code>delegate</code> 被<strong>用户</strong>停止 → 出现；<strong>不</strong>唤醒（本稿）<br>
+    <code>await_job</code> 拿到结论 → 不出现（结果在工具卡里）<br>
+    <code>interrupt</code>（模型叫停）→ 不出现（只回 accepted，不回传内容）
+  </div>
+
+  <p class="why"><code>interrupt</code> 只负责停下：它说到哪算哪，不回传内容。模型想要结论时本来就有别的工具——<code>await_job</code> 等到结束、<code>send_message</code> 让它尽快收口——所以停止本身不需要一条结果行。</p>
+
+  <h2>① delegate 异步完成：出现</h2>
+  <div class="phone"><div class="thread">
+    <div><div class="meta"><div class="avatar"></div><span>deepseek-flash</span><span>12:57:45</span></div>
+      <div class="assistant">我已经派了一个子代理去做这件事，完成后我把结果整理给你。</div></div>
+    <div class="divider"><div class="line"></div><div class="label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8E8E96" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.2 2.2 4.8-5"/></svg>
+      子代理已完成 · 工作区文件探索</div><div class="line"></div></div>
+  </div></div>
+
+  <h2>② await_job：不出现</h2>
+  <div class="phone"><div class="thread">
+    <div><div class="meta"><div class="avatar"></div><span>deepseek-flash</span><span>12:58:02</span></div>
+      <div class="assistant">我等它，拿到结论就直接回答你。</div></div>
+    <div class="tool"><div class="name">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9AA2" stroke-width="1.8"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+      await_job · 结果</div>
+      <code>{ "status": "completed", "payload": { "text": "工作区根目录有 12 个文件…" } }</code></div>
+    <div class="none">没有分隔线：结果已经在工具卡里。</div>
+  </div></div>
+
+  <h2>③ interrupt：不出现，只确认收到</h2>
+  <div class="phone"><div class="thread">
+    <div><div class="meta"><div class="avatar"></div><span>deepseek-flash</span><span>12:58:20</span></div>
+      <div class="assistant">它跑偏了，我先让它停下来。</div></div>
+    <div class="tool"><div class="name">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9AA2" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      interrupt · 结果</div>
+      <code>{ "status": "accepted", "job_id": "child-7" }</code></div>
+    <div class="none">没有分隔线：模型自己叫的停，它知道自己停了。</div>
+  </div></div>
+
+  <h2>④ 用户停止子代理：出现，但不唤醒父对话</h2>
+  <div class="phone"><div class="thread">
+    <div><div class="meta"><div class="avatar"></div><span>deepseek-flash</span><span>12:59:10</span></div>
+      <div class="assistant">子代理正在跑，完成后我把结果整理给你。</div></div>
+    <div class="divider"><div class="line"></div><div class="label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8E8E96" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg>
+      子代理已取消 · 工作区文件探索</div><div class="line"></div></div>
+    <div class="none">到此为止：父对话等到你下一次说话时才读到这条线。</div>
+  </div></div>
+
+  <h2>伪代码</h2>
+<pre><span class="c">// 协调器：结算一段</span>
+_finish(entry, phase, reason):
+  brief = <span class="k">最后一行的非空助手文本</span>
+
+  <span class="k">if</span> entry.waiters > 0:        <span class="c">// await_job 正等着</span>
+      <span class="k">return</span>
+  <span class="k">if</span> entry.stoppedByModel:     <span class="c">// interrupt 发起的停止</span>
+      <span class="k">return</span>
+
+  write_row(outcome: phase, brief: brief)   <span class="c">// 用户取消也走这里</span>
+
+  <span class="k">if</span> phase <span class="k">in</span> {completed, failed}:
+      enqueue_follow_up()
+  <span class="c">// 取消：不唤醒。用户刚按了 Stop，再生成一轮与意图相反；</span>
+  <span class="c">// 这条线已在历史里，用户下次发言时模型读得到。</span>
+
+<span class="c">// 父对话自己的 Stop 级联：cancelChild 标记来源，仍然不唤醒</span>
+cancelChild(child): entry.cancelledByParent = <span class="s">true</span>; cancel(child)
+</pre>
+</div>
+</body>
+</html>

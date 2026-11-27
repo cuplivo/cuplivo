@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第十轮 — 工具箱行（按真实组件）</title>
+<style>
+  :root{--bg:#F7F7F7;--tile:rgba(120,125,140,.10);--ink:#202020;--muted:#6B6B73;
+        --line:rgba(20,20,25,.08);--primary:#4D5C92}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:760px;margin:0 auto;padding:26px 20px 44px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:56em}
+  .lede b{color:var(--ink);font-weight:600}
+  .stage{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .card{width:360px;max-width:100%;background:#fff;border:1px solid var(--line);
+        border-radius:18px;box-shadow:0 10px 28px rgba(20,20,25,.08);padding:14px 14px 16px}
+  .handle{width:40px;height:4px;border-radius:999px;background:rgba(32,32,32,.2);margin:0 auto 12px}
+  .head{display:flex;align-items:center;margin:0 4px 8px}
+  .head .t{font-size:15px;font-weight:600;flex:1}
+  .head .x{color:var(--muted);font-size:15px}
+  /* ToolsSheetRow：48px，radius 14，票色底，h12，裸 20 图标 */
+  .tile{height:48px;border-radius:14px;background:var(--tile);display:flex;align-items:center;
+        gap:10px;padding:0 12px;margin-bottom:6px}
+  .tile svg{width:20px;height:20px;flex:none;color:var(--ink)}
+  .tile .label{flex:1;font-size:15px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tile .detail{font-size:13px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:2px}
+  .tile .detail .chev{color:rgba(32,32,32,.35);font-size:14px}
+  .tile .mark{width:18px;flex:none;display:flex;align-items:center;justify-content:center}
+  .tile .mark .check{width:18px;height:18px;color:var(--primary)}
+  .panel{width:320px;max-width:100%;background:#fff;border:1px solid var(--line);border-radius:16px;
+         box-shadow:0 10px 26px rgba(20,20,25,.10);padding:12px 14px 16px}
+  .panel .t{font-size:14px;font-weight:600;margin:2px 4px 2px}
+  .panel .s{font-size:12px;color:var(--muted);margin:0 4px 10px}
+  .notes{flex:1 1 240px;min-width:220px}
+  h2{font-size:13px;font-weight:650;margin:0 0 8px}
+  ul{margin:0 0 14px;padding-left:18px}
+  li{font-size:13.5px;line-height:1.65;color:#3A3A42;margin-bottom:5px}
+  .caption{font-size:12.5px;line-height:1.7;color:var(--muted);margin:10px 4px 0}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:20px}
+  .closing b{color:var(--ink)}
+  @media (max-width:660px){.page{padding:18px 10px 40px}.card,.panel{width:100%}.notes{flex-basis:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">生图 Job · 第十轮 · 修订 A</p>
+  <h1>工具箱行 = 图标 + 名称 + 当前模型 › + 打勾</h1>
+  <p class="lede">照 <code>ToolsSheetRow</code> 的真实结构画：48 高、radius 14、裸 20 图标、15/medium 名称、13px 右侧 detail、18px 打勾（未选用 18px 空位保持对齐）。<b>手机和桌面是同一个组件</b>，所以两边都是打勾，不是开关。</p>
+
+  <div class="stage">
+    <div class="card">
+      <div class="handle"></div>
+      <div class="head"><div class="t">工具</div><div class="x">✕</div></div>
+
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
+        <span class="label">绘图</span>
+        <span class="detail">gpt-image-1 <span class="chev">›</span></span>
+        <span class="mark"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </div>
+
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M17 8.5h4M19 6.5v4"/></svg>
+        <span class="label">子代理</span>
+        <span class="detail">Haiku 4.5 <span class="chev">›</span></span>
+        <span class="mark"></span>
+      </div>
+
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12h18"/></svg>
+        <span class="label">浏览器</span>
+        <span class="mark"></span>
+      </div>
+
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+        <span class="label">时间</span>
+        <span class="mark"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </div>
+
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M11 18h2"/></svg>
+        <span class="label">剪贴板</span>
+        <span class="mark"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="t">没配模型时</div>
+      <div class="s">借 MCP「未连接」那条规则：没配好的工具不能直接勾上，点它是去配置。</div>
+
+      <div class="tile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
+        <span class="label">绘图</span>
+        <span class="detail" style="color:#9a6b2f">未配置 <span class="chev">›</span></span>
+        <span class="mark"></span>
+      </div>
+      <div class="caption">点「未配置 ›」或整行 → 模型选择页；选完这一行才出现打勾，再点一下才是开关。当前模型继续显示在 detail 里，› 只出现在 detail 末尾，所以没有下一级的行不会错位。</div>
+    </div>
+
+    <div class="notes">
+      <h2>这一版定下的</h2>
+      <ul>
+        <li>行结构完全沿用 <code>ToolsSheetRow</code>：图标 20、名称 15/medium、detail 13、右侧 18px 打勾或空位。</li>
+        <li>打勾既是状态也是开关：点行切换；未配置时点行先去配置（MCP 的「未连接」规则）。</li>
+        <li>下一级的入口就是 detail 末尾的 ›（当前模型那一小段），不是行本身，因此和打勾不抢位置。</li>
+        <li>手机与桌面共用这个组件，没有第二套开关形态。</li>
+      </ul>
+      <h2>代价</h2>
+      <ul>
+        <li>› 很小，可点击区域靠整段 detail 撑开；需要给它一个不小于 32 的命中区。</li>
+        <li>「未配置」用了警示色，要确认主题里有对应 token，别硬编码。</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="closing"><b>回答前面的问题：</b>主对话模型不能选绘图模型，它只写 prompt；比例/画质走 auto，不给用户在大纲里设。<b>job 基建</b>按 kind + model，绘图与子代理共用。</p>
+</main>
+</body>
+</html>

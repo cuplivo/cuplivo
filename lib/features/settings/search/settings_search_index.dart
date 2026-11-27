@@ -79,7 +79,7 @@ extension SettingsSearchDestinationDetails on SettingsSearchDestination {
     SettingsSearchDestination.memory => l.settingsPageMemory,
     SettingsSearchDestination.networkProxy => l.settingsPageNetworkProxy,
     SettingsSearchDestination.backup => l.settingsPageBackup,
-    SettingsSearchDestination.lanSync => l.settingsPageLanSync,
+    SettingsSearchDestination.lanSync => l.settingsPageSync,
     SettingsSearchDestination.storage => l.settingsPageChatStorage,
     SettingsSearchDestination.scheduledTasks => l.scheduledTasksTitle,
     SettingsSearchDestination.hotkeys => l.settingsPageHotkeys,
@@ -457,10 +457,10 @@ class SettingsSearchIndex {
     add(
       'lanSync',
       SettingsSearchDestination.lanSync,
-      (l) => l.settingsPageLanSync,
+      (l) => l.settingsPageSync,
       page: true,
       keywords:
-          'lan sync device pair pairing local network 局域网 區域網路 同步 配对 配對 设备 裝置 局域网同步',
+          'lan sync remote tailcat device pair pairing local network 局域网 區域網路 同步 配对 配對 设备 裝置 局域网同步 远程 遠端',
     );
     if (!desktop) {
       add(

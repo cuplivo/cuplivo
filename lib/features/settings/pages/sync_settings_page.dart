@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/ios_tactile.dart';
-import '../../sync/widgets/sync_panel_body.dart';
+import '../../sync/widgets/sync_mode_panel.dart';
 
-/// Mobile LAN sync settings page. The sections themselves live in
-/// [SyncPanelBody] because the desktop pane renders the same panel.
+/// Mobile sync settings page. The sections themselves live in
+/// [SyncModePanel] because the desktop pane renders the same panel.
 class SyncSettingsPage extends StatelessWidget {
   const SyncSettingsPage({super.key});
 
@@ -27,11 +27,11 @@ class SyncSettingsPage extends StatelessWidget {
             onTap: () => Navigator.of(context).maybePop(),
           ),
         ),
-        title: Text(l10n.settingsPageLanSync),
+        title: Text(l10n.settingsPageSync),
       ),
       body: const SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: SyncPanelBody(),
+        child: SyncModePanel(),
       ),
     );
   }

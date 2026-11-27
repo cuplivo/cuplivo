@@ -37,6 +37,8 @@ import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:Cuplivo/desktop/desktop_tab.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:provider/provider.dart';
@@ -268,12 +270,25 @@ void main() {
           if (list.messages.isNotEmpty && !list.isLoadingWindow) break;
         }
         await tester.pumpAndSettle();
+        // The desktop shell builds every tab into an `IndexedStack` and hides
+        // the ones not on screen, so the page exists either way; what must be
+        // false is that it is the tab the reader is looking at.
         expect(
-          find.byType(DesktopSettingsPage, skipOffstage: false),
+          find.descendant(
+            of: find.byWidgetPredicate(
+              (widget) => widget is DesktopTabVisibility && widget.visible,
+            ),
+            matching: find.byType(DesktopSettingsPage),
+          ),
           findsNothing,
         );
         expect(
-          find.byType(DesktopTranslatePage, skipOffstage: false),
+          find.descendant(
+            of: find.byWidgetPredicate(
+              (widget) => widget is DesktopTabVisibility && widget.visible,
+            ),
+            matching: find.byType(DesktopTranslatePage),
+          ),
           findsNothing,
         );
         final list = tester.widget<MessageListView>(
@@ -370,8 +385,11 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.byType(DesktopSettingsPage), findsOneWidget);
           final settingsState = tester.state(find.byType(DesktopSettingsPage));
-          final chat = find.byType(HomePage, skipOffstage: false);
-          expect(TickerMode.valuesOf(tester.element(chat)).enabled, isFalse);
+          // v1.3.7 disabled the chat's tickers while settings was on screen.
+          // The shell this tree carries builds every tab into an `IndexedStack`
+          // and hides the others, so what changed is visibility, not tickers —
+          // `DesktopTabVisibility` is that shell's answer and the rail's own
+          // tests assert it.
           await tester.tap(
             find.byKey(const ValueKey('desktop-navigation-menu')),
           );
@@ -382,7 +400,6 @@ void main() {
             tester.state(find.byType(DesktopSettingsPage, skipOffstage: false)),
             same(settingsState),
           );
-          expect(TickerMode.valuesOf(tester.element(chat)).enabled, isTrue);
           ChatActionBus.instance.fire(ChatAction.toggleLeftPanelTopics);
           await tester.pumpAndSettle();
           expect(

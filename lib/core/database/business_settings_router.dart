@@ -988,6 +988,11 @@ final class BusinessKeyRegistry {
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
     ),
+    'world_books_grouping_v1': KeyRule(
+      KeyPolicy.synced,
+      PolicyReason.newDeviceConfiguration,
+      'The user\'s world-book groups: the group names and which book sits in which group.',
+    ),
     'world_books_collapsed_v1': KeyRule(
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,

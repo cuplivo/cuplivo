@@ -7,10 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:Kelivo/utils/icon_cache.dart';
-import 'package:Kelivo/utils/avatar_cache.dart';
+import 'package:Cuplivo/utils/icon_cache.dart';
+import 'package:Cuplivo/utils/avatar_cache.dart';
 
 class _Paths extends PathProviderPlatform {
   _Paths(this.root);
@@ -233,8 +234,13 @@ void main() {
       final restored = File('${directory.path}/after/avatars/$name');
       await restored.parent.create(recursive: true);
       await File(stored).copy(restored.path);
-      PathProviderPlatform.instance = _Paths('${directory.path}/after');
-      expect(await IconCache.localPath(name), restored.path);
+      PathProviderPlatform.instance = _Paths(p.join(directory.path, 'after'));
+      // The icon cache resolves its root through AppDirectories, which joins
+      // with '/'; compare with path semantics rather than byte equality.
+      expect(
+        p.equals((await IconCache.localPath(name))!, restored.path),
+        isTrue,
+      );
       expect(await restored.readAsBytes(), png);
       expect(await IconCache.localPath('../upload.png'), isNull);
     },

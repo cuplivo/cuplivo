@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import json
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -65,6 +66,39 @@ class TranslationContractTest(unittest.TestCase):
             'lines': '첫째 둘째',
         })
         self.assertEqual(set(errors), {'renamed', 'collision', 'url', 'lines'})
+
+    def test_the_sdk_wrapper_script_is_avoided_so_the_lock_loop_cannot_start(self):
+        name = 'dart.exe' if os.name == 'nt' else 'dart'
+        sdk = Path('sdk')
+        binary = sdk/'bin'/'cache'/'dart-sdk'/'bin'/name
+        wrapper = sdk/'bin'/('dart.bat' if os.name == 'nt' else 'dart')
+        with patch.object(Path, 'exists', lambda self: self == binary):
+            self.assertEqual(translate.dart_binary(sdk), binary)
+        # No cached SDK yet: the wrapper is the only way to bootstrap it.
+        with patch.object(Path, 'exists', lambda self: False):
+            self.assertEqual(translate.dart_binary(sdk), wrapper)
+
+    def _validate_with(self, **run):
+        with patch.object(translate.subprocess, 'run', **run):
+            with self.assertRaises(RuntimeError) as caught:
+                translate.validate({'save': 'Save'}, {'save': 'Сохранить'}, 'ru')
+        return str(caught.exception)
+
+    def test_a_read_only_profile_names_its_cause_instead_of_a_stack_tail(self):
+        class Denied:
+            returncode = 1
+            stdout = ''
+            stderr = ("#0 _File.setLastModifiedSync (dart:io/file_impl.dart:553)\n"
+                      "FileSystemException: ... '.dart-tool/dart-flutter-telemetry-session.json' "
+                      "(OS Error: Access is denied., errno = 5)\n")
+        message = self._validate_with(return_value=Denied())
+        self.assertTrue(message.startswith('the Dart SDK cannot start'), message)
+        self.assertIn('point appdata', message.lower())
+
+    def test_an_unbounded_wait_becomes_an_error(self):
+        timeout = translate.subprocess.TimeoutExpired('dart', translate.DART_TIMEOUT)
+        message = self._validate_with(side_effect=timeout)
+        self.assertIn('did not answer', message)
 
 
 if __name__ == '__main__':

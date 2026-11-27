@@ -317,7 +317,19 @@ class WorkspacePaths {
     }
   }
 
-  static String _canonHost(String path) => p.canonicalize(path);
+  /// Canonical host form: absolute, `.`/`..` folded, separators normalized,
+  /// **case preserved**.
+  ///
+  /// `p.canonicalize` is the wrong tool here: on Windows it lower-cases the
+  /// whole path (measured against path 1.9.1 — `C:\Users\…` comes back as
+  /// `c:\users\…`), so every value derived from a root — the file preview's
+  /// path, a read-only browser's root, a thumbnail's host path — reached the UI
+  /// folded. Identity does not need the folding: `p.equals` / `p.isWithin` /
+  /// `p.relative` already compare case-insensitively on Windows, which is what
+  /// `_hostInside` and `relativeToHostRoot` use.
+  static String canonicalHostPath(String path) => p.normalize(p.absolute(path));
+
+  static String _canonHost(String path) => canonicalHostPath(path);
 
   static String _joinHost(String root, String relative) {
     if (relative.isEmpty || relative == '.') return root;
@@ -364,10 +376,10 @@ class WorkspacePaths {
   static List<String> _rootVariants(String path) {
     final aliases = <String>{_canonHost(path)};
     try {
-      aliases.add(p.canonicalize(File(path).resolveSymbolicLinksSync()));
+      aliases.add(_canonHost(File(path).resolveSymbolicLinksSync()));
     } on FileSystemException {
       try {
-        aliases.add(p.canonicalize(Directory(path).resolveSymbolicLinksSync()));
+        aliases.add(_canonHost(Directory(path).resolveSymbolicLinksSync()));
       } on FileSystemException {
         // Path does not exist yet; lexical form is enough.
       }
@@ -379,21 +391,21 @@ class WorkspacePaths {
   static Future<String> resolveHostPath(String hostPath) async {
     try {
       if (await FileSystemEntity.isLink(hostPath)) {
-        return p.canonicalize(await Link(hostPath).resolveSymbolicLinks());
+        return _canonHost(await Link(hostPath).resolveSymbolicLinks());
       }
     } on FileSystemException {
       throw const PathResolutionException('symbolic link cannot be resolved');
     }
     try {
       if (await File(hostPath).exists()) {
-        return p.canonicalize(await File(hostPath).resolveSymbolicLinks());
+        return _canonHost(await File(hostPath).resolveSymbolicLinks());
       }
     } on FileSystemException {
       // Continue.
     }
     try {
       if (await Directory(hostPath).exists()) {
-        return p.canonicalize(await Directory(hostPath).resolveSymbolicLinks());
+        return _canonHost(await Directory(hostPath).resolveSymbolicLinks());
       }
     } on FileSystemException {
       // Continue.
@@ -407,7 +419,7 @@ class WorkspacePaths {
       if (parent == current) return _canonHost(hostPath);
       try {
         final realParent = await Directory(parent).resolveSymbolicLinks();
-        return p.canonicalize(p.join(realParent, p.joinAll(parts.reversed)));
+        return _canonHost(p.join(realParent, p.joinAll(parts.reversed)));
       } on FileSystemException {
         current = parent;
       }

@@ -6,22 +6,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/utils/icon_cache.dart';
-import 'package:Kelivo/core/services/storage/attachment_file_lock.dart';
-import 'package:Kelivo/features/settings/pages/storage_space_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/ios_tile_button.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/utils/icon_cache.dart';
+import 'package:Cuplivo/core/services/storage/attachment_file_lock.dart';
+import 'package:Cuplivo/features/settings/pages/storage_space_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import '../../../support/storage_images_test_fixture.dart';
 
@@ -479,7 +481,14 @@ void main() {
         );
         await filter('头像与背景');
         expect(find.text('共 2 项'), findsOneWidget);
-        final activeTile = find.byKey(ValueKey('storage-image-${active.path}'));
+        final avatars = await AppDirectories.getAvatarsDirectory();
+        // The directory itself may spell '/', so the row the page keys by is
+        // the normalised path (AppDirectories builds '<root>/avatars').
+        final activeTile = find.byKey(
+          ValueKey(
+            'storage-image-${p.normalize(p.join(avatars.path, 'active.png'))}',
+          ),
+        );
         expect(
           find.descendant(of: activeTile, matching: find.byType(IosCheckbox)),
           findsNothing,
@@ -493,7 +502,21 @@ void main() {
         await tester.tap(find.text('删除'));
         await tester.pumpAndSettle();
         expect(find.textContaining('仍在使用的文件会保留'), findsOneWidget);
-        await tester.tap(find.widgetWithText(IosTileButton, '删除').last);
+        // The page has a 删除 of its own behind the barrier, so the confirm is
+        // scoped to the dialog that carries the message rather than to whichever
+        // 删除 happens to come last in tree order.
+        await tester.tap(
+          find
+              .descendant(
+                of: find.ancestor(
+                  of: find.textContaining('仍在使用的文件会保留'),
+                  matching: find.byType(Column),
+                ),
+                matching: find.widgetWithText(IosTileButton, '删除'),
+              )
+              .last,
+        );
+        await tester.pumpAndSettle();
         await _until(
           tester,
           () => find.text('已删除 1 个项目').evaluate().isNotEmpty,

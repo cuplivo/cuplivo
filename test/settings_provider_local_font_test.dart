@@ -2,11 +2,12 @@ import "support/business_test_harness.dart";
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 const _fixtureFontPath = 'test/fixtures/fonts/JetBrainsMono-Regular.ttf';
 
@@ -68,8 +69,12 @@ void main() {
       final prefs = harness.preferences;
       final storedPath = prefs.getString('display_app_font_local_path_v1');
       expect(storedPath, isNotNull);
-      expect(storedPath, startsWith('${tempDir.path}/fonts/'));
-      expect(await File(storedPath!).exists(), isTrue);
+      final storedFile = File(storedPath!);
+      expect(
+        p.equals(p.dirname(storedFile.path), p.join(tempDir.path, 'fonts')),
+        isTrue,
+      );
+      expect(await storedFile.exists(), isTrue);
       expect(storedPath, isNot(sourceFile.path));
       expect(prefs.getString('display_app_font_local_alias_v1'), isNotEmpty);
     });
@@ -306,9 +311,15 @@ void main() {
       expect(settings.appFontLocalAlias, isNotEmpty);
       expect(settings.appFontFamily, settings.appFontLocalAlias);
       final prefs = harness.preferences;
+      // The reloaded value is the current font file, whatever separator the
+      // fixture spelled it with: `fix` now returns the platform's own spelling
+      // instead of the `/`-folded form it uses for comparison.
       expect(
-        prefs.getString('display_app_font_local_path_v1'),
-        currentFont.path,
+        p.equals(
+          prefs.getString('display_app_font_local_path_v1')!,
+          currentFont.path,
+        ),
+        isTrue,
       );
     });
   });

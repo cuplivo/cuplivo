@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:Kelivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
 import '../../support/recovery_fault_durability.dart';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -9,15 +9,35 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../support/recovery_snapshot_fixture.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/empty_database_recovery_guard.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_schedule.dart';
-import 'package:Kelivo/core/services/backup/restore_diagnostic_exception.dart';
-import 'package:Kelivo/shared/widgets/restore_failure_screen.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/empty_database_recovery_guard.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
+import 'package:Cuplivo/theme/palettes.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
+import 'package:Cuplivo/core/services/backup/restore_diagnostic_exception.dart';
+import 'package:Cuplivo/shared/widgets/restore_failure_screen.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+/// Validating a discovered copy stages a working directory through
+/// `BackupStaging`, which asks path_provider for a data root. A host without the
+/// plugin is not a product state, so point it at a scratch directory of our own.
+class _StagingPaths extends PathProviderPlatform {
+  _StagingPaths(this.root);
+
+  final String root;
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => root;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => root;
+}
 
 /// Stands in for the platform channel, which never answers under `flutter
 /// test` and would otherwise leave a pending timeout timer behind.
@@ -234,7 +254,7 @@ void main() {
 
     expect(find.text('Let’s recover your chats'), findsOneWidget);
     expect(find.textContaining('paused loading your data'), findsOneWidget);
-    expect(find.text('Restart Kelivo'), findsOneWidget);
+    expect(find.text('Restart Cuplivo'), findsOneWidget);
 
     // The first screen guides recovery; diagnostics remain accessible.
     expect(
@@ -250,7 +270,7 @@ void main() {
     expect(find.text('restore_startup_receipt'), findsOneWidget);
     expect(find.text('Restore gate'), findsOneWidget);
 
-    await tester.tap(find.text('Restart Kelivo'));
+    await tester.tap(find.text('Restart Cuplivo'));
     await tester.pump();
     expect(restartCalls, 1);
   });
@@ -293,9 +313,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Kelivo is already running'), findsOneWidget);
+    expect(find.text('Cuplivo is already running'), findsOneWidget);
     expect(find.textContaining('another app process'), findsOneWidget);
-    expect(find.text('Restart Kelivo'), findsOneWidget);
+    expect(find.text('Restart Cuplivo'), findsOneWidget);
     // A lease conflict is not a data problem, so no file-level actions.
     expect(find.text('Other options'), findsNothing);
   });
@@ -303,15 +323,24 @@ void main() {
   group('with a data directory', () {
     setUpRecoverySnapshotPaths();
     late Directory directory;
+    late Directory staging;
+    late PathProviderPlatform previousPaths;
 
     setUp(() async {
       directory = await Directory.systemTemp.createTemp(
         'kelivo_restore_failure_screen_',
       );
+      staging = await Directory.systemTemp.createTemp(
+        'restore_failure_staging_',
+      );
+      previousPaths = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _StagingPaths(staging.path);
     });
 
     tearDown(() async {
+      PathProviderPlatform.instance = previousPaths;
       if (await directory.exists()) await directory.delete(recursive: true);
+      if (await staging.exists()) await staging.delete(recursive: true);
     });
 
     Future<void> pumpScreen(WidgetTester tester) async {

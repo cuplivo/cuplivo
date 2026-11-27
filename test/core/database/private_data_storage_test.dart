@@ -1,27 +1,50 @@
 import 'dart:io';
-import 'package:Kelivo/core/services/storage/storage_space.dart';
+import 'package:Cuplivo/core/services/storage/storage_space.dart';
 import 'package:archive/archive_io.dart';
-import 'package:Kelivo/core/database/startup_recovery_service.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/services/backup/local_copy_catalog.dart';
+import 'package:Cuplivo/core/database/startup_recovery_service.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
-import 'package:Kelivo/core/services/backup/restore_startup_gate.dart';
-import 'package:Kelivo/core/services/backup/restore_business_lease.dart';
-import 'package:Kelivo/core/services/backup/restore_workspace_lock.dart';
-import 'package:Kelivo/core/database/database_family_preserver.dart';
+import 'package:Cuplivo/core/services/backup/restore_startup_gate.dart';
+import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
+import 'package:Cuplivo/core/services/backup/restore_workspace_lock.dart';
+import 'package:Cuplivo/core/database/database_family_preserver.dart';
 import '../../support/recovery_snapshot_fixture.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:Kelivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
 import '../../support/recovery_fault_durability.dart';
-import 'package:Kelivo/core/services/storage/device_storage_probe.dart';
+import 'package:Cuplivo/core/services/storage/device_storage_probe.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+class _Paths extends PathProviderPlatform {
+  _Paths(this.root);
+
+  final String root;
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => root;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => p.join(root, 'tmp');
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpRecoverySnapshotPaths();
   late Directory root, source, target;
+  late PathProviderPlatform previousPaths;
   setUp(() async {
     root = await Directory.systemTemp.createTemp('kelivo-private-storage-');
+    // Recovery stages its working files through `BackupStaging`, which asks
+    // path_provider for a data root; a host without the plugin is not a product
+    // state, so point it at this test's directory.
+    previousPaths = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _Paths(root.path);
     source = await Directory(p.join(root.path, 'Documents')).create();
     target = Directory(p.join(root.path, 'Support', 'kelivo-data'));
     await File(
@@ -35,7 +58,10 @@ void main() {
       p.join(source.path, 'snapshots 2', 'kept.zip'),
     ).writeAsString('old snapshot');
   });
-  tearDown(() async => root.delete(recursive: true));
+  tearDown(() async {
+    PathProviderPlatform.instance = previousPaths;
+    await root.delete(recursive: true);
+  });
   test(
     'explicit deletion removes the retained family and preserves live data',
     () async {

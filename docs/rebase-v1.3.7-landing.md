@@ -428,7 +428,7 @@ Rules that apply at every stop:
 | unit 11 translate | **committed**: 3 of 10 paths conflicted (the shared language helpers vs v1.3.7's per-page spellings), 79 |
 | unit 12 suggestions | **committed**: no conflict, 3 paths |
 | unit 13 group-chat | **committed** `369e2d1a3`: **10** conflicts of 170 paths (not 3 — see below), 79 errors, count unchanged |
-| unit 14 backup-reader | **committed** `80344aa7d`: data path ported (4 conflicts), picker UI deferred |
+| unit 14 backup-reader | **committed** `80344aa7d` + `bd895a201`: the data path, then the pane's picker |
 | unit 15 markdown-image | **committed**: 2 conflicts (the desktop shell), the `DesktopTab` model wins whole, 86 |
 | unit 16 image-job | **committed**: 1 conflict (both added a test), 86 |
 | unit 17 subagent | **committed**: 1 conflict (both added a test) |
@@ -505,9 +505,14 @@ repository file.
 `dart analyze` after the port: **86 issues, 69 of them errors** — below unit 13's 79, and still every
 one of them a later unit's definition.
 
-**Remaining half: the pane's picker.** Its 153-line block targets `setWebDavConfig` / `updateConfig`
-and a single `BackupConfig`; porting it means rewriting that UI against `updateWebDavConfig` /
-`updateS3Config` and two configs. That is where the next pass starts.
+**Remaining half: the pane's picker — landed at `bd895a201`.** The 153-line block targeted
+`setWebDavConfig` / `updateConfig` and a single `BackupConfig`, which this tree does not have. The port
+is smaller than the block: v1.3.7's pane *reads* `settings.backupConfigs` instead of keeping form
+controllers, so there is no `_target` field and no `_applyPartial` to translate. `SettingsProvider`
+gained `setBackupTarget`, mirroring `setBackupScope` exactly — the reader and the scope are both
+properties of the person the archive is for, so both settings halves move together — and the pane
+mounts `BackupTargetTile` under the scope row it already had. Proved by a test rather than a look: a
+target change lands in **both** stored configs.
 
 ### Units 15–18, and the tree goes green
 
@@ -549,7 +554,9 @@ So of the 40, **7 are the two proven machine classes** and **33 are the tree's**
 
 **The first two clusters are fixed; the full suite now fails only on this machine's three proven classes.**
 
-**Final measurement at `4111be40b`: `flutter test` — 14966 passed, 95 skipped, 9 failed.**
+**Final measurement at `bd895a201`: `flutter test` — 14966 passed, 95 skipped, 9 failed.**
+The same nine cases were measured at `c798672a3` before unit 14's picker landed and at
+`bd895a201` after it, so the picker added no failure and closed the unit's last gap.
 
 | failing file | cases | class | proof |
 | --- | --- | --- | --- |

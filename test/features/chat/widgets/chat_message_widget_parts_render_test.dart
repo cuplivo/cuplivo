@@ -1,24 +1,25 @@
 import '../../../support/markdown_render_helpers.dart';
 import '../../../support/business_test_harness.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/message_part_snapshot.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tts_provider.dart';
-import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart';
-import 'package:Kelivo/features/chat/services/conversation_find_service.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
-import 'package:Kelivo/features/chat/widgets/quote_source_anchor.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/message_part_snapshot.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/tts_provider.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
+import 'package:Cuplivo/features/image_job/widgets/image_job_card.dart';
+import 'package:Cuplivo/features/chat/services/conversation_find_service.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/features/chat/widgets/quote_source_anchor.dart';
 import 'package:markstream/markstream.dart' show MarkstreamSelectionScope;
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
-import 'package:Kelivo/features/chat/widgets/token_display_widget.dart';
-import 'package:Kelivo/features/home/controllers/stream_controller.dart';
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/features/chat/widgets/token_display_widget.dart';
+import 'package:Cuplivo/features/home/controllers/stream_controller.dart';
+import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -942,8 +943,12 @@ void main() {
   testWidgets(
     'structured image restores viewer, aspect, bubble, and ResizeImage',
     (tester) async {
+      // A real, valid 2x1 RGBA PNG, because the decode below is a real decode:
+      // every chunk CRC and the whole IDAT pixel row have to be correct. A
+      // fixture with bad CRCs and a short pixel row survives libpng's lenient
+      // path but is rejected as invalid image data by stricter decoders.
       const png =
-          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD5N/qhAAAAEklEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR42mP4z8AAQv8BD/kD/Zh51wAAAAAASUVORK5CYII=';
       await tester.pumpWidget(
         _buildHarness(
           child: ChatMessageWidget(
@@ -975,6 +980,16 @@ void main() {
       expect(image.image, isA<ResizeImage>());
       expect(find.byType(ImageViewerPage), findsNothing);
 
+      // Decode the image for real first: while `_image` is null the inline
+      // image lays out as a full-width, zero-height box, so the tap below lands
+      // on its top edge and never reaches the gesture detector.
+      await tester.runAsync(
+        () => precacheImage(
+          image.image,
+          tester.element(find.byType(Image).first),
+        ),
+      );
+      await tester.pump();
       await tester.tap(
         find.byKey(const ValueKey('assistant-inline-image:image-ordinal:0')),
       );
@@ -1052,5 +1067,273 @@ void main() {
       tester.getSize(find.byType(ChatMessageWidget)).height,
       greaterThan(20),
     );
+  });
+
+  testWidgets('a promised picture is drawn where its Markdown placeholder stands', (
+    tester,
+  ) async {
+    // Round 13: the model writes `![](uri)` at the position it means, and the
+    // picture block belongs *there* — not appended after the last paragraph.
+    // It also must not be drawn twice (block + inline markdown image).
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    await tester.pumpWidget(
+      _buildHarness(
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'inline-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('BEFORE_MARK\n\n![]($uri)\n\nAFTER_MARK'),
+              // Completed on purpose: this is the frame that used to throw —
+              // the picture is drawn through the assistant bubble helpers, which
+              // call `context.select`, so they need a context that is building.
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // No provider misuse, no layout error: the card is built from a context
+    // that is actually building.
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+    expectAbove(tester, 'BEFORE_MARK', find.byType(ImageJobCard));
+    expectAbove(tester, find.byType(ImageJobCard), 'AFTER_MARK');
+  });
+
+  testWidgets('with assistant Markdown off the picture still appears', (
+    tester,
+  ) async {
+    // The suppression above is keyed on "the renderer will draw the placeholder
+    // card". With Markdown off there is no renderer: the body is plain text, so
+    // the uri is still a string in the prose but nothing turns it into a picture.
+    // Suppressing the part's own block then left the picture nowhere — the reply
+    // showed raw `![](kelivo-file://…)` and no image.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.loaded;
+    await settings.setEnableAssistantMarkdown(false);
+
+    await tester.pumpWidget(
+      _buildHarness(
+        settings: settings,
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'inline-job-image-plain',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('BEFORE_MARK\n\n![]($uri)\n\nAFTER_MARK'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
+  testWidgets('one promise written in two text blocks still draws one card', (
+    tester,
+  ) async {
+    // Ownership is a property of the reply, not of the bubble that happens to be
+    // rendering: the same uri in two blocks used to give each block its own card
+    // (two headers, two ⋯, both opening the same panel). The first mention in
+    // reply coordinates owns it.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    await tester.pumpWidget(
+      _buildHarness(
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'two-blocks-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('![]($uri)'),
+              ToolCallPart(
+                '{"id":"call-1","name":"generate_image","arguments":{},"content":"done"}',
+              ),
+              TextPart('Here it is again:\n\n![]($uri)'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
+  testWidgets('one promise in two split paragraphs still draws one card', (
+    tester,
+  ) async {
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.loaded;
+    await settings.setAssistantBubbleSplitParagraphs(true);
+
+    await tester.pumpWidget(
+      _buildHarness(
+        settings: settings,
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'split-paragraph-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('![]($uri)\n\nAgain:\n\n![]($uri)'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
+  testWidgets('a placeholder in the second text block still draws its card', (
+    tester,
+  ) async {
+    // The card's ownership is decided per rendered document. A reply with a text
+    // block, a tool call and another text block renders each block as its own
+    // Markdown document, and markstream reports offsets in that document — so an
+    // offset taken from the whole body matched nothing and the only mention
+    // looked like a repeat: no skeleton while painting, no failure sentence, no
+    // card at all. This is the ordinary shape of an illustrated reply.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    await tester.pumpWidget(
+      _buildHarness(
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'second-block-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('BEFORE_MARK'),
+              ToolCallPart(
+                '{"id":"call-1","name":"generate_image","arguments":{},"content":"done"}',
+              ),
+              TextPart('![]($uri)\n\nAFTER_MARK'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
+  testWidgets('a placeholder written twice still draws one card', (
+    tester,
+  ) async {
+    // Nothing stops the model from writing the same uri in the body and again in
+    // a closing line. Each match used to get a whole card: two skeletons, two ⋯,
+    // both opening the same panel. The first mention owns the card; a later one
+    // is the same picture.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    await tester.pumpWidget(
+      _buildHarness(
+        child: ChatMessageWidget(
+          message: ChatMessage(
+            id: 'twice-job-image',
+            role: 'assistant',
+            conversationId: 'c1',
+            parts: const [
+              TextPart('BEFORE_MARK\n\n![]($uri)\n\nAFTER_MARK\n\n![]($uri)'),
+              ImagePart(
+                uri: uri,
+                assetId: 'img_abcdefghijklmnopqrst',
+                jobId: 'job-1',
+              ),
+            ],
+          ),
+          showModelIcon: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ImageJobCard), findsOneWidget);
+  });
+
+  testWidgets('a promised picture quoted in code is still drawn somewhere', (
+    tester,
+  ) async {
+    // The suppression asks "did the Markdown renderer draw the card here?". A uri
+    // inside a fence, inside inline code, or in a plain link is *text*: the
+    // renderer never calls the image builder for it. Suppressing the part's own
+    // block then left the picture nowhere at all — while an ordinary (non-job)
+    // image part in the same message still got its block.
+    const uri = 'kelivo-file:///images/img_abcdefghijklmnopqrst.png';
+    for (final body in <String>[
+      'BEFORE_MARK\n\n```\n![]($uri)\n```\n\nAFTER_MARK',
+      'BEFORE_MARK\n\n`![]($uri)`\n\nAFTER_MARK',
+      'BEFORE_MARK\n\n[the picture]($uri)\n\nAFTER_MARK',
+    ]) {
+      await tester.pumpWidget(
+        _buildHarness(
+          child: ChatMessageWidget(
+            message: ChatMessage(
+              id: 'quoted-job-image',
+              role: 'assistant',
+              conversationId: 'c1',
+              parts: [
+                TextPart(body),
+                const ImagePart(
+                  uri: uri,
+                  assetId: 'img_abcdefghijklmnopqrst',
+                  jobId: 'job-1',
+                ),
+              ],
+            ),
+            showModelIcon: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull, reason: body);
+      expect(find.byType(ImageJobCard), findsOneWidget, reason: body);
+    }
   });
 }

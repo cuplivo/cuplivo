@@ -9,18 +9,18 @@ import 'package:crypto/crypto.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/workspace/file_link_resolver.dart';
-import 'package:Kelivo/features/workspace/workspace_file_navigation.dart';
-import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/shared/widgets/scroll_layout_anchor.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
-import 'package:Kelivo/utils/svg_image_provider.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/workspace/file_link_resolver.dart';
+import 'package:Cuplivo/features/workspace/workspace_file_navigation.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/shared/widgets/scroll_layout_anchor.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/utils/svg_image_provider.dart';
 import 'package:open_filex/open_filex.dart';
 
 /// Source is read lazily when opening the gallery, avoiding another parse on
@@ -44,6 +44,29 @@ class MarkdownLinkScope extends InheritedWidget {
   bool updateShouldNotify(MarkdownLinkScope oldWidget) =>
       conversationId != oldWidget.conversationId ||
       !identical(imageStorage, oldWidget.imageStorage);
+}
+
+final _imageDimensions = RegExp(r'^(?:(\d+)(?:x(\d+))?|x(\d+))$');
+
+/// The size an image's alt text spells, or null when it spells none.
+///
+/// `WxH`, a bare `W` and a bare `H` are the three forms an alt may write, and one
+/// scan reads them for both consumers — the picture the message draws and the
+/// picture an exported page embeds — so the two cannot disagree about a size. A
+/// size is not a caption, which is why a sized alt is not printed beside the
+/// picture either.
+({double? width, double? height})? markdownImageSizeOf(String alt) {
+  final dimensions = _imageDimensions.firstMatch(alt.trim());
+  if (dimensions == null) return null;
+  double? size(String? value) {
+    final number = double.tryParse(value ?? '');
+    return number != null && number.isFinite && number > 0 ? number : null;
+  }
+
+  final width = size(dimensions[1]);
+  final height = size(dimensions[2] ?? dimensions[3]);
+  if (width == null && height == null) return null;
+  return (width: width, height: height);
 }
 
 class KelivoLinkHandler implements LinkHandler {
@@ -89,21 +112,56 @@ class KelivoLinkHandler implements LinkHandler {
 }
 
 class KelivoImageBuilder implements ImageBuilder {
-  const KelivoImageBuilder();
-  static final _dimensions = RegExp(r'^(?:(\d+)(?:x(\d+))?|x(\d+))$');
+  const KelivoImageBuilder({
+    this.jobImageBuilder,
+    this.document,
+    this.documentStart = -1,
+  });
+
+  /// Draws the application's own block for a destination instead of a picture.
+  ///
+  /// A generated illustration is owned by an image job: while the bytes are
+  /// still missing the block is a skeleton, and once they land it is the same
+  /// block with the picture in it. Returning null means "an ordinary image".
+  /// The offset is the node's own position in [document], so a reply that writes
+  /// the same placeholder twice can give the block to the first mention only.
+  final Widget? Function(
+    BuildContext context,
+    String destination,
+    int offset,
+    String document,
+    int documentStart,
+  )?
+  jobImageBuilder;
+
+  /// The Markdown document these nodes came from. A reply renders as several of
+  /// them, and a node's offset is only meaningful inside its own. A getter, not a
+  /// value: the document changes on every streamed token, and rebuilding the
+  /// image builder for that would throw away the markdown subtree identity
+  /// streaming depends on.
+  final String Function()? document;
+
+  /// Where [document] starts in the reply, so its node offsets can be read in
+  /// reply coordinates. `-1` when the caller cannot establish it.
+  final int documentStart;
+
   @override
   Widget build(BuildContext context, ImageNode image, MarkstreamTheme theme) {
-    final dimensions = _dimensions.firstMatch(toPlainText(image).trim());
-    double? size(String? value) {
-      final number = double.tryParse(value ?? '');
-      return number != null && number.isFinite && number > 0 ? number : null;
-    }
+    final owned = jobImageBuilder?.call(
+      context,
+      image.destination,
+      image.span.start,
+      document?.call() ?? '',
+      documentStart,
+    );
+    if (owned != null) return owned;
+    final size = markdownImageSizeOf(toPlainText(image));
 
     return _MarkdownImage(
       theme: theme,
       url: image.destination,
-      width: size(dimensions?[1]),
-      height: size(dimensions?[2] ?? dimensions?[3]),
+      width: size?.width,
+      height: size?.height,
     );
   }
 }

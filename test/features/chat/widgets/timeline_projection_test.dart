@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_projection.dart';
-import 'package:Kelivo/features/chat/widgets/timeline_visibility.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_projection.dart';
+import 'package:Cuplivo/features/chat/widgets/timeline_visibility.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 TimelineToolRef _live({
@@ -28,6 +28,38 @@ List<TimelineToolRef> _toolsIn(TimelineProjection projected) {
 }
 
 void main() {
+  group('timelineImagePartFlushesBlock', () {
+    test('a promise starts a block even when its file is missing', () {
+      // Restore and LAN sync mark a part unavailable when the file is absent. A
+      // promise has no file yet by definition, so treating that as "hide it"
+      // left a reply with no picture and no "interrupted" card either.
+      const promise = ImagePart(
+        uri: '/data/images/img_abc.png',
+        assetId: 'img_abc',
+        state: ImagePartState.pending,
+        unavailable: true,
+      );
+      expect(timelineImagePartFlushesBlock(promise), true);
+    });
+
+    test('a missing picture with no promise is still hidden', () {
+      const missing = ImagePart(
+        uri: '/data/images/gone.png',
+        unavailable: true,
+      );
+      expect(timelineImagePartFlushesBlock(missing), false);
+    });
+
+    test('a picture with bytes and a file starts a block', () {
+      const here = ImagePart(uri: '/data/images/here.png');
+      expect(timelineImagePartFlushesBlock(here), true);
+    });
+
+    test('an empty uri never starts a block', () {
+      expect(timelineImagePartFlushesBlock(const ImagePart(uri: '   ')), false);
+    });
+  });
+
   test('tool parsing is reused until its immutable payload changes', () {
     const first = ToolCallPart(
       '{"id":"t","name":"search","arguments":{},"content":"same","metadata":{"version":1}}',

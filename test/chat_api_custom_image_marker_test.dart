@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
 
 ProviderConfig _openAiConfig(String baseUrl, {bool useResponseApi = false}) {
   return ProviderConfig(
@@ -323,7 +323,7 @@ void main() {
     });
 
     test(
-      'assistant ImagePart has no image_url; media moves to following user',
+      'assistant ImagePart has no image_url and is never replayed to any turn',
       () async {
         final body = await _sendAndCaptureRequestBody((baseUrl) async {
           final dir = await Directory.systemTemp.createTemp(
@@ -357,44 +357,73 @@ void main() {
 
         final assistant = messages.first;
         expect(assistant['role'], 'assistant');
-        final assistantContent = assistant['content'];
-        if (assistantContent is List) {
-          expect(
-            assistantContent.any(
-              (part) => (part as Map)['type'] == 'image_url',
-            ),
-            isFalse,
-          );
-          expect(
-            assistantContent.any(
-              (part) => (part as Map)['type'] == 'video_url',
-            ),
-            isFalse,
-          );
-        } else {
-          expect(assistantContent, 'here is an image');
-        }
+        expect(assistant['content'], 'here is an image');
 
         final user = messages.last;
         expect(user['role'], 'user');
-        final userParts = (user['content'] as List)
-            .cast<Map<String, dynamic>>();
-        expect(userParts.any((part) => part['type'] == 'image_url'), isTrue);
+        // The picture the assistant made stays a recallable asset on the
+        // message; it is not handed to the user turn either.
+        expect(user['content'], 'what do you see?');
         expect(
-          userParts.any(
-            (part) =>
-                part['type'] == 'image_url' &&
-                ((part['image_url'] as Map)['url'] as String).startsWith(
-                  'data:image/png;base64,',
-                ),
-          ),
-          isTrue,
+          jsonEncode(body),
+          isNot(contains('data:image/png;base64,')),
+          reason: 'an assistant picture never goes back on the wire',
         );
       },
     );
 
     test(
-      'assistant List image_url without sidecar moves to following user',
+      'a picture from an earlier turn never lands on the latest user turn',
+      () async {
+        final dir = await Directory.systemTemp.createTemp(
+          'kelivo_chat_history_asst_img_',
+        );
+        addTearDown(() async {
+          if (await dir.exists()) {
+            await dir.delete(recursive: true);
+          }
+        });
+        final file = File('${dir.path}/lunch.png');
+        await file.writeAsBytes(const [1, 2, 3, 4]);
+
+        final body = await _sendAndCaptureRequestBody((baseUrl) async {
+          return ChatApiService.sendMessageStream(
+            config: _openAiConfig(baseUrl),
+            modelId: 'gpt-4.1',
+            messages: [
+              {'role': 'user', 'content': 'draw my lunch'},
+              {
+                'role': 'assistant',
+                'content': 'here you go',
+                multimodalInternalMediaPathsKey: [file.path],
+              },
+              {'role': 'user', 'content': 'nice'},
+              {'role': 'assistant', 'content': 'glad you like it'},
+              {'role': 'user', 'content': 'good evening'},
+            ],
+            stream: false,
+          ).toList();
+        });
+
+        final messages = (body['messages'] as List).cast<Map>();
+        expect(messages, hasLength(5));
+        // The reported bug: the noon picture was appended to the request's last
+        // user turn hours later, so the model read its own old work as a fresh
+        // upload and kept discussing it (and attributed it to the user).
+        expect(
+          jsonEncode(body),
+          isNot(contains('data:image/png;base64,')),
+          reason: 'a historical assistant picture never goes back on the wire',
+        );
+        expect(
+          messages.where((m) => m['role'] == 'user').map((m) => m['content']),
+          ['draw my lunch', 'nice', 'good evening'],
+        );
+      },
+    );
+
+    test(
+      'assistant List image_url without a sidecar is dropped instead of moved on',
       () async {
         const dataUrl =
             'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -425,40 +454,19 @@ void main() {
 
         final assistant = messages.first;
         expect(assistant['role'], 'assistant');
-        final assistantContent = assistant['content'];
-        if (assistantContent is List) {
-          expect(
-            assistantContent.any(
-              (part) => (part as Map)['type'] == 'image_url',
-            ),
-            isFalse,
-            reason:
-                'assistant List image_url must be stripped even without sidecar',
-          );
-          expect(
-            assistantContent.any(
-              (part) => (part as Map)['type'] == 'video_url',
-            ),
-            isFalse,
-          );
-        } else {
-          expect(assistantContent, 'here is an image');
-        }
+        // The text part survives; the embedded picture does not.
+        expect(assistant['content'], [
+          {'type': 'text', 'text': 'here is an image'},
+        ]);
 
         final user = messages.last;
         expect(user['role'], 'user');
-        final userParts = (user['content'] as List)
-            .cast<Map<String, dynamic>>();
         expect(
-          userParts.any(
-            (part) =>
-                part['type'] == 'image_url' &&
-                ((part['image_url'] as Map)['url'] as String) == dataUrl,
-          ),
-          isTrue,
-          reason:
-              'embedded assistant List image_url must move to the last user',
+          user['content'],
+          'what do you see?',
+          reason: 'an embedded assistant List image_url is dropped, not moved',
         );
+        expect(jsonEncode(body), isNot(contains(dataUrl)));
       },
     );
 
@@ -623,7 +631,7 @@ void main() {
     );
 
     test(
-      'tool follow-up keeps historical assistant media on last user',
+      'tool follow-up never replays the historical assistant media on the user',
       () async {
         final dir = await Directory.systemTemp.createTemp(
           'kelivo_tool_asst_media_',
@@ -731,14 +739,13 @@ void main() {
         final secondMessages = (requestBodies[1]['messages'] as List)
             .cast<Map>();
         final userMsg = secondMessages.firstWhere((m) => m['role'] == 'user');
-        expect(userMsg['content'], isA<List>());
-        final parts = (userMsg['content'] as List).cast<Map<String, dynamic>>();
+        expect(userMsg['content'], 'use a tool about that image');
         expect(
-          parts.any((part) => part['type'] == 'image_url'),
-          isTrue,
+          jsonEncode(requestBodies[1]),
+          isNot(contains('data:image/png;base64,')),
           reason:
-              'second request must keep stashed assistant ImagePart on the '
-              'last user even when that user is no longer array-tail',
+              'the second request must not carry the assistant picture it '
+              'started from, on the user turn or anywhere else',
         );
       },
     );
@@ -855,7 +862,7 @@ void main() {
     });
 
     test(
-      'List-shaped user content still receives stashed assistant media',
+      'List-shaped user content never receives the assistant media on a follow-up',
       () async {
         final dir = await Directory.systemTemp.createTemp(
           'kelivo_list_user_asst_',
@@ -982,10 +989,10 @@ void main() {
         );
         expect(
           parts.any((part) => part['type'] == 'image_url'),
-          isTrue,
+          isFalse,
           reason:
-              'List-shaped user content must still receive stashed assistant '
-              'ImagePart media on tool follow-up',
+              'List-shaped user content must not pick up the assistant picture '
+              'on tool follow-up',
         );
       },
     );
@@ -1085,7 +1092,7 @@ void main() {
     });
 
     test(
-      'assistant ImagePart does not put input_image in assistant output',
+      'assistant ImagePart is never replayed to the user turn of the request',
       () async {
         final body = await _sendAndCaptureResponsesBody((baseUrl) async {
           final dir = await Directory.systemTemp.createTemp(
@@ -1139,66 +1146,108 @@ void main() {
 
         final user = input.last;
         expect(user['role'], 'user');
-        final userParts = (user['content'] as List).cast<Map>();
-        expect(userParts.any((part) => part['type'] == 'input_image'), isTrue);
+        expect(
+          jsonEncode(body),
+          isNot(contains('data:image/png;base64,')),
+          reason: 'an assistant picture never goes back on the wire',
+        );
       },
     );
 
-    test('multiple assistant images all attach to following user', () async {
-      final body = await _sendAndCaptureResponsesBody((baseUrl) async {
-        final dir = await Directory.systemTemp.createTemp(
-          'kelivo_resp_multi_asst_',
-        );
-        addTearDown(() async {
-          if (await dir.exists()) {
-            await dir.delete(recursive: true);
-          }
-        });
-        final file1 = File('${dir.path}/assistant1.png');
-        final file2 = File('${dir.path}/assistant2.png');
-        await file1.writeAsBytes(const [1, 2, 3, 4]);
-        await file2.writeAsBytes(const [5, 6, 7, 8]);
+    test(
+      'multiple assistant images are all dropped instead of attached to a user',
+      () async {
+        final body = await _sendAndCaptureResponsesBody((baseUrl) async {
+          final dir = await Directory.systemTemp.createTemp(
+            'kelivo_resp_multi_asst_',
+          );
+          addTearDown(() async {
+            if (await dir.exists()) {
+              await dir.delete(recursive: true);
+            }
+          });
+          final file1 = File('${dir.path}/assistant1.png');
+          final file2 = File('${dir.path}/assistant2.png');
+          await file1.writeAsBytes(const [1, 2, 3, 4]);
+          await file2.writeAsBytes(const [5, 6, 7, 8]);
 
+          return ChatApiService.sendMessageStream(
+            config: _openAiConfig(baseUrl, useResponseApi: true),
+            modelId: 'gpt-4.1',
+            messages: [
+              {
+                'role': 'assistant',
+                'content': '',
+                multimodalInternalMediaPathsKey: [file1.path, file2.path],
+              },
+              {'role': 'user', 'content': 'compare both'},
+            ],
+            stream: false,
+          ).toList();
+        });
+
+        final input = (body['input'] as List).cast<Map>();
+        expect(input, hasLength(2));
+
+        final assistant = input.first;
+        final assistantParts = (assistant['content'] as List).cast<Map>();
+        expect(
+          assistantParts.any((part) => part['type'] == 'input_image'),
+          isFalse,
+        );
+
+        final user = input.last;
+        expect(user['role'], 'user');
+        expect(
+          jsonEncode(body),
+          isNot(contains('data:image/png;base64,')),
+          reason: 'no assistant picture is handed to the user turn',
+        );
+      },
+    );
+
+    test('a picture from an earlier turn never reaches the input', () async {
+      final dir = await Directory.systemTemp.createTemp(
+        'kelivo_resp_history_asst_img_',
+      );
+      addTearDown(() async {
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
+      });
+      final file = File('${dir.path}/lunch.png');
+      await file.writeAsBytes(const [1, 2, 3, 4]);
+
+      final body = await _sendAndCaptureResponsesBody((baseUrl) async {
         return ChatApiService.sendMessageStream(
           config: _openAiConfig(baseUrl, useResponseApi: true),
           modelId: 'gpt-4.1',
           messages: [
+            {'role': 'user', 'content': 'draw my lunch'},
             {
               'role': 'assistant',
-              'content': '',
-              multimodalInternalMediaPathsKey: [file1.path, file2.path],
+              'content': 'here you go',
+              multimodalInternalMediaPathsKey: [file.path],
             },
-            {'role': 'user', 'content': 'compare both'},
+            {'role': 'user', 'content': 'nice'},
+            {'role': 'assistant', 'content': 'glad you like it'},
+            {'role': 'user', 'content': 'good evening'},
           ],
           stream: false,
         ).toList();
       });
 
+      expect(
+        jsonEncode(body),
+        isNot(contains('data:image/png;base64,')),
+        reason: 'a historical assistant picture never goes back on the wire',
+      );
       final input = (body['input'] as List).cast<Map>();
-      expect(input, hasLength(2));
-
-      final assistant = input.first;
-      final assistantParts = (assistant['content'] as List).cast<Map>();
-      expect(
-        assistantParts.any((part) => part['type'] == 'input_image'),
-        isFalse,
-      );
-
-      final user = input.last;
-      expect(user['role'], 'user');
-      final userParts = (user['content'] as List).cast<Map<String, dynamic>>();
-      final imageUrls = [
-        for (final part in userParts)
-          if (part['type'] == 'input_image') part['image_url'] as String,
-      ];
-      expect(imageUrls, hasLength(2));
-      expect(
-        imageUrls,
-        containsAll([
-          'data:image/png;base64,AQIDBA==',
-          'data:image/png;base64,BQYHCA==',
-        ]),
-      );
+      expect(input.where((m) => m['role'] == 'user').map((m) => m['content']), [
+        'draw my lunch',
+        'nice',
+        'good evening',
+      ]);
     });
 
     test(
@@ -1523,6 +1572,124 @@ void main() {
       expect(image['inlineData']['mimeType'], 'image/png');
       expect(image['inlineData']['data'], 'AQIDBA==');
       expect(jsonEncode(body), isNot(contains('[image:')));
+    });
+
+    test('an assistant picture is not replayed into the model turn', () async {
+      final file = await _tempPng('kelivo_gemini_assistant_media_');
+      addTearDown(() async {
+        final dir = file.parent;
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      final body = await _captureProviderBody(
+        (baseUrl) {
+          return ChatApiService.sendMessageStream(
+            config: _geminiConfig('$baseUrl/v1beta'),
+            modelId: 'gemini-2.5-pro',
+            messages: [
+              {'role': 'user', 'content': '画个图'},
+              {
+                'role': 'assistant',
+                'content': '画好了',
+                multimodalInternalMediaPathsKey: [file.path],
+              },
+              {'role': 'user', 'content': '哪根柱子最高'},
+            ],
+            stream: false,
+          ).toList();
+        },
+        responseBody: const <String, dynamic>{
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {'text': 'ok'},
+                ],
+              },
+            },
+          ],
+        },
+      );
+
+      final contents = (body['contents'] as List).cast<Map>();
+      expect(
+        jsonEncode(contents),
+        isNot(contains('inlineData')),
+        reason: 'a picture the assistant made is never replayed',
+      );
+      final model = contents.firstWhere((c) => c['role'] == 'model');
+      final modelParts = (model['parts'] as List).cast<Map>();
+      expect(modelParts.any((part) => part['text'] == '画好了'), isTrue);
+    });
+
+    test('a picture-only assistant turn leaves no empty model turn', () async {
+      final file = await _tempPng('kelivo_gemini_image_only_');
+      addTearDown(() async {
+        final dir = file.parent;
+        if (await dir.exists()) await dir.delete(recursive: true);
+      });
+
+      for (final stream in [false, true]) {
+        final bodies = <Map<String, dynamic>>[];
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        final baseUrl = 'http://${server.address.address}:${server.port}';
+        try {
+          server.listen((request) async {
+            bodies.add(
+              (jsonDecode(await utf8.decoder.bind(request).join()) as Map)
+                  .cast<String, dynamic>(),
+            );
+            request.response.statusCode = HttpStatus.ok;
+            request.response.headers.contentType = stream
+                ? ContentType('text', 'event-stream', charset: 'utf-8')
+                : ContentType.json;
+            final reply = {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'ok'},
+                    ],
+                  },
+                },
+              ],
+            };
+            request.response.write(
+              stream ? 'data: ${jsonEncode(reply)}\n\n' : jsonEncode(reply),
+            );
+            await request.response.close();
+          });
+          try {
+            await ChatApiService.sendMessageStream(
+              config: _geminiConfig('$baseUrl/v1beta'),
+              modelId: 'gemini-2.5-pro',
+              messages: [
+                {'role': 'user', 'content': '画个图'},
+                {
+                  'role': 'assistant',
+                  'content': '',
+                  multimodalInternalMediaPathsKey: [file.path],
+                },
+                {'role': 'user', 'content': '哪根柱子最高'},
+              ],
+              stream: stream,
+            ).toList();
+          } catch (_) {
+            // The request body is captured before the reply is decoded.
+          }
+        } finally {
+          await server.close(force: true);
+        }
+
+        final contents = (bodies.single['contents'] as List).cast<Map>();
+        expect(
+          contents.where((turn) => (turn['parts'] as List).isEmpty),
+          isEmpty,
+          reason:
+              'Gemini rejects an empty parts list (stream=$stream); a '
+              'picture-only assistant turn must be dropped, not emptied',
+        );
+      }
     });
 
     test('literal [image:...] text is not treated as an attachment', () async {

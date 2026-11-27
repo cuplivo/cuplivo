@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/providers/openai/openai_provider.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_history.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_emit.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
-import 'package:Kelivo/features/home/services/context_assembly.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_history.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_emit.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/features/home/services/context_assembly.dart';
 
 const _scope = (
   providerId: 'provider',
@@ -40,6 +40,28 @@ Map<String, dynamic> _call(String id) => {
 };
 
 void main() {
+  test(
+    'a replayed image generation item keeps its reference, not its pixels',
+    () {
+      final item = responsesInputItem({
+        'role': 'assistant',
+        'content': '',
+        multimodalInternalResponsesItemKey: <String, dynamic>{
+          'type': 'image_generation_call',
+          'id': 'ig_123',
+          'status': 'completed',
+          'result': 'AQIDBA==',
+        },
+      });
+
+      expect(item['type'], 'image_generation_call');
+      expect(item['id'], 'ig_123');
+      expect(item['status'], 'completed');
+      expect(item.containsKey('result'), isFalse);
+      expect(jsonEncode(item), isNot(contains('AQIDBA==')));
+    },
+  );
+
   for (final terminal in [false, true]) {
     test(
       'Responses retains completed items at EOF: terminal=$terminal',

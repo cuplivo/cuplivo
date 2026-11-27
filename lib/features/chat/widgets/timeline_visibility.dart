@@ -11,7 +11,7 @@ import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
 import 'screen_time_tool_ui.dart';
 import 'weather_tool_ui.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// Built-in search is cited elsewhere and must not create a timeline card.
 const String kBuiltinSearchToolName = 'builtin_search';
@@ -238,6 +238,10 @@ String unescapeMarkdownDestination(String raw) {
 }
 
 /// Whether [toolName] is allowed to occupy a chain-of-thought step.
+///
+/// `generate_image` is an ordinary tool here: the call is a normal tool card
+/// (with its prompt), and the picture is a separate block. One act, one card of
+/// each kind — hiding the call only made the picture look unexplained.
 bool toolCreatesTimelineCard(String toolName) =>
     toolName != kBuiltinSearchToolName;
 

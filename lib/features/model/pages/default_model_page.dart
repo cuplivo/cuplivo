@@ -1,4 +1,5 @@
 import '../../chat/widgets/compression_template_library.dart';
+import '../../home/utils/model_display_helper.dart';
 import '../../home/widgets/model_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -9,10 +10,12 @@ import '../../../shared/widgets/ios_switch.dart';
 import '../widgets/model_select_sheet.dart';
 import '../widgets/ocr_prompt_sheet.dart';
 import '../utils/ocr_model_capability.dart';
+import '../../../core/models/model_spec.dart';
+import '../../image_job/services/image_backends.dart' show modelCanDrawPicture;
 import '../../../l10n/app_localizations.dart';
 import '../../../core/services/haptics.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class DefaultModelPage extends StatelessWidget {
   const DefaultModelPage({super.key});
@@ -24,12 +27,14 @@ class DefaultModelPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     Future<ModelSelection?> pickConfiguredModel(
       String? providerKey,
-      String? modelId,
-    ) {
+      String? modelId, {
+      bool Function(ModelSpec)? includeModel,
+    }) {
       return showModelSelector(
         context,
         initialProviderKey: providerKey,
         initialModelId: modelId,
+        includeModel: includeModel,
       );
     }
 
@@ -74,6 +79,31 @@ class DefaultModelPage extends StatelessWidget {
           _PerChatModelCard(
             value: settings.perChatModelEnabled,
             onChanged: settings.setPerChatModelEnabled,
+          ),
+          const SizedBox(height: 16),
+          _ModelCard(
+            icon: Lucide.Image,
+            title: l10n.defaultModelPageImageModelTitle,
+            subtitle: l10n.defaultModelPageImageModelSubtitle,
+            modelProvider: settings.imageModelProvider,
+            modelId: settings.imageModelId,
+            disabledWhenUnset: true,
+            showResetWhenUnset: true,
+            onReset: () async {
+              await settings.resetImageModel();
+            },
+            onPick: () async {
+              // Only models that can draw: a text model here fails every call
+              // after a full provider round-trip.
+              final sel = await pickConfiguredModel(
+                settings.imageModelProvider,
+                settings.imageModelId,
+                includeModel: modelCanDrawPicture,
+              );
+              if (sel != null) {
+                await settings.setImageModel(sel.providerKey, sel.modelId);
+              }
+            },
           ),
           const SizedBox(height: 16),
           _ModelCard(
@@ -252,6 +282,58 @@ class DefaultModelPage extends StatelessWidget {
               }
             },
             configAction: () => showOcrPromptSheet(context),
+          ),
+          const SizedBox(height: 16),
+          _ModelCard(
+            icon: Lucide.HeartPulse,
+            title: l10n.defaultModelPageProactiveCareModelTitle,
+            subtitle: l10n.defaultModelPageProactiveCareModelSubtitle,
+            modelProvider: settings.proactiveCareDecisionModelProvider,
+            modelId: settings.proactiveCareDecisionModelId,
+            fallbackProvider: settings.currentModelProvider,
+            fallbackModelId: settings.currentModelId,
+            onReset: () async {
+              await settings.resetProactiveCareDecisionModel();
+            },
+            onPick: () async {
+              final sel = await showModelSelectorWithCurrentChatFallback(
+                context,
+                initialProviderKey: settings.proactiveCareDecisionModelProvider,
+                initialModelId: settings.proactiveCareDecisionModelId,
+              );
+              if (sel != null) {
+                await settings.setProactiveCareDecisionModel(
+                  sel.providerKey,
+                  sel.modelId,
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          _ModelCard(
+            icon: Lucide.Users,
+            title: l10n.defaultModelPageDirectorModelTitle,
+            subtitle: l10n.defaultModelPageDirectorModelSubtitle,
+            modelProvider: settings.directorModelProvider,
+            modelId: settings.directorModelId,
+            fallbackProvider: settings.currentModelProvider,
+            fallbackModelId: settings.currentModelId,
+            onReset: () async {
+              await settings.resetDirectorModel();
+            },
+            onPick: () async {
+              final sel = await showModelSelectorWithCurrentChatFallback(
+                context,
+                initialProviderKey: settings.directorModelProvider,
+                initialModelId: settings.directorModelId,
+                // The director is a decision slot: a decision model is exactly
+                // what belongs here.
+                includeDecisionModels: true,
+              );
+              if (sel != null) {
+                await settings.setDirectorModel(sel.providerKey, sel.modelId);
+              }
+            },
           ),
         ],
       ),
@@ -780,22 +862,11 @@ class _ModelCard extends StatelessWidget {
     if (effectiveProvider != null && effectiveModelId != null) {
       final cfg = settings.getProviderConfig(effectiveProvider);
       providerName = cfg.name.isNotEmpty ? cfg.name : effectiveProvider;
-      final ov = cfg.modelOverrides[effectiveModelId] as Map?;
-      if (ov != null) {
-        final overrideName = (ov['name'] as String?)?.trim();
-        if (overrideName != null && overrideName.isNotEmpty) {
-          modelDisplay = overrideName;
-        } else {
-          final apiId = (ov['apiModelId'] ?? ov['api_model_id'])
-              ?.toString()
-              .trim();
-          modelDisplay = (apiId != null && apiId.isNotEmpty)
-              ? apiId
-              : effectiveModelId;
-        }
-      } else {
-        modelDisplay = effectiveModelId;
-      }
+      modelDisplay = modelDisplayName(
+        settings,
+        effectiveProvider,
+        effectiveModelId,
+      );
     }
 
     // Override display text if using fallback

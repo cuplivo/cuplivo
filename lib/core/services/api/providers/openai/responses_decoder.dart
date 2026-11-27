@@ -776,18 +776,25 @@ String _rawImageBase64(String raw) {
   return raw;
 }
 
+/// Fields a Responses image-generation item can carry its pixels in.
+///
+/// A replay keeps the hosted call's reference and drops these: the picture is
+/// output-only, and putting it back on the wire is what let a model treat its
+/// own old work as a fresh upload.
+const responsesImagePayloadKeys = <String>[
+  'imageUrl',
+  'image_url',
+  'imageB64',
+  'image_b64',
+  'result',
+];
+
 /// Image payload of a Responses `image_generation` output item.
 ///
 /// OpenRouter returns `imageUrl` / `imageB64` (bare or wrapped in `{url: ...}`);
 /// OpenAI returns base64 in `result`.
 String responsesImageGenerationSource(Map<dynamic, dynamic> item) {
-  for (final key in const <String>[
-    'imageUrl',
-    'image_url',
-    'imageB64',
-    'image_b64',
-    'result',
-  ]) {
+  for (final key in responsesImagePayloadKeys) {
     final raw = item[key];
     final value = raw is Map ? raw['url'] : raw;
     if (value is String && value.trim().isNotEmpty) return value.trim();

@@ -86,6 +86,8 @@ import 'core/services/backup/local_snapshot_schedule.dart';
 import 'core/services/chat/chat_service.dart';
 import 'features/home/services/context_usage_service.dart';
 import 'core/services/model_catalog/model_catalog_service.dart';
+import 'core/services/recycle/recycle_service.dart';
+import 'core/services/business_state_reloader.dart';
 import 'core/services/app_exit_flush.dart';
 import 'core/services/backup/restore_archive_pruner.dart';
 import 'core/services/backup/restore_business_lease.dart';
@@ -398,6 +400,17 @@ Future<void> main(List<String> arguments) async {
         // logging.Logger.root.onRecord.listen((rec) { ... });
         // Cache current Documents directory to fix sandboxed absolute paths on iOS
         await SandboxPathResolver.init();
+        // The recycle bin is the app's to attach, not the gateway's (ADR-0016):
+        // the gateway is what test harnesses acquire too, and a bin that writes
+        // files after a delete returns has no business in every harness. The
+        // workspace root rides along because restoring a staged file needs the
+        // same folder a sync landing writes into, and this is the one place that
+        // knows where that is.
+        ChatDatabaseGateway.instance.recycleFactory = (database) =>
+            RecycleService(
+              database,
+              workspaceRoot: AppDirectories.workspaceFilesDir,
+            );
         ChatDatabaseLease? processDatabaseLease;
         BusinessPreferences? businessPreferences;
         var recoveryAttempted = false;
@@ -856,6 +869,11 @@ class MyApp extends StatelessWidget {
           value: databaseLease.businessRepository,
         ),
         Provider<BusinessPreferences>.value(value: businessPreferences),
+        if (databaseLease.recycleService case final recycle?)
+          Provider<RecycleService>.value(value: recycle),
+        Provider<BusinessStateReloader>(
+          create: (_) => BusinessStateReloader(businessPreferences),
+        ),
         ChangeNotifierProvider(
           create: (_) => UserProvider(preferences: businessPreferences),
         ),

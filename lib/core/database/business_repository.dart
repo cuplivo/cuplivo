@@ -4,15 +4,20 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../models/memory_entry.dart';
+import '../services/recycle/recycle_service.dart';
 import 'app_database.dart';
 import 'business_data.dart';
 
 final class BusinessRepository {
-  BusinessRepository(this._database);
+  BusinessRepository(this._database, {this.recycle});
 
   static const migrationReceiptKey = 'business_migration_complete_v1';
 
   final AppDatabase _database;
+
+  /// The device-local recycle bin, when this repository was opened by the
+  /// gateway. Null in tests and one-shot opens, where nothing stages.
+  final RecycleService? recycle;
 
   /// Used by cross-domain coordinators to fail closed unless both
   /// repositories are backed by the exact same Drift database instance.
@@ -75,10 +80,20 @@ final class BusinessRepository {
     await _database.transaction(() => _replaceEntities(kind, rows));
   }
 
+  /// Writes one list-shaped kind: rows whose id is no longer in [rows] are
+  /// deleted, the rest are upserted.
+  ///
+  /// [group] is stamped on the entries staged for the rows this write *removes*.
+  /// It exists because a list write is how several deletions actually happen —
+  /// deleting an assistant drops its row through here, not through
+  /// [deleteEntity] — and a caller that is performing one deletion event passes
+  /// the same group it gave the rest of that event, so the bin can show the act
+  /// as one instead of an assistant standing next to its own cascade.
   Future<void> synchronizeEntities(
     BusinessEntityKind kind,
-    List<BusinessEntityValue> rows,
-  ) async {
+    List<BusinessEntityValue> rows, {
+    RecycleGroup? group,
+  }) async {
     _validateRows(kind, rows);
     await _database.transaction(() async {
       final existing = await _readEntities(kind);
@@ -89,7 +104,7 @@ final class BusinessRepository {
       for (final row in existing) {
         if (!retainedIds.contains(row.id)) {
           _assertDecodablePayload(kind, row);
-          await _deleteEntity(kind, row.id);
+          await _deleteEntity(kind, row.id, group: group);
         }
       }
       final updatedAt = DateTime.now().toUtc().microsecondsSinceEpoch;
@@ -106,9 +121,10 @@ final class BusinessRepository {
   Future<void> writeBatch({
     required Map<BusinessEntityKind, List<BusinessEntityValue>> entities,
     required Map<String, Object> preferences,
+    RecycleGroup? removalGroup,
   }) => _database.transaction(() async {
     for (final entry in entities.entries) {
-      await synchronizeEntities(entry.key, entry.value);
+      await synchronizeEntities(entry.key, entry.value, group: removalGroup);
     }
     for (final entry in preferences.entries) {
       await setPreference(entry.key, entry.value);
@@ -498,12 +514,33 @@ WHERE id IN ($placeholders);
   static String normalizeMemoryContent(String content) =>
       MemoryEntry.normalizeContent(content);
 
-  Future<void> _deleteEntity(BusinessEntityKind kind, String id) =>
-      _database.customStatement(
-        'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?'
-        '${kind.extensionKind == null ? '' : ' AND kind = ?'};',
-        <Object?>[id, if (kind.extensionKind != null) kind.extensionKind],
-      );
+  /// Deletes one entity row — a user-managed row that is going away.
+  ///
+  /// The row is staged into the recycle bin first, so a mistaken deletion of an
+  /// assistant, a provider or a memory entry stays undoable. Bulk replacement
+  /// ([_replaceEntities], [clearAll]) deliberately does not come through here:
+  /// replacing the whole local state is not a deletion of any one row, which is
+  /// the same line the conversation tombstones draw.
+  Future<void> _deleteEntity(
+    BusinessEntityKind kind,
+    String id, {
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleReason reason = RecycleReason.deleted,
+    RecycleGroup? group,
+  }) async {
+    await recycle?.stageEntityRow(
+      kind,
+      id,
+      origin: origin,
+      reason: reason,
+      group: group,
+    );
+    await _database.customStatement(
+      'DELETE FROM ${kind.tableName} WHERE ${kind.idColumn} = ?'
+      '${kind.extensionKind == null ? '' : ' AND kind = ?'};',
+      <Object?>[id, if (kind.extensionKind != null) kind.extensionKind],
+    );
+  }
 
   Future<void> _replacePreferences(Map<String, Object> preferences) async {
     await _database.customStatement('DELETE FROM preference_rows;');

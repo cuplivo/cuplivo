@@ -18,6 +18,7 @@ import 'package:Cuplivo/core/services/api/tool_result_content.dart';
 import 'package:Cuplivo/core/services/tool_image.dart';
 import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
 import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_image_download.dart';
 import 'package:Cuplivo/utils/mcp_structured_image.dart';
 import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
@@ -170,6 +171,13 @@ void main() {
     late Completer<void> received;
 
     setUp(() async {
+      // This machine may well have `HTTP_PROXY` set, and the guard refuses a
+      // proxied download by design — which is not what these cases are about.
+      // Pointing the probe at DIRECT says "pretend no exit proxy exists"; the
+      // case that *is* about proxy routing sets its own settings-driven answer.
+      final originalFindProxy = workspaceImageFindProxy;
+      workspaceImageFindProxy = (_) => 'DIRECT';
+      addTearDown(() => workspaceImageFindProxy = originalFindProxy);
       requests = [];
       received = Completer<void>();
       final image = img.Image(width: 9, height: 5);

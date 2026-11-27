@@ -502,7 +502,21 @@ void main() {
         await tester.tap(find.text('删除'));
         await tester.pumpAndSettle();
         expect(find.textContaining('仍在使用的文件会保留'), findsOneWidget);
-        await tester.tap(find.widgetWithText(IosTileButton, '删除').last);
+        // The page has a 删除 of its own behind the barrier, so the confirm is
+        // scoped to the dialog that carries the message rather than to whichever
+        // 删除 happens to come last in tree order.
+        await tester.tap(
+          find
+              .descendant(
+                of: find.ancestor(
+                  of: find.textContaining('仍在使用的文件会保留'),
+                  matching: find.byType(Column),
+                ),
+                matching: find.widgetWithText(IosTileButton, '删除'),
+              )
+              .last,
+        );
+        await tester.pumpAndSettle();
         await _until(
           tester,
           () => find.text('已删除 1 个项目').evaluate().isNotEmpty,

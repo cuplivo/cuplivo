@@ -2,12 +2,24 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../../providers/settings_provider.dart';
 import '../api/tool_call_cancellation.dart';
 import '../mcp/kelivo_fetch/kelivo_fetch_server.dart';
 import '../network/pinned_tls_socket.dart';
 import '../network/public_internet_address.dart';
 import '../tool_image.dart';
+
+/// The environment probe behind the direct-connection guard.
+///
+/// A test machine's `HTTP_PROXY` is not something a test can change, and the
+/// guard has to ask the same question the client will ask, so the question is
+/// one function that a test can point at `DIRECT`. Production keeps the
+/// environment's answer.
+@visibleForTesting
+String Function(Uri url) workspaceImageFindProxy =
+    HttpClient.findProxyFromEnvironment;
 
 const _downloadTimeout = Duration(seconds: 10);
 const _connectAttemptTimeout = Duration(seconds: 2);
@@ -28,7 +40,7 @@ Future<Uint8List> downloadWorkspaceImage(
     checkAccess();
     if (closed) throw const SocketException('Image download stopped');
     if (SettingsProvider.routesThroughGlobalProxy(url) ||
-        HttpClient.findProxyFromEnvironment(url) != 'DIRECT') {
+        workspaceImageFindProxy(url) != 'DIRECT') {
       throw const ToolImageException(
         'Image download requires a direct connection under the current proxy settings',
       );

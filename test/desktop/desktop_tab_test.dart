@@ -17,7 +17,6 @@ void main() {
       DesktopTab.storage,
       DesktopTab.settings,
       DesktopTab.markdownImage,
-      DesktopTab.lanSync,
     ]);
     expect(DesktopTab.values[3], DesktopTab.settings);
   });

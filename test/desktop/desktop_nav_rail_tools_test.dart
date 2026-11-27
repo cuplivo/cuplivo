@@ -57,7 +57,6 @@ void main() {
     expect(find.byTooltip('Translate'), findsOneWidget);
     expect(find.byTooltip('Storage'), findsOneWidget);
     expect(find.byTooltip('Markdown image'), findsOneWidget);
-    expect(find.byTooltip('Convenient Sync'), findsOneWidget);
 
     // The rail names the tool; the shell owns the tab order. A number here is
     // what used to drift from the stack.

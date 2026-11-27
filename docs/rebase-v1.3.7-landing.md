@@ -422,7 +422,31 @@ Rules that apply at every stop:
 | unit 5 recycle-docs | **committed** `4c5e85fb7`: no conflict, 4 paths, 93 → 82 |
 | unit 6 tailcat infra | **committed**: no conflict, 13 paths, `pubspec.lock` in the same commit, stays 82 |
 | unit 7 tailcat feature | **committed**: no conflict, 21 paths, 82 → 76 |
-| units 8–18 | not started |
+| unit 8 care | **committed**: no conflict, 59 paths, stays 76 |
+| unit 9 link | **committed**: no conflict, 17 paths |
+| unit 10 pdf | **committed**: no conflict, 41 paths |
+| unit 11 translate | **committed**: 3 of 10 paths conflicted (the shared language helpers vs v1.3.7's per-page spellings), 79 |
+| unit 12 suggestions | **committed**: no conflict, 3 paths |
+| unit 13 group-chat | **parked**: auto-merged cleanly in lib but the merged tree does not parse — 540 errors in 7 files, all of them ones this unit edits |
+| units 14–18 | not started |
+
+### Unit 13, parked with its measurement
+
+`a3b1217c6` applied with three conflicts (all in test files: two adjacent-insertion cases and one
+"both added a test at the same place"), which were resolved by keeping both sides. The **lib** side
+reported no conflict at all — and that is the problem: the merged tree then failed with **540 errors
+plus 51 warnings**, concentrated in seven files this unit edits
+(`assistant_settings_page`, `home_page`, `chat_actions`, `world_book_popover`, `home_view_model`,
+`compress_context_options`, `chat_input_section`), with `expected_token`, `missing_identifier` and
+`directive_after_declaration` leading — the signature of a syntax break, not of a missing definition.
+
+Their brace and paren balance is identical to HEAD's in all seven (`+0`/`+0`), so it is not a deleted
+closing brace; it is the same silent, non-conflicting corruption that unit 4's
+`chat_database_repository` showed, where git merges two adjacent edits into text that no longer
+parses. The unit was reverted rather than committed: 109 files restored from HEAD, 76 added files
+removed, and the tree is back at the 79 the stack measured before it. Next pass replays it with those
+seven files taken from `:3:` (the unit's own text) instead of trusting the auto-merge, and re-applies
+v1.3.7's hunks in them by hand.
 
 **The gate moved to the tip.** Units 1–3 ended at analyze 0; unit 4 cannot, because the compressed
 series moves four definitions into later units (see "Unit 4 is not self-contained" above). From unit

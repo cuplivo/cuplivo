@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_web_document.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_web_document.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';

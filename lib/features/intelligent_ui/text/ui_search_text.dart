@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
 import '../host/ui_presented_fences.dart';
 import '../catalog/ui_budgets.dart';
 import '../protocol/ui_source_hash.dart';

@@ -318,7 +318,6 @@ class _DesktopProvidersBodyState extends State<_DesktopProvidersBody> {
       (name: 'Gemini', key: 'Gemini'),
       (name: 'STA1N API', key: 'STA1N API'),
       (name: 'OpenRouter', key: 'OpenRouter'),
-      (name: 'KelivoIN', key: 'KelivoIN'),
       (name: '10dian-API', key: '10dian-API'),
       (name: 'DeepSeek', key: 'DeepSeek'),
       (name: l10n.providersPageSiliconFlowName, key: 'SiliconFlow'),
@@ -1659,7 +1658,6 @@ class _DesktopProviderDetailPaneState extends State<DesktopProviderDetailPane> {
                   editor: _baseEditor!,
                   config: cfg,
                   desktop: true,
-                  enabled: widget.providerKey.toLowerCase() != 'kelivoin',
                   onDetachedUndo: (bare, replaced) =>
                       undoSavedProviderUrl(sp, cfg.id, bare, replaced),
                   restoreDefault: SettingsProvider.isBuiltInProvider(
@@ -1932,7 +1930,6 @@ class _DesktopProviderDetailPaneState extends State<DesktopProviderDetailPane> {
                     enabled: !const [
                       'openai',
                       'tensdaq',
-                      'kelivoin',
                     ].contains(widget.providerKey.toLowerCase()),
                     hint: '/chat/completions',
                     onSubmitted: (_) => _saveApiPath(),
@@ -6194,7 +6191,7 @@ class _DesktopProviderShareDialogState
 
     try {
       final file = File(
-        p.join(Directory.systemTemp.path, 'kelivo-provider-qr.png'),
+        p.join(Directory.systemTemp.path, 'cuplivo-provider-qr.png'),
       );
       await file.writeAsBytes(bytes, flush: true);
       return await ClipboardImages.setImagePath(file.path);

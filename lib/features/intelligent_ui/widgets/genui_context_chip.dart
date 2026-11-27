@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 import '../models/ui_context_attachment.dart';
 import 'genui_theme.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 /// The attachment is frozen. Presentation never reads the source's live values.
 class GenUiContextChip extends StatefulWidget {

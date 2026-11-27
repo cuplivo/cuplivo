@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_guidance.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_guidance.dart';
 import '../../../utils/utf16_safe_cut.dart';
 import '../../models/skill_record.dart';
 import 'skill.dart';

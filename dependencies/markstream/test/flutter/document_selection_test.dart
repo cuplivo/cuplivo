@@ -99,36 +99,35 @@ void main() {
     },
   );
 
-  testWidgets(
-    'HTML folds in containers and cells expose only visible selection',
-    (tester) async {
-      for (final source in [
-        '<div><p>Before</p><details><summary>Summary</summary>SECRET</details><p>After</p></div>',
-        '| H |\n| --- |\n| <details><summary>Summary</summary>SECRET</details> |',
-      ]) {
-        final controller = MarkstreamSelectionController();
-        await tester.pumpWidget(
-          host(
-            MarkstreamView(source: source, selectionController: controller),
-            selectable: true,
-          ),
-        );
-        await tester.pumpAndSettle();
-        selectAll(tester);
-        await tester.pumpAndSettle();
-        expect(controller.selectedPlainText, contains('Summary'));
-        expect(controller.selectedMarkdown, isNot(contains('SECRET')));
-        await tester.tap(find.text('Summary'));
-        await tester.pumpAndSettle();
-        selectAll(tester);
-        await tester.pumpAndSettle();
-        expect(controller.selectedPlainText, contains('SECRET'));
-        expect(controller.selectedMarkdown, contains('SECRET'));
-        await tester.pumpWidget(const SizedBox());
-        controller.dispose();
-      }
-    },
-  );
+  testWidgets('HTML folds in containers and cells expose only visible selection', (
+    tester,
+  ) async {
+    for (final source in [
+      '<div><p>Before</p><details><summary>Summary</summary>SECRET</details><p>After</p></div>',
+      '| H |\n| --- |\n| <details><summary>Summary</summary>SECRET</details> |',
+    ]) {
+      final controller = MarkstreamSelectionController();
+      await tester.pumpWidget(
+        host(
+          MarkstreamView(source: source, selectionController: controller),
+          selectable: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      selectAll(tester);
+      await tester.pumpAndSettle();
+      expect(controller.selectedPlainText, contains('Summary'));
+      expect(controller.selectedMarkdown, isNot(contains('SECRET')));
+      await tester.tap(find.text('Summary'));
+      await tester.pumpAndSettle();
+      selectAll(tester);
+      await tester.pumpAndSettle();
+      expect(controller.selectedPlainText, contains('SECRET'));
+      expect(controller.selectedMarkdown, contains('SECRET'));
+      await tester.pumpWidget(const SizedBox());
+      controller.dispose();
+    }
+  });
   testWidgets('document copy includes paragraphs and list markers', (
     tester,
   ) async {
@@ -398,84 +397,82 @@ void main() {
     variant: TargetPlatformVariant.only(TargetPlatform.macOS),
   );
 
-  testWidgets(
-    'inline code selection crosses reference chips in source order',
-    (tester) async {
-      final controller = MarkstreamSelectionController();
-      addTearDown(controller.dispose);
-      const reference = '\uFFFC';
-      final extensions = MarkstreamExtensions(
-        literalSpanBuilder: (_, span, _) {
-          final parts = span.toPlainText().split(reference);
-          return TextSpan(
-            style: span.style,
-            children: [
-              for (var i = 0; i < parts.length; i++) ...[
-                if (i > 0)
-                  const WidgetSpan(
-                    alignment: PlaceholderAlignment.baseline,
-                    baseline: TextBaseline.alphabetic,
-                    child: SelectableSpanAdapter(
-                      selectedText: reference,
-                      child: Text('Reference'),
-                    ),
+  testWidgets('inline code selection crosses reference chips in source order', (
+    tester,
+  ) async {
+    final controller = MarkstreamSelectionController();
+    addTearDown(controller.dispose);
+    const reference = '\uFFFC';
+    final extensions = MarkstreamExtensions(
+      literalSpanBuilder: (_, span, _) {
+        final parts = span.toPlainText().split(reference);
+        return TextSpan(
+          style: span.style,
+          children: [
+            for (var i = 0; i < parts.length; i++) ...[
+              if (i > 0)
+                const WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: SelectableSpanAdapter(
+                    selectedText: reference,
+                    child: Text('Reference'),
                   ),
-                TextSpan(text: parts[i]),
-              ],
+                ),
+              TextSpan(text: parts[i]),
             ],
-          );
-        },
-      );
-      String? native;
-      Future<void> mount(String code, {double width = 390}) async {
-        await tester.pumpWidget(
-          host(
-            MarkstreamView(
-              source: 'Before `$code` after',
-              extensions: extensions,
-              selectionController: controller,
-            ),
-            width: width,
-            selectable: true,
-            onSelection: (value) => native = value?.plainText,
-          ),
+          ],
         );
-        await tester.pumpAndSettle();
-      }
-
-      await mount(
-        'ab$reference'
-        'cd',
+      },
+    );
+    String? native;
+    Future<void> mount(String code, {double width = 390}) async {
+      await tester.pumpWidget(
+        host(
+          MarkstreamView(
+            source: 'Before `$code` after',
+            extensions: extensions,
+            selectionController: controller,
+          ),
+          width: width,
+          selectable: true,
+          onSelection: (value) => native = value?.plainText,
+        ),
       );
-      await drag(tester, 'ab', 1, 'ab', 2);
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await tester.pumpAndSettle();
-      expect(
-        native,
-        'b$reference'
-        'c',
-      );
-      expect(
-        controller.selectedMarkdown,
-        '`b$reference'
-        'c`',
-      );
+    }
 
-      const bidiCode =
-          'אבג$reference'
-          'דהו$reference'
-          'זחט';
-      await mount(bidiCode, width: 180);
-      selectAll(tester);
-      await tester.pumpAndSettle();
-      expect(native, 'Before $bidiCode after');
-      expect(controller.selectedMarkdown, 'Before `$bidiCode` after');
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
-  );
+    await mount(
+      'ab$reference'
+      'cd',
+    );
+    await drag(tester, 'ab', 1, 'ab', 2);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(
+      native,
+      'b$reference'
+      'c',
+    );
+    expect(
+      controller.selectedMarkdown,
+      '`b$reference'
+      'c`',
+    );
+
+    const bidiCode =
+        'אבג$reference'
+        'דהו$reference'
+        'זחט';
+    await mount(bidiCode, width: 180);
+    selectAll(tester);
+    await tester.pumpAndSettle();
+    expect(native, 'Before $bidiCode after');
+    expect(controller.selectedMarkdown, 'Before `$bidiCode` after');
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
   testWidgets(
     'selection stays valid when a streaming inline code capsule is reparsed',

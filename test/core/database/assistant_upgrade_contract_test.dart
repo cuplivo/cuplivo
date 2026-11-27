@@ -5,13 +5,13 @@ import 'package:drift/drift.dart' show GeneratedDatabase, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_data.dart';
-import 'package:Kelivo/core/database/business_migration_engine.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/business_startup_gate.dart';
-import 'package:Kelivo/core/database/schema_migrations.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/business_migration_engine.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/business_startup_gate.dart';
+import 'package:Cuplivo/core/database/schema_migrations.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
 
 import 'generated_schema/schema.dart';
 

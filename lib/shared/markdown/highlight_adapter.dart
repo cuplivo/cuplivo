@@ -7,8 +7,8 @@ import 'package:flutter_highlight/themes/atom-one-dark-reasonable.dart';
 import 'package:re_highlight/re_highlight.dart';
 import 'package:re_highlight/languages/all.dart';
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/shared/cache/byte_lru_cache.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/shared/cache/byte_lru_cache.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 // Cache syntax trees, not styled spans, so changing the theme does not reparse.
 final _nodes = ByteLruCache<String, DataNode>(

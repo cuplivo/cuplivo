@@ -2,13 +2,13 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/skill_record.dart';
-import 'package:Kelivo/core/services/skills/skills_service.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_guidance.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/skill_record.dart';
+import 'package:Cuplivo/core/services/skills/skills_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_guidance.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 import '../../../support/business_test_harness.dart';
 
 class _MissingReference extends CachingAssetBundle {
@@ -49,7 +49,7 @@ void main() {
   late ExtensionEntityStore store;
   setUp(() async {
     harness = await createBusinessTestHarness();
-    root = await Directory.systemTemp.createTemp('kelivo-visualize-');
+    root = await Directory.systemTemp.createTemp('cuplivo-visualize-');
     store = ExtensionEntityStore(harness.database);
     addTearDown(() => root.delete(recursive: true));
   });

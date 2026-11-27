@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
 
-import 'package:Kelivo/desktop/tools_popover.dart';
-import 'package:Kelivo/features/chat/widgets/chat_tools_sheet.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_server_avatar.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/desktop/tools_popover.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_tools_sheet.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_server_avatar.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 
 import '../../../support/mcp_presentation_harness.dart';
 

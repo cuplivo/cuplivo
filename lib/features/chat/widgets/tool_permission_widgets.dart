@@ -2,16 +2,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/conversation_tool_permissions.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/action_sheet.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/conversation_tool_permissions.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/action_sheet.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'tools_sheet_row.dart';
 
 Future<bool> setToolPermissionFromUi(

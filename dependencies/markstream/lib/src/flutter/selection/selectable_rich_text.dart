@@ -345,9 +345,9 @@ class _ParagraphSelectionDelegate
     // selection offsets are relative to the paragraph.
     final paragraph = _paragraph();
     final text = paragraph.text.toPlainText(includeSemanticsLabels: false);
-    final cluster = CharacterBoundary(text).getTextBoundaryAt(
-      event.forward ? offset : offset - 1,
-    );
+    final cluster = CharacterBoundary(
+      text,
+    ).getTextBoundaryAt(event.forward ? offset : offset - 1);
     final boxes = paragraph.getBoxesForSelection(
       TextSelection(baseOffset: cluster.start, extentOffset: cluster.end),
     );
@@ -400,10 +400,7 @@ class _ParagraphSelectionDelegate
     // its child renders text in a different direction.
     final forward = offset > _placeholderOffset(child);
     final point = paragraph.localToGlobal(
-      Offset(
-        bounds.center.dx,
-        forward ? bounds.bottom + 1 : bounds.top - 1,
-      ),
+      Offset(bounds.center.dx, forward ? bounds.bottom + 1 : bounds.top - 1),
     );
     final result = child.dispatchSelectionEvent(
       event.type == SelectionEventType.endEdgeUpdate

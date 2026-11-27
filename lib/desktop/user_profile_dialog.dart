@@ -13,7 +13,7 @@ import '../shared/widgets/emoji_picker_dialog.dart';
 import '../shared/widgets/snackbar.dart';
 import '../shared/widgets/avatar_image.dart';
 import '../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 Future<void> showUserProfileDialog(BuildContext context) async {
   await showGeneralDialog<void>(

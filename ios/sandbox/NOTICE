@@ -1,4 +1,4 @@
-Kelivo iOS Linux sandbox (Workspace) third-party components
+Cuplivo iOS Linux sandbox (Workspace) third-party components
 ===========================================================
 
 1. iSH-ARM64 (static libraries libish.a, libish_emu.a, libfakefs.a)
@@ -15,7 +15,7 @@ GPLv2. The additional terms in iSH's LICENSE.IOS also apply; in particular
 the iSH copyright holders grant an explicit exception for the conflict
 between the GPL and Apple App Store terms of service.
 
-Kelivo itself is licensed under the GNU Affero General Public License v3,
+Cuplivo itself is licensed under the GNU Affero General Public License v3,
 which is compatible with (and a superset of) the GPLv3 terms above.
 Corresponding source for iSH-ARM64 is available from the upstream
 repository linked above. The bundled RootfsPatch.bundle compatibility scripts

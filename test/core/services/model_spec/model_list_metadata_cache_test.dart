@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/model_spec/model_list_metadata_cache.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/model_spec/model_list_metadata_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

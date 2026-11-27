@@ -145,7 +145,7 @@ class StorageAttachmentUsage {
       AppDatabase.databaseFileName,
     );
     final transient = AttachmentFileLock.captureTransient();
-    return Isolate.run(() {
+    return Isolate.run(() async {
       final database = File(databasePath).existsSync()
           ? sqlite3.open(databasePath, mode: OpenMode.readWrite)
           : null;
@@ -191,7 +191,7 @@ class StorageAttachmentUsage {
               protected.contains(real)) {
             continue;
           }
-          File(normalized).deleteSync();
+          await _deleteReleased(normalized);
           removed.add(normalized);
         }
         database?.execute('COMMIT');
@@ -200,6 +200,24 @@ class StorageAttachmentUsage {
         database?.close();
       }
     });
+  }
+
+  /// Deletes a file that the UI may still be showing.
+  ///
+  /// Windows answers a decanter's open handle with a sharing violation
+  /// (`errno = 32`) and drops it a frame or two later, so the gallery's delete
+  /// button failed exactly for the picture on screen. The retry is bounded and
+  /// only engages on the OS refusal — any other error is the caller's.
+  static Future<void> _deleteReleased(String path) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        await File(path).delete();
+        return;
+      } on FileSystemException {
+        if (attempt >= 4) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+      }
+    }
   }
 
   /// Empty roots may contain only the attachment index and empty directories.

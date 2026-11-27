@@ -1,9 +1,9 @@
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/desktop/message_edit_dialog.dart';
-import 'package:Kelivo/desktop/select_copy_dialog.dart';
-import 'package:Kelivo/features/chat/models/message_edit_result.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/desktop/message_edit_dialog.dart';
+import 'package:Cuplivo/desktop/select_copy_dialog.dart';
+import 'package:Cuplivo/features/chat/models/message_edit_result.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

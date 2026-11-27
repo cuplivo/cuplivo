@@ -1,5 +1,5 @@
-import 'package:Kelivo/shared/widgets/android_text_selection_toolbar.dart';
-import 'package:Kelivo/shared/widgets/app_text_selection_toolbar.dart';
+import 'package:Cuplivo/shared/widgets/android_text_selection_toolbar.dart';
+import 'package:Cuplivo/shared/widgets/app_text_selection_toolbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

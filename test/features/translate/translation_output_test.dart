@@ -1,6 +1,6 @@
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/translate/widgets/translation_output.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/translate/widgets/translation_output.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';

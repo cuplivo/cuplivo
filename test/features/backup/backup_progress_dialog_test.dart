@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/backup/backup_activity.dart';
-import 'package:Kelivo/core/services/backup/backup_task_progress.dart';
-import 'package:Kelivo/features/backup/backup_task_runner.dart';
-import 'package:Kelivo/features/backup/widgets/backup_progress_dialog.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/utils/backup_progress_text.dart';
-import 'package:Kelivo/shared/widgets/animated_progress_bar.dart';
-import 'package:Kelivo/shared/widgets/task_progress_dialog.dart';
+import 'package:Cuplivo/core/services/backup/backup_activity.dart';
+import 'package:Cuplivo/core/services/backup/backup_task_progress.dart';
+import 'package:Cuplivo/features/backup/backup_task_runner.dart';
+import 'package:Cuplivo/features/backup/widgets/backup_progress_dialog.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/utils/backup_progress_text.dart';
+import 'package:Cuplivo/shared/widgets/animated_progress_bar.dart';
+import 'package:Cuplivo/shared/widgets/task_progress_dialog.dart';
 
 Future<void> _openDialog(
   WidgetTester tester,

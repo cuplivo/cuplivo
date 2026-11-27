@@ -1,5 +1,5 @@
-import 'package:Kelivo/features/browser/models/browser_models.dart';
-import 'package:Kelivo/features/browser/widgets/browser_glass.dart';
+import 'package:Cuplivo/features/browser/models/browser_models.dart';
+import 'package:Cuplivo/features/browser/widgets/browser_glass.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

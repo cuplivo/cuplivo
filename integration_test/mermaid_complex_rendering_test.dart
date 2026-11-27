@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/markdown/diagram_code_blocks.dart';
-import 'package:Kelivo/shared/widgets/mermaid_image_cache.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/markdown/diagram_code_blocks.dart';
+import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';

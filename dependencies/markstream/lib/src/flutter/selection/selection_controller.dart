@@ -255,10 +255,10 @@ class DocumentSelectionBinding {
   final projections = <SelectionProjectionRegistration>{};
   final preparers = <_SourceRangePreparerState>{};
   void changed() => controller.changed();
-  List<_MarkstreamSelectionFragmentState> get _ordered =>
-      fragments.toList()..sort(
-        (a, b) => a.widget.node.span.start.compareTo(b.widget.node.span.start),
-      );
+  List<_MarkstreamSelectionFragmentState> get _ordered => fragments.toList()
+    ..sort(
+      (a, b) => a.widget.node.span.start.compareTo(b.widget.node.span.start),
+    );
   TextIndex get textIndex => TextIndex.fromSegments(
     _ordered.expand((fragment) => fragment.widget.segments),
   );

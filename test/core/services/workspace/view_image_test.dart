@@ -9,17 +9,18 @@ import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/tool_call_cancellation.dart';
-import 'package:Kelivo/core/services/network/pinned_tls_socket.dart';
-import 'package:Kelivo/core/services/api/tool_result_content.dart';
-import 'package:Kelivo/core/services/tool_image.dart';
-import 'package:Kelivo/core/services/workspace/workspace_paths.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/tool_call_cancellation.dart';
+import 'package:Cuplivo/core/services/network/pinned_tls_socket.dart';
+import 'package:Cuplivo/core/services/api/tool_result_content.dart';
+import 'package:Cuplivo/core/services/tool_image.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_image_download.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 import '../../../support/business_test_harness.dart';
 import '../../../support/claude_test_api.dart' show FakePathProviderPlatform;
@@ -170,6 +171,13 @@ void main() {
     late Completer<void> received;
 
     setUp(() async {
+      // This machine may well have `HTTP_PROXY` set, and the guard refuses a
+      // proxied download by design — which is not what these cases are about.
+      // Pointing the probe at DIRECT says "pretend no exit proxy exists"; the
+      // case that *is* about proxy routing sets its own settings-driven answer.
+      final originalFindProxy = workspaceImageFindProxy;
+      workspaceImageFindProxy = (_) => 'DIRECT';
+      addTearDown(() => workspaceImageFindProxy = originalFindProxy);
       requests = [];
       received = Completer<void>();
       final image = img.Image(width: 9, height: 5);

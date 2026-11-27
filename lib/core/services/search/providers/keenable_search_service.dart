@@ -14,7 +14,7 @@ class KeenableSearchService extends SearchService<KeenableOptions>
   static const String publicFetchUrl =
       'https://api.keenable.ai/v1/fetch/public';
   static const String keyedFetchUrl = 'https://api.keenable.ai/v1/fetch';
-  static const String appTitle = 'Kelivo';
+  static const String appTitle = 'Cuplivo';
 
   KeenableSearchService({super.client});
 

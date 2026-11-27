@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/workspace/terminal/osc_1337.dart';
-import 'package:Kelivo/features/workspace/terminal/terminal_session_manager.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/features/workspace/terminal/osc_1337.dart';
+import 'package:Cuplivo/features/workspace/terminal/terminal_session_manager.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 import 'fake_workspace_runtime.dart';
 

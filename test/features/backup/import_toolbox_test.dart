@@ -1,16 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/providers/backup_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/backup/backup_cancel_token.dart';
-import 'package:Kelivo/core/services/backup/backup_encryption.dart';
-import 'package:Kelivo/core/services/backup/backup_task_progress.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/backup/import_toolbox.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/backup.dart';
+import 'package:Cuplivo/core/providers/backup_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/backup/backup_cancel_token.dart';
+import 'package:Cuplivo/core/services/backup/backup_encryption.dart';
+import 'package:Cuplivo/core/services/backup/backup_task_progress.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/backup/import_toolbox.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';

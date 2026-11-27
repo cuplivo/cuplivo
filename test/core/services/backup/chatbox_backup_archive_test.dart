@@ -6,7 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/backup/chatbox_backup_archive.dart';
+import 'package:Cuplivo/core/services/backup/chatbox_backup_archive.dart';
 
 void main() {
   late Directory root;
@@ -26,46 +26,43 @@ void main() {
     expect(ChatboxBackupArchive.looksLikeZip(utf8.encode('{"a":1}')), isFalse);
   });
 
-  test(
-    'synthesizes the legacy session map from a formatVersion=2 ZIP',
-    () async {
-      final png = _pngBytes();
-      final zip = _encodeChatboxZipV2(
-        settings: _settings(),
-        session: _session(imageStorageKey: 'picture:test'),
-        resources: [
-          _resource(
-            id: 'resource-000001',
-            storageKey: 'picture:test',
-            bytes: png,
-          ),
-        ],
-      );
+  test('synthesizes the legacy session map from a formatVersion=2 ZIP', () async {
+    final png = _pngBytes();
+    final zip = _encodeChatboxZipV2(
+      settings: _settings(),
+      session: _session(imageStorageKey: 'picture:test'),
+      resources: [
+        _resource(
+          id: 'resource-000001',
+          storageKey: 'picture:test',
+          bytes: png,
+        ),
+      ],
+    );
 
-      final result = await ChatboxBackupArchive.readZipV2(
-        bytes: zip,
-        stagingDir: Directory('${root.path}/staging'),
-        resourceDestDir: '${root.path}/dest',
-      );
+    final result = await ChatboxBackupArchive.readZipV2(
+      bytes: zip,
+      stagingDir: Directory('${root.path}/staging'),
+      resourceDestDir: '${root.path}/dest',
+    );
 
-      expect(result.root['__exported_at'], '2026-07-18T00:00:00.000Z');
-      expect(result.root['settings'], isA<Map>());
-      expect(result.root['chat-sessions-list'], isA<List>());
-      expect(
-        ((result.root['chat-sessions-list'] as List).first as Map)['id'],
-        'assistant-1',
-      );
-      final session = result.root['session:assistant-1'] as Map;
-      final image =
-          ((session['messages'] as List)[1] as Map)['contentParts'] as List;
-      expect(
-        (image[1] as Map)['url'],
-        '${root.path}/dest/resource-000001-${sha256.convert(png)}.png',
-      );
-      expect(result.stagedResourceFiles, hasLength(1));
-      expect(await result.stagedResourceFiles.single.readAsBytes(), png);
-    },
-  );
+    expect(result.root['__exported_at'], '2026-07-18T00:00:00.000Z');
+    expect(result.root['settings'], isA<Map>());
+    expect(result.root['chat-sessions-list'], isA<List>());
+    expect(
+      ((result.root['chat-sessions-list'] as List).first as Map)['id'],
+      'assistant-1',
+    );
+    final session = result.root['session:assistant-1'] as Map;
+    final image =
+        ((session['messages'] as List)[1] as Map)['contentParts'] as List;
+    expect(
+      (image[1] as Map)['url'],
+      '${root.path.replaceAll(r'\', '/')}/dest/resource-000001-${sha256.convert(png)}.png',
+    );
+    expect(result.stagedResourceFiles, hasLength(1));
+    expect(await result.stagedResourceFiles.single.readAsBytes(), png);
+  });
 
   test('settings-only ZIP synthesizes an empty session list', () async {
     final result = await ChatboxBackupArchive.readZipV2(

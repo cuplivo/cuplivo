@@ -2,7 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/api/json_schema_utils.dart';
+import 'package:Cuplivo/core/services/api/json_schema_utils.dart';
 
 class _TrackedDefinitions extends MapView<String, dynamic> {
   _TrackedDefinitions(super.map);

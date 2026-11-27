@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/model_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/model_catalog/catalog_entry.dart';
-import 'package:Kelivo/core/services/model_catalog/model_catalog_service.dart';
-import 'package:Kelivo/core/services/model_spec/model_spec_resolver.dart';
+import 'package:Cuplivo/core/providers/model_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/model_catalog/catalog_entry.dart';
+import 'package:Cuplivo/core/services/model_catalog/model_catalog_service.dart';
+import 'package:Cuplivo/core/services/model_spec/model_spec_resolver.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

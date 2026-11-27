@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:Kelivo/core/services/sandbox/mirror_speed_test.dart';
+import 'package:Cuplivo/core/services/sandbox/mirror_speed_test.dart';
 
 void main() {
   final official = Uri.parse('https://official.example/file');

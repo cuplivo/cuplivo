@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/services/app_exit_flush.dart';
-import 'package:Kelivo/core/services/storage/windows_data_directory.dart';
-import 'package:Kelivo/features/settings/widgets/windows_data_directory_tile.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/services/app_exit_flush.dart';
+import 'package:Cuplivo/core/services/storage/windows_data_directory.dart';
+import 'package:Cuplivo/features/settings/widgets/windows_data_directory_tile.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;

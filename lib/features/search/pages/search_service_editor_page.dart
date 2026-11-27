@@ -20,10 +20,10 @@ import '../utils/four_get_credentials.dart';
 import '../widgets/search_service_avatar.dart';
 import '../widgets/search_service_editor_scope.dart';
 import 'search_api_keys_page.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
-import 'package:Kelivo/shared/widgets/segmented_tabs.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/shared/widgets/segmented_tabs.dart';
 
 class SearchServiceEditorResult {
   const SearchServiceEditorResult.saved(this.service, {this.avatar})
@@ -366,7 +366,7 @@ class _SearchServiceEditorPageState extends State<SearchServiceEditorPage> {
       );
     }
 
-    if (service is BingLocalOptions || service is KelivoOptions) {
+    if (service is BingLocalOptions) {
       return const [];
     }
     if (service is DuckDuckGoOptions) {
@@ -1807,8 +1807,6 @@ class _SearchServiceEditorPageState extends State<SearchServiceEditorPage> {
           apiKey: _text('apiKey'),
           extraApiKeys: _extraApiKeys,
         );
-      case 'kelivo':
-        return KelivoOptions(id: _serviceId);
       default:
         return BingLocalOptions(id: _serviceId);
     }
@@ -2798,7 +2796,6 @@ String _typeForService(SearchServiceOptions service) {
   if (service is KimiOptions) return 'kimi';
   if (service is YouSearchOptions) return 'you';
   if (service is KeenableOptions) return 'keenable';
-  if (service is KelivoOptions) return 'kelivo';
   return 'bing_local';
 }
 
@@ -2862,8 +2859,6 @@ SearchServiceOptions _defaultService(String type, String id) {
       return YouSearchOptions(id: id, apiKey: '');
     case 'keenable':
       return KeenableOptions(id: id, apiKey: '');
-    case 'kelivo':
-      return KelivoOptions(id: id);
     default:
       return BingLocalOptions(id: id);
   }
@@ -2930,8 +2925,6 @@ String _serviceTypeName(BuildContext context, String type) {
       return l10n.searchServiceNameYou;
     case 'keenable':
       return l10n.searchServiceNameKeenable;
-    case 'kelivo':
-      return l10n.searchServiceNameKelivo;
     default:
       return type;
   }

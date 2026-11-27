@@ -6,15 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reel_text/reel_text.dart';
 
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/features/migration/hive_to_sqlite_migration_page.dart';
-import 'package:Kelivo/features/migration/hive_to_sqlite_migration_service.dart';
-import 'package:Kelivo/features/migration/widgets/migration_backup_options.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/main.dart' show MigrationApp;
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/features/migration/hive_to_sqlite_migration_page.dart';
+import 'package:Cuplivo/features/migration/hive_to_sqlite_migration_service.dart';
+import 'package:Cuplivo/features/migration/widgets/migration_backup_options.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/main.dart' show MigrationApp;
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 void main() {
   for (final interruptedSkip in [false, true]) {
@@ -124,7 +124,7 @@ void main() {
             findsOneWidget,
           );
           expect(find.text('已新建空数据库，旧数据已保留。请重启 App 后继续使用。'), findsOneWidget);
-          expect(find.text('Kelivo 无法自动重启，请完全关闭后重新打开。'), findsOneWidget);
+          expect(find.text('Cuplivo 无法自动重启，请完全关闭后重新打开。'), findsOneWidget);
           expect(find.text('重试迁移'), findsNothing);
           expect(find.text('跳过迁移并全新开始'), findsNothing);
           expect(find.byType(MigrationBackupOptions), findsNothing);
@@ -481,7 +481,7 @@ void main() {
     expect(restartCall?.method, 'restartApp');
     expect(restartCall?.arguments, containsPair('mode', 'process'));
     expect(reportedErrors, hasLength(1));
-    expect(find.text('Kelivo 无法自动重启，请完全关闭后重新打开。'), findsOneWidget);
+    expect(find.text('Cuplivo 无法自动重启，请完全关闭后重新打开。'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
@@ -515,13 +515,16 @@ Future<void> _waitUntil(bool Function() condition) async {
   // second wall-clock limit races a loaded full-suite worker, unlike fake-time
   // widget pumping. Finish as soon as the specific operation completes.
   final elapsed = Stopwatch()..start();
-  while (!condition() && elapsed.elapsed < const Duration(seconds: 10)) {
+  // Under the full suite this file competes with a few hundred other isolates,
+  // and ten seconds was not enough there even though the same file finishes in
+  // under two on its own; the wait is a ceiling, not a schedule.
+  while (!condition() && elapsed.elapsed < const Duration(seconds: 30)) {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   expect(
     condition(),
     isTrue,
-    reason: 'Async operation did not complete in 10 seconds',
+    reason: 'Async operation did not complete in 30 seconds',
   );
 }
 

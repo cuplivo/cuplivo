@@ -36,8 +36,10 @@ void main() {
       source: ContextImageSource.assistant,
       label: 'chart',
     );
+    // Recall is opt-in since the image-context rework: a request that wants the
+    // tool advertised has to say so, which is what this case is about.
     final context = RequestImageContext(
-      settings: const ImageContextSettings(),
+      settings: const ImageContextSettings(allowRecall: true),
       images: [chart],
       latestUserId: 'user',
     );

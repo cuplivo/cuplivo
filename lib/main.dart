@@ -1,15 +1,18 @@
 import 'features/side_panel/desktop_side_panel_controller.dart';
 import 'core/services/scheduled_tasks_service.dart';
 import 'core/services/auth/provider_oauth_service.dart';
-import 'package:Kelivo/core/services/sandbox/workspace_channel.dart';
-import 'package:Kelivo/core/providers/external_mounts_provider.dart';
-import 'package:Kelivo/core/services/sandbox/environment_dependencies.dart';
+import 'package:Cuplivo/core/services/proactive_care_alarm_service.dart';
+import 'package:Cuplivo/core/services/sandbox/workspace_channel.dart';
+import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_dependencies.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 import 'l10n/app_localizations.dart';
+import 'features/chat/utils/placeholder_titles.dart';
+import 'features/group_chat/services/group_transcript.dart';
 import 'features/home/pages/home_page.dart';
 import 'features/migration/hive_to_sqlite_migration_page.dart';
 import 'features/migration/hive_to_sqlite_migration_service.dart';
@@ -36,6 +39,11 @@ import 'core/providers/mcp_provider.dart';
 import 'core/providers/tts_provider.dart';
 import 'core/providers/asr_provider.dart';
 import 'core/providers/assistant_provider.dart';
+import 'core/providers/harness_connection_provider.dart';
+import 'core/services/harness/harness_tailcat_dialer.dart';
+import 'core/services/harness/harness_tailcat_identity.dart';
+import 'core/services/harness/harness_tailcat_probe.dart';
+import 'core/services/harness/harness_tailcat_tunnels.dart';
 import 'core/providers/tag_provider.dart';
 import 'core/providers/update_provider.dart';
 import 'core/providers/quick_phrase_provider.dart';
@@ -57,6 +65,8 @@ import 'core/providers/s3_backup_provider.dart';
 import 'core/providers/backup_reminder_provider.dart';
 import 'core/providers/hotkey_provider.dart';
 import 'core/providers/workspace_provider.dart';
+import 'core/providers/group_chat_provider.dart';
+import 'core/providers/chat_owners_provider.dart';
 import 'core/services/workspace/workspace_binding_actions.dart';
 import 'core/providers/environment_provider.dart';
 import 'features/workspace/pages/environment_page.dart';
@@ -84,8 +94,11 @@ import 'core/database/chat_database_gateway.dart';
 import 'core/services/backup/backup_activity.dart';
 import 'core/services/backup/local_snapshot_schedule.dart';
 import 'core/services/chat/chat_service.dart';
+import 'core/providers/sync_provider.dart';
 import 'features/home/services/context_usage_service.dart';
 import 'core/services/model_catalog/model_catalog_service.dart';
+import 'core/services/recycle/recycle_service.dart';
+import 'core/services/business_state_reloader.dart';
 import 'core/services/app_exit_flush.dart';
 import 'core/services/backup/restore_archive_pruner.dart';
 import 'core/services/backup/restore_business_lease.dart';
@@ -95,12 +108,15 @@ import 'core/services/mcp/mcp_tool_service.dart';
 import 'core/services/logging/flutter_logger.dart';
 import 'features/home/services/ask_user_interaction_service.dart';
 import 'features/home/services/tool_approval_service.dart';
+import 'features/image_job/services/image_job_coordinator.dart';
+import 'features/subagent/services/subagent_coordinator.dart';
 import 'utils/app_directories.dart';
 import 'utils/platform_utils.dart';
 import 'utils/sandbox_path_resolver.dart';
 import 'shared/widgets/app_overlays.dart';
 import 'shared/widgets/floating_ipad_padding.dart';
 import 'shared/widgets/snackbar.dart';
+import 'features/sync/widgets/sync_arrival_announcer.dart';
 import 'shared/widgets/restore_failure_screen.dart';
 import 'shared/widgets/restore_progress_screen.dart';
 import 'shared/widgets/windows_data_directory_startup.dart';
@@ -129,6 +145,73 @@ final RouteObserver<ModalRoute<dynamic>> routeObserver =
 bool _didCheckUpdates = false; // one-time update check flag
 bool _didEnsureAssistants = false; // ensure defaults after l10n ready
 bool _didWireWorkspace = false;
+bool _didWireSyncReloaders = false;
+
+/// Tells LAN sync how to refresh the providers that read business state, so a
+/// session that applied entity or preference rows shows up without a restart
+/// (ADR-0003 decision 8: apply → one state reload).
+///
+/// Settings comes first because providers that derive their own state from
+/// settings (ASR, for one) refresh through its notification. Providers whose
+/// state is read on demand rather than cached are absent on purpose.
+void _wireSyncReloaders(BuildContext ctx) {
+  try {
+    final reloader = ctx.read<BusinessStateReloader>();
+    reloader.register(
+      () => ctx.read<SettingsProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<AssistantProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<McpProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<TagProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<UserProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<QuickPhraseProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<WorldBookProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () =>
+          ctx.read<InstructionInjectionProvider>().reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx
+          .read<InstructionInjectionGroupProvider>()
+          .reloadAfterExternalChange(),
+    );
+    reloader.register(
+      () => ctx.read<TtsProvider>().reloadAfterExternalChange(),
+    );
+    // Memory entries ride sync as entity rows; this re-reads the current scope
+    // without narrowing what the memory UI is showing.
+    reloader.register(() => ctx.read<MemoryProviderV2>().reloadCurrentScope());
+    // Skill records and bodies ride sync (slice 3): a record row arrives as an
+    // entity row and a swapped-in directory changes what the service exposes,
+    // so the rescan must run even when only a body moved.
+    reloader.register(() => ctx.read<SkillsService>().rescan());
+    // Workspace records ride sync (managed ones only; a linked folder stays on
+    // the device that holds it). The list is cached and parsed, so without this
+    // the peer's workspaces would sit in SQLite unseen until the next launch.
+    reloader.register(
+      () => ctx.read<WorkspaceProvider>().reloadAfterExternalChange(),
+    );
+    // Group chats are entity rows too, and their list is cached and parsed the
+    // same way: a peer's new group would otherwise be invisible until relaunch.
+    reloader.register(
+      () => ctx.read<GroupChatProvider>().reloadAfterExternalChange(),
+    );
+  } catch (error) {
+    debugPrint('Failed to wire sync reloaders: $error');
+  }
+}
 
 void _wireWorkspaceServices(BuildContext ctx) {
   try {
@@ -206,6 +289,25 @@ void _wireWorkspaceServices(BuildContext ctx) {
         workspaceById: workspaces.byId,
       );
     };
+    // Proactive care ("Ta的来信"): extras writes re-arm the Android alarm
+    // through ChatService's central hook; it needs the owning assistant.
+    chat.proactiveCareAssistantResolver = assistants.getById;
+    chat.proactiveCareAssistantStoreLoaded = () => assistants.isLoaded;
+    // Platforms that only announce a due letter (iOS) have no letter text yet,
+    // so the arrival notification carries this localized line.
+    ProactiveCareAlarmService.proactiveCareArrivalBodyResolver = () =>
+        AppLocalizations.of(ctx)?.proactiveCareLetterArrivalBody;
+    assistants.onAssistantUpdated = (assistant) {
+      for (final conversation in chat.getAllConversations()) {
+        if (conversation.assistantId != assistant.id) continue;
+        unawaited(
+          ProactiveCareAlarmService.sync(
+            conversation: conversation,
+            assistant: assistant,
+          ),
+        );
+      }
+    };
     WorkspaceNavigation.onOpenEnvironmentPage = openEnvironmentPage;
     WorkspaceNavigation.onOpenTerminal = (navContext, {command}) {
       openTerminal(
@@ -247,6 +349,13 @@ Future<void> main(List<String> arguments) async {
           } catch (_) {}
         }
         FlutterLogger.installGlobalHandlers();
+        // A letter alarm that wakes a killed process boots this whole
+        // entrypoint under the foreground service. Answer the native handshake
+        // here, before the database/restore startup, so the fire is handed over
+        // as soon as the isolate runs and waits in the service (not in the
+        // native deadline) for the home page to attach its delivery handler.
+        unawaited(ProactiveCareAlarmService.installFireHandler());
+
         // The Linux runner starts hidden so decorations can be restored first.
         // Show before the restore gate so progress and failure screens stay visible.
         if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
@@ -398,6 +507,21 @@ Future<void> main(List<String> arguments) async {
         // logging.Logger.root.onRecord.listen((rec) { ... });
         // Cache current Documents directory to fix sandboxed absolute paths on iOS
         await SandboxPathResolver.init();
+        // The recycle bin is the app's to attach, not the gateway's (ADR-0016):
+        // the gateway is what test harnesses acquire too, and a bin that writes
+        // files after a delete returns has no business in every harness. The
+        // workspace root rides along because restoring a staged file needs the
+        // same folder a sync landing writes into, and this is the one place that
+        // knows where that is.
+        ChatDatabaseGateway.instance.recycleFactory = (database) =>
+            RecycleService(
+              database,
+              workspaceRoot: AppDirectories.workspaceFilesDir,
+              // A skill's body moves into the bin beside its record, and a
+              // restore puts it back under the root the skills service installs
+              // into.
+              skillsRoot: AppDirectories.getSkillsDirectory,
+            );
         ChatDatabaseLease? processDatabaseLease;
         BusinessPreferences? businessPreferences;
         var recoveryAttempted = false;
@@ -631,7 +755,7 @@ Future<void> _initRestoreFailureWindow() async {
       return;
     }
     await windowManager.waitUntilReadyToShow(
-      const WindowOptions(title: 'Kelivo'),
+      const WindowOptions(title: 'Cuplivo'),
       () async {
         await windowManager.show();
         await windowManager.focus();
@@ -656,7 +780,7 @@ class _RestoreProgressApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'Cuplivo',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -687,7 +811,7 @@ class _RestoreFailureApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'Cuplivo',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -721,7 +845,7 @@ Future<void> _initDesktopWindow() async {
             false);
     // Initialize and show desktop window with persisted size/position
     await DesktopWindowController.instance.initializeAndShow(
-      title: 'Kelivo',
+      title: 'Cuplivo',
       linuxHideTitleBar: linuxHideTitleBar,
       show: !DesktopStartupService.deferWindow,
     );
@@ -773,6 +897,30 @@ void _installExitFlush(
   );
   _exitFlushListener = AppLifecycleListener(
     onExitRequested: () async {
+      // A close that hides to the tray is not a quit. Windows delivers the
+      // window's close as this request *before* the window-manager delegate sees
+      // WM_CLOSE, so the tray controller has to answer it here: hide, and tell
+      // the engine not to exit (`cancel` is what stops it re-dispatching the
+      // close). Nothing is flushed — the process keeps running, queues included,
+      // and the LAN sync listener stays bound (#1036).
+      try {
+        if (await DesktopTrayController.instance.hideForExitRequest()) {
+          return AppExitResponse.cancel;
+        }
+      } catch (_) {}
+      // Not a hide: the controller has also cleared the close-to-tray gate, so
+      // the close the engine re-dispatches after our `exit` below really lands.
+      // Resources that live with the process are handed back first — the LAN
+      // sync listener and its firewall rule — and the flush second, which stops
+      // the producers, drains the write queues and closes the database once.
+      // Both are idempotent and both are bounded: a stuck handler must not
+      // leave the process unkillable after macOS answers NSTerminateLater.
+      try {
+        await AppShutdown.runAll().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {},
+        );
+      } catch (_) {}
       await AppExitFlush.shutdown();
       return AppExitResponse.exit;
     },
@@ -802,7 +950,7 @@ class MigrationApp extends StatelessWidget {
     final palette = ThemePalettes.defaultPalette;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Kelivo',
+      title: 'Cuplivo',
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildLightThemeForScheme(palette.light),
@@ -856,10 +1004,28 @@ class MyApp extends StatelessWidget {
           value: databaseLease.businessRepository,
         ),
         Provider<BusinessPreferences>.value(value: businessPreferences),
+        if (databaseLease.recycleService case final recycle?)
+          Provider<RecycleService>.value(value: recycle),
+        Provider<BusinessStateReloader>(
+          create: (_) => BusinessStateReloader(businessPreferences),
+        ),
         ChangeNotifierProvider(
           create: (_) => UserProvider(preferences: businessPreferences),
         ),
         ChangeNotifierProvider(create: (_) => chatService),
+        ChangeNotifierProvider(
+          create: (ctx) => SyncProvider(
+            chatService: ctx.read<ChatService>(),
+            repository: databaseLease.chatRepository,
+            businessRepository: databaseLease.businessRepository,
+            businessPreferences: businessPreferences,
+            reloader: ctx.read<BusinessStateReloader>(),
+            syncDirectory: AppDirectories.getSyncDirectory,
+            // The same bin the delete paths stage into: a workspace file a
+            // sync round replaces or removes goes here too (ADR-0016).
+            recycle: databaseLease.recycleService,
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => McpToolService()),
         ChangeNotifierProvider(create: (_) => ToolApprovalService()),
         ChangeNotifierProvider(create: (_) => AskUserInteractionService()),
@@ -868,6 +1034,33 @@ class MyApp extends StatelessWidget {
             preferences: businessPreferences,
             chatService: ctx.read<ChatService>(),
           ),
+        ),
+        // One identity backs both the key row in settings and every tunnel:
+        // the allow-list entry a user copies has to be the key that dials.
+        Provider<HarnessTailcatIdentityStore>(
+          create: (_) => FileHarnessTailcatIdentityStore(),
+        ),
+        Provider<HarnessTailcatTunnels>(
+          create: (ctx) {
+            final identity = ctx.read<HarnessTailcatIdentityStore>();
+            return HarnessTailcatTunnels(
+              dialer: (address) async => createHarnessTailcatDialer(
+                address,
+                privateKey: (await identity.load()).privateKey,
+              ),
+            );
+          },
+          dispose: (_, tunnels) => unawaited(tunnels.closeAll()),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) {
+            final tunnels = ctx.read<HarnessTailcatTunnels>();
+            return HarnessConnectionProvider(
+              assistants: ctx.read<AssistantProvider>(),
+              tailcatProbe: HarnessTailcatProbe(tunnels: tunnels),
+              tailcatTunnels: tunnels,
+            );
+          },
         ),
         ChangeNotifierProvider(
           create: (ctx) {
@@ -895,6 +1088,15 @@ class MyApp extends StatelessWidget {
             );
             return settings;
           },
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => ImageJobCoordinator(
+            ctx.read<SettingsProvider>(),
+            ctx.read<ChatService>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => SubagentCoordinator(ctx.read<ChatService>()),
         ),
         ChangeNotifierProvider(
           create: (_) =>
@@ -957,9 +1159,26 @@ class MyApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(
+          create: (ctx) => GroupChatProvider(
+            store: ctx.read<ExtensionEntityStore>(),
+            chatService: ctx.read<ChatService>(),
+            businessRepository: ctx.read<BusinessRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => ChatOwnersProvider(
+            assistants: ctx.read<AssistantProvider>(),
+            groups: ctx.read<GroupChatProvider>(),
+            preferences: businessPreferences,
+          ),
+        ),
+        ChangeNotifierProvider(
           create: (ctx) => SkillsService(
             store: ctx.read<ExtensionEntityStore>(),
             bundledAssets: rootBundle,
+            // A deleted skill's body rides with its record into the bin, so the
+            // deletion is undoable like every other one (ADR-0016).
+            recycle: databaseLease.recycleService,
           ),
         ),
         ChangeNotifierProvider(
@@ -1257,7 +1476,7 @@ class MyApp extends StatelessWidget {
               // debugPrint('[Theme/App] Dark scaffoldBg=${dark.colorScheme.surface.value.toRadixString(16)} card≈${dark.colorScheme.surface.value.toRadixString(16)} shadow=${dark.colorScheme.shadow.value.toRadixString(16)}');
               return MaterialApp(
                 debugShowCheckedModeBanner: false,
-                title: 'Kelivo',
+                title: 'Cuplivo',
                 navigatorKey: rootNavigatorKey,
                 // App UI language; null = follow system (respects iOS per-app language)
                 locale: settings.appLocaleForMaterialApp,
@@ -1300,12 +1519,24 @@ class MyApp extends StatelessWidget {
                       try {
                         ctx.read<AssistantProvider>().ensureDefaults(ctx);
                       } catch (_) {}
+                      // Separate tries: a failure in one must not leave the
+                      // other unset for the rest of the process.
                       try {
-                        ctx.read<ChatService>().setDefaultConversationTitle(
-                          AppLocalizations.of(
-                            ctx,
-                          )!.chatServiceDefaultConversationTitle,
+                        final l10n = AppLocalizations.of(ctx)!;
+                        ctx.read<ChatService>().setPlaceholderTitles(
+                          conversation:
+                              l10n.chatServiceDefaultConversationTitle,
+                          titles: localizedPlaceholderTitles(),
                         );
+                      } catch (_) {}
+                      try {
+                        final chat = ctx.read<ChatService>();
+                        // A group's summary must keep its voices apart.
+                        chat.compressionLabelOf =
+                            GroupTranscript.compressionLabel(
+                              chat: chat,
+                              assistants: ctx.read<AssistantProvider>(),
+                            );
                       } catch (_) {}
                       try {
                         ctx.read<UserProvider>().setDefaultNameIfUnset(
@@ -1320,6 +1551,20 @@ class MyApp extends StatelessWidget {
                       _wireWorkspaceServices(ctx);
                     });
                   }
+                  if (!_didWireSyncReloaders) {
+                    _didWireSyncReloaders = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _wireSyncReloaders(ctx);
+                    });
+                  }
+
+                  // LAN sync listener starts with the app (pairing is the
+                  // opt-in; the pairing window stays closed until opened).
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    try {
+                      unawaited(ctx.read<SyncProvider>().start());
+                    } catch (_) {}
+                  });
 
                   // Desktop tray + close behaviour (minimize to tray) sync
                   final l10n = AppLocalizations.of(ctx);
@@ -1382,7 +1627,12 @@ class MyApp extends StatelessWidget {
                     child: LocalSnapshotScheduler(
                       child: ExternalBackupAutoScheduler(
                         child: AppOverlays(
-                          child: child ?? const SizedBox.shrink(),
+                          // An automatic LAN sync that brings data announces
+                          // itself wherever the user is; the announcer renders
+                          // nothing of its own.
+                          child: SyncArrivalAnnouncer(
+                            child: child ?? const SizedBox.shrink(),
+                          ),
                         ),
                       ),
                     ),

@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/database/business_data.dart';
-import 'package:Kelivo/core/database/business_settings_router.dart';
-import 'package:Kelivo/core/models/assistant_memory.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/business_settings_router.dart';
+import 'package:Cuplivo/core/models/assistant_memory.dart';
 
 Map<String, Object?> _completeEntityRowIds({
   String? sourceKey,
@@ -20,55 +20,44 @@ Map<String, Object?> _completeEntityRowIds({
 
 void main() {
   group('BusinessSettingsRouter', () {
-    test(
-      'registry distinguishes entity, preference, local and discarded keys',
-      () {
-        expect(
-          BusinessKeyRegistry.classify('assistants_v1'),
-          BusinessKeyDisposition.entity,
-        );
-        expect(
-          BusinessKeyRegistry.classify('theme_mode_v1'),
-          BusinessKeyDisposition.preference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('asr_services_v1'),
-          BusinessKeyDisposition.preference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('tts_selected_service_id_v1'),
-          BusinessKeyDisposition.preference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('providers_order_v1'),
-          BusinessKeyDisposition.providerOrder,
-        );
-        expect(
-          BusinessKeyRegistry.classify('mobile_assistant_edit_tab_order_v1'),
-          BusinessKeyDisposition.preference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('flutter_log_enabled_v1'),
-          BusinessKeyDisposition.localOnly,
-        );
-        expect(
-          BusinessKeyRegistry.classify('linux_hide_title_bar_v1'),
-          BusinessKeyDisposition.localOnly,
-        );
-        expect(
-          BusinessKeyRegistry.classify('pinned_chat_ids'),
-          BusinessKeyDisposition.discarded,
-        );
-        expect(
-          BusinessKeyRegistry.classify('plugin_future_key_v1'),
-          BusinessKeyDisposition.unknownPreference,
-        );
-        expect(
-          BusinessKeyRegistry.classify('reasoning_choice_by_model_v1'),
-          BusinessKeyDisposition.preference,
-        );
-      },
-    );
+    test('the registry answers the questions the router asks', () {
+      expect(
+        BusinessKeyRegistry.entityKindFor('assistants_v1'),
+        BusinessEntityKind.assistant,
+      );
+      // A synced preference is still an ordinary business preference; it just
+      // also rides LAN sync (ADR-0003 decision 6).
+      expect(BusinessKeyRegistry.isSynced('theme_mode_v1'), isTrue);
+      expect(BusinessKeyRegistry.isSynced('asr_services_v1'), isTrue);
+      expect(
+        BusinessKeyRegistry.isSynced('tts_selected_service_id_v1'),
+        isTrue,
+      );
+      expect(BusinessKeyRegistry.isProviderOrder('providers_order_v1'), isTrue);
+      expect(
+        BusinessKeyRegistry.policyOf('mobile_assistant_edit_tab_order_v1'),
+        KeyPolicy.backupOnly,
+      );
+      expect(
+        BusinessKeyRegistry.policyOf('current_assistant_id_v1'),
+        KeyPolicy.backupOnly,
+      );
+      expect(
+        BusinessKeyRegistry.isPlatformOnly('flutter_log_enabled_v1'),
+        isTrue,
+      );
+      expect(
+        BusinessKeyRegistry.isPlatformOnly('linux_hide_title_bar_v1'),
+        isTrue,
+      );
+      expect(BusinessKeyRegistry.isDiscarded('pinned_chat_ids'), isTrue);
+      expect(BusinessKeyRegistry.ruleFor('plugin_future_key_v1'), isNull);
+      expect(BusinessKeyRegistry.isSynced('plugin_future_key_v1'), isFalse);
+      expect(
+        BusinessKeyRegistry.policyOf('reasoning_choice_by_model_v1'),
+        KeyPolicy.backupOnly,
+      );
+    });
 
     test(
       'routes and exports canonical settings without losing credentials',
@@ -706,6 +695,43 @@ void main() {
             'updatedAt': 1786012880106000,
           },
         ]),
+        'group_chats_v1': jsonEncode([
+          {
+            'id': 'group-chat-1',
+            'name': 'Panel',
+            'memberIds': ['assistant-1'],
+            'maxSpeakerTurns': 3,
+            'createdAt': '2026-09-08T00:00:00Z',
+            'updatedAt': '2026-09-08T00:00:00Z',
+          },
+        ]),
+        'compression_templates_v1': jsonEncode([
+          {
+            'formatVersion': 1,
+            'id': 'template-1',
+            'name': 'Brief',
+            'prompt': 'Summarise in five lines.',
+            'scene': 'general',
+            'outputLanguage': 'conversation',
+          },
+        ]),
+        'compression_recipes_v1': jsonEncode([
+          {
+            'formatVersion': 1,
+            'id': 'recipe-1',
+            'name': 'Tight',
+            // A whole template, not a reference: `CompressionRecipe.fromJson`
+            // parses this map with `CompressionTemplate.fromJson`, so a
+            // reference-only map is a recipe the app cannot read back.
+            'template': {
+              'formatVersion': 1,
+              'id': 'template-1',
+              'name': 'Brief',
+              'prompt': 'Summarise in five lines.',
+            },
+            'settings': {'keepRecentUserTurns': 2},
+          },
+        ]),
       });
 
       for (final kind in BusinessEntityKind.values) {
@@ -790,6 +816,15 @@ void main() {
         ],
         'instruction_injections_v1': [
           {'id': 'injection-1', 'prompt': 1},
+        ],
+        // Optional to the field check, required by the decoder — and the readers
+        // decode every row of a kind in one loop, so this row would be a library
+        // that cannot be listed rather than a row that looks odd.
+        'compression_templates_v1': [
+          {'id': 'template-1', 'name': 'Brief', 'prompt': 'Summarise.'},
+        ],
+        'compression_recipes_v1': [
+          {'formatVersion': 1, 'id': 'recipe-1', 'name': 'Tight'},
         ],
       };
 

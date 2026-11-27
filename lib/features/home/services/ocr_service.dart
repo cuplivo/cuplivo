@@ -441,8 +441,14 @@ class OcrService {
 
   static bool hasOcrBlock(String payload) => _ocrBlockPattern.hasMatch(payload);
 
+  /// Swaps every OCR block for [replacement].
+  ///
+  /// The pattern stops at the closing tag while [formatOcrBlock] ends its block
+  /// with a blank line, so the replacement is trimmed to the same boundary: the
+  /// payload's own spacing then survives, which is what a frozen prompt needs
+  /// when only one of its pictures was excluded.
   static String replaceOcrBlocks(String payload, String replacement) =>
-      payload.replaceAll(_ocrBlockPattern, replacement);
+      payload.replaceAll(_ocrBlockPattern, replacement.trimRight());
 
   static String formatOcrBlock(String text) =>
       '$_ocrBlockPrefix${text.trim()}\n</image_file_ocr>\n\n';

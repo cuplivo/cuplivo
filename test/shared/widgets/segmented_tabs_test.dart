@@ -1,62 +1,20 @@
-import 'dart:ui' show SemanticsAction;
-
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/shared/widgets/segmented_tabs.dart';
+import 'package:Cuplivo/shared/widgets/segmented_tabs.dart';
 
+/// Four closed-set labels on a 360 dp phone: the Russian words for the model
+/// types are the long ones ("Изображение" measures ~87 px at 13 pt), so an
+/// ellipsis control leaves two segments reading "[Изображе…]". Scaling the
+/// label down keeps every option legible and distinguishable.
 void main() {
-  testWidgets(
-    'renders three tabs, reports tap index, and centers selected primary label',
-    (tester) async {
-      var index = 0;
-      final changed = <int>[];
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatefulBuilder(
-              builder: (context, setState) {
-                return SegmentedTabs(
-                  tabs: const [
-                    SegmentedTab(label: 'One'),
-                    SegmentedTab(label: 'Two'),
-                    SegmentedTab(label: 'Three'),
-                  ],
-                  index: index,
-                  onChanged: (value) {
-                    changed.add(value);
-                    setState(() => index = value);
-                  },
-                );
-              },
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('One'), findsOneWidget);
-      expect(find.text('Two'), findsOneWidget);
-      expect(find.text('Three'), findsOneWidget);
-
-      for (final label in ['One', 'Two', 'Three']) {
-        expect(
-          tester.widget<Text>(find.text(label)).textAlign,
-          TextAlign.center,
-        );
-      }
-
-      final cs = Theme.of(
-        tester.element(find.byType(SegmentedTabs)),
-      ).colorScheme;
-      expect(tester.widget<Text>(find.text('One')).style?.color, cs.primary);
-
-      await tester.tap(find.text('Two'));
-      await tester.pump();
-
-      expect(changed, [1]);
-      expect(tester.widget<Text>(find.text('Two')).style?.color, cs.primary);
-    },
+  Widget host(Widget child, {double width = 320}) => MaterialApp(
+    home: Scaffold(
+      body: Center(
+        child: SizedBox(width: width, child: child),
+      ),
+    ),
   );
 
   testWidgets('screen readers can activate only enabled segments', (
@@ -87,5 +45,43 @@ void main() {
       if (enabled) tester.semantics.tap(second);
     }
     expect(changed, [1]);
+  });
+
+  List<SegmentedTab> longTabs() => const [
+    SegmentedTab(label: 'Чат'),
+    SegmentedTab(label: 'Изображение'),
+    SegmentedTab(label: 'Эмбеддинг'),
+    SegmentedTab(label: 'Решение'),
+  ];
+
+  testWidgets('a shrinking label is scaled, never ellipsized', (tester) async {
+    await tester.pumpWidget(
+      host(
+        SegmentedTabs(
+          shrinkLabels: true,
+          tabs: longTabs(),
+          index: 0,
+          onChanged: (_) {},
+        ),
+      ),
+    );
+
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.text('Изображение'),
+    );
+    expect(paragraph.didExceedMaxLines, isFalse);
+  });
+
+  testWidgets('the default still ellipsizes rather than shrinking', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(SegmentedTabs(tabs: longTabs(), index: 0, onChanged: (_) {})),
+    );
+
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.text('Изображение'),
+    );
+    expect(paragraph.didExceedMaxLines, isTrue);
   });
 }

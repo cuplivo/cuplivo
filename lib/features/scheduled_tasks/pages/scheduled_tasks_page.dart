@@ -25,7 +25,7 @@ import '../../../shared/widgets/snackbar.dart';
 import '../widgets/scheduled_task_tile.dart';
 import '../../settings/pages/mobile_background_settings_page.dart';
 import '../../settings/widgets/custom_theme_widgets.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 String _repeatLabel(ScheduledTask task, AppLocalizations l) {
   if (task.onceDate != null) return scheduledRepeatLabel(task.repeat, l);
@@ -41,7 +41,7 @@ String _repeatLabel(ScheduledTask task, AppLocalizations l) {
 String _date(DateTime date, AppLocalizations l) =>
     DateFormat.Md(l.localeName).add_Hm().format(date);
 
-/// Controls use Kelivo's shared iOS/R3 components on mobile and desktop.
+/// Controls use Cuplivo's shared iOS/R3 components on mobile and desktop.
 class ScheduledTasksPage extends StatefulWidget {
   const ScheduledTasksPage({
     super.key,
@@ -113,7 +113,7 @@ class _ScheduledTasksPageState extends State<ScheduledTasksPage>
       MaterialPageRoute(
         builder: (_) => ScheduledTaskEditorPage(
           task: task,
-          assistants: assistants.assistants,
+          assistants: assistants.chatAssistants,
           initialAssistantId: assistants.currentAssistant?.id,
           onSave: _save,
         ),

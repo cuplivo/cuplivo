@@ -1,39 +1,36 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'app_database.dart';
 import '../models/backup_scope.dart';
+import '../models/backup_target.dart';
+import '../models/compression_config.dart';
+import '../models/tool_permission_mode.dart';
+import '../models/workspace_binding.dart';
 import 'backup_content_filter.dart';
+import 'kelivo_vocabulary.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
+import 'business_settings_router.dart';
 
 /// Device state stays in SQLite at runtime, but must not travel in a backup.
 final class BackupPortability {
   BackupPortability._();
 
-  static const devicePreferenceKeys = {
-    'backup_encryption_enabled_v1',
-    'backup_auto_enabled_v1',
-    'backup_auto_destination_v1',
-    'backup_auto_last_destination_v1',
-    'backup_auto_local_dir_v1',
-    'backup_auto_local_bookmark_v1',
-    'backup_auto_local_retention_v1',
-    'backup_password_forget_pending_v1',
-    'backup_password_remember_manual_v1',
-    'backup_password_verifier_v1',
-    'backup_install_id_v1',
-    'backup_outstanding_partial_v1',
-    'desktop_scheduled_tasks_v1',
-    'scheduled_task_results_v1',
-    'environment_state_v1',
-    'environment_disk_usage_v1',
-    'environment_rootfs_selection_v1',
-    'environment_proot_options_v1',
-    'environment_native_shell_path_v1',
+  /// The keys a travelling backup leaves behind.
+  ///
+  /// Membership belongs to the registry (`KeyPolicy.deviceLocal`), not here: this
+  /// list used to be the second authority on the same question, so a key could be
+  /// added to the registry and left out of backups (or the reverse) without
+  /// anything noticing.
+  static final Set<String> devicePreferenceKeys = {
+    for (final entry in BusinessKeyRegistry.rules.entries)
+      if (entry.value.policy == KeyPolicy.deviceLocal) entry.key,
   };
 
   static bool _isLinked(BusinessEntityValue row) =>
-      (jsonDecode(row.payload) as Map)['kind'] == 'linked';
+      isLinkedWorkspace(row.payload);
 
   static BusinessSnapshot portable(BusinessSnapshot source) {
     final workspaces = source.entities[BusinessEntityKind.workspace]!;
@@ -102,6 +99,8 @@ final class BackupPortability {
   static Future<void> sanitizeDatabase(
     AppDatabase database, {
     BackupScope scope = const BackupScope(),
+    BackupTarget target = BackupTarget.cuplivo,
+    bool libraryInSettings = false,
   }) async {
     // Erase removed payloads from SQLite cells as well as its logical rows.
     await database.customStatement('PRAGMA secure_delete = ON;');
@@ -113,8 +112,41 @@ final class BackupPortability {
       await database.customStatement(
         "DELETE FROM extension_entity_rows WHERE kind IN ('externalMounts', 'composerDraft', 'composerNewEntry', 'composerShareReceipt', 'composerPrivateFile');",
       );
+      // One fact, one carrier. The compression library travels in `settings.json`
+      // as two business kinds now, so the same rows in the snapshot database are
+      // a second copy of it: a merge restore imports both — the database's under
+      // `merge-…` ids, the settings' under the original ids — and the user sees
+      // every template twice. An archive written before those keys existed has
+      // the database as its only carrier, which is why the caller states this
+      // rather than it being implied by the table.
+      if (libraryInSettings) {
+        await database.customStatement(
+          'DELETE FROM extension_entity_rows WHERE kind IN (?, ?);',
+          [CompressionTemplate.entityKind, CompressionRecipe.entityKind],
+        );
+      }
+      await _dropUnreadableKinds(database, target);
       // Chat history remains readable, but imported chats cannot inherit a
       // directory grant or silently authorize shell execution on this device.
+      // The grants are stripped from every archive, from the one spelling the
+      // sync wire uses; a binding whose workspace row did not travel goes with
+      // its own facts, because the id names nothing in the restored database and
+      // the folder, the tools-used flag and the grant have no subject left.
+      final grantKeys = ToolPermissionMode.grantExtrasKeys;
+      final danglingKeys = {
+        ...grantKeys,
+        WorkspaceBinding.keyId,
+        WorkspaceBinding.keyCwd,
+        WorkspaceBinding.keyToolsUsed,
+      };
+      // The filter is generated from the keys each branch can remove, so a key
+      // added to either set reaches the WHERE as well: a `json_remove` that names
+      // a key the filter never looks at returns before it runs.
+      final filterKeys = {...grantKeys, WorkspaceBinding.keyId};
+      final touched = [
+        for (final key in filterKeys)
+          'json_type(extras_json, ${extrasSqlLiteral(key)}) IS NOT NULL',
+      ].join(' OR ');
       await database.customStatement('''
         UPDATE conversation_rows SET extras_json = CASE
           WHEN json_extract(extras_json, '\$."workspace.id"') IS NOT NULL
@@ -123,16 +155,76 @@ final class BackupPortability {
               WHERE kind = 'workspace'
                 AND id = json_extract(extras_json, '\$."workspace.id"')
             )
-          THEN json_remove(extras_json, '\$."workspace.id"',
-            '\$."workspace.cwd"', '\$."workspace.tools_used"',
-            '\$."workspace.allowAll"', '\$."tools.permission_mode"')
-          ELSE json_remove(extras_json, '\$."workspace.allowAll"', '\$."tools.permission_mode"')
+          THEN json_remove(extras_json, ${_jsonRemoveArguments(danglingKeys)})
+          ELSE json_remove(extras_json, ${_jsonRemoveArguments(grantKeys)})
         END
-        WHERE json_valid(extras_json)
-          AND (json_type(extras_json, '\$."workspace.id"') IS NOT NULL
-            OR json_type(extras_json, '\$."workspace.allowAll"') IS NOT NULL
-            OR json_type(extras_json, '\$."tools.permission_mode"') IS NOT NULL);
+        WHERE json_valid(extras_json) AND ($touched);
       ''');
     });
+  }
+
+  /// [key]'s member path in `extras_json`, as a SQL string literal.
+  ///
+  /// The keys are code constants naming extras members, never user data, so
+  /// interpolating them follows the rule `currentSchemaColumns` does. Two quote
+  /// characters still have to be escaped, and they are different ones: `"` closes
+  /// the JSON path's label, `'` closes the SQL literal wrapped around that path.
+  /// Missing either turns the statement into something else, which is why
+  /// `backup_portability_test.dart` runs a quote-bearing key through SQLite
+  /// rather than trusting the format string.
+  @visibleForTesting
+  static String extrasSqlLiteral(String key) =>
+      _sqlStringLiteral(_jsonPath(key));
+
+  static String _jsonPath(String key) => '\$."${key.replaceAll('"', r'\"')}"';
+
+  /// [value] as a single-quoted SQL string literal.
+  static String _sqlStringLiteral(String value) =>
+      "'${value.replaceAll("'", "''")}'";
+
+  static String _jsonRemoveArguments(Set<String> keys) =>
+      [for (final key in keys) extrasSqlLiteral(key)].join(', ');
+
+  /// Takes every kind [target] cannot read out of the archive: its rows, and
+  /// every conversation link that points at them.
+  ///
+  /// The halves belong together — an entity row without its settings key is an
+  /// archive that contradicts itself, and so is a conversation naming a row that
+  /// did not travel. Both halves are derived from [unreadableKindDispositions]
+  /// rather than spelled out per kind here, so a kind added to that table leaves
+  /// everywhere at once; a kind the table says nothing about, or one with no
+  /// extension storage to drop, throws instead of being half-stripped.
+  static Future<void> _dropUnreadableKinds(
+    AppDatabase database,
+    BackupTarget target,
+  ) async {
+    final unreadable = unreadableEntitySourceKeys(target);
+    if (unreadable.isEmpty) return;
+    final kinds = [
+      for (final kind in BusinessEntityKind.values)
+        if (unreadable.contains(kind.sourceKey)) kind,
+    ];
+    final extensionKinds = [
+      for (final kind in kinds) droppableExtensionKind(kind),
+    ];
+    final placeholders = List.filled(extensionKinds.length, '?').join(', ');
+    await database.customStatement(
+      'DELETE FROM extension_entity_rows WHERE kind IN ($placeholders);',
+      extensionKinds,
+    );
+    final links = conversationLinksToStrip(kinds);
+    if (links.isEmpty) return;
+    // Each path is a JSON path in Dart and a SQL string literal in the
+    // statement, so it is quoted once for itself and once for SQLite.
+    final paths = [for (final link in links) '\$."$link"'];
+    final removals = [for (final path in paths) "'$path'"].join(', ');
+    final touched = [
+      for (final path in paths) "json_type(extras_json, '$path') IS NOT NULL",
+    ].join(' OR ');
+    await database.customStatement(
+      'UPDATE conversation_rows '
+      'SET extras_json = json_remove(extras_json, $removals) '
+      'WHERE json_valid(extras_json) AND ($touched);',
+    );
   }
 }

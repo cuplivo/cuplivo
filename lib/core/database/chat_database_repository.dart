@@ -1,4 +1,4 @@
-import 'package:Kelivo/utils/utf16_safe_cut.dart';
+import 'package:Cuplivo/utils/utf16_safe_cut.dart';
 import '../models/carried_original.dart';
 import '../models/attachment_retention.dart';
 import 'compression_repository.dart';
@@ -9,9 +9,9 @@ import '../utils/chat_image_result.dart';
 import '../utils/conversation_fork_title.dart';
 import '../models/quote_ref.dart';
 import '../../features/chat/models/conversation_find_candidate.dart';
-import 'package:Kelivo/features/search/utils/searchable_text.dart';
-import 'package:Kelivo/features/intelligent_ui/storage/ui_search_index.dart';
-import 'package:Kelivo/features/intelligent_ui/text/ui_search_text.dart';
+import 'package:Cuplivo/features/search/utils/searchable_text.dart';
+import 'package:Cuplivo/features/intelligent_ui/storage/ui_search_index.dart';
+import 'package:Cuplivo/features/intelligent_ui/text/ui_search_text.dart';
 import '../../features/intelligent_ui/host/ui_context_submission.dart';
 import '../../features/intelligent_ui/models/ui_context_attachment.dart';
 import 'dart:async';
@@ -19,9 +19,10 @@ import 'dart:collection';
 import '../../features/intelligent_ui/storage/ui_state_repository.dart';
 import '../../features/intelligent_ui/storage/ui_state_transfer.dart';
 import '../../features/intelligent_ui/host/ui_source_map.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import '../models/composer_draft.dart';
 import 'composer_draft_store.dart';
+import 'conversation_owned_kinds.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -46,6 +47,7 @@ import '../models/conversation_mcp_settings.dart';
 import '../models/message_part.dart';
 import '../models/message_part_snapshot.dart';
 import '../models/tool_event_snapshot.dart';
+import '../models/workspace_binding.dart';
 import '../utils/multimodal_input_utils.dart';
 import '../../utils/sandbox_path_resolver.dart';
 import '../../utils/kelivo_file_uri.dart';
@@ -61,6 +63,7 @@ import 'business_repository.dart';
 import 'chat_database_observer.dart';
 import 'generation_run.dart';
 import 'generation_run_commands.dart';
+import 'schema_columns.dart';
 import 'schema_migrations.dart';
 import '../services/storage/storage_space.dart';
 import 'gen_ui_derived_schema.dart';
@@ -69,6 +72,10 @@ import '../services/api/providers/claude/claude_thinking_recovery.dart';
 import '../services/api/providers/claude/claude_history.dart';
 import '../services/backup/restore_durability.dart';
 import '../services/backup/restore_previous_plan.dart';
+import '../services/recycle/recycle_service.dart';
+import '../services/sync/sync_family_registry.dart';
+import '../services/sync/sync_merge.dart';
+import '../services/sync/sync_models.dart';
 
 part 'chat_context_repository.dart';
 part 'chat_image_context_repository.dart';
@@ -194,10 +201,15 @@ class ChatDatabaseRepository {
     this._db, {
     File? databaseFile,
     ChatDatabaseObserver? observer,
+    this.recycle,
   }) : _databaseFile = databaseFile?.absolute,
        _observer = observer ?? ChatDatabaseObserver.instance;
 
   final AppDatabase _db;
+
+  /// The recycle bin, when one is installed for this database: the delete paths
+  /// stage what they remove through it before committing.
+  final RecycleService? recycle;
   late final compression = CompressionRepository(ExtensionEntityStore(_db));
   late final _timelineIndex = MessageTimelineIndex(_db);
   late final _contextIndex = ContextOperationIndex(_db);
@@ -253,6 +265,9 @@ class ChatDatabaseRepository {
 
   Future<GenerationRun?> getGenerationRun(String id) =>
       GenerationRunCommands(_db).get(id);
+
+  Future<GenerationRun?> latestGenerationRun(String conversationId) =>
+      GenerationRunCommands(_db).latestFor(conversationId);
 
   Future<GenerationRun> transitionGenerationRun({
     required String id,
@@ -980,161 +995,6 @@ class ChatDatabaseRepository {
   /// [normalizeForwardCompatibleSnapshot] strips a newer database down to it.
   /// Keep it in step with the table DSL — see SchemaMigrations for the
   /// checklist that a schema bump has to follow.
-  static const currentSchemaColumns = <String, List<String>>{
-    'conversation_rows': [
-      'id',
-      'title',
-      'created_at',
-      'updated_at',
-      'is_pinned',
-      'assistant_id',
-      'truncate_index',
-      'version_selections_json',
-      'summary',
-      'last_summarized_message_count',
-      'chat_suggestions_json',
-      'injected_memory_hash',
-      'last_memory_extracted_order',
-      'chat_model_provider',
-      'chat_model_id',
-      'extras_json',
-    ],
-    'conversation_mcp_server_rows': ['conversation_id', 'server_id', 'ordinal'],
-    'message_rows': [
-      'id',
-      'conversation_id',
-      'role',
-      'timestamp',
-      'model_id',
-      'provider_id',
-      'total_tokens',
-      'is_streaming',
-      'reasoning_start_at',
-      'reasoning_finished_at',
-      'translation',
-      'reasoning_segments_json',
-      'group_id',
-      'version',
-      'prompt_tokens',
-      'completion_tokens',
-      'cached_tokens',
-      'duration_ms',
-      'message_order',
-      'updated_at',
-      'sender_id',
-      'extras_json',
-    ],
-    'chat_storage_meta_rows': ['key', 'value'],
-    'message_part_rows': [
-      'part_id',
-      'conversation_id',
-      'revision_id',
-      'ordinal',
-      'kind',
-      'payload',
-      'created_at',
-      'updated_at',
-    ],
-    'generation_run_rows': [
-      'id',
-      'conversation_id',
-      'target_revision_id',
-      'state',
-      'state_revision',
-      'checkpoint_seq',
-      'error_code',
-      'created_at',
-      'updated_at',
-      'terminal_at',
-    ],
-    'provider_artifact_rows': [
-      'conversation_id',
-      'revision_id',
-      'kind',
-      'payload',
-      'created_at',
-      'updated_at',
-    ],
-    'asset_rows': [
-      'id',
-      'content_hash',
-      'path',
-      'byte_size',
-      'width',
-      'height',
-      'thumbnail_path',
-      'created_at',
-      'last_referenced_at',
-      'extras_json',
-    ],
-    'message_asset_rows': [
-      'conversation_id',
-      'revision_id',
-      'asset_id',
-      'kind',
-    ],
-    'asset_gc_rows': ['asset_id', 'not_before', 'attempts', 'generation'],
-    'gc_audit_rows': ['id', 'kind', 'entity_id', 'completed_at'],
-    'asset_reference_dirty_rows': ['revision_id'],
-    'assistant_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'provider_rows': ['provider_key', 'sort_order', 'payload', 'updated_at'],
-    'provider_group_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'mcp_server_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'world_book_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'assistant_memory_rows': [
-      'id',
-      'sort_order',
-      'assistant_id',
-      'payload',
-      'updated_at',
-    ],
-    'quick_phrase_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'search_service_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'tts_service_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'instruction_injection_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'assistant_tag_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'preference_rows': ['key', 'value', 'updated_at'],
-    'memory_entry_rows': [
-      'id',
-      'sort_order',
-      'scope',
-      'assistant_id',
-      'type',
-      'status',
-      'content',
-      'content_normalized',
-      'entry_created_at',
-      'entry_updated_at',
-      'payload',
-      'updated_at',
-    ],
-    'user_profile_field_rows': ['id', 'sort_order', 'payload', 'updated_at'],
-    'message_prompt_rows': [
-      'revision_id',
-      'conversation_id',
-      'payload',
-      'carries_memory_snapshot',
-      'created_at',
-    ],
-    'tombstone_rows': ['scope', 'entity_id', 'deleted_at', 'payload'],
-    'extension_entity_rows': [
-      'kind',
-      'id',
-      'sort_order',
-      'owner_id',
-      'payload',
-      'updated_at',
-    ],
-    'gen_ui_surface_state_rows': [
-      'revision_id',
-      'surface_key',
-      'source_hash',
-      'state_version',
-      'state_json',
-      'search_text',
-      'updated_at',
-    ],
-  };
 
   static void _validateRawSchema(sqlite.Database database) {
     const expectedColumns = currentSchemaColumns;
@@ -1779,12 +1639,9 @@ class ChatDatabaseRepository {
         return (payload: payload, parseError: null);
       }
       return (
-        payload: ImagePart(
-          uri: nextUri,
-          mime: part.mime,
-          assetId: part.assetId,
-          unavailable: nextUnavailable,
-        ).encodePayload(),
+        payload: part
+            .copyWith(uri: nextUri, unavailable: nextUnavailable)
+            .encodePayload(),
         parseError: null,
       );
     }
@@ -4223,6 +4080,11 @@ ORDER BY m.message_order DESC LIMIT 20
     });
   }
 
+  /// Replaces [revisionId]'s asset references inside [conversationId] with
+  /// [assets]. The delete is scoped to the conversation: a revision id is a
+  /// global primary key, so an unscoped `WHERE revision_id = ?` would unlink a
+  /// message of that name in *any* conversation — and the sync caller feeds
+  /// this function ids that arrive from the wire.
   Future<void> replaceMessageAssetReferences({
     required String conversationId,
     required String revisionId,
@@ -4230,8 +4092,9 @@ ORDER BY m.message_order DESC LIMIT 20
   }) async {
     await _db.transaction(() async {
       await _db.customStatement(
-        'DELETE FROM message_asset_rows WHERE revision_id = ?;',
-        [revisionId],
+        'DELETE FROM message_asset_rows '
+        'WHERE revision_id = ? AND conversation_id = ?;',
+        [revisionId, conversationId],
       );
       final now = DateTime.now().microsecondsSinceEpoch;
       for (final asset in assets) {
@@ -4916,28 +4779,51 @@ ORDER BY m.message_order DESC LIMIT 20
   Future<void> putConversation(Conversation conversation) async {
     await _db.transaction(() async {
       await _invalidateEmptyAcknowledgement();
-      // Existing rows keep the database-owned hash written by prompt freeze;
-      // cached Conversation instances may still hold an older value.
-      final updated =
-          await (_db.update(
-            _db.conversationRows,
-          )..where((row) => row.id.equals(conversation.id))).write(
-            _conversationCompanion(
-              conversation,
-              injectedMemoryHash: const Value.absent(),
-            ),
-          );
-      if (updated == 0) {
+      // No decision uses `injected_memory_hash` any more — the carrier's freeze
+      // row records where the snapshot is — so an update leaves the stored value
+      // exactly as the last build that maintained it left it. The placeholder
+      // below is what keeps a stale (`null`) model value from clobbering it; an
+      // insert still writes the model's value, which is null either way.
+      final stored = await syncReadConversationRow(conversation.id);
+      if (stored == null) {
         await _db
             .into(_db.conversationRows)
-            .insert(_conversationCompanion(conversation));
+            .insert(
+              _conversationCompanion(
+                conversation,
+                clock: _nextConversationClock(
+                  displayAt: conversation.updatedAt,
+                ),
+              ),
+            );
+      } else {
+        await (_db.update(
+          _db.conversationRows,
+        )..where((row) => row.id.equals(conversation.id))).write(
+          _conversationCompanion(
+            conversation,
+            // A save is a metadata write (rename, pin, summary, suggestions,
+            // model override): it moves the sync clock and leaves the display
+            // clock where the row already has it.
+            clock: _nextConversationClock(
+              storedExtrasJson: stored['extras_json'],
+              storedUpdatedAtUs: (stored['updated_at'] as num).toInt(),
+            ),
+            injectedMemoryHash: const Value.absent(),
+          ),
+        );
       }
       await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
     });
   }
 
   /// Reads [conversationId]'s extras, applies [update], and writes the result
-  /// in one transaction. [updatedAt] is bumped only when the map changes.
+  /// in one transaction.
+  ///
+  /// This is a metadata write: it moves the sync clock when the bag changes and
+  /// leaves `updated_at` alone, so changing a workspace folder or a skill no
+  /// longer reorders the home list — the clock that does is the one a message
+  /// moves.
   Future<void> updateConversationExtras(
     String conversationId,
     Map<String, dynamic> Function(Map<String, dynamic> current) update, {
@@ -4959,12 +4845,15 @@ ORDER BY m.message_order DESC LIMIT 20
       if (jsonEncode(current) == jsonEncode(next)) {
         return;
       }
+      final clock = _nextConversationClock(
+        storedExtrasJson: row.extrasJson,
+        storedUpdatedAtUs: row.updatedAt.microsecondsSinceEpoch,
+      );
       await (_db.update(
         _db.conversationRows,
       )..where((t) => t.id.equals(conversationId))).write(
         ConversationRowsCompanion(
-          extrasJson: Value(jsonEncode(next)),
-          updatedAt: Value(DateTime.now()),
+          extrasJson: Value(_extrasWithSyncClock(next, clock.syncClock)),
         ),
       );
     });
@@ -4983,12 +4872,17 @@ ORDER BY m.message_order DESC LIMIT 20
       _decodeExtrasJson(row.extrasJson),
       override: serverIds != null,
     );
+    // A metadata write, like [updateConversationExtras]: the sync clock moves,
+    // the display clock does not.
+    final clock = _nextConversationClock(
+      storedExtrasJson: row.extrasJson,
+      storedUpdatedAtUs: row.updatedAt.microsecondsSinceEpoch,
+    );
     await (_db.update(
       _db.conversationRows,
     )..where((row) => row.id.equals(conversationId))).write(
       ConversationRowsCompanion(
-        extrasJson: Value(jsonEncode(extras)),
-        updatedAt: Value(DateTime.now()),
+        extrasJson: Value(_extrasWithSyncClock(extras, clock.syncClock)),
       ),
     );
     await _replaceMcpServers(conversationId, serverIds ?? const []);
@@ -5068,7 +4962,12 @@ ORDER BY m.message_order DESC LIMIT 20
       await _invalidateEmptyAcknowledgement();
       await _db
           .into(_db.conversationRows)
-          .insert(_conversationCompanion(duplicate));
+          .insert(
+            _conversationCompanion(
+              duplicate,
+              clock: _nextConversationClock(displayAt: duplicatedAt),
+            ),
+          );
       await _replaceMcpServers(targetId, duplicate.mcpServerIds);
       await _copyMessageRowsInto(
         targetConversationId: targetId,
@@ -5339,6 +5238,7 @@ ORDER BY m.message_order DESC LIMIT 20
                 ],
                 extras: ToolPermissionMode.withoutGrant(source.extras),
               ),
+              clock: _nextConversationClock(displayAt: now),
             ),
           );
       await _replaceMcpServers(targetId, source.mcpServerIds);
@@ -5401,17 +5301,33 @@ ORDER BY m.message_order DESC LIMIT 20
                 row.carriesMemorySnapshot.equals(true),
           ))
           .go();
-      final updated =
-          await (_db.update(
-            _db.conversationRows,
-          )..where((row) => row.id.equals(conversationId))).write(
-            ConversationRowsCompanion(
-              assistantId: Value(assistantId),
-              updatedAt: Value(updatedAt),
-              injectedMemoryHash: const Value(null),
+      // Read after the grant strip above: this write carries the bag it left.
+      final stored = await syncReadConversationRow(conversationId);
+      if (stored == null) return false;
+      final clock = _nextConversationClock(
+        storedExtrasJson: stored['extras_json'],
+        storedUpdatedAtUs: (stored['updated_at'] as num).toInt(),
+        bumpDisplay: true,
+        displayAt: updatedAt,
+      );
+      await (_db.update(
+        _db.conversationRows,
+      )..where((row) => row.id.equals(conversationId))).write(
+        ConversationRowsCompanion(
+          assistantId: Value(assistantId),
+          updatedAt: Value(
+            DateTime.fromMicrosecondsSinceEpoch(clock.updatedAtUs),
+          ),
+          extrasJson: Value(
+            _extrasWithSyncClock(
+              _decodeExtrasJson(stored['extras_json'] as String),
+              clock.syncClock,
             ),
-          );
-      return updated != 0;
+          ),
+          injectedMemoryHash: const Value(null),
+        ),
+      );
+      return true;
     });
   }
 
@@ -5553,6 +5469,48 @@ ORDER BY m.message_order DESC LIMIT 20
           assistantMessage: assistantMessage,
           run: run,
         );
+      }),
+    );
+  }
+
+  /// Appends one user turn and nothing else.
+  ///
+  /// A group conversation's reply is chosen after the user message is already
+  /// visible (the round asks who speaks next), so it cannot use
+  /// [beginSendGeneration]: that method's contract is "one user turn plus the
+  /// reply it is already waiting for".
+  Future<({Conversation conversation, ChatMessage userMessage})>
+  beginUserMessage({
+    required Conversation conversation,
+    required ChatMessage userMessage,
+    DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+  }) {
+    if (draftSubmission != null &&
+        (draftSubmission.conversationId != conversation.id ||
+            draftSubmission.id != userMessage.id ||
+            draftSubmission.editMessageId != null)) {
+      throw StateError('composer_submission_mismatch');
+    }
+    if (userMessage.conversationId != conversation.id ||
+        userMessage.role != 'user' ||
+        userMessage.isStreaming) {
+      throw ArgumentError.value(userMessage, 'userMessage');
+    }
+    return _observer.measure(
+      ChatDatabaseOperation.commandAppendMessage,
+      () => _writeTransaction(() async {
+        final resolvedUser = await _withUiContext(userMessage, uiContext);
+        final persisted = await _appendLinearMessageToConversation(
+          conversation: conversation,
+          message: resolvedUser,
+          selectVersion: false,
+          touchUpdatedAt: true,
+        );
+        if (draftSubmission != null) {
+          await composerDrafts.consumeInTransaction(draftSubmission);
+        }
+        return (conversation: persisted, userMessage: resolvedUser);
       }),
     );
   }
@@ -5711,6 +5669,11 @@ ORDER BY m.message_order DESC LIMIT 20
     }
   }
 
+  /// A missing conversation row is materialised: this is how a draft becomes
+  /// real. A write that lost its row to a deletion cannot resurrect it — the
+  /// message it appends is ordered after an anchor that the deletion cascaded
+  /// away, and that lookup throws inside this transaction (see
+  /// `test/core/database/linear_message_behavior_matrix_test.dart`).
   Future<Conversation> _appendLinearMessageToConversation({
     required Conversation conversation,
     required ChatMessage message,
@@ -5750,7 +5713,18 @@ ORDER BY m.message_order DESC LIMIT 20
       );
       await _db
           .into(_db.conversationRows)
-          .insertOnConflictUpdate(_conversationCompanion(persisted));
+          .insertOnConflictUpdate(
+            _conversationCompanion(
+              persisted,
+              clock: _nextConversationClock(
+                storedExtrasJson: existingRow?.extrasJson,
+                storedUpdatedAtUs:
+                    existingRow?.updatedAt.microsecondsSinceEpoch,
+                bumpDisplay: true,
+                displayAt: persisted.updatedAt,
+              ),
+            ),
+          );
       if (existingRow == null) {
         await _replaceMcpServers(persisted.id, persisted.mcpServerIds);
       }
@@ -5990,6 +5964,7 @@ ORDER BY m.message_order DESC LIMIT 20
           role: original.role,
           parts: resolvedParts,
           quotes: quotes ?? original.quotes,
+          senderId: original.senderId,
           conversationId: original.conversationId,
           modelId: original.modelId,
           providerId: original.providerId,
@@ -6052,9 +6027,20 @@ ORDER BY m.message_order DESC LIMIT 20
           await _upsertProviderArtifact(message.id, artifact.kind, payload);
         }
       }
-      await (_db.update(_db.conversationRows)
-            ..where((row) => row.id.equals(conversation.id)))
-          .write(_conversationCompanion(conversation));
+      await (_db.update(
+        _db.conversationRows,
+      )..where((row) => row.id.equals(conversation.id))).write(
+        _conversationCompanion(
+          conversation,
+          // A new revision is content: both clocks move.
+          clock: _nextConversationClock(
+            storedExtrasJson: conversationRow.extrasJson,
+            storedUpdatedAtUs: conversationRow.updatedAt.microsecondsSinceEpoch,
+            bumpDisplay: true,
+            displayAt: conversation.updatedAt,
+          ),
+        ),
+      );
       if (draftSubmission != null) {
         await composerDrafts.consumeInTransaction(draftSubmission);
       }
@@ -6117,9 +6103,19 @@ ORDER BY m.message_order DESC LIMIT 20
         versionSelections: selections,
         updatedAt: DateTime.now(),
       );
-      await (_db.update(_db.conversationRows)
-            ..where((conversation) => conversation.id.equals(conversationId)))
-          .write(_conversationCompanion(conversation));
+      await (_db.update(
+        _db.conversationRows,
+      )..where((conversation) => conversation.id.equals(conversationId))).write(
+        _conversationCompanion(
+          conversation,
+          clock: _nextConversationClock(
+            storedExtrasJson: row.extrasJson,
+            storedUpdatedAtUs: row.updatedAt.microsecondsSinceEpoch,
+            bumpDisplay: true,
+            displayAt: conversation.updatedAt,
+          ),
+        ),
+      );
       return conversation;
     });
   }
@@ -6150,6 +6146,1110 @@ ORDER BY m.message_order DESC LIMIT 20
   /// Commits a fully parsed external import together with its business-data
   /// patch. Nothing is written unless both repositories share this exact
   /// [AppDatabase] instance.
+  // ---------------------------------------------------------------------------
+  // LAN sync (ADR-0003)
+  //
+  // Slice 1 exchanges conversation subtrees as raw row maps. Everything below
+  // speaks SQLite's own representation (µs integers, 0/1 booleans), so there is
+  // no translation layer between storage, wire and merge that could drift out
+  // of sync with the schema. Merge *decisions* live in the pure functions of
+  // `services/sync/sync_merge.dart`; this section only reads, decides and
+  // writes inside one transaction per conversation.
+  // ---------------------------------------------------------------------------
+
+  /// The four families whose apply is not a plain row write — a version group
+  /// to resolve, an order to re-derive, parts written with their revision — named
+  /// once so the merge body reads exactly the rows the registration publishes.
+  static final SyncFamily _conversationFamily = syncFamilyOfTable(
+    'conversation_rows',
+  );
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
+  static final SyncFamily _messagePartFamily = syncFamilyOfTable(
+    'message_part_rows',
+  );
+  static final SyncFamily _mcpBindingFamily = syncFamilyOfTable(
+    'conversation_mcp_server_rows',
+  );
+
+  /// Ids per `IN (...)` batch, well under SQLite's bound-variable limit.
+  static const _syncMessageIdBatch = 200;
+
+  /// The subset of [ids] that already belongs to a conversation other than
+  /// [conversationId] — the wire rows this device must refuse to re-home.
+  Future<Set<String>> _syncForeignMessageIds(
+    String conversationId,
+    Set<String> ids,
+  ) async {
+    if (ids.isEmpty) return const {};
+    final list = ids.toList(growable: false);
+    final foreign = <String>{};
+    for (var start = 0; start < list.length; start += _syncMessageIdBatch) {
+      final end = start + _syncMessageIdBatch;
+      final batch = list.sublist(start, end > list.length ? list.length : end);
+      final rows = await _db
+          .customSelect(
+            'SELECT id FROM message_rows WHERE conversation_id != ? '
+            'AND id IN (${List.filled(batch.length, '?').join(', ')});',
+            variables: <Variable<Object>>[
+              Variable<String>(conversationId),
+              for (final id in batch) Variable<String>(id),
+            ],
+          )
+          .get();
+      foreign.addAll([for (final row in rows) row.read<String>('id')]);
+    }
+    return foreign;
+  }
+
+  /// The schema version this build speaks, exchanged in the sync hello and
+  /// enforced by the symmetric version gate (ADR-0003).
+  int get syncSchemaVersion => _db.schemaVersion;
+
+  /// The registered path for a content hash, or null when this device never
+  /// registered that content. The registry is content-addressed
+  /// (`asset_rows.id = 'asset_<sha256>'`), which is what lets a blob served to
+  /// a peer be looked up by hash alone instead of by path.
+  Future<String?> assetPathForContentHash(String contentHash) async {
+    if (contentHash.isEmpty) return null;
+    final row = await _db
+        .customSelect(
+          'SELECT path FROM asset_rows WHERE id = ?;',
+          variables: <Variable<Object>>[Variable<String>('asset_$contentHash')],
+        )
+        .getSingleOrNull();
+    return row?.read<String>('path');
+  }
+
+  /// Conversation references for manifest building.
+  ///
+  /// The clock is [effectiveConversationClock]'s SQL half — the key when the row
+  /// carries one, `updated_at` when it does not (a row written before the key
+  /// existed). It has to agree with the Dart half exactly, or the plan and the
+  /// merge compare two different rulers; `sync_conversation_clock_test.dart`
+  /// holds the two readers equal on a fixture, the way
+  /// `sync_family_registry_test.dart` holds the digest's two readers.
+  ///
+  /// `json_type(...) = 'integer'` is not pedantry: `json_extract` raises on a
+  /// malformed bag, and one junk row would abort the manifest query for the
+  /// whole session — no peer would sync until someone edited the database by
+  /// hand. A bag that is not an object, or a value that is not an integer,
+  /// falls back to the column.
+  Future<List<({String conversationId, int updatedAtUs})>>
+  syncConversationRefs() async {
+    final rows = await _db.customSelect('''
+SELECT id,
+  CASE WHEN json_valid(extras_json)
+        AND json_type(extras_json, '\$."$syncClockExtrasKey"') = 'integer'
+       THEN json_extract(extras_json, '\$."$syncClockExtrasKey"')
+       ELSE updated_at END AS sync_clock
+FROM conversation_rows;
+''').get();
+    return [
+      for (final row in rows)
+        (
+          conversationId: row.read<String>('id'),
+          updatedAtUs: row.read<int>('sync_clock'),
+        ),
+    ];
+  }
+
+  /// The digest input every conversation's [family] contributes, in one query.
+  ///
+  /// Aggregated in SQL so a manifest never materialises one Dart object per
+  /// message; the rule — which columns key a row, which column is its clock —
+  /// comes from the registration, so this is the same answer
+  /// [syncConversationDigest] gives by re-reading rows in Dart.
+  Future<List<({String conversationId, String digestInput, int rowCount})>>
+  syncFamilyDigestInputs(SyncFamily family) async {
+    switch (family.identity) {
+      case SyncIdentityContribution.none:
+      case SyncIdentityContribution.conversationClock:
+        return const [];
+      case SyncIdentityContribution.rowClocks:
+        final clock =
+            'COALESCE(${family.clockColumn}, '
+            '${family.fallbackClockColumn}, 0)';
+        return _syncDigestInputs(
+          family,
+          line:
+              '${_syncKeyExpr(family)} || '
+              "':' || $clock",
+        );
+      case SyncIdentityContribution.rowValues:
+        return _syncDigestInputs(family, line: _syncKeyExpr(family));
+    }
+  }
+
+  /// `column || ':' || column` — the key half of one identity line.
+  static String _syncKeyExpr(SyncFamily family) => family.identityColumns
+      .map((column) => "COALESCE($column, '')")
+      .join(" || ':' || ");
+
+  Future<List<({String conversationId, String digestInput, int rowCount})>>
+  _syncDigestInputs(SyncFamily family, {required String line}) async {
+    final where = family.kind == null ? '' : ' WHERE kind = ?';
+    final rows = await _db
+        .customSelect(
+          'SELECT conversation_id, group_concat(line, char(10)) AS digest_input, '
+          'COUNT(*) AS row_count '
+          'FROM (SELECT ${family.conversationColumn} AS conversation_id, '
+          '$line AS line FROM ${family.table}$where '
+          'ORDER BY conversation_id, line) '
+          'GROUP BY conversation_id;',
+          variables: <Variable<Object>>[
+            if (family.kind != null) Variable<String>(family.kind!),
+          ],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        (
+          conversationId: row.read<String>('conversation_id'),
+          digestInput: row.read<String>('digest_input'),
+          rowCount: row.read<int>('row_count'),
+        ),
+    ];
+  }
+
+  /// Conversation columns that belong to this device alone and never cross the
+  /// wire.
+  ///
+  /// The column itself still exists — dropping one is not an additive migration
+  /// — and [_upsertSyncRow] still writes every column of
+  /// [currentSchemaColumns], so the applier restores these from the local row
+  /// instead of letting the peer decide them.
+  static const Set<String> _syncLocalConversationColumns = {
+    // Which user message carries this device's memory snapshot. The peer's
+    // carriers are not here at all, so a peer value can only be wrong: it says
+    // a snapshot is in context that this device never sent, or reports a change
+    // that did not happen — and either way the next turn rewrote history. No
+    // decision reads the column any more (the carrier's own freeze row records
+    // where the snapshot is), so it goes with the next schema change.
+    'injected_memory_hash',
+  };
+
+  /// Conversation `extras_json` keys that are this device's own facts.
+  ///
+  /// A grant says *this device* approved — `tools.permission_mode`, plus the
+  /// `workspace.allowAll` an older build honoured — so it is not shared state and
+  /// must not cross. The keys live inside one JSON column that travels whole,
+  /// which is why the rule has two halves: the wire read strips them
+  /// ([syncReadWireConversationRow]) and the applier merges them back key by key
+  /// from the local row. A strip alone would erase the grant the first time a
+  /// peer wins the row; a merge alone would let the grant travel.
+  ///
+  /// `workspace.cwd` is deliberately *not* in the set, although it sits beside
+  /// the grants: it is a workspace-relative folder (`FileBrowserOps` validates
+  /// the picker's value as one, `WorkspacePaths.normalizeCwd` resolves it against
+  /// the workspace root), and the workspace's content is itself synced, so the
+  /// same relative folder exists on the peer. Stripping it would drop the
+  /// conversation onto the workspace root there. It follows the winner like the
+  /// rest of the bag, and a rebind is then handled by construction.
+  ///
+  /// Public because the backup sanitizer strips the same keys from an archive
+  /// (`BackupPortability.sanitizeDatabase`); two spellings of this list is how
+  /// one of the halves gets forgotten.
+  static const Set<String> syncLocalExtrasKeys =
+      ToolPermissionMode.grantExtrasKeys;
+
+  /// The conversation's identity as this device sees it now, composed from every
+  /// synced family by re-reading its rows.
+  ///
+  /// The slow, exact half of the same rule [syncFamilyDigestInputs] aggregates:
+  /// a checkpoint entry and a manifest entry built from identical state must be
+  /// equal, and `sync_family_registry_test.dart` holds the two readers to it.
+  Future<String> syncConversationDigest(String conversationId) async {
+    final contributions = <String, String>{};
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot ||
+          family.identity == SyncIdentityContribution.none) {
+        continue;
+      }
+      contributions[family.name] = syncFamilyDigestInput(
+        family,
+        await syncReadFamilyRows(family, conversationId),
+      );
+    }
+    return composeConversationDigest(contributions);
+  }
+
+  Future<Map<String, dynamic>?> syncReadConversationRow(String id) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM conversation_rows WHERE id = ?;',
+          variables: [Variable.withString(id)],
+        )
+        .get();
+    if (rows.isEmpty) return null;
+    return Map<String, dynamic>.from(rows.first.data);
+  }
+
+  /// The row as it travels: [syncReadConversationRow] without this device's
+  /// memory bookkeeping or its own extras keys.
+  ///
+  /// The apply side also builds its upsert from [currentSchemaColumns] and
+  /// merges extras back by key, so what is stripped here is put back from the
+  /// local row there — the two halves of one rule, which is why both read
+  /// [_syncLocalConversationColumns] and [syncLocalExtrasKeys].
+  Future<Map<String, dynamic>?> syncReadWireConversationRow(String id) async {
+    final row = await syncReadConversationRow(id);
+    if (row == null) return null;
+    row.removeWhere((key, _) => _syncLocalConversationColumns.contains(key));
+    // An unreadable bag becomes `{}` on the wire rather than junk: this device's
+    // broken column is not something to push onto a peer.
+    final extras =
+        _decodeExtrasObject(row['extras_json']) ?? <String, dynamic>{};
+    extras.removeWhere((key, _) => syncLocalExtrasKeys.contains(key));
+    row['extras_json'] = jsonEncode(extras);
+    return row;
+  }
+
+  Future<List<Map<String, dynamic>>> syncReadMessageRows(
+    String conversationId,
+  ) => syncReadFamilyRows(syncFamilyOfTable('message_rows'), conversationId);
+
+  /// One page's worth of message rows, in id order, continuing after [after].
+  ///
+  /// The id is the cursor rather than `message_order`: the order column is
+  /// re-derived by every apply, so it moves under a reader, while a row's id
+  /// never does. What a page boundary costs is a timeline position — the carried
+  /// order still travels with each row and the transfer's last page re-derives
+  /// it.
+  Future<List<Map<String, dynamic>>> syncReadMessageChunk(
+    String conversationId, {
+    String? after,
+    required int limit,
+  }) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM message_rows WHERE conversation_id = ?'
+          '${after == null ? '' : ' AND id > ?'} ORDER BY id LIMIT ?;',
+          variables: <Variable<Object>>[
+            Variable<String>(conversationId),
+            if (after != null) Variable<String>(after),
+            Variable<int>(limit),
+          ],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  /// Every message id this conversation holds, in id order — the incoming set a
+  /// transfer's deletion oracle reads.
+  Future<List<String>> syncReadMessageIds(String conversationId) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT id FROM message_rows WHERE conversation_id = ? ORDER BY id;',
+          variables: [Variable<String>(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) row.read<String>('id')];
+  }
+
+  /// The full rows of [ids], for the messages a keyset cursor stepped over.
+  Future<List<Map<String, dynamic>>> syncReadMessagesByIds(
+    String conversationId,
+    List<String> ids,
+  ) async {
+    if (ids.isEmpty) return const [];
+    final out = <Map<String, dynamic>>[];
+    // Chunked because the id list is the one page argument not bounded by a byte
+    // budget: a pathological conversation can hold more late rows than SQLite
+    // takes host parameters.
+    const batchSize = 500;
+    for (var start = 0; start < ids.length; start += batchSize) {
+      final batch = ids.skip(start).take(batchSize).toList(growable: false);
+      final placeholders = List.filled(batch.length, '?').join(',');
+      final rows = await _db
+          .customSelect(
+            'SELECT * FROM message_rows WHERE conversation_id = ? '
+            'AND id IN ($placeholders) ORDER BY id;',
+            variables: <Variable<Object>>[
+              Variable<String>(conversationId),
+              for (final id in batch) Variable<String>(id),
+            ],
+          )
+          .get();
+      out.addAll([for (final row in rows) Map<String, dynamic>.from(row.data)]);
+    }
+    return out;
+  }
+
+  /// The message parts whose revision id falls in
+  /// `[fromRevisionId, toRevisionId]`.
+  ///
+  /// A range rather than an id list because a page's messages are contiguous in
+  /// id order by construction — the reader walks them in that same order, so the
+  /// parts of a page are exactly the parts of its range and the query stays an
+  /// index scan.
+  Future<List<Map<String, dynamic>>> syncReadPartRowsBetween(
+    String conversationId,
+    String fromRevisionId,
+    String toRevisionId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM message_part_rows WHERE conversation_id = ? '
+          'AND revision_id >= ? AND revision_id <= ? '
+          'ORDER BY revision_id, ordinal;',
+          variables: <Variable<Object>>[
+            Variable<String>(conversationId),
+            Variable<String>(fromRevisionId),
+            Variable<String>(toRevisionId),
+          ],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  /// The parts of [ids], for rows a keyset cursor stepped over.
+  ///
+  /// The range reader above cannot serve them: a message written during a
+  /// transfer sorts *below* the page that finally carries it, so its revision id
+  /// falls outside the page's own interval — and a page whose parts are read by
+  /// interval would lose every part it has, not only that one.
+  Future<List<Map<String, dynamic>>> syncReadPartRowsByIds(
+    String conversationId,
+    List<String> ids,
+  ) async {
+    if (ids.isEmpty) return const [];
+    final out = <Map<String, dynamic>>[];
+    const batchSize = 500;
+    for (var start = 0; start < ids.length; start += batchSize) {
+      final batch = ids.skip(start).take(batchSize).toList(growable: false);
+      final placeholders = List.filled(batch.length, '?').join(',');
+      final rows = await _db
+          .customSelect(
+            'SELECT * FROM message_part_rows WHERE conversation_id = ? '
+            'AND revision_id IN ($placeholders) ORDER BY revision_id, ordinal;',
+            variables: <Variable<Object>>[
+              Variable<String>(conversationId),
+              for (final id in batch) Variable<String>(id),
+            ],
+          )
+          .get();
+      out.addAll([for (final row in rows) Map<String, dynamic>.from(row.data)]);
+    }
+    return out;
+  }
+
+  /// The columns the sync merge reads, and nothing else: what a row is called,
+  /// when it was last written, where it currently sits, and the version-group
+  /// slot it occupies.
+  ///
+  /// The apply used to read whole rows here, which made receiving a conversation
+  /// cost that conversation's own size in Dart memory on top of the transaction —
+  /// the receiving half of the problem the sender's byte budget was shaped
+  /// around. No step of the apply reads a message's content: the rows that get
+  /// written are the incoming ones, and `SyncSubtreeApplyOutcome.messageRows` has
+  /// always been documented as these columns.
+  Future<List<Map<String, dynamic>>> syncReadMessageMeta(
+    String conversationId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT id, updated_at, timestamp, message_order, group_id, version '
+          'FROM message_rows WHERE conversation_id = ?;',
+          variables: [Variable<String>(conversationId)],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  /// The part rows of one conversation, in write order. The same reader the
+  /// subtree uses; kept named for the tests that assert on a landed apply.
+  Future<List<Map<String, dynamic>>> syncReadMessagePartRows(
+    String conversationId,
+  ) => syncReadFamilyRows(
+    syncFamilyOfTable('message_part_rows'),
+    conversationId,
+  );
+
+  /// The rows of [family] belonging to [conversationId], in the family's own
+  /// order.
+  ///
+  /// One reader for every family, built from the registration rather than from a
+  /// method per table: the table, the column that names the conversation and the
+  /// order all come from there, so a family that starts travelling is read here
+  /// without a new method. The interpolated parts are registry constants, never
+  /// wire values — the same rule [currentSchemaColumns] follows.
+  Future<List<Map<String, dynamic>>> syncReadFamilyRows(
+    SyncFamily family,
+    String conversationId,
+  ) async {
+    final filter = family.kind == null
+        ? '${family.conversationColumn} = ?'
+        : 'kind = ? AND ${family.conversationColumn} = ?';
+    final order = family.orderBy == null ? '' : ' ORDER BY ${family.orderBy}';
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM ${family.table} WHERE $filter$order;',
+          variables: <Variable<Object>>[
+            if (family.kind != null) Variable<String>(family.kind!),
+            Variable<String>(conversationId),
+          ],
+        )
+        .get();
+    return [for (final row in rows) Map<String, dynamic>.from(row.data)];
+  }
+
+  /// Whether a generation is currently writing to this conversation. Sync
+  /// apply yields to generation (ADR-0003).
+  Future<bool> syncConversationIsStreaming(String conversationId) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT 1 FROM message_rows '
+          'WHERE conversation_id = ? AND is_streaming != 0 LIMIT 1;',
+          variables: [Variable.withString(conversationId)],
+        )
+        .get();
+    return rows.isNotEmpty;
+  }
+
+  /// Applies a peer's conversation deletion using the standard tombstone path,
+  /// so a third paired device can learn about the deletion as well. Returns
+  /// false when the deletion is deferred (a generation is running).
+  Future<bool> syncApplyPeerDeletion(String conversationId) async {
+    if (await syncConversationIsStreaming(conversationId)) return false;
+    await deleteConversation(conversationId, origin: RecycleOrigin.remote);
+    return true;
+  }
+
+  /// Merges one incoming conversation subtree into local state, atomically.
+  ///
+  /// Row-level LWW with deviceId tiebreak, append union, order re-derivation by
+  /// (timestamp, id), and checkpoint-based deletion detection — the rules of
+  /// `sync_merge.dart`, which both peers evaluate identically. Returns the
+  /// post-merge state so the caller can build the next checkpoint.
+  Future<SyncSubtreeApplyOutcome> syncApplySubtree({
+    required SyncSubtreePayload payload,
+    required String myDeviceId,
+    required String peerDeviceId,
+    required Map<String, int> checkpointRows,
+    bool composeDigest = true,
+  }) async {
+    final conversationId = payload.conversation['id'] as String;
+    return _db.transaction(() async {
+      if (await syncConversationIsStreaming(conversationId)) {
+        return SyncSubtreeApplyOutcome.deferredOutcome;
+      }
+
+      final localConversation = await syncReadConversationRow(conversationId);
+      final localMessages = {
+        for (final row in await syncReadMessageMeta(conversationId))
+          row['id'] as String: row,
+      };
+      // The peer's in-flight generation is not running here: never adopt its
+      // streaming flag, or the row would be stranded mid-stream on this device.
+      //
+      // A wire row is only accepted where it says it belongs, and only when
+      // its id is not already another conversation's message here. A message
+      // id is a global primary key, so an upsert whose conflict target fires
+      // would move that message into this conversation — a crafted
+      // cross-reference no honest peer can produce, since its own reader
+      // filters by conversation.
+      final labelled = {
+        for (final row in payload.rowsOf(_messageFamily))
+          if (row['id'] is String && row['conversation_id'] == conversationId)
+            row['id'] as String: {...row, 'is_streaming': 0},
+      };
+      final foreignIds = await _syncForeignMessageIds(
+        conversationId,
+        labelled.keys.toSet(),
+      );
+      final incomingMessages = {
+        for (final entry in labelled.entries)
+          if (!foreignIds.contains(entry.key)) entry.key: entry.value,
+      };
+
+      var conversationRowChanged = false;
+      var conversationRow = localConversation;
+      if (localConversation == null) {
+        conversationRow = Map<String, dynamic>.from(payload.conversation);
+        // There is no local row to restore from, so the strip is the whole
+        // protection — and it is applied again here rather than trusted to the
+        // peer's reader, because a peer that predates this rule still puts its
+        // grant on the wire. A peer that has the rule sends nothing to strip.
+        conversationRow['extras_json'] = _extrasWithoutLocalKeys(
+          conversationRow['extras_json'],
+        );
+        conversationRowChanged = true;
+      } else {
+        final merge = mergeConversationRow(
+          local: localConversation,
+          incoming: Map<String, dynamic>.from(payload.conversation),
+          myDeviceId: myDeviceId,
+          peerDeviceId: peerDeviceId,
+        );
+        conversationRow = Map<String, dynamic>.from(merge.winner);
+        conversationRowChanged = merge.incomingWon;
+
+        // The winner is decided by the sync clock, so it can be the row whose
+        // `updated_at` is *older*: a peer that pinned (a write that no longer
+        // moves the display clock) while this device appended a message wins the
+        // row without the newer content clock. Copying its `updated_at` would
+        // move this device's list backwards — a conversation from today dropping
+        // into yesterday — so the display clock only ever rises. Both peers keep
+        // their own, which is what "content clock" means; the sync clocks are
+        // equal because the winner's key is what the checkpoint records.
+        final winnerUpdatedAt = (conversationRow['updated_at'] as num).toInt();
+        final localUpdatedAt = (localConversation['updated_at'] as num).toInt();
+        if (localUpdatedAt > winnerUpdatedAt) {
+          conversationRow['updated_at'] = localUpdatedAt;
+        }
+
+        // The extraction watermark is a fact about the conversation, not about
+        // this device: the memory entries travel, so a message the peer already
+        // extracted needs no second pass here. Whole-row LWW gets it wrong in
+        // both directions — replacing ours with the peer's older value re-reads
+        // history, and handing the peer ours skips messages neither side has
+        // read. Monotone on both sides, so the join is max.
+        //
+        // The join rests on both sides agreeing which message occupies which
+        // slot, which holds while they hold the same messages. When this apply
+        // inserts one below the joined value — a message with an earlier
+        // timestamp arriving late — the slot it takes can be one neither side
+        // has read, and the join skips it. That costs one unextracted message;
+        // joining to the smaller value instead would re-read on every ordinary
+        // sync, which is the 重抽 direction the issue reports. Left as max, with
+        // the case pinned by a test.
+        //
+        // Persisted on its own rather than through the row write below: the
+        // winner's MCP list belongs to the winner, and an advance that lost the
+        // row must not drag the peer's list over here. Nothing displays the
+        // watermark either, so the caller has nothing to reload for it.
+        final localOrder =
+            (localConversation['last_memory_extracted_order'] as num?)
+                ?.toInt() ??
+            -1;
+        final incomingOrder =
+            (payload.conversation['last_memory_extracted_order'] as num?)
+                ?.toInt() ??
+            -1;
+        final watermark = localOrder > incomingOrder
+            ? localOrder
+            : incomingOrder;
+        if (watermark >
+            ((conversationRow['last_memory_extracted_order'] as num?)
+                    ?.toInt() ??
+                -1)) {
+          conversationRow['last_memory_extracted_order'] = watermark;
+          await setConversationLastMemoryExtractedOrder(
+            conversationId,
+            watermark,
+          );
+        }
+
+        // The rest of the bookkeeping is this device's alone (see
+        // [_syncLocalConversationColumns]): the wire row does not carry it, and
+        // writing the column back as null would erase what we know.
+        for (final column in _syncLocalConversationColumns) {
+          conversationRow[column] = localConversation[column];
+        }
+
+        // Same rule, one column deeper (see [syncLocalExtrasKeys]): the winner's
+        // extras follow the winner key by key, except for the grants, which are
+        // this device's own and come back from the local row. Written as part of
+        // the same upsert so `updated_at` stays the winner's — a second write
+        // would move the conversation's clock and make both peers re-push.
+        if (conversationRowChanged) {
+          conversationRow['extras_json'] = _mergeLocalExtras(
+            incoming: conversationRow['extras_json'],
+            local: localConversation['extras_json'],
+            restore: _sameWorkspaceBinding(
+              winner: conversationRow,
+              local: localConversation,
+            ),
+          );
+        }
+      }
+      if (localConversation != null && conversationRowChanged) {
+        await _upsertSyncRow(
+          'conversation_rows',
+          conversationRow,
+          conflictTarget: _conversationFamily.conflictTarget,
+        );
+        await _replaceSyncMcpServers(
+          conversationId,
+          payload.rowsOf(_mcpBindingFamily),
+        );
+      } else if (localConversation == null) {
+        await _upsertSyncRow(
+          'conversation_rows',
+          conversationRow,
+          conflictTarget: _conversationFamily.conflictTarget,
+        );
+        await _replaceSyncMcpServers(
+          conversationId,
+          payload.rowsOf(_mcpBindingFamily),
+        );
+      }
+
+      final plan = mergeMessageRows(
+        local: localMessages,
+        incoming: incomingMessages,
+        checkpointRows: checkpointRows,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+        // A page that is not the last one proves nothing about absence: the rows
+        // the transfer has not carried yet look exactly like rows the peer
+        // deleted, and running the oracle on them would erase the conversation
+        // one page at a time. The last page names every id the sender holds.
+        incomingIds: payload.more ? null : payload.ids.toSet(),
+        allowDeletes: !payload.more,
+      );
+
+      final finalRows = <String, Map<String, dynamic>>{...localMessages};
+      for (final id in plan.deletes) {
+        finalRows.remove(id);
+      }
+      for (final row in plan.upserts) {
+        finalRows[row['id'] as String] = row;
+      }
+      // Two devices that each regenerated the same message contribute rival
+      // rows with the same (group_id, version) and different ids — a union both
+      // rows of which the schema's unique key forbids, so the second insert
+      // would abort the apply and every later session with it. One
+      // deterministic winner per slot (identical on both peers), the rest
+      // removed here and deleted below with their parts.
+      final slotLosers = resolveVersionGroupCollisions(finalRows.values);
+      for (final id in slotLosers) {
+        finalRows.remove(id);
+      }
+      final deletes = <String>{...plan.deletes, ...slotLosers};
+      final order = rederiveMessageOrder(finalRows.values);
+      var upserted = 0;
+      final upsertedIds = {
+        for (final row in plan.upserts)
+          if (finalRows.containsKey(row['id'])) row['id'] as String,
+      };
+
+      // The stored order can disagree with the re-derived one — a message
+      // appended out of timestamp order, or a conversation an earlier build
+      // left in a shifted state — and an incoming row always needs a free slot,
+      // so whether to reorder is decided before anything is touched.
+      //
+      // Kept apart from the two counter conditions below because it is the one
+      // change the counters cannot express: the caller has to reload the window
+      // for a repair that writes no content (SyncSubtreeApplyOutcome.reordered).
+      final orderDrifted = finalRows.entries.any(
+        (entry) =>
+            !upsertedIds.contains(entry.key) &&
+            (entry.value['message_order'] as num).toInt() != order[entry.key],
+      );
+      // The shift exists to make room: it moves every row above the final range
+      // so an incoming row can take a free slot. When every untouched row already
+      // sits on its final slot and no incoming row takes a slot another row holds,
+      // there is nothing to make room for and nothing to move — the ordinary
+      // append, which is what a page-per-beat transfer does on every page.
+      // Deciding this on the slots rather than on "did anything arrive" is what
+      // keeps a paged apply from re-pointing the whole conversation per page.
+      // Taken from the rows as stored, not as merged: an incoming row carries
+      // the slot it *wants*, so reading the merged map would report every row as
+      // already standing where it is about to be written — which is true only
+      // when nothing moves.
+      final currentSlots = <int, String>{
+        for (final entry in localMessages.entries)
+          if (finalRows.containsKey(entry.key))
+            (entry.value['message_order'] as num).toInt(): entry.key,
+      };
+      final needsReorder =
+          deletes.isNotEmpty ||
+          orderDrifted ||
+          upsertedIds.any((id) {
+            final holder = currentSlots[order[id]];
+            return holder != null && holder != id;
+          });
+
+      if (needsReorder) {
+        // Phase 1: move every existing row above the final range. The shift
+        // clears both the current maximum *and* the highest final index, so no
+        // shifted row can land on a slot the final orders will use, and no
+        // shifted value can equal one that already exists — including the large
+        // values an interrupted or older apply may have left behind.
+        final maxOrder = await _syncMaxMessageOrder(conversationId);
+        if (maxOrder != null) {
+          final finalMax = finalRows.length - 1;
+          final shift = (maxOrder > finalMax ? maxOrder : finalMax) + 1;
+          await _db.customStatement(
+            'UPDATE message_rows SET message_order = message_order + ? '
+            'WHERE conversation_id = ?;',
+            [shift, conversationId],
+          );
+        }
+      }
+
+      // Phase 2: deletions (parts cascade). The checkpoint-detected ones plus
+      // the rival rows a version-group slot had to resolve.
+      //
+      // Generation runs go first: `generation_run_rows.target_revision_id` is
+      // the one child of `message_rows` the schema does not cascade (NO ACTION,
+      // deferred), so a run row left behind by the delete below fails the
+      // transaction at COMMIT with a foreign-key error (code 787) — and since
+      // the checkpoint then never advances, every later session with the peer
+      // re-plans the same apply and fails the same way. A deleted revision
+      // takes the run that produced it, exactly as `_deleteMessages` does for a
+      // local deletion.
+      if (deletes.isNotEmpty) {
+        await (_db.delete(
+          _db.generationRunRows,
+        )..where((row) => row.targetRevisionId.isIn(deletes))).go();
+        await (_db.delete(
+          _db.messageRows,
+        )..where((row) => row.id.isIn(deletes))).go();
+      }
+
+      // Phase 3: upserts with final order, then re-point untouched rows.
+      final partsByRevision = <String, List<Map<String, dynamic>>>{};
+      for (final part in payload.rowsOf(_messagePartFamily)) {
+        final revisionId = part['revision_id'];
+        if (revisionId is! String) continue;
+        partsByRevision.putIfAbsent(revisionId, () => []).add(part);
+      }
+      for (final row in plan.upserts) {
+        final id = row['id'] as String;
+        // An incoming row that lost its version slot was removed above and is
+        // deleted in phase 2 instead of written.
+        if (!finalRows.containsKey(id)) continue;
+        upserted++;
+        await _upsertSyncRow('message_rows', {
+          ...row,
+          'message_order': order[id]!,
+          'is_streaming': 0,
+        }, conflictTarget: _messageFamily.conflictTarget);
+        await (_db.delete(
+          _db.messagePartRows,
+        )..where((part) => part.revisionId.equals(id))).go();
+        final parts = partsByRevision[id] ?? const <Map<String, dynamic>>[];
+        for (final part in parts) {
+          await _upsertSyncRow(
+            'message_part_rows',
+            part,
+            insertOnly: true,
+            conflictTarget: _messagePartFamily.conflictTarget,
+          );
+        }
+      }
+      if (needsReorder) {
+        // Phase 4: re-point every row that is not an upsert to its final order,
+        // unconditionally. Every row was just shifted, so a row whose stored
+        // value still equals its target is a row that has not been moved yet —
+        // skipping it would strand it above the final range and scramble the
+        // timeline.
+        for (final entry in finalRows.entries) {
+          if (upsertedIds.contains(entry.key)) continue;
+          await _db.customStatement(
+            'UPDATE message_rows SET message_order = ? WHERE id = ?;',
+            [order[entry.key]!, entry.key],
+          );
+        }
+        for (final row in finalRows.values) {
+          row['message_order'] = order[row['id'] as String];
+        }
+      }
+
+      // D-7: the conversation's own document families, each a row on its own
+      // clock. Applied *after* the message phases because a document row may
+      // hang off a revision — a provider artifact names `message_rows.id` — and
+      // the merge above is what decides which revisions exist afterwards. A row
+      // written before that decision can name a revision the version-group rule
+      // dropped, which the deferred foreign key only reports at COMMIT.
+      final documentReplaced = await _applyConversationDocuments(
+        conversationId: conversationId,
+        conversationTitle: conversationRow['title'] is String
+            ? conversationRow['title'] as String
+            : null,
+        payload: payload,
+        myDeviceId: myDeviceId,
+        peerDeviceId: peerDeviceId,
+        survivingRevisions: finalRows.keys.toSet(),
+      );
+
+      return SyncSubtreeApplyOutcome(
+        conversationRow: conversationRow,
+        messageRows: [for (final row in finalRows.values) row],
+        upsertedMessages: upserted,
+        // A rival row a version-group slot had to resolve is a deletion too:
+        // its content lost the deterministic rule, and the report says so
+        // rather than dropping it silently.
+        deletedMessages: deletes.length,
+        conversationRowChanged: conversationRowChanged,
+        reordered: orderDrifted,
+        appliedRevisionIds: upsertedIds,
+        documentReplaced: documentReplaced,
+        // Inside the transaction, so this is the post-merge state and nothing
+        // later: a checkpoint built from a re-read outside it could record a row
+        // written after the apply as one the peer already has.
+        //
+        // Only the initiator's `bothSend` arm reads it. The responder never
+        // does — its entries are composed from the payload that arrived — and
+        // the digest reads *every* family with `SELECT *`, so computing it on
+        // a page the caller cannot use costs the whole conversation's content
+        // per page, which is the memory the narrow read above removed.
+        digest: composeDigest
+            ? await syncConversationDigest(conversationId)
+            : null,
+      );
+    });
+  }
+
+  /// Applies the conversation's own document families (D-7): the compression
+  /// history, the image-context switches and pins, the compression configuration
+  /// and the provider artifacts a native continuation needs.
+  ///
+  /// Each is a row on its own clock, so the rule is the business face's one: the
+  /// newer `updated_at` wins, and an exact tie falls to the higher deviceId, so
+  /// both peers reach the same verdict without talking. A local copy that loses
+  /// is **replaced**, and the answer comes back to the caller because this is
+  /// where a device's own compression can disappear — the session report is the
+  /// only place that can say so.
+  ///
+  /// The answer is one flag, not a count: a conversation is one line on the
+  /// card, and only a family whose row *is* a document counts. A provider
+  /// artifact is applied like any other row and reported by nobody.
+  ///
+  /// A row is accepted only where it says it belongs: its conversation column
+  /// names this conversation, an extension row carries exactly its family's
+  /// kind, its owner column agrees when it has one, and a row that hangs off a
+  /// revision names one this conversation keeps. A crafted row that names another
+  /// conversation, another kind, another owner, or another conversation's
+  /// revision is dropped — the refusal [_syncForeignMessageIds] already makes for
+  /// messages.
+  Future<bool> _applyConversationDocuments({
+    required String conversationId,
+    required String? conversationTitle,
+    required SyncSubtreePayload payload,
+    required String myDeviceId,
+    required String peerDeviceId,
+    required Set<String> survivingRevisions,
+  }) async {
+    var documentReplaced = false;
+    for (final family in syncedConversationFamilies) {
+      if (family.isSubtreeRoot ||
+          family.apply != SyncFamilyApply.rowLastWriteWins) {
+        continue;
+      }
+      final rows = payload.rowsOf(family);
+      if (rows.isEmpty) continue;
+      final keyColumns = family.conflictTarget;
+      if (keyColumns.isEmpty) {
+        // The registration guard refuses this at test time; a build that reached
+        // here anyway is one that would throw on a user's device instead.
+        throw StateError('sync_conflict_target_missing:${family.table}');
+      }
+      // Only `extension_entity_rows` has an owner column; a family on any other
+      // table has nothing to check.
+      final ownerColumn = currentSchemaColumns[family.table]!.contains(
+        'owner_id',
+      );
+      for (final row in rows) {
+        // A row that hangs off a revision is written only when the merge kept
+        // that revision: the foreign key is checked at COMMIT, and a dangling
+        // row would abort the apply and, with it, the checkpoint.
+        final revisionColumn = family.messageRevisionColumn;
+        if (revisionColumn != null &&
+            !survivingRevisions.contains(row[revisionColumn])) {
+          continue;
+        }
+        if (row[family.conversationColumn] != conversationId) continue;
+        if (family.kind != null && row['kind'] != family.kind) continue;
+        // The row's own statement of who owns it has to agree as well: the
+        // delete that removes a conversation's documents finds them by
+        // `owner_id`, so a row whose conversation column matches while its owner
+        // names someone else would outlive its conversation with no delete left
+        // that could reach it. A null owner is left alone — it is what the older
+        // writers produced, and refusing it would drop rows that sync today.
+        if (ownerColumn &&
+            row['owner_id'] != null &&
+            row['owner_id'] != conversationId) {
+          continue;
+        }
+        if (row['payload'] is! String) continue;
+        // Two shapes are refused by SQLite itself, and a refusal here aborts the
+        // whole apply — and with it the checkpoint, so the peer re-sends every
+        // session. `context_operation_index`'s AFTER trigger runs `json_each`
+        // over a context payload, and `provider_artifact_rows` carries
+        // `CHECK (updated_at >= created_at)`. Both are refused before the write,
+        // like every other bad row in this loop.
+        if (family.kind != null && !_isJsonPayload(row['payload'])) continue;
+        if (family.table == 'provider_artifact_rows' &&
+            !_artifactClocksOrdered(row)) {
+          continue;
+        }
+        if (keyColumns.any((column) => row[column] is! String)) continue;
+        final incomingAt = (row['updated_at'] as num?)?.toInt();
+        if (incomingAt == null) continue;
+        final local = await _syncReadRowByKey(family.table, keyColumns, row);
+        if (local != null) {
+          final localAt = (local['updated_at'] as num?)?.toInt();
+          if (localAt == null) continue;
+          if (!incomingBusinessRowWins(
+            localUpdatedAtUs: localAt,
+            incomingUpdatedAtUs: incomingAt,
+            myDeviceId: myDeviceId,
+            peerDeviceId: peerDeviceId,
+          )) {
+            continue;
+          }
+          // A loss only when the *document* differs: a bothSend echoes this
+          // device's own row back at a tied clock, and counting that would tell
+          // the user their work was replaced by itself. Comparing the stored
+          // text would count a re-ordered serialization of the same map too,
+          // which is not a loss — the writers build these payloads by spreading
+          // different sources, so key order is not content.
+          if (family.isWholeDocument &&
+              !_sameDocument(local['payload'], row['payload'])) {
+            documentReplaced = true;
+            // The only moment the losing copy still exists: the upsert below
+            // replaces it. The business face stages its losing rows for the same
+            // reason, and a conversation document is a whole record — a
+            // compaction history, the image-context switches — so a report line
+            // alone would leave it unrecoverable.
+            final kind = family.kind;
+            if (kind != null) {
+              await recycle?.stageExtensionRow(
+                kind,
+                conversationId,
+                origin: RecycleOrigin.remote,
+                reason: RecycleReason.overwritten,
+                // The document payload carries no name of its own; the
+                // conversation's title is what makes the bin row readable.
+                title: conversationTitle,
+              );
+            }
+          }
+        }
+        await _upsertSyncRow(family.table, row, conflictTarget: keyColumns);
+      }
+    }
+    return documentReplaced;
+  }
+
+  /// Whether two stored document payloads hold the same JSON value.
+  ///
+  /// A payload this device cannot decode is not a document it can compare, so it
+  /// counts as different — never an exception, which would abort the apply and
+  /// with it the checkpoint.
+  static bool _sameDocument(Object? local, Object? incoming) {
+    if (local is! String || incoming is! String) return local == incoming;
+    try {
+      return const DeepCollectionEquality().equals(
+        jsonDecode(local),
+        jsonDecode(incoming),
+      );
+    } on FormatException {
+      return false;
+    }
+  }
+
+  /// Whether [payload] is text SQLite's JSON functions accept.
+  ///
+  /// Every extension payload is JSON by construction (`ExtensionEntityStore`
+  /// encodes a map), and the context index parses one inside a trigger, so a
+  /// payload that does not parse is a row the write itself would refuse.
+  static bool _isJsonPayload(Object? payload) {
+    if (payload is! String) return false;
+    try {
+      jsonDecode(payload);
+      return true;
+    } on FormatException {
+      return false;
+    }
+  }
+
+  /// Whether a provider artifact's clocks satisfy the table's CHECK
+  /// (`updated_at >= created_at`).
+  static bool _artifactClocksOrdered(Map<String, dynamic> row) {
+    final created = (row['created_at'] as num?)?.toInt();
+    final updated = (row['updated_at'] as num?)?.toInt();
+    if (created == null || updated == null) return false;
+    return updated >= created;
+  }
+
+  /// One row of [table] by the columns that key it, or null when this device
+  /// has none.
+  Future<Map<String, dynamic>?> _syncReadRowByKey(
+    String table,
+    List<String> keyColumns,
+    Map<String, dynamic> row,
+  ) async {
+    final result = await _db
+        .customSelect(
+          'SELECT * FROM $table WHERE '
+          '${keyColumns.map((column) => '$column = ?').join(' AND ')};',
+          variables: [
+            for (final column in keyColumns)
+              Variable<String>(row[column] as String),
+          ],
+        )
+        .getSingleOrNull();
+    return result == null ? null : Map<String, dynamic>.from(result.data);
+  }
+
+  Future<int?> _syncMaxMessageOrder(String conversationId) async {
+    final row = await _db
+        .customSelect(
+          'SELECT MAX(message_order) AS max_order FROM message_rows '
+          'WHERE conversation_id = ?;',
+          variables: <Variable<Object>>[Variable<String>(conversationId)],
+        )
+        .getSingleOrNull();
+    final value = row?.data['max_order'];
+    return value is num ? value.toInt() : null;
+  }
+
+  Future<void> _upsertSyncRow(
+    String table,
+    Map<String, dynamic> row, {
+    required List<String> conflictTarget,
+    bool insertOnly = false,
+  }) async {
+    final allColumns = currentSchemaColumns[table]!;
+    // `part_id` is an autoincrement rowid: incoming part rows are matched by
+    // their unique key (revision_id, ordinal), never by another device's id.
+    final columns = insertOnly
+        ? [
+            for (final column in allColumns)
+              if (column != 'part_id') column,
+          ]
+        : allColumns;
+    final values = [for (final column in columns) row[column]];
+    if (insertOnly && table == 'message_part_rows') {
+      await _db.customStatement(
+        'INSERT INTO message_part_rows (${columns.join(', ')}) '
+        'VALUES (${List.filled(columns.length, '?').join(', ')});',
+        values,
+      );
+      return;
+    }
+    final updates = columns
+        .where((column) => !conflictTarget.contains(column))
+        .map((column) => '$column = excluded.$column')
+        .join(', ');
+    await _db.customStatement(
+      'INSERT INTO $table (${columns.join(', ')}) '
+      'VALUES (${List.filled(columns.length, '?').join(', ')}) '
+      'ON CONFLICT(${conflictTarget.join(', ')}) DO UPDATE SET $updates;',
+      values,
+    );
+  }
+
+  Future<void> _replaceSyncMcpServers(
+    String conversationId,
+    List<Map<String, dynamic>> servers,
+  ) async {
+    await (_db.delete(
+      _db.conversationMcpServerRows,
+    )..where((row) => row.conversationId.equals(conversationId))).go();
+    for (final server in servers) {
+      await _upsertSyncRow('conversation_mcp_server_rows', {
+        'conversation_id': conversationId,
+        'server_id': server['server_id'],
+        'ordinal': server['ordinal'],
+      }, conflictTarget: _mcpBindingFamily.conflictTarget);
+    }
+  }
+
   Future<void> commitParsedImport({
     required BusinessRepository businessRepository,
     required bool overwrite,
@@ -6443,14 +7543,7 @@ ORDER BY m.message_order DESC LIMIT 20
               filesRestored: filesRestored,
             );
             if (unavailable != part.unavailable) changed = true;
-            nextParts.add(
-              ImagePart(
-                uri: part.uri,
-                mime: part.mime,
-                assetId: part.assetId,
-                unavailable: unavailable,
-              ),
-            );
+            nextParts.add(part.copyWith(unavailable: unavailable));
           } else if (part is FilePart) {
             final unavailable = await _unavailableForRestoredPart(
               uri: part.uri,
@@ -7118,7 +8211,9 @@ ORDER BY m.message_order DESC LIMIT 20
       for (final conversation in conversations) {
         batch.insert(
           _db.conversationRows,
-          _conversationCompanion(conversation),
+          // The archive's own clocks, verbatim: a restored row is not "written
+          // here now". This is the one local writer that does not stamp.
+          _conversationCompanion(conversation, clock: null),
           mode: InsertMode.insertOrReplace,
         );
         for (var i = 0; i < conversation.mcpServerIds.length; i++) {
@@ -7234,59 +8329,74 @@ ORDER BY m.message_order DESC LIMIT 20
     int? reasoningTokens,
     int? cacheWriteTokens,
   }) {
-    final companion = MessageRowsCompanion(
-      updatedAt: Value(DateTime.now().toUtc()),
-      totalTokens: totalTokens != null
-          ? Value(totalTokens)
-          : const Value.absent(),
-      isStreaming: isStreaming != null
-          ? Value(isStreaming)
-          : const Value.absent(),
-      reasoningStartAt: reasoningStartAt != null
-          ? Value(reasoningStartAt)
-          : const Value.absent(),
-      reasoningFinishedAt: reasoningFinishedAt != null
-          ? Value(reasoningFinishedAt)
-          : const Value.absent(),
-      translation: translation != null
-          ? Value(translation)
-          : const Value.absent(),
-      reasoningSegmentsJson: reasoningSegmentsJson != null
-          ? Value(reasoningSegmentsJson)
-          : const Value.absent(),
-      promptTokens: promptTokens != null
-          ? Value(promptTokens)
-          : const Value.absent(),
-      completionTokens: completionTokens != null
-          ? Value(completionTokens)
-          : const Value.absent(),
-      cachedTokens: cachedTokens != null
-          ? Value(cachedTokens)
-          : const Value.absent(),
-      durationMs: durationMs != null ? Value(durationMs) : const Value.absent(),
-    );
     return _writeTransaction(() async {
-      var write = companion;
-      final current = await (_db.select(
-        _db.messageRows,
-      )..where((t) => t.id.equals(messageId))).getSingleOrNull();
-      if (current == null) return null;
-      if (!current.isStreaming && (content != null || parts != null)) {
+      // Built inside the transaction because updated_at is floored at the
+      // row's own timestamp, exactly as [_messageUpdate] floors it: the
+      // effective LWW clock is COALESCE(updated_at, timestamp), and an edit on
+      // this device must not lower the clock of a message authored under a
+      // skewed (future) peer clock, or the peer's untouched copy would win the
+      // next exchange and revert the edit on both devices.
+      final existing =
+          await (_db.select(_db.messageRows)
+                ..where((row) => row.id.equals(messageId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (existing == null) return null;
+      if (!existing.isStreaming && (content != null || parts != null)) {
         final before = await getMessage(messageId);
         if (before != null &&
             ((content != null && content != before.content) ||
                 (parts != null && !listEquals(parts, before.parts)))) {
-          await _revokeContextForGroups(current.conversationId, {
-            current.groupId ?? current.id,
+          await _revokeContextForGroups(existing.conversationId, {
+            existing.groupId ?? existing.id,
           });
         }
       }
       await _invalidateEmptyAcknowledgement();
+      final now = DateTime.now().toUtc();
+      final updatedAt = now.isBefore(existing.timestamp)
+          ? existing.timestamp
+          : now;
+      var write = MessageRowsCompanion(
+        updatedAt: Value(updatedAt),
+        totalTokens: totalTokens != null
+            ? Value(totalTokens)
+            : const Value.absent(),
+        isStreaming: isStreaming != null
+            ? Value(isStreaming)
+            : const Value.absent(),
+        reasoningStartAt: reasoningStartAt != null
+            ? Value(reasoningStartAt)
+            : const Value.absent(),
+        reasoningFinishedAt: reasoningFinishedAt != null
+            ? Value(reasoningFinishedAt)
+            : const Value.absent(),
+        translation: translation != null
+            ? Value(translation)
+            : const Value.absent(),
+        reasoningSegmentsJson: reasoningSegmentsJson != null
+            ? Value(reasoningSegmentsJson)
+            : const Value.absent(),
+        promptTokens: promptTokens != null
+            ? Value(promptTokens)
+            : const Value.absent(),
+        completionTokens: completionTokens != null
+            ? Value(completionTokens)
+            : const Value.absent(),
+        cachedTokens: cachedTokens != null
+            ? Value(cachedTokens)
+            : const Value.absent(),
+        durationMs: durationMs != null
+            ? Value(durationMs)
+            : const Value.absent(),
+      );
       if (reasoningTokens != null || cacheWriteTokens != null) {
-        write = companion.copyWith(
+        // The row was read above, inside this same transaction, so the extras
+        // merge onto the value that read saw.
+        write = write.copyWith(
           extrasJson: Value(
             _encodeTokenExtras(
-              current.extrasJson,
+              existing.extrasJson,
               reasoningTokens: reasoningTokens,
               cacheWriteTokens: cacheWriteTokens,
             ),
@@ -7407,6 +8517,11 @@ ORDER BY m.message_order DESC LIMIT 20
           .insertOnConflictUpdate(
             _conversationCompanion(
               conversation.copyWith(messageIds: List<String>.of(messageIds)),
+              clock: await _nextConversationClockFor(
+                conversation.id,
+                bumpDisplay: true,
+                displayAt: conversation.updatedAt,
+              ),
             ),
           );
       await _replaceMcpServers(conversation.id, conversation.mcpServerIds);
@@ -7429,24 +8544,36 @@ ORDER BY m.message_order DESC LIMIT 20
   /// replacing the whole local state is not a cross-device deletion intent.
   /// Draft conversations never reach this method (they are not persisted), so
   /// no tombstone is written for them.
-  Future<void> deleteConversation(String id) async {
+  Future<void> deleteConversation(
+    String id, {
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleGroup? group,
+  }) async {
+    RecycleConversationCapture? capture;
     await composerDrafts.delete(
       id,
       deleteConversation: () async {
+        capture = await recycle?.captureConversationDeletion(
+          id,
+          origin: origin,
+          group: group,
+        );
         genUiStates.invalidateAfterCommit(conversations: {id});
         final deleted = await (_db.delete(
           _db.conversationRows,
         )..where((t) => t.id.equals(id))).go();
         if (deleted == 0) return;
+        // The kinds are the delete's own list: the capture stages the documents
+        // plus the draft, and this removes the documents plus the one kind named
+        // as unrecoverable ([conversationDeletedKinds]). The rows are claimed by
+        // `id` — the column every reader of them uses, and the one the capture
+        // queries by. Claiming them by `owner_id` here would leave this the
+        // single place in the app where these rows have a second key, and the
+        // two keys agreeing would be a property of the four writers rather than
+        // of the rule.
         await (_db.delete(_db.extensionEntityRows)..where(
               (row) =>
-                  row.kind.isIn([
-                    ContextOperation.entityKind,
-                    'contextCompressionTask',
-                    CompressionConfig.conversationKind,
-                    ImageContextSettings.entityKind,
-                  ]) &
-                  row.ownerId.equals(id),
+                  row.kind.isIn(conversationDeletedKinds) & row.id.equals(id),
             ))
             .go();
         final now = DateTime.now().toUtc();
@@ -7468,6 +8595,7 @@ ORDER BY m.message_order DESC LIMIT 20
         await _acknowledgeIntentionalEmptyState();
       },
     );
+    if (capture case final staged?) recycle?.stageCapturedConversation(staged);
   }
 
   /// Reads deletion tombstones, newest first, optionally filtered by [scope].
@@ -7706,9 +8834,19 @@ ORDER BY m.message_order DESC LIMIT 20
             : currentConversation.chatSuggestions,
         updatedAt: DateTime.now(),
       );
-      await (_db.update(_db.conversationRows)
-            ..where((row) => row.id.equals(conversationId)))
-          .write(_conversationCompanion(conversation));
+      await (_db.update(
+        _db.conversationRows,
+      )..where((row) => row.id.equals(conversationId))).write(
+        _conversationCompanion(
+          conversation,
+          clock: _nextConversationClock(
+            storedExtrasJson: conversationRow.extrasJson,
+            storedUpdatedAtUs: conversationRow.updatedAt.microsecondsSinceEpoch,
+            bumpDisplay: true,
+            displayAt: conversation.updatedAt,
+          ),
+        ),
+      );
       // Callers (ChatService.deleteMessages) only need message.id for cache
       // invalidation; body text is intentionally omitted.
       return (
@@ -7738,8 +8876,24 @@ ORDER BY m.message_order DESC LIMIT 20
 
   Future<void> _clearChatRows() async {
     genUiStates.invalidateAfterCommit(all: true);
+    // A bulk reset replaces the whole local state, so it removes the same rows a
+    // conversation's delete owns — from the rule those two read, not from a copy
+    // of it: a family added to [conversationDeletedKinds] is removed here as
+    // well instead of outliving a reset that claimed to replace everything.
+    // Beside it are the device-local composer rows this reset has always cleared;
+    // share receipts are not among them, because they outlive deletion until the
+    // native inbox acknowledges them, and that is unchanged here.
+    final kinds = <String>[
+      ComposerDraftStore.kind,
+      ComposerDraftStore.entryKind,
+      ComposerDraftStore.privateFileKind,
+      ComposerDraftStore.publishedFileKind,
+      ...conversationDeletedKinds,
+    ];
     await _db.customStatement(
-      "DELETE FROM extension_entity_rows WHERE kind IN ('composerDraft','composerNewEntry','composerPrivateFile','composerPublishedFile','conversationContext','contextCompressionTask','conversationImageContext','conversationCompression')",
+      'DELETE FROM extension_entity_rows '
+      'WHERE kind IN (${List.filled(kinds.length, '?').join(', ')});',
+      kinds,
     );
     await _db.delete(_db.conversationMcpServerRows).go();
     await _db.delete(_db.messageRows).go();
@@ -8349,15 +9503,73 @@ ORDER BY m.message_order DESC LIMIT 20
     );
   }
 
+  /// The two clocks one local write stores on a conversation row.
+  ///
+  /// [syncClock] goes into `extras_json` ([syncClockExtrasKey]); [updatedAtUs]
+  /// is the display clock the row will carry. Both are read from the row **as
+  /// stored**, inside the caller's transaction — never from a cached
+  /// `Conversation`, whose `updatedAt` and extras may predate another writer.
+  ({int syncClock, int updatedAtUs}) _nextConversationClock({
+    Object? storedExtrasJson,
+    int? storedUpdatedAtUs,
+    bool bumpDisplay = false,
+    DateTime? displayAt,
+  }) {
+    final now = DateTime.now();
+    final updatedAtUs = bumpDisplay
+        ? (displayAt ?? now).microsecondsSinceEpoch
+        : storedUpdatedAtUs ?? (displayAt ?? now).microsecondsSinceEpoch;
+    return (
+      syncClock: nextSyncClock(
+        nowUs: now.microsecondsSinceEpoch,
+        currentUs: syncClockOf(storedExtrasJson),
+        updatedAtUs: updatedAtUs,
+      ),
+      updatedAtUs: updatedAtUs,
+    );
+  }
+
+  /// [_nextConversationClock] for a row read here, inside the caller's
+  /// transaction.
+  Future<({int syncClock, int updatedAtUs})> _nextConversationClockFor(
+    String id, {
+    bool bumpDisplay = false,
+    DateTime? displayAt,
+  }) async {
+    final stored = await syncReadConversationRow(id);
+    return _nextConversationClock(
+      storedExtrasJson: stored?['extras_json'],
+      storedUpdatedAtUs: (stored?['updated_at'] as num?)?.toInt(),
+      bumpDisplay: bumpDisplay,
+      displayAt: displayAt,
+    );
+  }
+
+  /// [extras] with the sync clock written into it, as it is stored.
+  static String _extrasWithSyncClock(
+    Map<String, dynamic> extras,
+    int syncClock,
+  ) => withSyncClock(extras, syncClock) ?? jsonEncode(extras);
+
+  /// The row one local write stores.
+  ///
+  /// [clock] is what makes a local write visible to sync, so every writer
+  /// passes one; null is the archive importer's answer ([_writeBackupData]),
+  /// which stores the rows it was given with the clocks they already carry. A
+  /// restored row is not "written here now", and stamping it would make an old
+  /// backup win the row-level last-write-wins against a peer that has moved on.
   ConversationRowsCompanion _conversationCompanion(
     Conversation conversation, {
+    required ({int syncClock, int updatedAtUs})? clock,
     Value<String?>? injectedMemoryHash,
   }) {
     return ConversationRowsCompanion.insert(
       id: conversation.id,
       title: conversation.title,
       createdAt: conversation.createdAt,
-      updatedAt: conversation.updatedAt,
+      updatedAt: clock == null
+          ? conversation.updatedAt
+          : DateTime.fromMicrosecondsSinceEpoch(clock.updatedAtUs),
       isPinned: Value(conversation.isPinned),
       assistantId: Value(conversation.assistantId),
       truncateIndex: Value(conversation.truncateIndex),
@@ -8372,7 +9584,11 @@ ORDER BY m.message_order DESC LIMIT 20
       lastMemoryExtractedOrder: Value(conversation.lastMemoryExtractedOrder),
       chatModelProvider: Value(conversation.chatModelProvider),
       chatModelId: Value(conversation.chatModelId),
-      extrasJson: Value(jsonEncode(conversation.extras)),
+      extrasJson: Value(
+        clock == null
+            ? jsonEncode(conversation.extras)
+            : _extrasWithSyncClock(conversation.extras, clock.syncClock),
+      ),
     );
   }
 
@@ -8474,6 +9690,7 @@ ORDER BY m.message_order DESC LIMIT 20
       reasoningSegmentsJson: row.reasoningSegmentsJson,
       groupId: row.groupId,
       version: row.version,
+      senderId: row.senderId,
       promptTokens: row.promptTokens,
       completionTokens: row.completionTokens,
       cachedTokens: row.cachedTokens,
@@ -8814,15 +10031,24 @@ ORDER BY m.message_order DESC LIMIT 20
         ),
       ),
       messageOrder: messageOrder,
+      senderId: Value(message.senderId),
     );
   }
 
   MessageRowsCompanion _messageUpdate(ChatMessage message) {
+    final now = DateTime.now().toUtc();
+    // Floored at the row's own timestamp, exactly as parts and provider
+    // artifacts already are: the effective LWW clock is
+    // COALESCE(updated_at, timestamp), so a message authored under a skewed
+    // (future) peer clock must not have a local edit lower the row's clock —
+    // the peer's untouched copy would then win the next exchange and revert
+    // the edit on both devices.
+    final updatedAt = now.isBefore(message.timestamp) ? message.timestamp : now;
     return MessageRowsCompanion(
       // Every message UPDATE bumps updated_at so sync/LWW can see the change;
       // inserts leave it null (effective value = COALESCE(updated_at,
       // timestamp)).
-      updatedAt: Value(DateTime.now().toUtc()),
+      updatedAt: Value(updatedAt),
       totalTokens: Value(message.totalTokens),
       isStreaming: Value(message.isStreaming),
       reasoningStartAt: Value(message.reasoningStartAt),
@@ -8833,6 +10059,11 @@ ORDER BY m.message_order DESC LIMIT 20
       completionTokens: Value(message.completionTokens),
       cachedTokens: Value(message.cachedTokens),
       durationMs: Value(message.durationMs),
+      // A snapshot without an author must not erase one: the column is written
+      // only when the caller carries an id.
+      senderId: message.senderId == null
+          ? const Value.absent()
+          : Value(message.senderId),
     );
   }
 
@@ -8862,6 +10093,81 @@ ORDER BY m.message_order DESC LIMIT 20
   static Map<String, dynamic> _decodeExtrasJson(String raw) {
     return Conversation.decodeExtras(raw);
   }
+
+  /// Decodes a conversation's extras as a JSON object, or null when the value is
+  /// not one.
+  ///
+  /// [Conversation.decodeExtras] folds junk into `{}`, which is the right
+  /// reading everywhere else but the wrong one for the sync halves: they have to
+  /// tell "no extras" from "unreadable extras", because the first is shared
+  /// state to follow and the second must not overwrite what this device has.
+  static Map<String, dynamic>? _decodeExtrasObject(Object? raw) {
+    if (raw == null) return <String, dynamic>{};
+    if (raw is Map) return raw.map((key, value) => MapEntry('$key', value));
+    if (raw is! String || raw.isEmpty || raw == '{}') {
+      return raw is String ? <String, dynamic>{} : null;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map
+          ? decoded.map((key, value) => MapEntry('$key', value))
+          : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// [raw] extras as a JSON string with this device's keys removed.
+  ///
+  /// A value that is not a JSON object is handed back untouched: the applier's
+  /// rule for junk is to leave the row as it came rather than invent a reading.
+  static String _extrasWithoutLocalKeys(Object? raw) {
+    final extras = _decodeExtrasObject(raw);
+    if (extras == null) return raw is String ? raw : '{}';
+    extras.removeWhere((key, _) => syncLocalExtrasKeys.contains(key));
+    return jsonEncode(extras);
+  }
+
+  /// [incoming] extras with this device's keys put back from [local].
+  ///
+  /// Key by key, never column by column: everything else in the bag — the title
+  /// flags, `workspace.id`, the binding's folder — is shared state and has to
+  /// follow the winner. [restore] is false when the winner named a different
+  /// workspace — see [_sameWorkspaceBinding].
+  static String _mergeLocalExtras({
+    required Object? incoming,
+    required Object? local,
+    required bool restore,
+  }) {
+    final theirs = _decodeExtrasObject(incoming);
+    // Unreadable extras take no decision here: keep what this device has rather
+    // than overwrite it from a value nothing can read.
+    if (theirs == null) {
+      debugPrint(
+        '[sync] peer extras are not a JSON object; keeping the local bag',
+      );
+      return local is String ? local : '{}';
+    }
+    final mine = _decodeExtrasObject(local) ?? <String, dynamic>{};
+    for (final key in syncLocalExtrasKeys) {
+      theirs.remove(key);
+      if (restore && mine.containsKey(key)) theirs[key] = mine[key];
+    }
+    return jsonEncode(theirs);
+  }
+
+  /// Whether [winner] and [local] name the same workspace binding.
+  ///
+  /// A grant is issued against the conversation *and* its binding: writing a
+  /// binding clears it on this device (`WorkspaceBinding.applyTo`), so restoring
+  /// one across a rebind would carry an approval to a workspace the user never
+  /// approved.
+  static bool _sameWorkspaceBinding({
+    required Map<String, dynamic> winner,
+    required Map<String, dynamic> local,
+  }) =>
+      _decodeExtrasObject(winner['extras_json'])?[WorkspaceBinding.keyId] ==
+      _decodeExtrasObject(local['extras_json'])?[WorkspaceBinding.keyId];
 
   static const _reasoningTokensExtraKey = 'tokens.reasoning';
   static const _cacheWriteTokensExtraKey = 'tokens.cacheWrite';
@@ -9282,6 +10588,24 @@ ORDER BY m.message_order DESC LIMIT 20
     return {for (final row in rows) row.revisionId: row};
   }
 
+  /// Freezes the payload a user message was sent with (§8.3).
+  ///
+  /// [carriesMemorySnapshot] is the record of *where* the memory snapshot
+  /// lives: the request that assembles a conversation reads it back
+  /// ([MessageBuilderService.resolveMemoryPlan]) instead of keeping a second,
+  /// conversation-level ledger of the same fact — that ledger was a column of
+  /// `conversation_rows` and LAN sync overwrote it from the peer, who has its
+  /// own carriers.
+  ///
+  /// The flag is the record the next request reads. Two cases meet here:
+  ///
+  /// - a carrier that memory has moved away from keeps its flag and the prefix
+  ///   it actually sent, and the request drops the prefix on the way out —
+  ///   rewriting that row would rewrite history for no gain;
+  /// - the message a request *injects* into is frozen already, so the row is
+  ///   written to hold the new prefix instead. Leaving that one alone leaves the
+  ///   new prefix only in the payload, and the next turn looks for a carrier
+  ///   that no longer exists (see `_recordFrozenInjection`).
   Future<void> putMessagePrompt({
     required String revisionId,
     required String conversationId,
@@ -9300,89 +10624,6 @@ ORDER BY m.message_order DESC LIMIT 20
             createdAt: now,
           ),
         );
-  }
-
-  /// Freezes a message's final prompt string and, when [injectedMemoryHash] is
-  /// present, advances the conversation's injected-memory hash in the same
-  /// transaction.
-  ///
-  /// The two writes must not be split: a crash between them leaves a hash that
-  /// claims a snapshot was delivered while no message carries one, costing an
-  /// extra full re-injection once self-healing notices (§8.3).
-  ///
-  /// [injectedMemoryHash] is a three-state value on purpose. `Value.absent()`
-  /// leaves the stored hash alone, `Value(hash)` records a freshly injected
-  /// snapshot, and `Value(null)` records that the context now carries no
-  /// snapshot at all — the state a turn reaches when every visible memory is
-  /// gone and the stale snapshots in history are stripped at send time.
-  /// Without that third state a later re-add of identical content would hash
-  /// equal to the cleared snapshot and never be injected again.
-  Future<void> freezeMessagePrompt({
-    required String revisionId,
-    required String conversationId,
-    required String payload,
-    required bool carriesMemorySnapshot,
-    Value<String?> injectedMemoryHash = const Value.absent(),
-  }) {
-    return _db.transaction(() async {
-      await putMessagePrompt(
-        revisionId: revisionId,
-        conversationId: conversationId,
-        payload: payload,
-        carriesMemorySnapshot: carriesMemorySnapshot,
-      );
-      if (injectedMemoryHash.present) {
-        await setConversationInjectedMemoryHash(
-          conversationId,
-          injectedMemoryHash.value,
-        );
-      }
-    });
-  }
-
-  Future<bool> anyPromptCarriesMemorySnapshot(List<String> revisionIds) async {
-    if (revisionIds.isEmpty) return false;
-    final unique = revisionIds.toSet().toList(growable: false);
-    final placeholders = List.filled(unique.length, '?').join(',');
-    final row = await _db
-        .customSelect(
-          'SELECT 1 AS hit FROM message_prompt_rows '
-          'WHERE carries_memory_snapshot = 1 '
-          'AND revision_id IN ($placeholders) '
-          'LIMIT 1;',
-          variables: [for (final id in unique) Variable<String>(id)],
-          readsFrom: {_db.messagePromptRows},
-        )
-        .getSingleOrNull();
-    return row != null;
-  }
-
-  /// The last memory snapshot hash delivered to [conversationId].
-  ///
-  /// Read this rather than a cached [Conversation]: the field is written by
-  /// [freezeMessagePrompt] and never loaded back into the in-memory model, so a
-  /// cached copy reports the value from whenever it was constructed.
-  Future<String?> getConversationInjectedMemoryHash(
-    String conversationId,
-  ) async {
-    final row = await _db
-        .customSelect(
-          'SELECT injected_memory_hash FROM conversation_rows '
-          'WHERE id = ? LIMIT 1;',
-          variables: [Variable<String>(conversationId)],
-          readsFrom: {_db.conversationRows},
-        )
-        .getSingleOrNull();
-    return row?.read<String?>('injected_memory_hash');
-  }
-
-  Future<void> setConversationInjectedMemoryHash(
-    String conversationId,
-    String? hash,
-  ) async {
-    await (_db.update(_db.conversationRows)
-          ..where((t) => t.id.equals(conversationId)))
-        .write(ConversationRowsCompanion(injectedMemoryHash: Value(hash)));
   }
 
   Future<void> setConversationLastMemoryExtractedOrder(
@@ -9405,20 +10646,38 @@ ORDER BY m.message_order DESC LIMIT 20
   Future<int> clearConversationModelOverrides({
     required String providerKey,
     String? modelId,
-  }) async {
-    final statement = _db.update(_db.conversationRows)
-      ..where(
-        (t) => modelId == null
-            ? t.chatModelProvider.equals(providerKey)
-            : t.chatModelProvider.equals(providerKey) &
-                  t.chatModelId.equals(modelId),
-      );
-    return statement.write(
-      const ConversationRowsCompanion(
-        chatModelProvider: Value(null),
-        chatModelId: Value(null),
-      ),
-    );
+  }) {
+    return _db.transaction(() async {
+      final rows =
+          await (_db.select(_db.conversationRows)..where(
+                (t) => modelId == null
+                    ? t.chatModelProvider.equals(providerKey)
+                    : t.chatModelProvider.equals(providerKey) &
+                          t.chatModelId.equals(modelId),
+              ))
+              .get();
+      for (final row in rows) {
+        final clock = _nextConversationClock(
+          storedExtrasJson: row.extrasJson,
+          storedUpdatedAtUs: row.updatedAt.microsecondsSinceEpoch,
+        );
+        await (_db.update(
+          _db.conversationRows,
+        )..where((t) => t.id.equals(row.id))).write(
+          ConversationRowsCompanion(
+            chatModelProvider: const Value(null),
+            chatModelId: const Value(null),
+            extrasJson: Value(
+              _extrasWithSyncClock(
+                _decodeExtrasJson(row.extrasJson),
+                clock.syncClock,
+              ),
+            ),
+          ),
+        );
+      }
+      return rows.length;
+    });
   }
 
   String _memoryVisibilitySql(String? assistantId) {

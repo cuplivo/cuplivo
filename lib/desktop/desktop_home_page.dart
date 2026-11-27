@@ -1,16 +1,19 @@
 import '../features/side_panel/desktop_side_panel_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 import 'desktop_nav_rail.dart';
+import 'desktop_tab.dart';
 import 'desktop_chat_page.dart';
 import 'window_title_bar.dart';
 import '../shared/responsive/screen_type_helper.dart';
 import '../shared/widgets/ios_tactile.dart';
 import '../icons/lucide_adapter.dart';
 import 'desktop_settings_page.dart';
+import 'setting/sync_pane.dart';
 import 'desktop_translate_page.dart';
+import '../features/markdown_export/pages/markdown_export_page.dart';
 import '../features/settings/pages/storage_space_page.dart';
 import '../l10n/app_localizations.dart';
 import 'package:window_manager/window_manager.dart';
@@ -32,7 +35,8 @@ class DesktopHomePage extends StatefulWidget {
     this.initialProviderKey,
   });
 
-  final int? initialTabIndex; // 0=Chat,1=Translate,2=Storage,3=Settings
+  final int?
+  initialTabIndex; // index into DesktopTab.values, kept as an int for callers
   final String? initialProviderKey;
 
   @override
@@ -40,8 +44,9 @@ class DesktopHomePage extends StatefulWidget {
 }
 
 class _DesktopHomePageState extends State<DesktopHomePage> {
-  int _tabIndex = 0; // 0=Chat, 1=Translate, 2=Storage, 3=Settings
-  final _visitedTabs = <int>{};
+  DesktopTab _tab = DesktopTab.chat;
+  bool _storageVisited = false;
+  bool _lanSyncVisited = false;
   bool _navigationOpen = false;
   bool _globalSearchActive = false;
   StreamSubscription<HotkeyAction>? _hotkeySub;
@@ -53,19 +58,24 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
   void initState() {
     super.initState();
     if (widget.initialTabIndex != null) {
-      _tabIndex = widget.initialTabIndex!.clamp(0, 3);
+      _tab =
+          DesktopTab.values[widget.initialTabIndex!.clamp(
+            0,
+            DesktopTab.values.length - 1,
+          )];
     }
-    _visitedTabs.add(_tabIndex);
+    _storageVisited = _tab == DesktopTab.storage;
+    _lanSyncVisited = _tab == DesktopTab.lanSync;
     _conversationOpenSub = NotificationService.conversationTaps.listen((_) {
       if (!mounted) return;
       setState(() {
-        _tabIndex = 0;
+        _tab = DesktopTab.chat;
         _globalSearchActive = false;
       });
       ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
     });
     // 初始进入时如果就是聊天页，则聚焦聊天输入框
-    if (_tabIndex == 0) {
+    if (_tab == DesktopTab.chat) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ChatActionBus.instance.fire(ChatAction.focusInput);
       });
@@ -76,9 +86,9 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
         case HotkeyAction.toggleSidePanel:
         case HotkeyAction.sidePanelNewWeb:
         case HotkeyAction.sidePanelFiles:
-          if (mounted && _tabIndex != 0) {
+          if (mounted && _tab != DesktopTab.chat) {
             setState(() {
-              _tabIndex = 0;
+              _tab = DesktopTab.chat;
               _globalSearchActive = false;
             });
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,11 +104,17 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
         case HotkeyAction.sidePanelFocus:
           break;
         case HotkeyAction.openSettings:
-          if (mounted) _selectTab(3, dismissNavigation: false);
+          if (mounted) {
+            setState(() {
+              _tab = DesktopTab.settings;
+              _globalSearchActive = false;
+            });
+            ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+          }
           break;
         case HotkeyAction.closeWindow:
           final panel = DesktopSidePanelController.instance;
-          if (_tabIndex == 0 &&
+          if (_tab == DesktopTab.chat &&
               mounted &&
               ModalRoute.of(context)?.isCurrent != false &&
               panel.handleCloseWindow()) {
@@ -122,13 +138,13 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
               await windowManager.show();
               await windowManager.focus();
               // 如果当前是聊天页，显示窗口时聚焦输入框
-              if (_tabIndex == 0) {
+              if (_tab == DesktopTab.chat) {
                 ChatActionBus.instance.fire(ChatAction.focusInput);
               }
             } else if (!focused) {
               await windowManager.focus();
               // 如果当前是聊天页，聚焦窗口时也聚焦输入框
-              if (_tabIndex == 0) {
+              if (_tab == DesktopTab.chat) {
                 ChatActionBus.instance.fire(ChatAction.focusInput);
               }
             } else {
@@ -137,22 +153,22 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
           } catch (_) {}
           break;
         case HotkeyAction.newTopic:
-          if (_tabIndex == 0) {
+          if (_tab == DesktopTab.chat) {
             ChatActionBus.instance.fire(ChatAction.newTopic);
           }
           break;
         case HotkeyAction.switchModel:
-          if (_tabIndex == 0) {
+          if (_tab == DesktopTab.chat) {
             ChatActionBus.instance.fire(ChatAction.switchModel);
           }
           break;
         case HotkeyAction.toggleLeftPanelAssistants:
-          if (_tabIndex == 0) {
+          if (_tab == DesktopTab.chat) {
             ChatActionBus.instance.fire(ChatAction.toggleLeftPanelAssistants);
           }
           break;
         case HotkeyAction.toggleLeftPanelTopics:
-          if (_tabIndex == 0) {
+          if (_tab == DesktopTab.chat) {
             ChatActionBus.instance.fire(ChatAction.toggleLeftPanelTopics);
           }
           break;
@@ -164,7 +180,7 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
       switch (action) {
         case ChatAction.enterGlobalSearch:
           setState(() {
-            _tabIndex = 0;
+            _tab = DesktopTab.chat;
             _globalSearchActive = true;
           });
           break;
@@ -177,29 +193,75 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
           break;
       }
     });
-    _settingsNavSub = DesktopSettingsNavigationBus.instance.stream.listen((_) {
-      if (mounted) _selectTab(3, dismissNavigation: false);
+    _settingsNavSub = DesktopSettingsNavigationBus.instance.stream.listen((
+      target,
+    ) {
+      if (!mounted) return;
+      switch (target) {
+        case DesktopSettingsNavigationTarget.topicPosition:
+        case DesktopSettingsNavigationTarget.backup:
+        case DesktopSettingsNavigationTarget.mcp:
+          setState(() {
+            _tab = DesktopTab.settings;
+            _globalSearchActive = false;
+          });
+          ChatActionBus.instance.fire(ChatAction.exitGlobalSearch);
+          break;
+      }
     });
   }
 
-  void _selectTab(
-    int index, {
-    bool search = false,
-    bool dismissNavigation = true,
-  }) {
+  void _selectTab(DesktopTab tab, {bool search = false}) {
     setState(() {
-      _tabIndex = index;
+      _tab = tab;
       _globalSearchActive = search;
-      if (dismissNavigation) _navigationOpen = false;
-      _visitedTabs.add(index);
+      _navigationOpen = false;
+      if (tab == DesktopTab.storage) _storageVisited = true;
+      if (tab == DesktopTab.lanSync) _lanSyncVisited = true;
     });
     ChatActionBus.instance.fire(
       search ? ChatAction.enterGlobalSearch : ChatAction.exitGlobalSearch,
     );
-    if (index == 0 && !search) {
+    if (tab == DesktopTab.chat && !search) {
       ChatActionBus.instance.fire(ChatAction.focusInput);
     }
   }
+
+  /// One page per tab, and the stack is built from [DesktopTab.values], so the
+  /// rail's targets and the stack's order are the same list.
+  Widget _pageFor(DesktopTab tab) => switch (tab) {
+    DesktopTab.chat => const DesktopChatPage(),
+    DesktopTab.translate => const DesktopTranslatePage(
+      key: ValueKey('translate_page'),
+    ),
+    DesktopTab.storage =>
+      _storageVisited
+          ? const StorageSpacePage(
+              key: ValueKey('storage_space_page'),
+              embedded: true,
+            )
+          : const SizedBox.shrink(),
+    DesktopTab.settings => DesktopSettingsPage(
+      key: const ValueKey('settings_page'),
+      initialProviderKey: widget.initialProviderKey,
+    ),
+    DesktopTab.markdownImage => const MarkdownExportPage(
+      key: ValueKey('markdown_export_page'),
+    ),
+    // The pane the settings page mounts, on the surface the tabs are drawn on —
+    // it owns the padding, scroll view and max width. Built on first visit like
+    // [DesktopTab.storage]: the stack builds every tab at launch, and building a
+    // pane the user has not asked for is work spent on a screen they may never
+    // open. The provider is above the shell either way (`main.dart`).
+    DesktopTab.lanSync =>
+      _lanSyncVisited
+          ? Material(
+              key: const ValueKey('lan_sync_page'),
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child: const DesktopSyncPane(),
+            )
+          : const SizedBox.shrink(),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -260,31 +322,19 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
                         child: ClipRect(
                           key: const ValueKey('desktopWorkspaceFrame'),
                           child: IndexedStack(
-                            index: _tabIndex,
+                            index: DesktopTab.values.indexOf(_tab),
                             children: [
-                              TickerMode(
-                                enabled: _tabIndex == 0,
-                                child: const DesktopChatPage(),
-                              ),
-                              _visitedTabs.contains(1)
-                                  ? const DesktopTranslatePage(
-                                      key: ValueKey('translate_page'),
-                                    )
-                                  : const SizedBox.shrink(),
-                              _visitedTabs.contains(2)
-                                  ? StorageSpacePage(
-                                      key: const ValueKey('storage_space_page'),
-                                      embedded: true,
-                                      active: _tabIndex == 2,
-                                    )
-                                  : const SizedBox.shrink(),
-                              _visitedTabs.contains(3)
-                                  ? DesktopSettingsPage(
-                                      key: const ValueKey('settings_page'),
-                                      initialProviderKey:
-                                          widget.initialProviderKey,
-                                    )
-                                  : const SizedBox.shrink(),
+                              for (final tab in DesktopTab.values)
+                                // A hidden tab is still built and laid out: it
+                                // must neither take focus nor answer a drop
+                                // meant for the tab on screen.
+                                DesktopTabVisibility(
+                                  visible: tab == _tab,
+                                  child: ExcludeFocus(
+                                    excluding: tab != _tab,
+                                    child: _pageFor(tab),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -312,13 +362,14 @@ class _DesktopHomePageState extends State<DesktopHomePage> {
                     child: Offstage(
                       offstage: compact && !_navigationOpen,
                       child: DesktopNavRail(
-                        activeIndex: _tabIndex,
+                        activeTab: _tab,
                         globalSearchActive: _globalSearchActive,
-                        onTapChat: () => _selectTab(0),
-                        onTapGlobalSearch: () => _selectTab(0, search: true),
-                        onTapTranslate: () => _selectTab(1),
-                        onTapStorage: () => _selectTab(2),
-                        onTapSettings: () => _selectTab(3),
+                        onTapChat: () => _selectTab(DesktopTab.chat),
+                        onTapGlobalSearch: () =>
+                            _selectTab(DesktopTab.chat, search: true),
+                        onSelectTool: (tool) =>
+                            _selectTab(desktopTabForTool(tool)),
+                        onTapSettings: () => _selectTab(DesktopTab.settings),
                       ),
                     ),
                   ),
@@ -361,7 +412,7 @@ class _TitleBarLeading extends StatelessWidget {
       children: [
         // App icon
         Image.asset(
-          'assets/icons/kelivo.png',
+          'assets/app_icon_about.png',
           width: 16,
           height: 16,
           filterQuality: FilterQuality.medium,

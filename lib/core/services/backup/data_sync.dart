@@ -1,5 +1,5 @@
 import 'package:uuid/uuid.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import 'package:sqlite3/sqlite3.dart' as composer_sqlite;
 import 'dart:async';
 import 'dart:convert';
@@ -17,6 +17,7 @@ import 'package:xml/xml.dart';
 
 import '../../database/business_repository.dart';
 import '../../database/backup_content_filter.dart';
+import '../../database/kelivo_vocabulary.dart';
 import '../../database/business_preferences.dart';
 import '../../database/business_restore_service.dart';
 import '../../database/business_settings_router.dart';
@@ -31,12 +32,14 @@ import '../../models/conversation.dart';
 import '../chat/chat_service.dart';
 import '../storage/attachment_file_lock.dart';
 import '../workspace/workspace_file_coordinator.dart';
+import '../sync/sync_store.dart';
 import '../migration/legacy_message_content_decoder.dart';
 import '../migration/legacy_record_sanitizer.dart';
 import '../../utils/multimodal_input_utils.dart';
 import '../../../utils/app_directories.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../database/backup_portability.dart';
+import 'backup_archive_format.dart';
 import 'backup_settings_validator.dart';
 import 'restore_bundle_preparation.dart';
 import 'restore_durability.dart';
@@ -44,6 +47,7 @@ import 'restore_workspace_lock.dart';
 import 'restore_business_lease.dart';
 import 'backup_staging.dart';
 import 'backup_partials.dart';
+import 'backup_archive_naming.dart';
 import 'backup_cancel_token.dart';
 import 'backup_encryption.dart';
 import 'backup_file_digest.dart';
@@ -126,14 +130,7 @@ List<MessagePart> _normalizeAttachmentPartUris(List<MessagePart> parts) {
       final uri = SandboxPathResolver.canonicalize(part.uri);
       if (uri != part.uri) {
         changed = true;
-        out.add(
-          ImagePart(
-            uri: uri,
-            mime: part.mime,
-            assetId: part.assetId,
-            unavailable: part.unavailable,
-          ),
-        );
+        out.add(part.copyWith(uri: uri));
       } else {
         out.add(part);
       }
@@ -170,14 +167,7 @@ List<MessagePart> _remapRestoredAttachmentPartUris(List<MessagePart> parts) {
           part.uri;
       if (uri != part.uri) {
         changed = true;
-        out.add(
-          ImagePart(
-            uri: uri,
-            mime: part.mime,
-            assetId: part.assetId,
-            unavailable: part.unavailable,
-          ),
-        );
+        out.add(part.copyWith(uri: uri));
       } else {
         out.add(part);
       }
@@ -217,14 +207,7 @@ List<MessagePart> recomputeAttachmentAvailability(
     if (part is ImagePart) {
       final unavailable = _unavailableForUri(part.uri, exists);
       if (unavailable != part.unavailable) changed = true;
-      out.add(
-        ImagePart(
-          uri: part.uri,
-          mime: part.mime,
-          assetId: part.assetId,
-          unavailable: unavailable,
-        ),
-      );
+      out.add(part.copyWith(unavailable: unavailable));
     } else if (part is FilePart) {
       final unavailable = _unavailableForUri(part.uri, exists);
       if (unavailable != part.unavailable) changed = true;
@@ -258,7 +241,7 @@ bool _attachmentExistsOnDisk(String path) {
 /// Supplies the business settings a backup archive carries.
 typedef _BackupSettingsSource =
     Future<({String settingsJson, Map<String, List<String>> entityRowIds})>
-    Function();
+    Function(BackupTarget target);
 
 /// Writes a consistent copy of the database being backed up to [destination].
 typedef _BackupDatabaseSource =
@@ -266,7 +249,7 @@ typedef _BackupDatabaseSource =
 
 class DataSync {
   static const _backupFormat = 'kelivo-backup';
-  static const _backupFormatVersion = 3;
+  static const _backupFormatVersion = BackupArchiveFormat.current;
 
   /// Manifest key naming the oldest archive format that can still read a
   /// backup this build writes.
@@ -285,7 +268,14 @@ class DataSync {
   /// field, anything an older build would MISREAD rather than merely fail to
   /// recognise. Leaving it behind on a purely additive change is what lets
   /// tomorrow's backups still restore into today's build.
-  static const _minimumReadableFormatVersion = 3;
+  ///
+  /// Both numbers now live in [BackupArchiveFormat] so they cannot drift, and
+  /// it is not a hypothetical split: `RestoreBundleStaging` restates them for
+  /// the staged candidate. The pair moved to 4 when the export's *vocabulary*
+  /// outgrew what a Kelivo release can read — an archive change that is not
+  /// additive from that reader's point of view even though the entries are.
+  static const _minimumReadableFormatVersion =
+      BackupArchiveFormat.minimumReadable;
   static const _manifestEntryName = 'manifest.json';
   static const _databaseEntryName = 'database/kelivo.db';
 
@@ -333,6 +323,45 @@ class DataSync {
             operation,
             canResumeOnError: canResumeOnError,
           );
+  }
+
+  /// Announces a bulk replacement to a LAN-sync pair.
+  ///
+  /// The row face has replacement paths of its own that never touch the
+  /// database bundle — a settings-only overwrite, and the legacy archive's
+  /// overwrite — so they never pass the restore cutover that drops sync state
+  /// for a replaced database ([RestoreBundleMover.resetSyncState]).
+  ///
+  /// Without this the per-peer checkpoints keep describing rows this device has
+  /// just replaced. A row the archive does not carry is then absent here while
+  /// the peer still holds the agreed version, and that is exactly the shape the
+  /// plan reads as `peerDeletes`: this device would order the peer to delete a
+  /// row nobody deleted here. Clearing the row entries turns the same absence
+  /// into `peerSends`, and the epoch bump is what tells the peer that a missing
+  /// row was never deleted — the two halves of one announcement, which is why
+  /// they are one call.
+  ///
+  /// Which of the two hooks is owed depends on one thing, and [replacedChats] is
+  /// the caller's answer to it — asked here, once:
+  ///
+  /// - Chats untouched (a settings-only overwrite): the conversation half stays,
+  ///   because a conversation this device deleted but has not announced is
+  ///   derived from its own entry ([SyncStore.resetRowFaceForBulkReplacement]).
+  /// - Chats restored: the archive replaced them too, so kept entries would
+  ///   describe conversations this device no longer has — announced afterwards as
+  ///   deletions the archive never intended, and read by the peer as rows to
+  ///   re-send. That is the wholesale reset
+  ///   ([SyncStore.resetForBulkReplacement]).
+  ///
+  /// The caller runs it inside the replacement's non-cancellable commit region,
+  /// so a cancelled restore cannot bump an epoch for a history that survives.
+  Future<void> _announceBulkReplacement({required bool replacedChats}) async {
+    final directory = await AppDirectories.getSyncDirectory();
+    if (replacedChats) {
+      await SyncStore.resetForBulkReplacement(directory);
+    } else {
+      await SyncStore.resetRowFaceForBulkReplacement(directory);
+    }
   }
 
   Future<void> _prepareLiveRestoreBundle({
@@ -660,11 +689,18 @@ class DataSync {
     }
   }
 
+  /// Packs the archive a backup provider uploads or writes to disk.
+  ///
+  /// [WebDavConfig.target] says which build has to be able to read it again:
+  /// this one, or a Kelivo release a departing user is going back to. It changes
+  /// what the archive names and which format it declares, never what a catch-up
+  /// restore here would do.
   Future<File> prepareBackupFile(
     WebDavConfig cfg, {
     String? password,
     BackupProgressSink? onProgress,
     BackupCancelToken? cancelToken,
+    BackupTarget target = BackupTarget.cuplivo,
   }) async {
     if (password != null && password.isEmpty) {
       throw ArgumentError('backup_password_empty');
@@ -683,8 +719,14 @@ class DataSync {
       includeChats: cfg.scope.includes(BackupCategory.chats),
       includeFiles: cfg.scope.assetRoots.isNotEmpty,
       scope: cfg.scope,
-      exportSettings: () =>
-          exportBusinessSettingsFrom(businessRepository, scope: cfg.scope),
+      target: cfg.target,
+      // The packer decides the target and hands it here, so the export and the
+      // manifest can never disagree about the reader.
+      exportSettings: (requested) => exportBusinessSettingsFrom(
+        businessRepository,
+        scope: cfg.scope,
+        target: requested,
+      ),
       snapshotDatabase: (destination) =>
           chatService.createBackupDatabaseSnapshot(
             destination,
@@ -722,6 +764,10 @@ class DataSync {
   /// Same archive as an ordinary backup minus the assets, and it hands back
   /// the row counts the packer already computed so retention can reason about
   /// how much data each copy holds without reopening it.
+  ///
+  /// Deliberately has no [BackupTarget]: a local snapshot exists so this build
+  /// can roll itself back, and a copy that dropped kinds to suit an older reader
+  /// would lose exactly the data the rollback is for.
   Future<PreparedBackupArchive> prepareLocalSnapshotArchive({
     BackupProgressSink? onProgress,
     BackupCancelToken? cancelToken,
@@ -745,12 +791,18 @@ class DataSync {
   /// Split out of [prepareBackupFile] so a database that is not the live one
   /// -- a copy set aside by crash recovery -- can be turned into an ordinary
   /// backup rather than needing a restore path of its own.
+  ///
+  /// [target] is decided here and handed to every half of the archive — the
+  /// settings export, the database sanitizer and the manifest's format version —
+  /// so a caller cannot produce an archive filtered for one reader and stamped
+  /// for another.
   static Future<PreparedBackupArchive> _prepareBackupArchive({
     ChatService? chatService,
     bool verifyPayload = true,
     required bool includeChats,
     required bool includeFiles,
     BackupScope scope = const BackupScope(),
+    BackupTarget target = BackupTarget.cuplivo,
     required _BackupSettingsSource exportSettings,
     required _BackupDatabaseSource snapshotDatabase,
     BackupProgressSink? onProgress,
@@ -758,11 +810,14 @@ class DataSync {
   }) async {
     await BackupStaging.sweep();
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    // The archive is named for the reader it is written for; a crash leaves a
+    // staging directory with the same name, swept by the same prefix rule.
+    final archiveName = BackupArchiveNaming.fileNameFor(target, timestamp);
     final workDir = await BackupStaging.createDirectory(
-      'kelivo_backup_$timestamp',
+      p.basenameWithoutExtension(archiveName),
     );
 
-    final outPath = p.join(workDir.path, 'kelivo_backup_$timestamp.zip');
+    final outPath = p.join(workDir.path, archiveName);
     final outFile = File(outPath);
     if (await outFile.exists()) await outFile.delete();
 
@@ -802,7 +857,7 @@ class DataSync {
       }
       // --- Step 1: Prepare temp files that need the main isolate ---
       // settings.json
-      final businessExport = await exportSettings();
+      final businessExport = await exportSettings(target);
       final settingsFile = await _writeTempText(
         workDir,
         '_bk_settings.json',
@@ -824,7 +879,14 @@ class DataSync {
         );
         snapshotInfo = await snapshotDatabase(databaseFile);
         publishedDraftFiles = _publishedDraftFilesFrom(databaseFile);
-        await _sanitizeBackupDatabase(databaseFile, scope: scope);
+        await _sanitizeBackupDatabase(
+          databaseFile,
+          scope: scope,
+          target: target,
+          // The same call writes `settings.json` from the same scope, so the
+          // library is in that half and must not also stay in this one.
+          libraryInSettings: scope.includes(BackupCategory.instructions),
+        );
       }
 
       if (!includeChats && includeFiles) {
@@ -881,6 +943,8 @@ class DataSync {
           appVersion: appVersion,
           businessEntityRowIds: businessExport.entityRowIds,
           scope: scope,
+          formatVersion: _formatVersionFor(target),
+          target: target,
           assetRootPaths: assetRootPaths,
           publishedDraftFiles: publishedDraftFiles,
         ),
@@ -1020,7 +1084,17 @@ class DataSync {
       return (await _prepareBackupArchive(
         includeChats: true,
         includeFiles: false,
-        exportSettings: () async => businessExport,
+        target: BackupTarget.cuplivo,
+        // A repaired archive is rebuilt from a database this build already owns,
+        // so there is no other reader to write for and the export above is
+        // already complete. Any other target would silently pack a foreign
+        // vocabulary beside a this-build export.
+        exportSettings: (requested) async {
+          if (requested != BackupTarget.cuplivo) {
+            throw StateError('backup_target_repair');
+          }
+          return businessExport;
+        },
         snapshotDatabase: (destination) =>
             ChatDatabaseRepository.createConsistentSnapshot(
               sourceFile: working,
@@ -1137,10 +1211,40 @@ class DataSync {
     appVersion: args.appVersion,
     businessEntityRowIds: args.businessEntityRowIds,
     scope: args.scope,
+    formatVersion: args.formatVersion,
+    target: args.target,
     assetRootPaths: args.assetRootPaths,
     publishedDraftFiles: args.publishedDraftFiles,
     ctx: ctx,
   );
+
+  /// Builds a manifest with a forced omission, so the root key set a target
+  /// produces can be asserted without inducing an unreadable directory.
+  @visibleForTesting
+  static Map<String, dynamic> debugBuildManifestJson({
+    required BackupTarget target,
+    required List<String> skippedEntries,
+  }) {
+    return jsonDecode(
+          _buildBackupManifestJson(
+            entries: const {},
+            snapshotInfo: (
+              schemaVersion: AppDatabase.currentSchemaVersion,
+              conversationCount: 0,
+              messageCount: 0,
+            ),
+            includeChats: true,
+            includeFiles: true,
+            appVersion: 'test',
+            businessEntityRowIds: const {},
+            scope: const BackupScope(),
+            skippedEntries: skippedEntries,
+            formatVersion: _formatVersionFor(target),
+            target: target,
+          ),
+        )
+        as Map<String, dynamic>;
+  }
 
   static int _fileSizeSync(String? path) {
     if (path == null) return 0;
@@ -1196,6 +1300,8 @@ class DataSync {
     required String appVersion,
     required Map<String, List<String>> businessEntityRowIds,
     required BackupScope scope,
+    required int formatVersion,
+    required BackupTarget target,
     required Map<String, String> assetRootPaths,
     Set<String> publishedDraftFiles = const {},
     BackupIsolateContext? ctx,
@@ -1325,6 +1431,8 @@ class DataSync {
         businessEntityRowIds: businessEntityRowIds,
         scope: scope,
         skippedEntries: skippedEntries.toList(),
+        formatVersion: formatVersion,
+        target: target,
       );
       final manifestBytes = utf8.encode(manifestJson);
       if (manifestBytes.length > BackupArchiveLimits.manifestBytes) {
@@ -1961,23 +2069,11 @@ class DataSync {
         continue;
       }
 
-      // If mtime is null, try to extract from filename (format: kelivo_backup_2025-01-19T12-34-56.123456.zip)
+      // If mtime is null, try to extract it from the name — the writer stamps
+      // it as `cuplivo_backup_2025-01-19T12-34-56.123456.zip` (or the Kelivo
+      // prefix), and both prefixes parse.
       if (!partialsOnly && mtime == null) {
-        final match = RegExp(
-          r'kelivo_backup_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d+)\.(?:zip|kbackup)',
-        ).firstMatch(name);
-        if (match != null) {
-          try {
-            // Replace hyphens in time part back to colons
-            final timestamp = match
-                .group(1)!
-                .replaceAll(
-                  RegExp(r'T(\d{2})-(\d{2})-(\d{2})'),
-                  'T\$1:\$2:\$3',
-                );
-            mtime = DateTime.parse(timestamp);
-          } catch (_) {}
-        }
+        mtime = BackupArchiveNaming.timestampFromFileName(name);
       }
 
       // Skip directories
@@ -2001,9 +2097,9 @@ class DataSync {
 
   /// Whether this build may read an archive of the manifest's format version.
   ///
-  /// Reads the original SQLite archive and the current scoped format, plus a
-  /// newer archive that vouches for us through [backupMinimumReadableFormatKey].
-  /// An undeclared newer archive is
+  /// Reads the formats [BackupArchiveFormat] still restores, the format this
+  /// build writes, plus a newer archive that vouches for us through
+  /// [backupMinimumReadableFormatKey]. An undeclared newer archive is
   /// refused -- unlike the database axis there are no undeclared newer
   /// archives in the wild to serve, since every build that can write a newer
   /// format also writes the declaration, so refusing costs nothing and keeps
@@ -2011,7 +2107,8 @@ class DataSync {
   static bool _acceptsArchiveFormat(Map<String, dynamic> manifest) {
     final formatVersion = manifest['formatVersion'];
     if (formatVersion is! int) return false;
-    if (formatVersion == 2 || formatVersion == _backupFormatVersion) {
+    if (formatVersion == _backupFormatVersion ||
+        BackupArchiveFormat.legacyReadable.contains(formatVersion)) {
       return true;
     }
     // Formats predating the SQLite archive are unsupported.
@@ -2019,6 +2116,14 @@ class DataSync {
     final declared = manifest[backupMinimumReadableFormatKey];
     return declared is int && declared >= 1 && declared <= _backupFormatVersion;
   }
+
+  /// The archive format [target]'s readers accept.
+  ///
+  /// A pinned release speaks for itself — [KelivoVocabulary] freezes the format
+  /// beside the vocabulary, because a reader's word list and its parser move
+  /// together — while this build speaks for what it writes today.
+  static int _formatVersionFor(BackupTarget target) =>
+      target.vocabulary?.archiveFormatVersion ?? _backupFormatVersion;
 
   /// Whether the manifest was written by a build newer than this one, on
   /// either axis: a newer archive format, or a newer database schema.
@@ -2045,6 +2150,9 @@ class DataSync {
 
   /// Manifest keys this build understands. Anything else is dropped from a
   /// backup that declares a newer schema, and rejected in any other backup.
+  ///
+  /// `skippedEntries` stays here for archives 4.7.0 wrote; this build only
+  /// writes it into its own archives (see [_buildBackupManifestJson]).
   static const _knownManifestKeys = <String>{
     'format',
     'formatVersion',
@@ -2434,6 +2542,12 @@ class DataSync {
     return f;
   }
 
+  /// Writes the manifest for an archive of [formatVersion].
+  ///
+  /// [formatVersion] is the target's, not necessarily this build's: a backup
+  /// written for a Kelivo release declares that release's format so its reader
+  /// accepts it, while a backup written for this build declares the current one
+  /// and the matching readability floor.
   static String _buildBackupManifestJson({
     required Map<String, _BackupEntryMetadata> entries,
     required ChatDatabaseSnapshotInfo? snapshotInfo,
@@ -2443,11 +2557,20 @@ class DataSync {
     required Map<String, List<String>> businessEntityRowIds,
     required BackupScope scope,
     required List<String> skippedEntries,
+    required int formatVersion,
+    required BackupTarget target,
   }) {
     return jsonEncode({
       'format': _backupFormat,
-      'formatVersion': _backupFormatVersion,
-      backupMinimumReadableFormatKey: _minimumReadableFormatVersion,
+      'formatVersion': formatVersion,
+      // An older archive speaks for itself, so it declares its own version as
+      // the floor. Only the format this build writes can promise more than it
+      // is, and [_minimumReadableFormatVersion] is that promise -- a format
+      // newer than ours is one we have never parsed, so the floor it can claim
+      // is itself.
+      backupMinimumReadableFormatKey: formatVersion == _backupFormatVersion
+          ? _minimumReadableFormatVersion
+          : formatVersion,
       'payloadKind': includeChats ? 'sqlite' : 'settings-only',
       'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
       'appVersion': appVersion,
@@ -2456,7 +2579,15 @@ class DataSync {
       'secretsIncluded': true,
       'businessEntityRowIds': businessEntityRowIds,
       'scope': scope.toJson(),
-      if (skippedEntries.isNotEmpty) 'skippedEntries': skippedEntries,
+      // A diagnostic, and one this build's own archives only. A Kelivo reader
+      // checks the manifest's root key set exactly; `skippedEntries` is newer
+      // than the Kelivo target's floor release (upstream added it after
+      // v1.3.5), and its unknown-key trim only runs for a manifest that
+      // declares a newer build — so an extra key here makes that reader refuse
+      // the restore after the user consented. The omissions are still reported
+      // to the user by the export progress.
+      if (target == BackupTarget.cuplivo && skippedEntries.isNotEmpty)
+        'skippedEntries': skippedEntries,
       if (snapshotInfo != null)
         'database': {
           'entry': _databaseEntryName,
@@ -2521,7 +2652,11 @@ class DataSync {
       throw const FormatException('manifest_fields');
     }
     final businessEntityRowIds = _parseBusinessEntityRowIds(manifest);
-    if (manifest['formatVersion'] == _backupFormatVersion) {
+    // Every format that declares a scope block, not just the one this build
+    // writes: spelled the other way, the check moved off format 3 — the format
+    // of every backup written before this release — the moment current became
+    // 4, and a block that is absent reads as *everything included*.
+    if (BackupArchiveFormat.declaresScope.contains(manifest['formatVersion'])) {
       final declaredScope = manifest['scope'];
       if (declaredScope is! Map ||
           BackupCategory.values.any(
@@ -2971,12 +3106,19 @@ class DataSync {
       geminiThoughtSigs[entry.key.toString()] = entry.value as String;
     }
     final conversations = (chats['conversations'] as List).map((entry) {
-      final conversation = Conversation.fromJson(
-        (entry as Map).cast<String, dynamic>(),
-      );
-      return conversation.copyWith(
-        extras: ToolPermissionMode.withoutGrant(conversation.extras),
-      );
+      final raw = (entry as Map).cast<String, dynamic>();
+      final conversation = Conversation.fromJson(raw);
+      // Fork-lineage per-conversation proactive care state rides extras here.
+      final extras = {...ToolPermissionMode.withoutGrant(conversation.extras)};
+      final careOverride = raw['proactiveCareEnabledOverride'];
+      if (careOverride is bool) {
+        extras[Conversation.proactiveCareEnabledOverrideKey] = careOverride;
+      }
+      final careNextAt = raw['proactiveCareNextMessageAt'];
+      if (careNextAt is String && careNextAt.isNotEmpty) {
+        extras[Conversation.proactiveCareNextMessageAtKey] = careNextAt;
+      }
+      return conversation.copyWith(extras: extras);
     }).toList();
 
     // Import boundary for legacy chats.json: promote marker-bearing content
@@ -3386,33 +3528,54 @@ class DataSync {
   }
 
   Future<({String settingsJson, Map<String, List<String>> entityRowIds})>
-  _exportBusinessSettings() => exportBusinessSettingsFrom(businessRepository);
+  _exportBusinessSettings(BackupTarget target) =>
+      exportBusinessSettingsFrom(businessRepository, target: target);
 
   /// The settings half of a backup, read from whichever repository is given.
+  ///
+  /// [target] drops the entity keys its reader cannot name from *both* halves —
+  /// `settings.json` and the manifest's row ids — because the two are one
+  /// statement about which entities the archive holds. Keeping one without the
+  /// other would leave an archive that contradicts itself, and the reader throws
+  /// on the key itself long before it could notice.
   static Future<({String settingsJson, Map<String, List<String>> entityRowIds})>
   exportBusinessSettingsFrom(
     BusinessRepository repository, {
     BackupScope scope = const BackupScope(),
+    BackupTarget target = BackupTarget.cuplivo,
   }) async {
     final exported = BusinessSettingsRouter.exportSnapshotWithRowIds(
       BackupPortability.portable(await repository.readSnapshot()),
     );
-    final settings = BackupContentFilter.select(exported.settings, scope);
+    final settings = withoutUnreadableEntityKeys(
+      BackupContentFilter.select(exported.settings, scope),
+      target,
+    );
     settings.removeWhere((key, _) => BackupSettingsValidator.shouldIgnore(key));
     BackupSettingsValidator.retainCloudAsrForExport(settings);
     return (
       settingsJson: jsonEncode(settings),
-      entityRowIds: BackupContentFilter.select(exported.entityRowIds, scope),
+      entityRowIds: withoutUnreadableEntityKeys(
+        BackupContentFilter.select(exported.entityRowIds, scope),
+        target,
+      ),
     );
   }
 
   static Future<void> _sanitizeBackupDatabase(
     File file, {
     BackupScope scope = const BackupScope(),
+    BackupTarget target = BackupTarget.cuplivo,
+    bool libraryInSettings = false,
   }) async {
     final database = AppDatabase.open(file: file);
     try {
-      await BackupPortability.sanitizeDatabase(database, scope: scope);
+      await BackupPortability.sanitizeDatabase(
+        database,
+        scope: scope,
+        target: target,
+        libraryInSettings: libraryInSettings,
+      );
       for (final sql in MessageTimelineIndex.discardStatements) {
         await database.customStatement(sql);
       }
@@ -3421,6 +3584,18 @@ class DataSync {
     }
     await ChatDatabaseRepository.normalizeSnapshotJournal(file);
   }
+
+  /// Whether an archive's `settings.json` is a *complete* carrier of the
+  /// compression library — both keys, not one.
+  ///
+  /// Those keys are what makes the snapshot database's copy of the same rows
+  /// redundant. An archive from a build that did not export them has the database
+  /// as its only carrier, so this is asked of the archive and not assumed; and
+  /// the answer is "both", so a half-carrying archive keeps the database's copy
+  /// and errs towards a duplicate (recoverable) rather than a lost template.
+  static bool _settingsCarryCompressionLibrary(Map<String, dynamic> settings) =>
+      settings.containsKey('compression_templates_v1') &&
+      settings.containsKey('compression_recipes_v1');
 
   /// Reads a backup file's manifest and reports what restoring it would mean.
   ///
@@ -3587,6 +3762,10 @@ class DataSync {
                 entityRowIds: entityRowIds,
               ),
             );
+            // The row face was replaced wholesale and the chats were not, so the
+            // pair is owed the row-face announcement and keeps the conversation
+            // half of every checkpoint.
+            await _announceBulkReplacement(replacedChats: false);
             return;
           }
           final appDataPath = (await AppDirectories.getAppDataDirectory()).path;
@@ -3616,6 +3795,11 @@ class DataSync {
           await _sanitizeBackupDatabase(
             File(p.join(extractDir.path, _databaseEntryName)),
             scope: scope,
+            // This archive's settings half is the same `settings` map the merge
+            // below imports. When it carries the library, the database's copy of
+            // it is one fact in two carriers: an archive made by a build that
+            // exported both would otherwise list every template twice.
+            libraryInSettings: _settingsCarryCompressionLibrary(settings),
           );
           beginNonCancellableCommit();
           _lastMergeReport = await chatService.mergeDatabaseSnapshot(
@@ -3858,6 +4042,13 @@ class DataSync {
         beginNonCancellableCommit();
         await _runLiveBusinessRestore(restoreBusiness);
       }
+      // Every versioned overwrite returned above, so reaching here in overwrite
+      // mode means the legacy archive replaced chats and/or the whole business
+      // row face in place — the same bulk replacement, announced through the hook
+      // that matches what it actually replaced.
+      if (mode == RestoreMode.overwrite) {
+        await _announceBulkReplacement(replacedChats: restoreChats);
+      }
     } catch (error) {
       restoreError = error;
       rethrow;
@@ -4024,6 +4215,8 @@ class _BackupPackArgs {
     required this.appVersion,
     required this.businessEntityRowIds,
     required this.scope,
+    required this.formatVersion,
+    required this.target,
     required this.assetRootPaths,
     this.publishedDraftFiles = const {},
   });
@@ -4039,6 +4232,13 @@ class _BackupPackArgs {
   final String appVersion;
   final Map<String, List<String>> businessEntityRowIds;
   final BackupScope scope;
+
+  /// The reader this archive is written for. [formatVersion] is derived from it,
+  /// but the manifest also needs the reader itself: `skippedEntries` is only
+  /// safe in an archive this build will read back.
+  final BackupTarget target;
+
+  final int formatVersion;
   final Map<String, String> assetRootPaths;
   final Set<String> publishedDraftFiles;
 }

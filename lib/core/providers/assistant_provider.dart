@@ -11,6 +11,7 @@ import '../models/assistant_copy_options.dart';
 import '../models/assistant_regex.dart';
 import '../models/preset_message.dart';
 import '../services/chat/chat_service.dart';
+import '../services/recycle/recycle_service.dart';
 import '../services/assistant_copy_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/avatar_cache.dart';
@@ -30,12 +31,26 @@ class AssistantProvider extends ChangeNotifier {
   bool _isLoaded = false;
 
   List<Assistant> get assistants => List.unmodifiable(_assistants);
+
+  /// Assistants that can own a conversation: everything except a remote
+  /// DeepSeek Harness, which the app opens as a WebUI instead of chatting with.
+  List<Assistant> get chatAssistants =>
+      List.unmodifiable(_assistants.where((a) => !a.isDeepSeekHarness));
+
+  Assistant? get _firstChatAssistant =>
+      _assistants.where((a) => !a.isDeepSeekHarness).firstOrNull;
+
   String? get currentAssistantId => currentAssistant?.id;
   Assistant? get currentAssistant {
     final idx = _assistants.indexWhere((a) => a.id == _currentAssistantId);
-    if (idx != -1) return _assistants[idx];
-    if (_assistants.isNotEmpty) return _assistants.first;
-    return null;
+    if (idx != -1 && !_assistants[idx].isDeepSeekHarness) {
+      return _assistants[idx];
+    }
+    // A harness assistant is never the "current" chat assistant. Falling back
+    // to the first local one keeps every chat surface with a usable owner; the
+    // list is only fully harness-free in deliberate arrangements, and then the
+    // first harness still has a name and avatar to show.
+    return _firstChatAssistant ?? _assistants.firstOrNull;
   }
 
   bool get currentSearchEnabled => currentAssistant?.searchEnabled ?? false;
@@ -45,6 +60,19 @@ class AssistantProvider extends ChangeNotifier {
   }
 
   late final Future<void> loaded;
+
+  /// Whether the first read has finished, for callers that need to know before
+  /// it does rather than await it — the proactive-care code decides whether a
+  /// letter has an owner to deliver to, and asking `currentAssistant` before
+  /// the read would answer with the *first* assistant instead of the chosen one.
+  bool get isLoaded => _isLoaded;
+
+  /// Re-reads assistants after LAN sync wrote business rows outside this
+  /// provider's own write path (ADR-0003 apply → reload).
+  Future<void> reloadAfterExternalChange() async {
+    await _load();
+    notifyListeners();
+  }
 
   Future<void> _load() async {
     if (!preferences.isLoaded) {
@@ -66,7 +94,9 @@ class AssistantProvider extends ChangeNotifier {
             av.isNotEmpty &&
             (av.startsWith('/') || av.contains(':')) &&
             !av.startsWith('http')) {
-          final fixed = SandboxPathResolver.fix(av);
+          // Canonicalize legacy absolute paths into kelivo-file URIs (the
+          // portable stored form); an already-canonical URI stays as-is.
+          final fixed = SandboxPathResolver.canonicalStorage(av);
           if (fixed != av) {
             av = fixed;
             changed = true;
@@ -77,7 +107,7 @@ class AssistantProvider extends ChangeNotifier {
             bg.isNotEmpty &&
             (bg.startsWith('/') || bg.contains(':')) &&
             !bg.startsWith('http')) {
-          final fixedBg = SandboxPathResolver.fix(bg);
+          final fixedBg = SandboxPathResolver.canonicalStorage(bg);
           if (fixedBg != bg) {
             bg = fixedBg;
             changed = true;
@@ -99,10 +129,12 @@ class AssistantProvider extends ChangeNotifier {
     // Restore current assistant if present
     final savedValue = preferences.get(_currentAssistantKey);
     final savedId = savedValue is String ? savedValue : null;
-    if (savedId != null && _assistants.any((a) => a.id == savedId)) {
+    final savedAssistant = savedId == null ? null : getById(savedId);
+    if (savedAssistant != null && !savedAssistant.isDeepSeekHarness) {
       _currentAssistantId = savedId;
     } else {
-      _currentAssistantId = _assistants.firstOrNull?.id;
+      _currentAssistantId =
+          _firstChatAssistant?.id ?? _assistants.firstOrNull?.id;
     }
     await _ensureOrphanedAssistant();
     if (_currentAssistantId != null && savedValue != _currentAssistantId) {
@@ -117,6 +149,7 @@ class AssistantProvider extends ChangeNotifier {
     final savedId = savedValue is String ? savedValue : null;
     _orphanedAssistantId =
         (savedId == null ? null : getById(savedId))?.id ??
+        _firstChatAssistant?.id ??
         _assistants.firstOrNull?.id;
     if (_orphanedAssistantId != null && savedValue != _orphanedAssistantId) {
       await preferences.setString(_orphanedAssistantKey, _orphanedAssistantId!);
@@ -221,7 +254,7 @@ class AssistantProvider extends ChangeNotifier {
     );
     createdFiles.add(dest);
     await src.copy(dest.path);
-    return dest.path;
+    return SandboxPathResolver.canonicalStorage(dest.path);
   }
 
   Future<String?> _copyLocalAssetToManagedDirectory(
@@ -243,7 +276,9 @@ class AssistantProvider extends ChangeNotifier {
     final managedDir = await directoryAsync();
     final managedRoot = p.normalize(managedDir.absolute.path);
     final sourcePath = p.normalize(src.absolute.path);
-    if (p.isWithin(managedRoot, sourcePath)) return fixed;
+    if (p.isWithin(managedRoot, sourcePath)) {
+      return SandboxPathResolver.canonicalStorage(fixed);
+    }
 
     if (!await managedDir.exists()) {
       await managedDir.create(recursive: true);
@@ -259,7 +294,7 @@ class AssistantProvider extends ChangeNotifier {
       ),
     );
     await src.copy(dest.path);
-    return dest.path;
+    return SandboxPathResolver.canonicalStorage(dest.path);
   }
 
   Future<void> _deleteManagedFileIfOwned(
@@ -272,11 +307,17 @@ class AssistantProvider extends ChangeNotifier {
     try {
       final dir = await directoryAsync();
       final root = p.normalize(dir.absolute.path);
-      final targetFile = File(raw);
+      // The stored value may be a canonical kelivo-file URI or a legacy path.
+      final targetFile = File(SandboxPathResolver.fix(raw));
       final target = p.normalize(targetFile.absolute.path);
       if (!p.isWithin(root, target)) return;
       if (replacementPath != null &&
-          p.equals(target, p.normalize(File(replacementPath).absolute.path))) {
+          p.equals(
+            target,
+            p.normalize(
+              File(SandboxPathResolver.fix(replacementPath)).absolute.path,
+            ),
+          )) {
         return;
       }
       if (await targetFile.exists()) {
@@ -285,17 +326,27 @@ class AssistantProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _persist() => preferences.runExclusiveMutation(() async {
-    await preferences.setString(
-      _assistantsKey,
-      Assistant.encodeList(_assistants),
-    );
-    await _ensureOrphanedAssistant();
-  });
+  Future<void> _persist({RecycleGroup? group}) =>
+      preferences.runExclusiveMutation(() async {
+        await preferences.setString(
+          _assistantsKey,
+          Assistant.encodeList(_assistants),
+          // This write is where a deleted assistant's row goes: the list no
+          // longer names it, so the write removes it — and the bin entry that
+          // preserves it has to be part of the event the caller is performing,
+          // not a stray line beside it.
+          removalGroup: group,
+        );
+        await _ensureOrphanedAssistant();
+      });
 
   Future<void> setCurrentAssistant(String id) async {
     await loaded;
-    if (getById(id) == null) return;
+    final assistant = getById(id);
+    if (assistant == null) return;
+    // Selecting the harness in the sidebar opens its WebUI; it does not change
+    // which assistant the chat belongs to.
+    if (assistant.isDeepSeekHarness) return;
     if (_currentAssistantId == id) return;
     _currentAssistantId = id;
     notifyListeners();
@@ -315,9 +366,14 @@ class AssistantProvider extends ChangeNotifier {
   /// deleting that assistant assigns another existing assistant.
   Assistant? resolveConversationAssistant(String? assistantId) {
     if (assistantId == null) return currentAssistant;
-    return getById(assistantId) ??
-        getById(_orphanedAssistantId ?? '') ??
-        _assistants.firstOrNull;
+    final direct = getById(assistantId);
+    // A conversation never chats with a harness; fall through to a local owner
+    // if one is somehow named (an old export, a sync from a device that had a
+    // different arrangement).
+    if (direct != null && !direct.isDeepSeekHarness) return direct;
+    final orphaned = getById(_orphanedAssistantId ?? '');
+    if (orphaned != null && !orphaned.isDeepSeekHarness) return orphaned;
+    return _firstChatAssistant ?? _assistants.firstOrNull;
   }
 
   // Lightweight accessor so callers don't depend on Assistant.presetMessages symbol
@@ -346,6 +402,16 @@ class AssistantProvider extends ChangeNotifier {
       topP: null,
       limitContextMessages: false,
     );
+    _assistants.add(a);
+    await _persist();
+    notifyListeners();
+    return a.id;
+  }
+
+  /// Creates the pointer to a remote DeepSeek Harness. It is not connected yet;
+  /// its settings page sets [Assistant.harnessUrl] and proves the connection.
+  Future<String> addHarnessAssistant({required String name}) async {
+    final a = Assistant.harness(id: const Uuid().v4(), name: name.trim());
     _assistants.add(a);
     await _persist();
     notifyListeners();
@@ -471,10 +537,32 @@ class AssistantProvider extends ChangeNotifier {
   }) async {
     await loaded;
     for (final assistant in assistants) {
+      var next = assistant;
       if (assistant.chatModelProvider == providerKey &&
           (modelId == null || assistant.chatModelId == modelId)) {
-        await updateAssistant(assistant.copyWith(clearChatModel: true));
+        next = next.copyWith(clearChatModel: true);
       }
+      // The drawing model has the same assistant-level tier, and it is resolved
+      // with the same precedence: a stored pair whose provider is gone would beat
+      // the still-valid global default.
+      if (assistant.imageModelProvider == providerKey &&
+          (modelId == null || assistant.imageModelId == modelId)) {
+        next = next.copyWith(
+          clearImageModelProvider: true,
+          clearImageModelId: true,
+        );
+      }
+      // The delegation model follows the same rule: left behind, it would point a
+      // child at a provider that no longer exists, and the delegation would fail
+      // instead of falling back to the conversation's own model.
+      if (assistant.subagentModelProvider == providerKey &&
+          (modelId == null || assistant.subagentModelId == modelId)) {
+        next = next.copyWith(
+          clearSubagentModelProvider: true,
+          clearSubagentModelId: true,
+        );
+      }
+      if (!identical(next, assistant)) await updateAssistant(next);
     }
     await chatService?.clearConversationModelOverrides(
       providerKey: providerKey,
@@ -557,12 +645,32 @@ class AssistantProvider extends ChangeNotifier {
     _assistants[idx] = next;
     await _persist();
     notifyListeners();
+    // Proactive care: flipping the master switch changes eligibility for
+    // every owned conversation's schedule; the wiring in main.dart re-arms
+    // (or cancels) their alarms.
+    onAssistantUpdated?.call(next);
   }
 
-  Future<void> setSearchEnabledForCurrentAssistant(bool enabled) async {
-    final a = currentAssistant;
+  /// Fired after an assistant was persisted (post-avatar handling). Wired in
+  /// main.dart where the ChatService is available.
+  void Function(Assistant assistant)? onAssistantUpdated;
+
+  /// Turns the external search switch on or off for one assistant.
+  ///
+  /// A group composer edits the member the panel is showing, which is not
+  /// necessarily [currentAssistant], so the write names its target instead of
+  /// reading the "current" one.
+  Future<void> setSearchEnabled(String assistantId, bool enabled) async {
+    final a = getById(assistantId);
     if (a == null || a.searchEnabled == enabled) return;
     await updateAssistant(a.copyWith(searchEnabled: enabled));
+  }
+
+  /// The 1:1 target: the assistant the composer is currently on.
+  Future<void> setSearchEnabledForCurrentAssistant(bool enabled) async {
+    final a = currentAssistant;
+    if (a == null) return;
+    await setSearchEnabled(a.id, enabled);
   }
 
   Future<void> reorderAssistantRegex({
@@ -585,19 +693,45 @@ class AssistantProvider extends ChangeNotifier {
   Future<bool> deleteAssistant(String id) async {
     final idx = _assistants.indexWhere((a) => a.id == id);
     if (idx == -1) return false;
-    // Do not allow deleting the last remaining assistant
-    if (_assistants.length <= 1) return false;
+    // Never leave the app without a local chat assistant: a harness is a remote
+    // pointer, not a fallback owner for the conversations a local one takes.
+    // Deleting a harness is always safe because this guardian keeps a local one.
+    if (!_assistants[idx].isDeepSeekHarness &&
+        _assistants.where((a) => !a.isDeepSeekHarness).length <= 1) {
+      return false;
+    }
 
-    await chatService?.deleteConversationsForAssistant(id);
+    // One deletion event: the assistant goes and so do its conversations. The
+    // group is what lets the bin show them as the one act they were instead of N
+    // unrelated "deleted" rows plus a stray assistant beside them.
+    final group = RecycleGroup(
+      id: const Uuid().v4().substring(0, 8),
+      label: _assistants[idx].name,
+    );
+    await chatService?.deleteConversationsForAssistant(id, group: group);
 
     final removingCurrent = _assistants[idx].id == _currentAssistantId;
     _assistants.removeAt(idx);
-    if (removingCurrent) {
-      _currentAssistantId = _assistants.isNotEmpty
-          ? _assistants.first.id
-          : null;
+    // A deleted assistant cannot be a delegation target any more, and a dead id
+    // in somebody's selection would travel into every backup and sync forever.
+    // The rule lives here, at the one place an assistant stops existing.
+    for (var i = 0; i < _assistants.length; i++) {
+      final other = _assistants[i];
+      if (!other.subagentTargetIds.contains(id)) continue;
+      _assistants[i] = other.copyWith(
+        subagentTargetIds: <String>[
+          for (final targetId in other.subagentTargetIds)
+            if (targetId != id) targetId,
+        ],
+      );
     }
-    await _persist();
+    if (removingCurrent) {
+      _currentAssistantId =
+          _firstChatAssistant?.id ?? _assistants.firstOrNull?.id;
+    }
+    // The assistant's own row is removed by this write, so it takes the same
+    // group the conversations did.
+    await _persist(group: group);
     if (_currentAssistantId != null) {
       await preferences.setString(_currentAssistantKey, _currentAssistantId!);
     } else {
@@ -605,66 +739,5 @@ class AssistantProvider extends ChangeNotifier {
     }
     notifyListeners();
     return true;
-  }
-
-  Future<void> reorderAssistants(int oldIndex, int newIndex) async {
-    if (oldIndex == newIndex) return;
-    if (oldIndex < 0 || oldIndex >= _assistants.length) return;
-    if (newIndex < 0 || newIndex >= _assistants.length) return;
-
-    final assistant = _assistants.removeAt(oldIndex);
-    _assistants.insert(newIndex, assistant);
-
-    // Notify listeners immediately for smooth UI update
-    notifyListeners();
-
-    // Then persist the changes
-    await _persist();
-  }
-
-  // Reorder only within a subset (e.g., assistants belonging to a tag group or ungrouped).
-  // subsetIds defines the set and order boundary; other assistants remain in place.
-  Future<void> reorderAssistantsWithin({
-    required List<String> subsetIds,
-    required int oldIndex,
-    required int newIndex,
-  }) async {
-    if (oldIndex == newIndex) return;
-    if (subsetIds.isEmpty) return;
-
-    // Build subset indices in the master list preserving current order
-    final idSet = subsetIds.toSet();
-    final subsetIndices = <int>[];
-    for (int i = 0; i < _assistants.length; i++) {
-      if (idSet.contains(_assistants[i].id)) subsetIndices.add(i);
-    }
-    if (subsetIndices.isEmpty) return;
-    if (oldIndex < 0 || oldIndex >= subsetIndices.length) return;
-    if (newIndex < 0 || newIndex >= subsetIndices.length) return;
-
-    // Extract subset in current order
-    final subset = subsetIndices
-        .map((i) => _assistants[i])
-        .toList(growable: true);
-    final moved = subset.removeAt(oldIndex);
-    subset.insert(newIndex, moved);
-
-    // Merge back into master list
-    final merged = <Assistant>[];
-    int take = 0;
-    for (int i = 0; i < _assistants.length; i++) {
-      final a = _assistants[i];
-      if (idSet.contains(a.id)) {
-        merged.add(subset[take++]);
-      } else {
-        merged.add(a);
-      }
-    }
-    _assistants
-      ..clear()
-      ..addAll(merged);
-
-    notifyListeners();
-    await _persist();
   }
 }

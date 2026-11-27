@@ -123,12 +123,20 @@ void main() {
       await tester.pumpAndSettle();
 
       Future<void> focus(Finder control) async {
-        final node = Focus.of(tester.element(control));
-        for (var i = 0; i < 64 && !node.hasPrimaryFocus; i++) {
+        // The node is re-resolved every turn on purpose: opening a pane rebuilds
+        // the row that owns it, so a node captured before the first Tab belongs
+        // to an element that may already be gone — and its `hasPrimaryFocus`
+        // would then never turn true even though the row is the one focused.
+        for (var i = 0; i < 64; i++) {
+          if (Focus.of(tester.element(control)).hasPrimaryFocus) return;
           await tester.sendKeyEvent(LogicalKeyboardKey.tab);
           await tester.pump(const Duration(milliseconds: 100));
         }
-        expect(node.hasPrimaryFocus, isTrue, reason: control.toString());
+        expect(
+          Focus.of(tester.element(control)).hasPrimaryFocus,
+          isTrue,
+          reason: control.toString(),
+        );
       }
 
       Future<void> press(LogicalKeyboardKey key) async {

@@ -1489,6 +1489,21 @@ class MessageBuilderService {
         );
         var carriesSnapshot =
             existing.carriesMemorySnapshot && sendPayload == existing.payload;
+        // An exclusion is reversible, so the row keeps the text that was sent
+        // and only the request drops the excluded picture's OCR: the frozen
+        // block is rewritten with what the remaining images describe today.
+        if (imageFilteredRevisions.contains(revisionId) &&
+            OcrService.hasOcrBlock(sendPayload)) {
+          final remaining = await describeImages(
+            cacheOnly: previewOnly || !canRunOcr,
+          );
+          if (remaining != null) {
+            sendPayload = OcrService.replaceOcrBlocks(
+              sendPayload,
+              wrapOcr(remaining),
+            );
+          }
+        }
         if (revisionId == memoryPlan.injectIntoId) {
           // The plan picked this message and it is frozen, so its body is
           // whatever the row holds minus the prefix it carries — which is

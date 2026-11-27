@@ -210,6 +210,10 @@ class _ProviderBalanceRefreshSettingsState
                 DesktopSelectOption(value: option.value, label: option.label),
             ],
             semanticLabel: label,
+            // The row is a label plus this control, so the control is the row's
+            // only stop in the keyboard ring — the mobile branch below says the
+            // same with `focusable: true` on its nav row.
+            focusable: true,
             wrapTriggerLabel: true,
             triggerFillColor: context.appColors.surfaceFill,
             onSelected: onSelected,

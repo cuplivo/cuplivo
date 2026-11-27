@@ -547,6 +547,17 @@ next census:
 
 So of the 40, **7 are the two proven machine classes** and **33 are the tree's**, in five clusters.
 
+**The first two clusters are fixed; the census is now 18 failures, 9 of them the tree's.**
+
+| cluster | before | now | what it was |
+| --- | --- | --- | --- |
+| world books | 18 | 2 | **one missing registry row.** `WorldBookGrouping.preferenceKey` (`world_books_grouping_v1`) was absent from `BusinessKeyRegistry`'s table, and the registry is fail-closed: every group write the fork's provider made was rejected, so nothing rendered, an import that should have produced two books produced one, and the selection read "0 selected". Registered as `synced` / `newDeviceConfiguration`. The 2 left are the proven font-metric pair. |
+| `home_selection_back_test` | 6 | 0 | the test asserted three shell mechanisms v1.3.7 had and unit 15 retired — lazily mounted `DesktopSettingsPage`/`DesktopTranslatePage`, and `TickerMode` disabled on a hidden chat. It now asks the shell's own question (`DesktopTabVisibility.visible`), and the two ticker assertions are gone with the replacement named. |
+| `world_book_popover_group_test` | 2 | 2 | open: the strip renders, but a row tap does not write the active list for the composer's assistant. |
+| `translate_page_test` | 2 | 2 | open. |
+| singles | 5 | 5 | open: `image_recall_tools`, `display_pane_full_width_chat`, `desktop_provider_detail_pane`, `sync_engine_integration`, `context_memory_usage`. |
+| `view_image_test` + `storage_space_images_test` | 7 | 7 | the two machine classes, unchanged and proven. |
+
 **The world-book cluster is behavioural, not a missing file.** Measured before touching it: the group
 UI exists in this tree (`world_book_group_actions.dart`, `world_book_library.dart`,
 `world_book_editor.dart`'s `groups[_groupId] ?? l10n.worldBookGroupUngrouped`), `createGroup` is on the

@@ -533,7 +533,19 @@ chain with the bubble flags v1.3.7 added. Lesson for the next replay: after reso
 that file — not the tree.
 
 **Remaining gate: the full suite.** `analyze 0`, `format 0` and the l10n pass (5752 messages ×4) are
-green; unit 14's picker and the full `flutter test` run are what the next pass picks up.
+green; the full `flutter test` run is **14935 passed, 95 skipped, 40 failed**, and the failures are the
+next census:
+
+| cluster | cases | first reading |
+| --- | --- | --- |
+| world books | **18** (`world_book_page_test` 9, `world_book_prompt_injection_test` 4, `world_book_provider_test` 3, `world_book_popover_group_test` 2) | the largest, and the one to start on: v1.3.7's own world-book *groups* meet unit 13's scoped `_targetId`/`_scopeId` popover and its roster header |
+| `home_selection_back_test` | 6 | unit 15's `DesktopTab` shell — the selection-back flow was written against the int tab index |
+| `view_image_test` | 5 | the machine's proxy, proven at unit 2 |
+| `storage_space_images_test` | 2 | the Windows thumbnail handle, proven at unit 3 |
+| `translate_page_test` | 2 | |
+| singles | 7 | `image_recall_tools`, `display_pane_full_width_chat`, `desktop_provider_detail_pane`, `sync_engine_integration`, `context_memory_usage` |
+
+So of the 40, **7 are the two proven machine classes** and **33 are the tree's**, in five clusters.
 
 
 ### Unit 13, parked with its measurement

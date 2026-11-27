@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_control_region.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_control_region.dart';
 import 'genui_segments.dart';
 
 /// Existing app segments with one keyboard focus stop and directional selection.

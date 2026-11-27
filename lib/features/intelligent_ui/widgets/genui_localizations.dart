@@ -1,9 +1,9 @@
 import '../text/ui_number.dart';
 import '../text/ui_text_projection.dart';
 import '../catalog/ui_catalog.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_form_validation.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_form_validation.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
 
 String genUiDiagnosticMessage(AppLocalizations l10n, UiDiagnostic diagnostic) =>
     switch (diagnostic.code) {

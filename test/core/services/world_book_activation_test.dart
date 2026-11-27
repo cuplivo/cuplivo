@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/world_book.dart';
-import 'package:Kelivo/core/services/world_book_activation.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
+import 'package:Cuplivo/core/services/world_book_activation.dart';
 
 void main() {
   const entry = WorldBookEntry(

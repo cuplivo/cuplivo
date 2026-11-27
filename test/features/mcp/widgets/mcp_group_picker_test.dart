@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_group_picker.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_group_picker.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import '../../../support/mcp_presentation_harness.dart';
 

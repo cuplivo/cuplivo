@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/services/chat/document_text_extractor.dart';
-import 'package:Kelivo/core/services/chat/text_file_decoder.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/services/chat/document_text_extractor.dart';
+import 'package:Cuplivo/core/services/chat/text_file_decoder.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

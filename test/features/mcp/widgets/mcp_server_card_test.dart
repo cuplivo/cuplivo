@@ -1,20 +1,20 @@
-import 'package:Kelivo/shared/widgets/ios_text_button.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui' show CheckedState, Tristate;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/desktop/setting/mcp_pane.dart';
-import 'package:Kelivo/features/mcp/pages/mcp_page.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_server_avatar.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_server_card.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_error_details_sheet.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/theme/palettes.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/desktop/setting/mcp_pane.dart';
+import 'package:Cuplivo/features/mcp/pages/mcp_page.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_server_avatar.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_server_card.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_error_details_sheet.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/palettes.dart';
 
 import '../../../support/mcp_presentation_harness.dart';
 import '../../../support/mcp_golden_fonts.dart';

@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
-import 'package:Kelivo/core/services/api/tool_call_cancellation.dart';
-import 'package:Kelivo/core/services/tool_image.dart';
+import 'package:Cuplivo/core/services/api/tool_call_cancellation.dart';
+import 'package:Cuplivo/core/services/tool_image.dart';
 
 void main() {
   for (final orientation in [2, 6]) {
@@ -82,7 +82,7 @@ void main() {
           isA<ToolImageException>().having(
             (error) => error.message,
             'message',
-            contains('Return to Kelivo'),
+            contains('Return to Cuplivo'),
           ),
         ),
       );

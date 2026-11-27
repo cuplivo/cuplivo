@@ -3,10 +3,10 @@ import 'dart:isolate';
 import 'package:drift/drift.dart';
 import 'package:drift/isolate.dart' show DriftRemoteException;
 import 'package:sqlite3/common.dart' show SqliteException, SqlError;
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/gen_ui_derived_schema.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/gen_ui_derived_schema.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
 import '../text/ui_search_text.dart';
 
 enum _IndexReadiness { unchecked, needsRebuild, ready }

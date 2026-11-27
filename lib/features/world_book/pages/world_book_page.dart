@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/world_book/widgets/world_book_entry_widgets.dart';
+import 'package:Cuplivo/features/world_book/widgets/world_book_entry_widgets.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -26,7 +26,7 @@ import '../widgets/world_book_entry_actions.dart';
 import '../widgets/world_book_library.dart';
 import '../widgets/world_book_editor.dart';
 import '../widgets/world_book_card_header.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class WorldBookPage extends StatefulWidget {
   const WorldBookPage({super.key});

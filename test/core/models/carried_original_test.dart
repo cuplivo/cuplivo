@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/carried_original.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/compress_context_options.dart';
-import 'package:Kelivo/core/models/compression_config.dart';
-import 'package:Kelivo/core/models/context_operation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/native_compaction.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/request_history_context.dart';
-import 'package:Kelivo/core/services/api/request_token_estimate.dart';
+import 'package:Cuplivo/core/models/carried_original.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/compress_context_options.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
+import 'package:Cuplivo/core/models/context_operation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/api/request_token_estimate.dart';
 
 void main() {
   ChatMessage message(String id, {String? text, List<MessagePart>? parts}) =>

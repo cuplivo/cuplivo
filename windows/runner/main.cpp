@@ -21,11 +21,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   // Enforce a single running instance on Windows using a named mutex.
   HANDLE instance_mutex =
-      ::CreateMutexW(nullptr, TRUE, L"KelivoMutex");
+      ::CreateMutexW(nullptr, TRUE, L"CuplivoMutex");
   if (instance_mutex != nullptr && ::GetLastError() == ERROR_ALREADY_EXISTS) {
     // Another instance is already running; try to bring its window to front
     // instead of creating a new one.
-    if (!autostart) Win32Window::SendAppLinkToInstance(L"kelivo");
+    if (!autostart) Win32Window::SendAppLinkToInstance(L"cuplivo");
     return 0;
   }
 
@@ -47,7 +47,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     FlutterWindow window(project, autostart);
     Win32Window::Point origin(10, 10);
     Win32Window::Size size(1280, 720);
-    if (window.Create(L"kelivo", origin, size)) {
+    if (window.Create(L"cuplivo", origin, size)) {
       window.SetQuitOnClose(true);
 
       ::MSG msg;

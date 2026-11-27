@@ -4,15 +4,15 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:Kelivo/core/models/avatar_config.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/utils/icon_cache.dart';
-import 'package:Kelivo/core/services/storage/storage_attachment_usage.dart';
-import 'package:Kelivo/core/services/storage/storage_usage_service.dart';
-import 'package:Kelivo/features/search/widgets/search_service_avatar.dart';
-import 'package:Kelivo/utils/app_directories.dart';
-import 'package:Kelivo/utils/markdown_media_sanitizer.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/models/avatar_config.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/utils/icon_cache.dart';
+import 'package:Cuplivo/core/services/storage/storage_attachment_usage.dart';
+import 'package:Cuplivo/core/services/storage/storage_usage_service.dart';
+import 'package:Cuplivo/features/search/widgets/search_service_avatar.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
+import 'package:Cuplivo/utils/markdown_media_sanitizer.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 import '../../../support/storage_images_test_fixture.dart';
 

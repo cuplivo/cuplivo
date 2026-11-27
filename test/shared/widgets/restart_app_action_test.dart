@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/restart_app_action.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/restart_app_action.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 void main() {
   testWidgets('reports restart failure and keeps the retry dialog open', (
@@ -63,7 +63,7 @@ void main() {
     expect(find.text('Restart prompt'), findsOneWidget);
     expect(
       find.text(
-        'Kelivo could not restart automatically. Fully close it, then open it again.',
+        'Cuplivo could not restart automatically. Fully close it, then open it again.',
       ),
       findsOneWidget,
     );

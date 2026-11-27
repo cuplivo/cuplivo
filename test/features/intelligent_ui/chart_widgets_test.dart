@@ -9,16 +9,16 @@ import 'package:fl_chart/src/chart/scatter_chart/scatter_chart_renderer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_catalog.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_chart_data.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_surface_state.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/gallery/chart_gallery.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_chart.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_chart_paint.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_catalog.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_chart_data.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_controller.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_surface_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/gallery/chart_gallery.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_chart.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_chart_paint.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 UiSurfaceController _controller(String source, {bool readOnly = false}) {
   final c = UiSurfaceController(

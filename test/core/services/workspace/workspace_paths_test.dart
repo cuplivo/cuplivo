@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:Kelivo/core/services/workspace/workspace_paths.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
 
 void main() {
   late Directory tmp;

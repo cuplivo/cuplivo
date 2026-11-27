@@ -131,18 +131,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storageSpaceLoadFailed => '无法加载文件或检查图片使用情况，请刷新后重试。';
 
   @override
-  String get storageSpaceCopyErrorDetails => '复制错误详情';
-
-  @override
-  String get storageAttachmentChecking => '正在检查附件使用情况…';
-
-  @override
-  String get storageAttachmentCheckFailed => '无法检查附件使用情况，请刷新后重试。';
-
-  @override
-  String get storageSpaceCopyErrorFailed => '无法复制错误详情，请重试。';
-
-  @override
   String get storageSpaceTotalLabel => '已用空间';
 
   @override
@@ -190,7 +178,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '确定删除这些保留的旧数据库吗？它们是 Kelivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
+      '确定删除这些保留的旧数据库吗？它们是 Cuplivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
 
   @override
   String get storageSpaceRestoreTracesHint => '恢复完成后保留的旧数据快照。清理不会影响当前应用数据。';
@@ -983,7 +971,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditStreamOutputDescription => '是否启用消息的流式输出';
 
   @override
-  String get assistantEditThinkingBudgetTitle => '思考';
+  String get assistantEditThinkingBudgetTitle => '思考预算';
 
   @override
   String get assistantEditReasoningFollowDefault => '跟随模型默认';
@@ -1562,14 +1550,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get hotkeysResetAll => '重置所有快捷键为默认';
 
   @override
-  String hotkeysShortcutInUse(String action) {
-    return '此快捷键已分配给「$action」。';
-  }
-
-  @override
-  String get hotkeysTextEditing => '文本编辑与焦点导航';
-
-  @override
   String get assistantEditTemperatureTitle => '温度';
 
   @override
@@ -1650,26 +1630,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageChooseExternalFolder =>
-      '请选择 iCloud 云盘或“我的 iPhone > Kelivo”之外的文件夹。Kelivo 文件夹会随 App 卸载而删除，本次备份尚未保存。';
-
-  @override
-  String get backupPageChooseNewFile => '请使用新的文件名或选择其他文件夹保存备份。';
-
-  @override
-  String backupArchiveFileSizeLimit(String name, String limit) {
-    return '「$name」超过了备份单个文件 $limit 的大小上限。';
-  }
-
-  @override
-  String backupArchiveTotalSizeLimit(String limit) {
-    return '备份的未压缩大小超过了 $limit 的上限。';
-  }
+      '请选择 iCloud 云盘或“我的 iPhone > Cuplivo”之外的文件夹。Cuplivo 文件夹会随 App 卸载而删除，本次备份尚未保存。';
 
   @override
   String get backupPageFilesLabel => '文件与图片';
-
-  @override
-  String get backupPageSettingsSaveFailed => '备份设置保存失败，请重试。';
 
   @override
   String get backupPageScopeTitle => '备份与导入内容';
@@ -1732,21 +1696,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageRestartRequired => '需要重启应用';
 
   @override
-  String get backupPageRestartContent => '导入成功。重启 Kelivo 后将安全应用。';
+  String get backupPageRestartContent => '导入成功。重启 Cuplivo 后将安全应用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Kelivo 后将安全应用已导入的数据。';
+    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Cuplivo 后将安全应用已导入的数据。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 无法自动重启，请完全关闭后重新打开。';
+  String get restartAppFailedMessage => 'Cuplivo 无法自动重启，请完全关闭后重新打开。';
 
   @override
   String get backupRestoreRolledBackTitle => '恢复已回滚';
 
   @override
-  String get backupRestoreRolledBackContent => '恢复未能完成。Kelivo 已验证并保留原有数据。';
+  String get backupRestoreRolledBackContent => '恢复未能完成。Cuplivo 已验证并保留原有数据。';
 
   @override
   String get backupRestoreDirectoryBlockedTitle => '还原正在等待目录释放';
@@ -1763,20 +1727,20 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Kelivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
+      'Cuplivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Cuplivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在运行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在运行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的数据仍被另一个应用进程占用。请关闭其他 Kelivo 窗口后重新启动；当前进程尚未打开聊天数据。';
+      'Cuplivo 的数据仍被另一个应用进程占用。请关闭其他 Cuplivo 窗口后重新启动；当前进程尚未打开聊天数据。';
 
   @override
   String get restoreProgressTitle => '正在恢复备份';
 
   @override
-  String get restoreProgressWarning => '请保持 Kelivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
+  String get restoreProgressWarning => '请保持 Cuplivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在校验备份';
@@ -1797,7 +1761,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restoreProgressStageFinishing => '即将完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重启 Kelivo';
+  String get backupRestoreFailureRestartButton => '重启 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '复制诊断码';
@@ -1836,14 +1800,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '修复未能完成。数据已保留，可以选择通过校验的副本恢复，或导出数据进一步排查。';
 
   @override
-  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Kelivo 后重新打开。';
+  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Cuplivo 后重新打开。';
 
   @override
   String get startupRecoveryResetDialogTitle => '确定从空列表重新开始？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '这不会找回之前的聊天。Kelivo 会保留当前数据库和已有副本，建立新的空聊天列表。想找回聊天，请取消并选择本地副本恢复。';
+      '这不会找回之前的聊天。Cuplivo 会保留当前数据库和已有副本，建立新的空聊天列表。想找回聊天，请取消并选择本地副本恢复。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '保留副本并重新开始';
@@ -1954,17 +1918,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重新开始后，当前数据将不再显示。Kelivo 会保留旧数据库和已有副本以供恢复，建议先导出一份数据副本。';
+      '重新开始后，当前数据将不再显示。Cuplivo 会保留旧数据库和已有副本以供恢复，建议先导出一份数据副本。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我确认暂不恢复聊天，继续使用空聊天列表。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '请更新 Kelivo 以继续';
+  String get startupDatabaseUpdateRequiredTitle => '请更新 Cuplivo 以继续';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本设备上的聊天数据库由更新版本的 Kelivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Kelivo 后重新打开。';
+      '本设备上的聊天数据库由更新版本的 Cuplivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Cuplivo 后重新打开。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用旧版';
@@ -1975,7 +1939,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安装并打开最新版 Kelivo，在「设置 → 数据备份」导出一份备份文件。';
+      '先安装并打开最新版 Cuplivo，在「设置 → 数据备份」导出一份备份文件。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -2016,8 +1980,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageOverwriteMode => '完全覆盖';
 
   @override
-  String get backupPageOverwriteModeDescription =>
-      '替换所选内容，保留未选内容及其他本机设置。替换聊天时，也会清除本机未发送的草稿。';
+  String get backupPageOverwriteModeDescription => '仅替换已选组件；保留未选组件及无关本地设置';
 
   @override
   String get backupPageMergeMode => '合并';
@@ -2034,7 +1997,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '这份备份由更新版本的 Kelivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Kelivo。';
+    return '这份备份由更新版本的 Cuplivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Cuplivo。';
   }
 
   @override
@@ -2045,7 +2008,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '这份备份由更新版本的 Kelivo 创建，当前版本无法读取。请先升级 Kelivo 后重试。';
+      '这份备份由更新版本的 Cuplivo 创建，当前版本无法读取。请先升级 Cuplivo 后重试。';
 
   @override
   String get backupPageBackupUploaded => '已上传备份';
@@ -2077,37 +2040,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupProgressErrorCopied => '错误已复制';
 
   @override
-  String get backupProgressSkippedTitle => '备份完成，部分内容已跳过';
-
-  @override
-  String backupProgressSkippedMessage(int count) {
-    return '已跳过 $count 个无法读取的文件或目录，以下内容未包含在备份中。';
-  }
-
-  @override
   String get backupProgressPreparing => '准备中';
-
-  @override
-  String get backupProgressScanning => '正在扫描备份文件';
-
-  @override
-  String backupProgressDiscoveredFiles(int count) {
-    return '已发现 $count 个文件';
-  }
-
-  @override
-  String get backupProgressCheckingDatabase => '正在检查数据库';
-
-  @override
-  String get backupProgressChoosingDestination => '正在选择保存位置';
-
-  @override
-  String get backupProgressSavingFile => '正在保存备份文件';
-
-  @override
-  String backupProgressElapsed(String time) {
-    return '已用时 $time';
-  }
 
   @override
   String get backupProgressSnapshotting => '正在创建数据库快照';
@@ -2178,22 +2111,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageImportFromOtherApps => '从其他APP导入';
-
-  @override
-  String get backupPageImportFromOtherAppsSubtitle =>
-      '新版 Chatbox、Cherry Studio 2.x，以及 ChatGPT、Claude、DeepSeek、Gemini、Grok、Open WebUI、NextChat、LobeChat。在浏览器本地转换成 Kelivo 备份后再导入，文件不会上传。';
-
-  @override
-  String get backupPageOpenImportToolbox => '打开工具箱';
-
-  @override
-  String backupPageImportToolboxOpenFailed(String url) {
-    return '无法打开浏览器，请手动访问：$url';
-  }
-
-  @override
-  String get backupPageToolboxImportMergeOnlyHint =>
-      '这是官方工具箱转换的备份。导入会合并到现有数据，不会替换已有聊天和助手。';
 
   @override
   String get backupPageNotSupportedYet => '暂不支持';
@@ -2274,19 +2191,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo 的本地数据不参与 iCloud 系统备份。换机或卸载 App 前，请将备份保存到 iCloud 云盘或 Kelivo 之外的文件夹。“我的 iPhone > Kelivo”中的文件会随 App 卸载而删除。';
+      'Cuplivo 的本地数据不参与 iCloud 系统备份。换机或卸载 App 前，请将备份保存到 iCloud 云盘或 Cuplivo 之外的文件夹。“我的 iPhone > Cuplivo”中的文件会随 App 卸载而删除。';
 
   @override
   String get backupPageImportFromCherryStudio => '从 Cherry Studio 导入';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '这是 Cherry Studio 2.x 备份（格式版本 $version），App 里暂时不能直接导入。请到官方工具箱转换成 Kelivo 备份，再回到「备份文件导入」，并选择「合并」。转换在浏览器本地完成，文件不会上传。';
-  }
-
-  @override
-  String backupPageChatboxUnsupportedBackupVersion(String version) {
-    return '这是 Chatbox 新版备份（格式版本 $version），App 里暂时不能直接导入。请到官方工具箱转换成 Kelivo 备份，再回到「备份文件导入」，并选择「合并」。转换在浏览器本地完成，文件不会上传。';
+    return '此备份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
   }
 
   @override
@@ -2519,10 +2431,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressContextKeepRecentMessages => '保留最近原文';
 
   @override
-  String get compressContextKeepCountLabel => '保留最近几条用户消息';
+  String get compressContextKeepCountLabel => '保留最近轮数';
 
   @override
-  String get compressContextKeepAllMessages => '要保留的条数已经覆盖全部聊天，没有可压缩的内容了。';
+  String get compressContextKeepAllMessages => '保留轮数覆盖全部消息，无内容可压缩';
 
   @override
   String compressContextEstimatePreview(
@@ -3014,9 +2926,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageExportSheetShowThinkingAndToolCards => '显示思考卡片和工具卡片';
 
   @override
-  String get messageExportSheetExpandAllSteps => '展开全部步骤';
-
-  @override
   String get messageExportSheetShowThinkingContent => '显示思考内容';
 
   @override
@@ -3389,22 +3298,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get contextUsageUnavailable => '暂时无法显示用量。';
-
-  @override
-  String contextUsagePartialSummary(String tokens) {
-    return '已估算 $tokens，服务端压缩占用的量暂不知道';
-  }
-
-  @override
-  String get contextUsageBucketNativeCompaction => '服务端压缩';
-
-  @override
-  String get contextUsageUnknownTokens => '未知';
-
-  @override
-  String contextUsageLastRequestInput(String tokens) {
-    return '上次实际发给模型：$tokens';
-  }
 
   @override
   String get contextUsageStateNone => '暂无数据';
@@ -4167,13 +4060,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '直接发送 http(s) 图片链接；关闭后丢弃远程链接，只发送本地图片';
 
   @override
-  String get modelSpecFormResponseSpeedTiers => '响应速度档位';
-
-  @override
-  String get modelSpecFormResponseSpeedTiersSubtitle =>
-      '自定义聊天中可为此模型选择的加速档位。两档均不勾选时，只提供标准档。';
-
-  @override
   String get modelSpecFormPromptCacheControl => '提示缓存标记';
 
   @override
@@ -4379,54 +4265,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get providerDetailPageClaudePromptCachingTtl1h => '1 小时';
 
   @override
-  String get providerBalanceAutoRefresh => '余额自动刷新';
-
-  @override
-  String get providerBalanceScopeProvider => '此供应商';
-
-  @override
-  String get providerBalanceScopeGlobal => '全局默认';
-
-  @override
-  String get providerBalanceInterval => '定时刷新';
-
-  @override
-  String get providerBalanceRefreshOnReply => '回复后刷新';
-
-  @override
-  String providerBalanceFollowDefault(String value) {
-    return '默认 · $value';
-  }
-
-  @override
-  String get providerBalanceRefreshOff => '关闭';
-
-  @override
-  String get providerBalanceRefreshOn => '开启';
-
-  @override
-  String providerBalanceRefreshMinutes(int count) {
-    return '$count 分钟';
-  }
-
-  @override
-  String get providerBalanceRefreshHour => '1 小时';
-
-  @override
-  String get providerBalanceCustomInterval => '自定义间隔…';
-
-  @override
-  String get providerBalanceIntervalMinutes => '间隔分钟数';
-
-  @override
-  String get providerBalanceRefreshNow => '立即刷新余额';
-
-  @override
-  String providerBalanceLastUpdated(String date, String time) {
-    return '最后更新于 $date $time';
-  }
-
-  @override
   String get providerDetailPageBalanceTitle => '账户余额';
 
   @override
@@ -4461,13 +4299,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get providerDetailPageBalanceResetDefaultsButton => '恢复默认余额设置';
-
-  @override
-  String get providerDetailPageBalanceResetConfirmMessage =>
-      '这会覆盖当前供应商自定义的余额查询配置，将余额查询开关恢复为默认状态，并让自动刷新跟随全局设置。';
-
-  @override
-  String get providerDetailPageBalanceResetConfirmButton => '恢复默认';
 
   @override
   String providerDetailPageBalanceResult(String value) {
@@ -4817,9 +4648,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get providerDetailPageModelsTitle => '模型';
 
   @override
-  String get providerDetailPageReorderModels => '模型排序';
-
-  @override
   String get providerModelsGetButton => '获取';
 
   @override
@@ -4949,51 +4777,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get miniMapScrollToBottomTooltip => '滚动到底部';
 
   @override
-  String get miniMapSearchHint => '在小地图中搜索';
-
-  @override
   String miniMapSearchMatchCount(int count) {
     return '$count 处';
   }
 
   @override
   String get miniMapSearchNoResults => '没有匹配的消息';
-
-  @override
-  String get miniMapSearchFailed => '搜索消息失败';
-
-  @override
-  String get conversationFindHint => '查找';
-
-  @override
-  String get conversationFindPrevious => '上一个匹配项';
-
-  @override
-  String get conversationFindNext => '下一个匹配项';
-
-  @override
-  String get conversationFindOptions => '查找选项';
-
-  @override
-  String conversationFindMatchPosition(int current, int total) {
-    return '$current/$total';
-  }
-
-  @override
-  String get conversationFindCaseSensitive => '区分大小写';
-
-  @override
-  String get conversationFindWholeWord => '全词匹配';
-
-  @override
-  String get conversationFindWholeWordTooltip =>
-      '对英文、数字等按单词边界匹配；查询里若含汉字、假名、韩文，此项不改变结果。';
-
-  @override
-  String get conversationFindIncludeThinking => '包含思考过程';
-
-  @override
-  String get conversationFindOpenTooltip => '在会话中查找';
 
   @override
   String get searchServicesPageApiKeyRequiredStatus => '需要 API Key';
@@ -5092,29 +4881,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchServicesEditDialogRegionOptional => '地区（可选，默认 us-en）';
 
   @override
-  String get searchServicesFourGetUrlInvalid => '请输入 HTTP 或 HTTPS 实例地址。';
-
-  @override
-  String get searchServicesFourGetScraperOptional => '上游搜索引擎（可选）';
-
-  @override
-  String get searchServicesFourGetPassOptional => 'pass Cookie（可选）';
-
-  @override
-  String get searchServicesFourGetPassHelp =>
-      '如果实例要求验证码，请完成验证并粘贴 pass Cookie 的值。';
-
-  @override
   String get searchServiceEditorProviderTypeTitle => '搜索提供商';
 
   @override
   String get searchServiceEditorConfigurationTitle => '服务配置';
-
-  @override
-  String get searchServiceEditorChangeIcon => '更换图标';
-
-  @override
-  String get searchServiceEditorIconFailed => '无法使用此图标，请另选图片或图标。';
 
   @override
   String get searchServiceEditorNoConfiguration => '此提供商无需额外配置。';
@@ -5292,13 +5062,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
-
-  @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
-
-  @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '开源AI 助手';
@@ -5356,13 +5120,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPageJoinQQGroup => '加入QQ群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
+  String get aboutPageQQGroupOne => 'Cuplivo 一群';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
+  String get aboutPageQQGroupTwo => 'Cuplivo 二群';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroupThree => 'Cuplivo 三群';
 
   @override
   String get aboutPageJoinDiscord => '在 Discord 中加入我们';
@@ -5515,8 +5279,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get displaySettingsPageEnableImageCropperTitle => '启用图片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '从相册或相机选择图片后，允许裁剪图片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '预览未发送图片时可主动裁剪';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -5625,13 +5388,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get displaySettingsPageAutoSwitchTopicsTitle => '自动切换话题';
-
-  @override
-  String get desktopDisplaySettingsFullWidthChatTitle => '聊天全宽显示';
-
-  @override
-  String get desktopDisplaySettingsFullWidthChatSubtitle =>
-      '让消息区和输入框随聊天栏的可用宽度展开。';
 
   @override
   String get desktopDisplaySettingsTopicPositionTitle => '话题位置';
@@ -6381,6 +6137,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageViewerPageNextButton => '下一张图片';
 
   @override
+  String get imageViewerPageZoomInButton => '放大';
+
+  @override
+  String get imageViewerPageZoomOutButton => '缩小';
+
+  @override
+  String get imageViewerPageResetZoomButton => '重置缩放';
+
+  @override
+  String get imageViewerPageFlipHorizontalButton => '左右镜像';
+
+  @override
+  String get imageViewerPageFlipVerticalButton => '上下镜像';
+
+  @override
+  String get imageViewerPageRotateLeftButton => '向左旋转';
+
+  @override
+  String get imageViewerPageRotateRightButton => '向右旋转';
+
+  @override
   String imageViewerPageCounter(int index, int total) {
     return '$index/$total';
   }
@@ -6402,7 +6179,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 开源AI助手';
+  String get settingsShare => 'Cuplivo - 开源AI助手';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -6431,10 +6208,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchProviderSearXNGDescription => '注重隐私的元搜索引擎。需自建实例，无跟踪。';
-
-  @override
-  String get searchProviderFourGetDescription =>
-      '通过已启用 API 的公开或自建 4get 实例搜索网页。';
 
   @override
   String get searchProviderTavilyDescription =>
@@ -6475,9 +6248,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get searchServiceNameSearXNG => 'SearXNG';
-
-  @override
-  String get searchServiceNameFourGet => '4get';
 
   @override
   String get searchServiceNameLinkUp => 'LinkUp';
@@ -6597,13 +6367,6 @@ class AppLocalizationsZh extends AppLocalizations {
       'You.com 搜索 API。返回网页与新闻结果，支持 Highlights 或 Snippets。';
 
   @override
-  String get searchServiceNameKeenable => 'Keenable';
-
-  @override
-  String get searchProviderKeenableDescription =>
-      'Keenable 搜索。API Key 可选，不填则使用公开搜索端点。';
-
-  @override
   String get searchServicesDialogContentMode => '内容模式';
 
   @override
@@ -6624,9 +6387,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get searchServicesDialogMaximumTokensInvalid =>
       '最大 token 数必须介于 1024 和 32768 之间。';
-
-  @override
-  String get searchServiceNameKelivo => 'Kelivo';
 
   @override
   String get searchServicesDialogCountryOptional => '国家/地区（可选）';
@@ -6902,7 +6662,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get healthDataSettingsDescription =>
-      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Kelivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
+      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Cuplivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -8207,7 +7967,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get legacyMemoryExport => '导出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 旧版记忆导出';
+  String get legacyMemoryExportTitle => 'Cuplivo 旧版记忆导出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -8704,13 +8464,8 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String tokenDetailFirstResponse(String value) {
-    return '${value}s（首响应）';
-  }
-
-  @override
-  String tokenDetailFirstOutput(String value) {
-    return '${value}s（首输出）';
+  String tokenDetailFirstToken(String value) {
+    return '${value}s（首字）';
   }
 
   @override
@@ -8816,7 +8571,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
+      'Cuplivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
 
   @override
   String get migrationBackupNote => '迁移开始前，会先导出包含设置、聊天记录和本地文件的 ZIP 备份。';
@@ -8858,14 +8613,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Kelivo 开启，等待备份完成。';
+      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Cuplivo 开启，等待备份完成。';
 
   @override
   String get migrationMigratingTitle => '正在迁移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Kelivo 在前台，等待迁移完成。';
+      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Cuplivo 在前台，等待迁移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -8924,7 +8679,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天记录已迁移到 SQLite。请重启 Kelivo 进入升级后的应用。';
+      '你的聊天记录已迁移到 SQLite。请重启 Cuplivo 进入升级后的应用。';
 
   @override
   String get migrationConversationCount => '对话';
@@ -8942,7 +8697,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get migrationMissingFilesCount => '缺失文件';
 
   @override
-  String get migrationRestartButton => '重启 Kelivo';
+  String get migrationRestartButton => '重启 Cuplivo';
 
   @override
   String get migrationFailedTitle => '迁移失败';
@@ -8968,7 +8723,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
+      'Cuplivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -9325,13 +9080,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '助手回复遇到空行时拆分，每段单独一个气泡';
 
   @override
-  String get messageStyleSettingsPageCustomizeThinkingToolCards => '自定义思考与工具卡片';
-
-  @override
-  String get messageStyleSettingsPageCustomizeThinkingToolCardsSubtitle =>
-      '为思考与工具调用单独设置卡片外观';
-
-  @override
   String get messageStyleSettingsPageStyleFrostedSubtitle => '半透明毛玻璃';
 
   @override
@@ -9380,9 +9128,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageStyleSettingsPageRoleAssistant => '助手';
 
   @override
-  String get messageStyleSettingsPageRoleThinkingTool => '思考与工具';
-
-  @override
   String get messageStyleSettingsPageRoleAssistantHint =>
       '翻译卡片跟随助手样式，思考与工具卡片默认也跟随助手样式。';
 
@@ -9393,7 +9138,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localSnapshotEnabledTitle => '保留本地副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 会定期在本机存一份数据库副本，让数据不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 会定期在本机存一份数据库副本，让数据不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '备份频率';
@@ -9554,7 +9299,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String localSnapshotRestoreMessage(String when) {
-    return '当前聊天和设置将替换为 $when 的副本。替换前会保存当前聊天和设置的副本。未发送的草稿不包含在副本中，此次恢复会清除这些草稿。';
+    return '当前的对话和设置会被 $when 的这份副本替换。系统会先把现在的数据存一份，所以这一步可以撤销。';
   }
 
   @override
@@ -9616,9 +9361,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get toolSchemaSettingsGroupSearch => '搜索';
-
-  @override
-  String get toolSchemaSettingsGroupImages => '图片';
 
   @override
   String get toolSchemaSettingsGroupMemory => '记忆';
@@ -10190,7 +9932,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '请重启 Kelivo 以完成安装';
+  String get workspaceEnvRestartBanner => '请重启 Cuplivo 以完成安装';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在检测最快镜像…';
@@ -10271,16 +10013,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceEnvErrorPatchFailed => '无法完成沙箱配置。';
 
   @override
-  String get workspaceEnvErrorRepairInterrupted => '沙盒修复已中断，现有沙盒已保留。请重试以完成修复。';
-
-  @override
-  String get workspaceEnvErrorRepairTimeout => '沙盒修复超时，请检查网络连接后重试。现有沙盒已保留。';
-
-  @override
-  String get workspaceEnvRepairRestartBanner =>
-      '未能在限定时间内确认沙盒修复已停止。请完全退出并重新打开 Kelivo 后重试。现有沙盒已保留。';
-
-  @override
   String get workspaceEnvErrorCancelled => '安装已取消。';
 
   @override
@@ -10305,7 +10037,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系统终端，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系统终端，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -11209,7 +10941,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceDesktopFolderMissing => '请选择已存在的文件夹，或输入它的绝对路径。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 为此项目创建并管理文件夹。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 为此项目创建并管理文件夹。';
 
   @override
   String get workspaceDesktopHostHint => '在本机访问文件和执行命令。';
@@ -11423,38 +11155,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get incomingShareMoveFailed => '无法切换对话，草稿已保留。';
 
   @override
-  String attachmentEncodingUnrecognized(String name) {
-    return '「$name」无法识别这个文本的编码，可以另存为 UTF-8 后重发';
-  }
-
-  @override
-  String get attachmentEncodingUnrecognizedShort => '无法识别编码';
-
-  @override
-  String attachmentNotText(String name) {
-    return '「$name」这个文件不是文本，暂不支持';
-  }
-
-  @override
-  String get attachmentNotTextShort => '不是文本';
-
-  @override
-  String attachmentTruncatedNotice(int count) {
-    return '文件过大，只读取了前 $count 字，建议拆分后再发送';
-  }
-
-  @override
-  String get attachmentTruncatedCard => '将只发送开头';
-
-  @override
-  String attachmentDocumentTooLarge(String name) {
-    return '「$name」文件过大，无法在普通对话中读取';
-  }
-
-  @override
-  String get attachmentDocumentTooLargeShort => '文件过大';
-
-  @override
   String attachmentRequiresWorkspace(String name) {
     return '「$name」无法在普通对话中直接读取。请绑定工作区并启用文件工具，或将草稿移到已有工作区的对话。';
   }
@@ -11474,7 +11174,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Kelivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
+      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Cuplivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授权';
@@ -11690,7 +11390,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundSettingsTitle => '后台任务';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任务';
+  String get backgroundTaskTitle => 'Cuplivo 任务';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -11819,7 +11519,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundOverlayIcon => '悬浮窗图标';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 图标';
+  String get backgroundIconDefault => 'Cuplivo 图标';
 
   @override
   String get backgroundIconImage => '选择图片';
@@ -12028,7 +11728,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Kelivo，卸载会一并删除这些快照。';
+      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Cuplivo，卸载会一并删除这些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本机找到数据库快照。请先导出数据，再尝试其他恢复操作。';
@@ -12038,7 +11738,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Kelivo 将重启以完成恢复。';
+    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Cuplivo 将重启以完成恢复。';
   }
 
   @override
@@ -12047,7 +11747,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Kelivo 完成恢复。';
+  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Cuplivo 完成恢复。';
 
   @override
   String get scheduledTasksTitle => '定时任务';
@@ -12118,7 +11818,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksReliability =>
-      '建议在电池设置中允许 Kelivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
+      '建议在电池设置中允许 Cuplivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -12295,7 +11995,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '仅在 Kelivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
+      '仅在 Cuplivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -12662,7 +12362,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 后台限制，Kelivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Kelivo 才能补充。';
+      '受 iOS 后台限制，Cuplivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Cuplivo 才能补充。';
 
   @override
   String get scheduledTasksContextPolicy => '对话上下文';
@@ -12726,7 +12426,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定时任务已到期，打开 Kelivo 继续。';
+  String get scheduledTasksReminderBody => '定时任务已到期，打开 Cuplivo 继续。';
 
   @override
   String get scheduledTasksResultBody => '定时任务结果已准备好。';
@@ -12740,7 +12440,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
+      '在 Cuplivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -12748,7 +12448,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Kelivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
+      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Cuplivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -12760,7 +12460,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Kelivo 正在打开运行，可直接执行任务。';
+      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Cuplivo 正在打开运行，可直接执行任务。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -12936,14 +12636,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同时完成两项设置：在系统无障碍设置中启用“Kelivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
+      '需要同时完成两项设置：在系统无障碍设置中启用“Cuplivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
 
   @override
   String get phoneControlRestrictedTitle => '无法开启无障碍？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Kelivo 应用信息，完成后再返回无障碍设置。';
+      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Cuplivo 应用信息，完成后再返回无障碍设置。';
 
   @override
   String get phoneControlEnableAssistant => '允许此助手使用手机控制';
@@ -13133,14 +12833,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryMissingDataBody =>
-      '暂时找不到当前聊天数据库，Kelivo 已暂停载入，没有新建空数据库。我们会在下方查找旧副本，现有文件会保留。';
+      '当前数据库缺失，但设备上仍有旧数据。Cuplivo 已暂停启动，没有新建空数据库，并保留现有文件和副本。';
 
   @override
   String get recoveryEmptyDataTitle => '当前聊天记录为空';
 
   @override
   String get recoveryEmptyDataBody =>
-      '当前聊天列表为空，但找到了旧副本。可以从下方选择副本找回聊天记录，现有文件会保留。';
+      '当前数据库没有对话，但发现了历史副本。Cuplivo 已暂停启动，你可以恢复副本，也可以明确选择保留当前数据。应用不会自动覆盖数据。';
 
   @override
   String get recoveryKeepCurrent => '继续使用空聊天列表';
@@ -13174,7 +12874,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryStorageFailureBody =>
-      '数据更新暂时未能完成，原数据已保留。可以尝试重新打开 Kelivo，或选择下方的本地副本恢复。';
+      'Cuplivo 未能启用受保护的数据存储，已暂停启动并保留原数据。可以导出数据副本或重试，应用不会因此新建空数据库。';
 
   @override
   String get recoveryProtectingTitle => '正在保护聊天数据库';
@@ -13198,7 +12898,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      '存储空间不足，暂时无法安全地准备数据。请到系统设置释放一些空间，再重新打开 Kelivo，或重新检查下方的副本。请保留 Kelivo，不要删除它的数据和本地副本。';
+      '存储空间不足，暂时无法安全地准备数据。请到系统设置释放一些空间，再重新打开 Cuplivo，或重新检查下方的副本。请保留 Cuplivo，不要删除它的数据和本地副本。';
 
   @override
   String get migrationFreshStartTitle => '已重新开始';
@@ -13275,7 +12975,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupEncryptionInvalid => '加密备份不完整或格式无效。';
 
   @override
-  String get backupEncryptionUnsupported => '此加密备份需要更新版本的 Kelivo。';
+  String get backupEncryptionUnsupported => '此加密备份需要更新版本的 Cuplivo。';
 
   @override
   String get backupProgressEncrypting => '正在加密备份';
@@ -13437,7 +13137,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get browserRestoreTabs => '恢复标签页';
 
   @override
-  String get browserRestoreTabsDescription => '启动 Kelivo 时恢复上次的标签页。';
+  String get browserRestoreTabsDescription => '启动 Cuplivo 时恢复上次的标签页。';
 
   @override
   String get browserSaveHistory => '保存浏览记录';
@@ -14513,6 +14213,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressTaskAbandon => '放弃';
 
   @override
+  String get browserAgentTimedOut => '操作超时，AI 已暂停';
+
+  @override
   String get compressCancelledSnack => '已取消，上下文没有改动。';
 
   @override
@@ -15070,7 +14773,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '确定清理以下目录中的原数据副本？当前目录中的数据会保留，搬迁后发生变化的文件不会被删除。';
 
   @override
-  String get dataDirectoryMoving => '正在搬迁并校验数据…请保持 Kelivo 开启。';
+  String get dataDirectoryMoving => '正在搬迁并校验数据…请保持 Cuplivo 开启。';
 
   @override
   String get dataDirectoryStartupFailed => '无法打开数据目录';
@@ -15109,7 +14812,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dataDirectoryGenericError =>
-      '操作未完成。请检查磁盘剩余空间、文件夹权限，以及是否有其他 Kelivo 进程运行，然后重试。已有数据已保留。';
+      '操作未完成。请检查磁盘剩余空间、文件夹权限，以及是否有其他 Cuplivo 进程运行，然后重试。已有数据已保留。';
 
   @override
   String get dataDirectoryCancelHint => '取消搬迁会保留目标目录中已复制的文件，你可以检查后手动清理这些副本。';
@@ -15353,7 +15056,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo 暂时无法载入数据，已暂停操作。我们会查找本地副本，供你选择恢复。现有文件会保留。';
+      'Cuplivo 暂时无法载入数据，已暂停操作。我们会查找本地副本，供你选择恢复。现有文件会保留。';
 
   @override
   String get recoverySpaceTitle => '需要一些存储空间';
@@ -15374,7 +15077,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryRestoreRetryBody =>
-      '这次恢复尚未完成，选中的副本已保留。可以重新检查本地副本，或重新打开 Kelivo 继续。';
+      '这次恢复尚未完成，选中的副本已保留。可以重新检查本地副本，或重新打开 Cuplivo 继续。';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -15383,7 +15086,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      '部分副本来自更新版本的 Kelivo，请升级 App 后再恢复。这些副本仍然保留。';
+      '部分副本来自更新版本的 Cuplivo，请升级 App 后再恢复。这些副本仍然保留。';
 
   @override
   String get imageContextAllowRecall => '允许模型回读历史图片';
@@ -15406,18 +15109,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get imageContextOmitted => '本轮不发送';
-
-  @override
-  String get imageContextExclude => '从上下文排除';
-
-  @override
-  String get imageContextRestore => '取消排除';
-
-  @override
-  String get imageContextExcluded => '已手动排除';
-
-  @override
-  String get imageContextExcludedWithOriginal => '原图已排除';
 
   @override
   String get imageContextPin => '固定图片';
@@ -15476,9 +15167,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get contextOperationsTitle => '压缩与清空记录';
-
-  @override
-  String get contextOperationsLoadMore => '展开更多';
 
   @override
   String get contextOperationsDescription => '查看压缩和清空的记录，也可以撤销';
@@ -15653,12 +15341,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '摘要可参考助手的系统提示词、与这段历史匹配的世界书和当时保存的记忆。发生过的事和角色知道的事以聊天记录为准。';
 
   @override
-  String get compressionInstructionInjections => '压缩时参考指令注入';
-
-  @override
-  String get compressionInstructionInjectionsHint => '将当前对话启用的指令卡作为参考资料发给摘要模型。';
-
-  @override
   String get compressionToolReferences => '已读过的工具结果只保留引用';
 
   @override
@@ -15712,9 +15394,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get compressionIncomplete => '摘要没写完或被模型拒绝，上下文没有改动。可以调高输出上限，或换一个模型。';
-
-  @override
-  String get compressionProviderContextRejected => '服务端返回请求过大。可以换一个上下文更大的模型再试。';
 
   @override
   String get compressionReferenceChanged => '参考的背景已经变了。请先看一下这份摘要，或重新生成一次。';
@@ -15890,24 +15569,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressionTurnUnit => '轮';
 
   @override
-  String get compressionRequestTimeout => '压缩请求超时';
-
-  @override
-  String get compressionMinuteUnit => '分钟';
-
-  @override
-  String get compressionRequestTimeoutDefault => '默认';
-
-  @override
-  String get compressionRequestTimeoutHint =>
-      '请输入分钟数，须大于 0。留空则保持现在的默认（服务端压缩为 5 分钟）。分段压缩时，每一段的生成和合并会分别计时。';
-
-  @override
-  String compressionRequestTimedOut(num minutes) {
-    return '压缩超过 $minutes 分钟还没完成，已停止，上下文没有改动。可以再试一次，或把超时时间调长。';
-  }
-
-  @override
   String get compressionAdvancedOptions => '压缩细节';
 
   @override
@@ -15915,11 +15576,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get compressionAutomaticWindow => '自动';
-
-  @override
-  String compressionSummaryWindowEstimate(String tokens, String source) {
-    return '摘要模型窗口 · $tokens token · $source';
-  }
 
   @override
   String get compressionAutoOffHint => '需要时可在压缩页手动开始。';
@@ -16004,22 +15660,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Kelivo 本地预检：本次请求第 $index 张图片编码后为 $actual，超过单张预算 $limit。';
+    return 'Cuplivo 本地预检：本次请求第 $index 张图片编码后为 $actual，超过单张预算 $limit。';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Kelivo 本地预检：图片编码后合计 $actual，超过图片总预算 $limit。';
+    return 'Cuplivo 本地预检：图片编码后合计 $actual，超过图片总预算 $limit。';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Kelivo 本地预检：本次请求包含 $actual 张图片，超过数量上限 $limit 张。';
+    return 'Cuplivo 本地预检：本次请求包含 $actual 张图片，超过数量上限 $limit 张。';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Kelivo 本地预检：完整请求体为 $actual，超过请求体预算 $limit。';
+    return 'Cuplivo 本地预检：完整请求体为 $actual，超过请求体预算 $limit。';
   }
 
   @override
@@ -16093,13 +15749,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '达到设定的比例时，用当前对话模型做服务端压缩，然后再继续发送。失败时原文不动，也不会改用文字摘要。';
 
   @override
-  String get languageDisplayRussian => '俄语';
+  String get languageDisplayRussian => 'Русский';
 
   @override
   String get languageDisplayTurkish => '土耳其语';
-
-  @override
-  String get languageDisplayBangla => '孟加拉语';
 
   @override
   String sideDrawerDeleteConfirmContent(String title) {
@@ -16215,23 +15868,1353 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workspaceEnvNativeShellSave => '保存';
 
   @override
+  String get storageSpaceCategoryAssistantData => '助手';
+
+  @override
+  String get storageSpaceSubAssistantAvatars => '头像';
+
+  @override
+  String get storageSpaceSubAssistantImages => '图片';
+
+  @override
+  String get storageSpaceSourceLabel => '来源';
+
+  @override
+  String get storageSpaceSourceAll => '全部';
+
+  @override
+  String get storageSpaceSourceUserUpload => '用户上传';
+
+  @override
+  String get storageSpaceSourceAssistant => '助手发出';
+
+  @override
+  String get languageDisplayPortuguese => 'Português';
+
+  @override
+  String get languageDisplayArabic => 'العربية';
+
+  @override
+  String get languageDisplayHindi => 'हिन्दी';
+
+  @override
+  String get languageDisplayThai => 'ไทย';
+
+  @override
+  String get languageDisplayVietnamese => 'Tiếng Việt';
+
+  @override
+  String get languageDisplayBengali => 'বাংলা';
+
+  @override
+  String get translateLanguageManagerTitle => '管理语言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '选择在翻译目标列表中显示的语言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '请至少保留一种语言。';
+
+  @override
+  String get assistantEditChatSuggestionsTitle => '聊天建议';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      '每次助手回复后额外发一条请求，生成最多三条后续建议；关闭则不再请求。';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff => '未生效：请先在「默认模型」中开启聊天建议。';
+
+  @override
+  String get hotkeyFocusInput => '聚焦输入框';
+
+  @override
+  String get hotkeyCopySelectionMarkdown => '复制选中为 Markdown';
+
+  @override
+  String get hotkeyReplySelection => '回复选中内容';
+
+  @override
+  String get compressingContext => '正在压缩上下文...';
+
+  @override
+  String compressContextReadoutRounds(int rounds) {
+    return '共 $rounds 轮';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    return '$rounds 轮 + 摘要';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens token';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max token';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String get messageQuotePreviewRemove => '移除回复';
+
+  @override
+  String get messageQuoteTargetMissing => '原消息不可用';
+
+  @override
+  String get messageMoreSheetReply => '回复';
+
+  @override
+  String get messageMoreSheetCopyLink => '复制链接';
+
+  @override
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return '当前档位：$level';
+  }
+
+  @override
+  String get chatMessageWidgetReplySelection => '回复';
+
+  @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
+  String get messageExportSheetUser => '用户';
+
+  @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle => '将选中的消息导出为 PDF 文档';
+
+  @override
+  String get pdfExportDialogTitle => '导出 PDF';
+
+  @override
+  String get pdfExportDialogCancel => '取消';
+
+  @override
+  String get pdfExportDialogExport => '导出 PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => '内容';
+
+  @override
+  String get pdfExportDialogSectionFonts => '字体';
+
+  @override
+  String get pdfExportFontRoleBody => '正文字体';
+
+  @override
+  String get pdfExportFontRoleMono => '代码字体';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji 字体';
+
+  @override
+  String get pdfExportFontCheck => '检查字体';
+
+  @override
+  String get pdfExportFontChecking => '正在检查…';
+
+  @override
+  String get pdfExportFontMissing => '未找到可嵌入的中文字体，中文可能显示为空白。';
+
+  @override
+  String get pdfExportFontUnusable => '所选字体不可用，已改用其它字体。';
+
+  @override
+  String get pdfExportFontBuiltIn => '内置字体';
+
+  @override
+  String get pdfExportFontNone => '未嵌入';
+
+  @override
+  String get pdfExportFontNeedsDownload => '需下载';
+
+  @override
+  String get pdfExportFontAuto => '自动';
+
+  @override
+  String get pdfExportFontGroupSystem => '系统字体';
+
+  @override
+  String get pdfExportFontGroupDownload => '下载';
+
+  @override
+  String get pdfExportFontGroupOther => '其他';
+
+  @override
+  String get pdfExportFontNoteCjk => '含中文';
+
+  @override
+  String get pdfExportFontNoteColour => '彩色';
+
+  @override
+  String get pdfExportFontNoteMonochrome => '单色';
+
+  @override
+  String get pdfExportFontBuiltInNote => '不嵌入字体，中文显示为空白';
+
+  @override
+  String get pdfExportFontDownloadNote => '含中文，约 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => '无法读取字体列表';
+
+  @override
+  String get pdfExportResultTitle => '导出完成';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages 页 · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count 项未能完整导出';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count 个公式已按原文本显示';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count 个图表已按代码显示';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count 张图片未能读取，已显示图片地址';
+  }
+
+  @override
+  String get pdfExportResultDone => '完成';
+
+  @override
+  String get sideDrawerMenuCopyLink => '复制链接';
+
+  @override
+  String get conversationLinkCopied => '已复制链接';
+
+  @override
+  String get conversationLinkMissing => '此对话不在本设备上。';
+
+  @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
+  String get modelDetailSheetSearchTool => '搜索';
+
+  @override
+  String get modelDetailSheetSearchToolDescription => '启用 Google 搜索集成';
+
+  @override
+  String get modelDetailSheetModelIdExistsError => '模型 ID 已存在';
+
+  @override
+  String get aboutPageQQGroup => 'Cuplivo 群';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失败，原图保持不变。';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleTitle => '自动回到底部延迟';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleSubtitle => '用户停止滚动后等待多久再自动回到底部';
+
+  @override
+  String get memorySettingsFullInjectionTypesTitle => '全量注入类型';
+
+  @override
+  String get memorySettingsFullInjectionTypesSubtitle =>
+      '可多选。选中类型会注入全局及当前助手的全部有效记忆，不受条数限制，会增加上下文和 token 消耗。';
+
+  @override
+  String get toolApprovalApprove => '批准';
+
+  @override
+  String get imageSettingsPageModeTitle => '压缩模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手动';
+
+  @override
+  String get imageSettingsPageModeAuto => '自动';
+
+  @override
+  String get imageSettingsPageModeOff => '关闭';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，在预览中可手动压缩';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加图片时按下方预设自动压缩';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '图片从不压缩';
+
+  @override
+  String get compressEditorTitle => '压缩图片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原图';
+
+  @override
+  String get compressEditorLongEdgeLabel => '长边';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '质量';
+
+  @override
+  String get compressEditorOriginalSide => '原图';
+
+  @override
+  String get compressEditorEstimating => '正在估算体积…';
+
+  @override
+  String get compressEditorEstimateFailed => '无法估算体积';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重编码';
+
+  @override
+  String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
+
+  @override
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '源图 $source，为控制内存按 $percent% 载入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '应用';
+
+  @override
+  String get compressEditorApplyAll => '应用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
+
+  @override
+  String get workspaceToolAllowAll => '本会话全部允许';
+
+  @override
+  String get workspaceEntryAllowAll => '本会话全部允许';
+
+  @override
+  String get workspaceEntryAllowAllSubtitle => '此对话中的 Shell 命令将不再需要批准。';
+
+  @override
+  String get recycleBinTitle => '回收站';
+
+  @override
+  String get recycleBinManage => '管理回收站';
+
+  @override
+  String get recycleBinStorageHint => '本机暂存，不参与同步与备份。';
+
+  @override
+  String get recycleBinEntriesLabel => '条目';
+
+  @override
+  String get recycleBinEmptyTitle => '回收站是空的';
+
+  @override
+  String get recycleBinEmptyBody => '你删除的对话与助手、被同步覆盖的设置都会暂存在这里，随时可以找回。';
+
+  @override
+  String get recycleBinUntitled => '未命名';
+
+  @override
+  String get recycleBinKindConversation => '对话';
+
+  @override
+  String get recycleBinKindAssistant => '助手';
+
+  @override
+  String get recycleBinKindProvider => '服务商';
+
+  @override
+  String get recycleBinKindWorldBook => '世界书';
+
+  @override
+  String get recycleBinKindMemory => '记忆';
+
+  @override
+  String get recycleBinKindPreference => '设置项';
+
+  @override
+  String get recycleBinKindWorkspaceFile => '工作区文件';
+
+  @override
+  String get recycleBinKindConfig => '配置';
+
+  @override
+  String get recycleBinOriginLocal => '本机删除';
+
+  @override
+  String get recycleBinOriginRemote => '同步删除';
+
+  @override
+  String get recycleBinReasonOverwritten => '被更新的版本替换';
+
+  @override
+  String get recycleBinRestore => '恢复';
+
+  @override
+  String get recycleBinDeleteForever => '彻底删除';
+
+  @override
+  String get recycleBinDeleteForeverBody => '该条目将被永久删除，无法再恢复。';
+
+  @override
+  String get recycleBinClearAll => '清空回收站';
+
+  @override
+  String get recycleBinClearAllBody => '回收站中的全部条目都将被永久删除，无法再恢复。';
+
+  @override
+  String get recycleBinRestored => '已恢复';
+
+  @override
+  String get recycleBinRestoreSkipped => '该项已重新存在，未做改动';
+
+  @override
+  String get recycleBinRestoreUnreadable => '暂存的副本已损坏，无法恢复';
+
+  @override
+  String get recycleBinRestoreUnsupported => '当前版本无法恢复该条目';
+
+  @override
+  String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreFailed => '恢复失败';
+
+  @override
+  String get recycleBinFilterAll => '全部';
+
+  @override
+  String get recycleBinFilterConversation => '对话';
+
+  @override
+  String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterSettings => '设置';
+
+  @override
+  String get recycleBinFilterFiles => '文件';
+
+  @override
+  String get recycleBinCancel => '取消';
+
+  @override
+  String get recycleBinInfoTitle => '关于回收站';
+
+  @override
+  String get recycleBinInfoBody =>
+      '在这里删除的东西——对话、助手、服务商、记忆、设置项——都会留在本机，随时可以找回。\n\n回收站不参与同步，也不会写进备份。条目保留 90 天，或直到超过 256 MB 或 1000 条；超过后从最旧的开始清理。\n\n恢复会把它记为当前时间，所以不会立刻又被上次胜出的版本覆盖。';
+
+  @override
+  String get recycleBinInfoClose => '知道了';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '随「$name」一起删除的 $count 个对话';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => '全部恢复';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return '已恢复 $restored 项，$skipped 项已存在';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已恢复 $restored 项，$failed 项未能恢复';
+  }
+
+  @override
+  String get recycleBinOpenDetail => '查看详情';
+
+  @override
+  String get recycleBinDetailKey => '标识';
+
+  @override
+  String get recycleBinDetailOrigin => '来源';
+
+  @override
+  String get recycleBinDetailWhen => '删除时间';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替换时间';
+
+  @override
+  String get recycleBinDetailSize => '占用';
+
+  @override
+  String get recycleBinDetailModified => '文件修改时间';
+
+  @override
+  String get recycleBinDetailContent => '内容';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count 行';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return '内容过大，只显示前 $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => '二进制文件，无法预览';
+
+  @override
+  String get recycleBinDetailUnreadable => '暂存的副本已损坏，读不出内容';
+
+  @override
+  String get recycleBinDetailCopyJson => '复制 JSON';
+
+  @override
+  String get recycleBinDetailCopyText => '复制文本';
+
+  @override
+  String get recycleBinDetailCopied => '已复制';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return '该对话属于助手「$name」，它已不在本机；恢复后需要为它重新指定助手。';
+  }
+
+  @override
+  String get settingsPageLanSync => '局域网同步';
+
+  @override
+  String get lanSyncThisDevice => '本设备';
+
+  @override
+  String get lanSyncListenerStarting => '正在启动监听…';
+
+  @override
+  String get lanSyncListenerNotRunning => '监听未运行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '监听启动失败：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get lanSyncPairIntro => '在局域网中的两台设备，一台扫描另一台展示的二维码配对。';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+
+  @override
+  String get lanSyncShowCode => '显示配对二维码';
+
+  @override
+  String get lanSyncEnterCode => '扫码或输入配对码';
+
+  @override
+  String get lanSyncPairingCode => '配对码';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 后失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台设备上输入以下地址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到局域网地址。另一台设备仍可凭本机的 IP 或主机名连接。';
+
+  @override
+  String get lanSyncHostLabel => '地址';
+
+  @override
+  String get lanSyncPortLabel => '端口';
+
+  @override
+  String get lanSyncPairButton => '配对';
+
+  @override
+  String get lanSyncPairAgain => '重新配对';
+
+  @override
+  String get lanSyncPairingBusy => '配对中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已与 $name 配对';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配对码错误，或对方的配对窗口已关闭。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '请填写对方设备的地址和端口。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '无法核实对方身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本设备的同步监听尚未启动。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配对失败：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '扫描配对二维码';
+
+  @override
+  String get lanSyncPairQrCaption => '扫码配对，或在另一台设备输入下方信息';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新与 $name 的配对';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '设备证书与二维码不符，已中止配对。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二维码中没有可用地址，请在下方输入地址完成配对。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '这不是 Cuplivo 的配对二维码。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配对二维码内容无法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二维码版本较新，请更新应用后重试。';
+
+  @override
+  String get lanSyncClosePairing => '关闭配对窗口';
+
+  @override
+  String get lanSyncPairedDevices => '已配对设备';
+
+  @override
+  String get lanSyncWorkspaces => '工作区';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count 个在同步内容';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => '同步中';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => '过大';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => '无法读取';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => '已关闭';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count 个文件';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ 个文件';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
+  String get lanSyncNoDevices => '还没有已配对的设备。配对后即可开始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知设备';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '从未同步';
+
+  @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '在线';
+
+  @override
+  String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在连接 $address…';
+  }
+
+  @override
+  String get lanSyncOffline => '离线';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在连接…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhaseSending => '正在发送变更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收变更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下载文件…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下载文件…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在应用变更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步进行中——请保持两台设备唤醒、Cuplivo 保持开启（手机端请保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重命名';
+
+  @override
+  String get lanSyncRenameTitle => '设备名称';
+
+  @override
+  String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
+
+  @override
+  String get lanSyncUnpair => '取消配对';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消与 $name 的配对？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '对话在两台设备上都会保留，只是不再与它同步，直到重新配对。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '发送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 条消息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 条消息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 个对话';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 项延后';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 个实体';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 项偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 个文件 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 个技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 处技能修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count 个工作区文件';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count 个工作区文件 · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count 个工作区文件';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count 处工作区文件修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count 个工作区文件未能应用';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count 个工作区未同步文件';
+  }
+
+  @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '已保留 $count 个工作区文件夹（开关已关闭）';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
+  }
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失败：没有记录对方设备的地址。请重新扫描它的二维码，或在卡片上填写地址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失败：对方设备报告了错误。';
+
+  @override
+  String get lanSyncReportInternal => '同步失败，详情见日志。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '对方数据库版本较新。请先更新本设备再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '对方使用不同的同步协议。请将两台设备都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本设备与对方对这次配对的记录已不一致——对方解除了配对，或重新配对没有在两台设备上完成。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一个同步会话正在进行，请稍后再试。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火墙';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '端口 $port 的入站规则需要一次管理员授权。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允许访问（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站访问已允许。';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return '已与 $name 同步';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => '详情';
+
+  @override
+  String get lanSyncNever => '从未';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => '暂时连不上';
+
+  @override
+  String get lanSyncListening => '监听中';
+
+  @override
+  String get lanSyncCopy => '复制';
+
+  @override
+  String get lanSyncMoreActions => '更多操作';
+
+  @override
+  String get lanSyncEndpointTip =>
+      '每个地址一块：点名称可重命名，点延迟看详情（最近测量、成功次数、添加时间），在详情里可以编辑地址或删除它。';
+
+  @override
+  String get lanSyncJustNow => '刚刚';
+
+  @override
+  String get lanSyncShowAddresses => '地址';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      '配对码只在信任的网络上使用：输码配对能挡住被动窃听，挡不住中间人；二维码把对方证书指纹带过来，所以更稳妥。';
+
+  @override
+  String get lanSyncNoAddress => '还没有记住这个设备的地址。';
+
+  @override
+  String get lanSyncAddAddress => '添加地址';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return '本机已记住该设备的 $count 个地址，请先删除一个再添加。';
+  }
+
+  @override
+  String get lanSyncRenameEndpointTitle => '地址名称';
+
+  @override
+  String get lanSyncRenameEndpointHint => '例如：家中网络';
+
+  @override
+  String get lanSyncEndpointLatency => '延迟';
+
+  @override
+  String get lanSyncEndpointLastMeasured => '最近测量';
+
+  @override
+  String get lanSyncEndpointLastReached => '最近连通';
+
+  @override
+  String get lanSyncEndpointSuccessCount => '成功连接';
+
+  @override
+  String get lanSyncEndpointAddedAt => '添加于';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n 次';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => '删除此地址';
+
+  @override
+  String get lanSyncEndpointUnreachable => '连不上';
+
+  @override
+  String get lanSyncSupersededByPeer => '这次同步由另一台设备发起。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主动关怀';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暂无已开启的对话';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未来 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已过期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 运行条件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精确闹钟';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自启动';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略电池优化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建议';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就绪';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '点击获取权限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手动确认';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主动发消息时间';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主动关怀提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主动发消息时使用的提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '请根据助手的角色设定、上下文、以及目前时间，给用户发一条消息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '决策时间功能说明提示词';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一个角色扮演场景的导演，负责判断助手（assistant）下一次应主动向用户发消息的时间。\n\n【功能说明】\n· 主动发消息：助手可在设定时间主动向用户发送消息，无需用户提问。\n· 若不设置主动发消息的时间，则助手无法在用户不发言的情况下主动发送任何消息。\n· 你需要评估当前设定的下次发消息时间：若认为无需调整，则保持原时间；否则进行修改。\n\n【注意】\n· 只考虑助手的视角看到的信息，不考虑用户的视角。\n\n【考虑角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情况下，应主动向用户报备或打招呼。\n2. 若上下文中提到助手因睡着、忙碌等原因未能及时查看用户的消息，则应设定在助手睡醒或忙完后，主动给用户发一条消息。\n3. 若上下文中提到助手需要在某个时间点监督或提醒用户，则设定在该时间点主动发消息。\n4. 当一个话题尚未聊完时，需要假设：用户在助手最后一条消息发出后始终没有回复，那么助手应在什么时间主动发消息？请据此设定时间。\n\n【示例】\n1. 聊天记录中，用户凌晨发消息称自己失眠，预计早上10:30起床，但助手没有失眠，会按正常时间（如8:30）起床。此时应将主动发消息时间设为助手的起床时间。\n2. 聊天记录中，用户与助手正在聊考试话题。你在8:30看到的最后一条消息是助手在8:30发出的一个提问。依据第4条规则，需考虑用户一直未回复的情况，助手应在10分钟之内主动发消息追问。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '选择日期和时间';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '请选择未来的时间。';
+
+  @override
+  String get conversationProactiveCareTitle => '对话主动关怀';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟随助手设置：已开启';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟随助手设置：已关闭';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '对话设置：已开启';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '对话设置：已关闭';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟随助手设置';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次发消息时间';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的来信决策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用于决定助手何时主动发消息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主动关怀消息生成失败，请打开应用检查模型配置与网络。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的来信已到达，打开应用即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的来信';
+
+  @override
+  String get backupProgressSkippedTitle => '备份完成，部分内容已跳过';
+
+  @override
+  String backupProgressSkippedMessage(int count) {
+    return '已跳过 $count 个无法读取的文件或目录，以下内容未包含在备份中。';
+  }
+
+  @override
+  String contextUsagePartialSummary(String tokens) {
+    return '已估算 $tokens，服务端压缩占用的量暂不知道';
+  }
+
+  @override
+  String get contextUsageBucketNativeCompaction => '服务端压缩';
+
+  @override
+  String get contextUsageUnknownTokens => '未知';
+
+  @override
+  String contextUsageLastRequestInput(String tokens) {
+    return '上次实际发给模型：$tokens';
+  }
+
+  @override
+  String get conversationFindHint => '查找';
+
+  @override
+  String get conversationFindPrevious => '上一个匹配项';
+
+  @override
+  String get conversationFindNext => '下一个匹配项';
+
+  @override
+  String get conversationFindOptions => '查找选项';
+
+  @override
+  String conversationFindMatchPosition(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get conversationFindCaseSensitive => '区分大小写';
+
+  @override
+  String get conversationFindWholeWord => '全词匹配';
+
+  @override
+  String get conversationFindWholeWordTooltip =>
+      '对英文、数字等按单词边界匹配；查询里若含汉字、假名、韩文，此项不改变结果。';
+
+  @override
+  String get conversationFindIncludeThinking => '包含思考过程';
+
+  @override
+  String get conversationFindOpenTooltip => '在会话中查找';
+
+  @override
+  String tokenDetailFirstResponse(String value) {
+    return '${value}s（首响应）';
+  }
+
+  @override
+  String tokenDetailFirstOutput(String value) {
+    return '${value}s（首输出）';
+  }
+
+  @override
+  String get toolSchemaSettingsGroupImages => '图片';
+
+  @override
+  String get workspaceEnvErrorRepairInterrupted => '沙盒修复已中断，现有沙盒已保留。请重试以完成修复。';
+
+  @override
+  String get workspaceEnvErrorRepairTimeout => '沙盒修复超时，请检查网络连接后重试。现有沙盒已保留。';
+
+  @override
+  String get workspaceEnvRepairRestartBanner =>
+      '未能在限定时间内确认沙盒修复已停止。请完全退出并重新打开 Cuplivo 后重试。现有沙盒已保留。';
+
+  @override
+  String get contextOperationsLoadMore => '展开更多';
+
+  @override
+  String get compressionRequestTimeout => '压缩请求超时';
+
+  @override
+  String get compressionMinuteUnit => '分钟';
+
+  @override
+  String get compressionRequestTimeoutDefault => '默认';
+
+  @override
+  String get compressionRequestTimeoutHint =>
+      '请输入分钟数，须大于 0。留空则保持现在的默认（服务端压缩为 5 分钟）。分段压缩时，每一段的生成和合并会分别计时。';
+
+  @override
+  String compressionRequestTimedOut(num minutes) {
+    return '压缩超过 $minutes 分钟还没完成，已停止，上下文没有改动。可以再试一次，或把超时时间调长。';
+  }
+
+  @override
   String get desktopAutostartTitle => '开机自启动';
 
   @override
-  String get desktopAutostartDescription => '登录这台电脑后自动启动 Kelivo。';
+  String get desktopAutostartDescription => '登录这台电脑后自动启动 Cuplivo。';
 
   @override
   String get desktopAutostartHiddenTitle => '自启动后隐藏到托盘';
 
   @override
   String get desktopAutostartHiddenDescription =>
-      '需要开启自启动和托盘图标。手动打开 Kelivo 时仍会显示窗口。';
+      '需要开启自启动和托盘图标。手动打开 Cuplivo 时仍会显示窗口。';
 
   @override
   String get desktopAutostartUnsupported => '开机自启动需要 macOS 13 或更高版本。';
 
   @override
-  String get desktopAutostartError => '无法应用启动设置。请检查系统启动项或登录项中的 Kelivo 设置后重试。';
+  String get desktopAutostartError => '无法应用启动设置。请检查系统启动项或登录项中的 Cuplivo 设置后重试。';
 
   @override
   String get compressionOutputBudget => '总输出上限（tokens）';
@@ -16520,15 +17503,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compressionCarryListTitle => '消息预览';
 
   @override
-  String get compressionCarrySelectAllReplies => '全选助手回复';
-
-  @override
-  String get compressionCarryDeselectAllReplies => '全不选';
-
-  @override
-  String get compressionCarryPairNotFit => '剩余空间放不下这组原文和回复，本次会一起跳过。';
-
-  @override
   String compressionCarryImageCount(int count) {
     return '$count 张图片';
   }
@@ -16638,7 +17612,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupAutoKeychainUnavailable =>
-      'Kelivo 暂时无法访问系统钥匙串来保存或读取备份密码。你仍可手动备份。';
+      'Cuplivo 暂时无法访问系统钥匙串来保存或读取备份密码。你仍可手动备份。';
 
   @override
   String get backupAutoSucceeded => '已完成自动备份';
@@ -16674,14 +17648,287 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS 无法解锁登录钥匙串。请打开「钥匙串访问」，解锁「登录」，再回到 Kelivo 重试。';
+      'macOS 无法解锁登录钥匙串。请打开「钥匙串访问」，解锁「登录」，再回到 Cuplivo 重试。';
 
   @override
   String get backupMacOpenKeychainAccess => '打开钥匙串访问';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS 拒绝访问备份密码。如果出现系统提示，请允许 Kelivo 访问。你也可以在「钥匙串访问」中检查默认钥匙串和备份密码项目的权限。';
+      'macOS 拒绝访问备份密码。如果出现系统提示，请允许 Cuplivo 访问。你也可以在「钥匙串访问」中检查默认钥匙串和备份密码项目的权限。';
+
+  @override
+  String get storageSpaceCopyErrorDetails => '复制错误详情';
+
+  @override
+  String get storageAttachmentChecking => '正在检查附件使用情况…';
+
+  @override
+  String get storageAttachmentCheckFailed => '无法检查附件使用情况，请刷新后重试。';
+
+  @override
+  String get storageSpaceCopyErrorFailed => '无法复制错误详情，请重试。';
+
+  @override
+  String hotkeysShortcutInUse(String action) {
+    return '此快捷键已分配给「$action」。';
+  }
+
+  @override
+  String get hotkeysTextEditing => '文本编辑与焦点导航';
+
+  @override
+  String get backupPageChooseNewFile => '请使用新的文件名或选择其他文件夹保存备份。';
+
+  @override
+  String backupArchiveFileSizeLimit(String name, String limit) {
+    return '「$name」超过了备份单个文件 $limit 的大小上限。';
+  }
+
+  @override
+  String backupArchiveTotalSizeLimit(String limit) {
+    return '备份的未压缩大小超过了 $limit 的上限。';
+  }
+
+  @override
+  String get backupPageSettingsSaveFailed => '备份设置保存失败，请重试。';
+
+  @override
+  String get backupProgressScanning => '正在扫描备份文件';
+
+  @override
+  String backupProgressDiscoveredFiles(int count) {
+    return '已发现 $count 个文件';
+  }
+
+  @override
+  String get backupProgressCheckingDatabase => '正在检查数据库';
+
+  @override
+  String get backupProgressChoosingDestination => '正在选择保存位置';
+
+  @override
+  String get backupProgressSavingFile => '正在保存备份文件';
+
+  @override
+  String backupProgressElapsed(String time) {
+    return '已用时 $time';
+  }
+
+  @override
+  String get backupPageImportFromOtherAppsSubtitle =>
+      '新版 Chatbox、Cherry Studio 2.x，以及 ChatGPT、Claude、DeepSeek、Gemini、Grok、Open WebUI、NextChat、LobeChat。在浏览器本地转换成 Kelivo 备份后再导入，文件不会上传。';
+
+  @override
+  String get backupPageOpenImportToolbox => '打开工具箱';
+
+  @override
+  String backupPageImportToolboxOpenFailed(String url) {
+    return '无法打开浏览器，请手动访问：$url';
+  }
+
+  @override
+  String get backupPageToolboxImportMergeOnlyHint =>
+      '这是官方工具箱转换的备份。导入会合并到现有数据，不会替换已有聊天和助手。';
+
+  @override
+  String backupPageChatboxUnsupportedBackupVersion(String version) {
+    return '这是 Chatbox 新版备份（格式版本 $version），App 里暂时不能直接导入。请到官方工具箱转换成 Kelivo 备份，再回到「备份文件导入」，并选择「合并」。转换在浏览器本地完成，文件不会上传。';
+  }
+
+  @override
+  String get messageExportSheetExpandAllSteps => '展开全部步骤';
+
+  @override
+  String get modelSpecFormResponseSpeedTiers => '响应速度档位';
+
+  @override
+  String get modelSpecFormResponseSpeedTiersSubtitle =>
+      '自定义聊天中可为此模型选择的加速档位。两档均不勾选时，只提供标准档。';
+
+  @override
+  String get providerBalanceAutoRefresh => '余额自动刷新';
+
+  @override
+  String get providerBalanceScopeProvider => '此供应商';
+
+  @override
+  String get providerBalanceScopeGlobal => '全局默认';
+
+  @override
+  String get providerBalanceInterval => '定时刷新';
+
+  @override
+  String get providerBalanceRefreshOnReply => '回复后刷新';
+
+  @override
+  String providerBalanceFollowDefault(String value) {
+    return '默认 · $value';
+  }
+
+  @override
+  String get providerBalanceRefreshOff => '关闭';
+
+  @override
+  String get providerBalanceRefreshOn => '开启';
+
+  @override
+  String providerBalanceRefreshMinutes(int count) {
+    return '$count 分钟';
+  }
+
+  @override
+  String get providerBalanceRefreshHour => '1 小时';
+
+  @override
+  String get providerBalanceCustomInterval => '自定义间隔…';
+
+  @override
+  String get providerBalanceIntervalMinutes => '间隔分钟数';
+
+  @override
+  String get providerBalanceRefreshNow => '立即刷新余额';
+
+  @override
+  String providerBalanceLastUpdated(String date, String time) {
+    return '最后更新于 $date $time';
+  }
+
+  @override
+  String get providerDetailPageBalanceResetConfirmMessage =>
+      '这会覆盖当前供应商自定义的余额查询配置，将余额查询开关恢复为默认状态，并让自动刷新跟随全局设置。';
+
+  @override
+  String get providerDetailPageBalanceResetConfirmButton => '恢复默认';
+
+  @override
+  String get providerDetailPageReorderModels => '模型排序';
+
+  @override
+  String get miniMapSearchHint => '在小地图中搜索';
+
+  @override
+  String get miniMapSearchFailed => '搜索消息失败';
+
+  @override
+  String get searchServicesFourGetUrlInvalid => '请输入 HTTP 或 HTTPS 实例地址。';
+
+  @override
+  String get searchServicesFourGetScraperOptional => '上游搜索引擎（可选）';
+
+  @override
+  String get searchServicesFourGetPassOptional => 'pass Cookie（可选）';
+
+  @override
+  String get searchServicesFourGetPassHelp =>
+      '如果实例要求验证码，请完成验证并粘贴 pass Cookie 的值。';
+
+  @override
+  String get searchServiceEditorChangeIcon => '更换图标';
+
+  @override
+  String get searchServiceEditorIconFailed => '无法使用此图标，请另选图片或图标。';
+
+  @override
+  String get desktopDisplaySettingsFullWidthChatTitle => '聊天全宽显示';
+
+  @override
+  String get desktopDisplaySettingsFullWidthChatSubtitle =>
+      '让消息区和输入框随聊天栏的可用宽度展开。';
+
+  @override
+  String get searchProviderFourGetDescription =>
+      '通过已启用 API 的公开或自建 4get 实例搜索网页。';
+
+  @override
+  String get searchServiceNameFourGet => '4get';
+
+  @override
+  String get searchServiceNameKeenable => 'Keenable';
+
+  @override
+  String get searchProviderKeenableDescription =>
+      'Keenable 搜索。API Key 可选，不填则使用公开搜索端点。';
+
+  @override
+  String get messageStyleSettingsPageCustomizeThinkingToolCards => '自定义思考与工具卡片';
+
+  @override
+  String get messageStyleSettingsPageCustomizeThinkingToolCardsSubtitle =>
+      '为思考与工具调用单独设置卡片外观';
+
+  @override
+  String get messageStyleSettingsPageRoleThinkingTool => '思考与工具';
+
+  @override
+  String attachmentEncodingUnrecognized(String name) {
+    return '「$name」无法识别这个文本的编码，可以另存为 UTF-8 后重发';
+  }
+
+  @override
+  String get attachmentEncodingUnrecognizedShort => '无法识别编码';
+
+  @override
+  String attachmentNotText(String name) {
+    return '「$name」这个文件不是文本，暂不支持';
+  }
+
+  @override
+  String get attachmentNotTextShort => '不是文本';
+
+  @override
+  String attachmentTruncatedNotice(int count) {
+    return '文件过大，只读取了前 $count 字，建议拆分后再发送';
+  }
+
+  @override
+  String get attachmentTruncatedCard => '将只发送开头';
+
+  @override
+  String attachmentDocumentTooLarge(String name) {
+    return '「$name」文件过大，无法在普通对话中读取';
+  }
+
+  @override
+  String get attachmentDocumentTooLargeShort => '文件过大';
+
+  @override
+  String get imageContextExclude => '从上下文排除';
+
+  @override
+  String get imageContextRestore => '取消排除';
+
+  @override
+  String get imageContextExcluded => '已手动排除';
+
+  @override
+  String get imageContextExcludedWithOriginal => '原图已排除';
+
+  @override
+  String get compressionInstructionInjections => '压缩时参考指令注入';
+
+  @override
+  String get compressionInstructionInjectionsHint => '将当前对话启用的指令卡作为参考资料发给摘要模型。';
+
+  @override
+  String get compressionProviderContextRejected => '服务端返回请求过大。可以换一个上下文更大的模型再试。';
+
+  @override
+  String compressionSummaryWindowEstimate(String tokens, String source) {
+    return '摘要模型窗口 · $tokens token · $source';
+  }
+
+  @override
+  String get languageDisplayBangla => '孟加拉语';
+
+  @override
+  String get compressionCarrySelectAllReplies => '全选助手回复';
+
+  @override
+  String get compressionCarryDeselectAllReplies => '全不选';
+
+  @override
+  String get compressionCarryPairNotFit => '剩余空间放不下这组原文和回复，本次会一起跳过。';
 
   @override
   String get worldBookGroupActions => '分组操作';
@@ -16863,18 +18110,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get storageSpaceLoadFailed => '无法加载文件或检查图片使用情况，请刷新后重试。';
 
   @override
-  String get storageSpaceCopyErrorDetails => '复制错误详情';
-
-  @override
-  String get storageAttachmentChecking => '正在检查附件使用情况…';
-
-  @override
-  String get storageAttachmentCheckFailed => '无法检查附件使用情况，请刷新后重试。';
-
-  @override
-  String get storageSpaceCopyErrorFailed => '无法复制错误详情，请重试。';
-
-  @override
   String get storageSpaceTotalLabel => '已用空间';
 
   @override
@@ -16922,7 +18157,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '确定删除这些保留的旧数据库吗？它们是 Kelivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
+      '确定删除这些保留的旧数据库吗？它们是 Cuplivo 重建数据库时留下的，可能是那些聊天记录和设置仅存的一份。删除后无法恢复。';
 
   @override
   String get storageSpaceRestoreTracesHint => '恢复完成后保留的旧数据快照。清理不会影响当前应用数据。';
@@ -17715,7 +18950,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditStreamOutputDescription => '是否启用消息的流式输出';
 
   @override
-  String get assistantEditThinkingBudgetTitle => '思考';
+  String get assistantEditThinkingBudgetTitle => '思考预算';
 
   @override
   String get assistantEditReasoningFollowDefault => '跟随模型默认';
@@ -18294,14 +19529,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get hotkeysResetAll => '重置所有快捷键为默认';
 
   @override
-  String hotkeysShortcutInUse(String action) {
-    return '此快捷键已分配给「$action」。';
-  }
-
-  @override
-  String get hotkeysTextEditing => '文本编辑与焦点导航';
-
-  @override
   String get assistantEditTemperatureTitle => '温度';
 
   @override
@@ -18382,26 +19609,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageChooseExternalFolder =>
-      '请选择 iCloud 云盘或“我的 iPhone > Kelivo”之外的文件夹。Kelivo 文件夹会随 App 卸载而删除，本次备份尚未保存。';
-
-  @override
-  String get backupPageChooseNewFile => '请使用新的文件名或选择其他文件夹保存备份。';
-
-  @override
-  String backupArchiveFileSizeLimit(String name, String limit) {
-    return '「$name」超过了备份单个文件 $limit 的大小上限。';
-  }
-
-  @override
-  String backupArchiveTotalSizeLimit(String limit) {
-    return '备份的未压缩大小超过了 $limit 的上限。';
-  }
+      '请选择 iCloud 云盘或“我的 iPhone > Cuplivo”之外的文件夹。Cuplivo 文件夹会随 App 卸载而删除，本次备份尚未保存。';
 
   @override
   String get backupPageFilesLabel => '文件与图片';
-
-  @override
-  String get backupPageSettingsSaveFailed => '备份设置保存失败，请重试。';
 
   @override
   String get backupPageScopeTitle => '备份与导入内容';
@@ -18464,21 +19675,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageRestartRequired => '需要重启应用';
 
   @override
-  String get backupPageRestartContent => '导入成功。重启 Kelivo 后将安全应用。';
+  String get backupPageRestartContent => '导入成功。重启 Cuplivo 后将安全应用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Kelivo 后将安全应用已导入的数据。';
+    return '导入已完成，但已跳过 $count 个消息顺序非法的会话。重启 Cuplivo 后将安全应用已导入的数据。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 无法自动重启，请完全关闭后重新打开。';
+  String get restartAppFailedMessage => 'Cuplivo 无法自动重启，请完全关闭后重新打开。';
 
   @override
   String get backupRestoreRolledBackTitle => '恢复已回滚';
 
   @override
-  String get backupRestoreRolledBackContent => '恢复未能完成。Kelivo 已验证并保留原有数据。';
+  String get backupRestoreRolledBackContent => '恢复未能完成。Cuplivo 已验证并保留原有数据。';
 
   @override
   String get backupRestoreDirectoryBlockedTitle => '还原正在等待目录释放';
@@ -18495,20 +19706,20 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Kelivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
+      'Cuplivo 无法验证完整的原有或新数据，因此未打开聊天数据。请关闭 Cuplivo 后重试；若问题反复出现，请保留诊断码以便支持人员排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在运行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在运行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的数据仍被另一个应用进程占用。请关闭其他 Kelivo 窗口后重新启动；当前进程尚未打开聊天数据。';
+      'Cuplivo 的数据仍被另一个应用进程占用。请关闭其他 Cuplivo 窗口后重新启动；当前进程尚未打开聊天数据。';
 
   @override
   String get restoreProgressTitle => '正在恢复备份';
 
   @override
-  String get restoreProgressWarning => '请保持 Kelivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
+  String get restoreProgressWarning => '请保持 Cuplivo 开启直到完成。此时关闭应用，下次启动会从头再来一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在校验备份';
@@ -18529,7 +19740,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get restoreProgressStageFinishing => '即将完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重启 Kelivo';
+  String get backupRestoreFailureRestartButton => '重启 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '复制诊断码';
@@ -18568,14 +19779,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '修复未能完成。数据已保留，可以选择通过校验的副本恢复，或导出数据进一步排查。';
 
   @override
-  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Kelivo 后重新打开。';
+  String get startupRecoveryResetFailed => '重置失败。请彻底关闭 Cuplivo 后重新打开。';
 
   @override
   String get startupRecoveryResetDialogTitle => '确定从空列表重新开始？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '这不会找回之前的聊天。Kelivo 会保留当前数据库和已有副本，建立新的空聊天列表。想找回聊天，请取消并选择本地副本恢复。';
+      '这不会找回之前的聊天。Cuplivo 会保留当前数据库和已有副本，建立新的空聊天列表。想找回聊天，请取消并选择本地副本恢复。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '保留副本并重新开始';
@@ -18686,17 +19897,17 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重新开始后，当前数据将不再显示。Kelivo 会保留旧数据库和已有副本以供恢复，建议先导出一份数据副本。';
+      '重新开始后，当前数据将不再显示。Cuplivo 会保留旧数据库和已有副本以供恢复，建议先导出一份数据副本。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我确认暂不恢复聊天，继续使用空聊天列表。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '请更新 Kelivo 以继续';
+  String get startupDatabaseUpdateRequiredTitle => '请更新 Cuplivo 以继续';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本设备上的聊天数据库由更新版本的 Kelivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Kelivo 后重新打开。';
+      '本设备上的聊天数据库由更新版本的 Cuplivo 创建，当前版本无法打开。数据未被改动。请安装最新版 Cuplivo 后重新打开。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用旧版';
@@ -18707,7 +19918,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安装并打开最新版 Kelivo，在「设置 → 数据备份」导出一份备份文件。';
+      '先安装并打开最新版 Cuplivo，在「设置 → 数据备份」导出一份备份文件。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -18748,8 +19959,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageOverwriteMode => '完全覆盖';
 
   @override
-  String get backupPageOverwriteModeDescription =>
-      '替换所选内容，保留未选内容及其他本机设置。替换聊天时，也会清除本机未发送的草稿。';
+  String get backupPageOverwriteModeDescription => '仅替换已选组件；保留未选组件及无关本地设置';
 
   @override
   String get backupPageMergeMode => '合并';
@@ -18766,7 +19976,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '这份备份由更新版本的 Kelivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Kelivo。';
+    return '这份备份由更新版本的 Cuplivo 创建（数据格式 $backupVersion，当前版本支持 $currentVersion），且未声明旧版本能否读取。\n\n你可以继续导入：当前版本不认识的内容会被跳过，备份文件本身不会被修改。但如果新版本改变了已有数据的存储方式，部分内容可能会被错误导入。\n\n更稳妥的做法是先升级 Cuplivo。';
   }
 
   @override
@@ -18777,7 +19987,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '这份备份由更新版本的 Kelivo 创建，当前版本无法读取。请先升级 Kelivo 后重试。';
+      '这份备份由更新版本的 Cuplivo 创建，当前版本无法读取。请先升级 Cuplivo 后重试。';
 
   @override
   String get backupPageBackupUploaded => '已上传备份';
@@ -18809,37 +20019,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupProgressErrorCopied => '错误已复制';
 
   @override
-  String get backupProgressSkippedTitle => '备份完成，部分内容已跳过';
-
-  @override
-  String backupProgressSkippedMessage(int count) {
-    return '已跳过 $count 个无法读取的文件或目录，以下内容未包含在备份中。';
-  }
-
-  @override
   String get backupProgressPreparing => '准备中';
-
-  @override
-  String get backupProgressScanning => '正在扫描备份文件';
-
-  @override
-  String backupProgressDiscoveredFiles(int count) {
-    return '已发现 $count 个文件';
-  }
-
-  @override
-  String get backupProgressCheckingDatabase => '正在检查数据库';
-
-  @override
-  String get backupProgressChoosingDestination => '正在选择保存位置';
-
-  @override
-  String get backupProgressSavingFile => '正在保存备份文件';
-
-  @override
-  String backupProgressElapsed(String time) {
-    return '已用时 $time';
-  }
 
   @override
   String get backupProgressSnapshotting => '正在创建数据库快照';
@@ -18910,22 +20090,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageImportFromOtherApps => '从其他APP导入';
-
-  @override
-  String get backupPageImportFromOtherAppsSubtitle =>
-      '新版 Chatbox、Cherry Studio 2.x，以及 ChatGPT、Claude、DeepSeek、Gemini、Grok、Open WebUI、NextChat、LobeChat。在浏览器本地转换成 Kelivo 备份后再导入，文件不会上传。';
-
-  @override
-  String get backupPageOpenImportToolbox => '打开工具箱';
-
-  @override
-  String backupPageImportToolboxOpenFailed(String url) {
-    return '无法打开浏览器，请手动访问：$url';
-  }
-
-  @override
-  String get backupPageToolboxImportMergeOnlyHint =>
-      '这是官方工具箱转换的备份。导入会合并到现有数据，不会替换已有聊天和助手。';
 
   @override
   String get backupPageNotSupportedYet => '暂不支持';
@@ -19006,19 +20170,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo 的本地数据不参与 iCloud 系统备份。换机或卸载 App 前，请将备份保存到 iCloud 云盘或 Kelivo 之外的文件夹。“我的 iPhone > Kelivo”中的文件会随 App 卸载而删除。';
+      'Cuplivo 的本地数据不参与 iCloud 系统备份。换机或卸载 App 前，请将备份保存到 iCloud 云盘或 Cuplivo 之外的文件夹。“我的 iPhone > Cuplivo”中的文件会随 App 卸载而删除。';
 
   @override
   String get backupPageImportFromCherryStudio => '从 Cherry Studio 导入';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '这是 Cherry Studio 2.x 备份（格式版本 $version），App 里暂时不能直接导入。请到官方工具箱转换成 Kelivo 备份，再回到「备份文件导入」，并选择「合并」。转换在浏览器本地完成，文件不会上传。';
-  }
-
-  @override
-  String backupPageChatboxUnsupportedBackupVersion(String version) {
-    return '这是 Chatbox 新版备份（格式版本 $version），App 里暂时不能直接导入。请到官方工具箱转换成 Kelivo 备份，再回到「备份文件导入」，并选择「合并」。转换在浏览器本地完成，文件不会上传。';
+    return '此备份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
   }
 
   @override
@@ -19251,10 +20410,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get compressContextKeepRecentMessages => '保留最近原文';
 
   @override
-  String get compressContextKeepCountLabel => '保留最近几条用户消息';
+  String get compressContextKeepCountLabel => '保留最近轮数';
 
   @override
-  String get compressContextKeepAllMessages => '要保留的条数已经覆盖全部聊天，没有可压缩的内容了。';
+  String get compressContextKeepAllMessages => '保留轮数覆盖全部消息，无内容可压缩';
 
   @override
   String compressContextEstimatePreview(
@@ -19746,9 +20905,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageExportSheetShowThinkingAndToolCards => '显示思考卡片和工具卡片';
 
   @override
-  String get messageExportSheetExpandAllSteps => '展开全部步骤';
-
-  @override
   String get messageExportSheetShowThinkingContent => '显示思考内容';
 
   @override
@@ -20121,22 +21277,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get contextUsageUnavailable => '暂时无法显示用量。';
-
-  @override
-  String contextUsagePartialSummary(String tokens) {
-    return '已估算 $tokens，服务端压缩占用的量暂不知道';
-  }
-
-  @override
-  String get contextUsageBucketNativeCompaction => '服务端压缩';
-
-  @override
-  String get contextUsageUnknownTokens => '未知';
-
-  @override
-  String contextUsageLastRequestInput(String tokens) {
-    return '上次实际发给模型：$tokens';
-  }
 
   @override
   String get contextUsageStateNone => '暂无数据';
@@ -20899,13 +22039,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '直接发送 http(s) 图片链接；关闭后丢弃远程链接，只发送本地图片';
 
   @override
-  String get modelSpecFormResponseSpeedTiers => '响应速度档位';
-
-  @override
-  String get modelSpecFormResponseSpeedTiersSubtitle =>
-      '自定义聊天中可为此模型选择的加速档位。两档均不勾选时，只提供标准档。';
-
-  @override
   String get modelSpecFormPromptCacheControl => '提示缓存标记';
 
   @override
@@ -21111,54 +22244,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get providerDetailPageClaudePromptCachingTtl1h => '1 小时';
 
   @override
-  String get providerBalanceAutoRefresh => '余额自动刷新';
-
-  @override
-  String get providerBalanceScopeProvider => '此供应商';
-
-  @override
-  String get providerBalanceScopeGlobal => '全局默认';
-
-  @override
-  String get providerBalanceInterval => '定时刷新';
-
-  @override
-  String get providerBalanceRefreshOnReply => '回复后刷新';
-
-  @override
-  String providerBalanceFollowDefault(String value) {
-    return '默认 · $value';
-  }
-
-  @override
-  String get providerBalanceRefreshOff => '关闭';
-
-  @override
-  String get providerBalanceRefreshOn => '开启';
-
-  @override
-  String providerBalanceRefreshMinutes(int count) {
-    return '$count 分钟';
-  }
-
-  @override
-  String get providerBalanceRefreshHour => '1 小时';
-
-  @override
-  String get providerBalanceCustomInterval => '自定义间隔…';
-
-  @override
-  String get providerBalanceIntervalMinutes => '间隔分钟数';
-
-  @override
-  String get providerBalanceRefreshNow => '立即刷新余额';
-
-  @override
-  String providerBalanceLastUpdated(String date, String time) {
-    return '最后更新于 $date $time';
-  }
-
-  @override
   String get providerDetailPageBalanceTitle => '账户余额';
 
   @override
@@ -21193,13 +22278,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get providerDetailPageBalanceResetDefaultsButton => '恢复默认余额设置';
-
-  @override
-  String get providerDetailPageBalanceResetConfirmMessage =>
-      '这会覆盖当前供应商自定义的余额查询配置，将余额查询开关恢复为默认状态，并让自动刷新跟随全局设置。';
-
-  @override
-  String get providerDetailPageBalanceResetConfirmButton => '恢复默认';
 
   @override
   String providerDetailPageBalanceResult(String value) {
@@ -21549,9 +22627,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get providerDetailPageModelsTitle => '模型';
 
   @override
-  String get providerDetailPageReorderModels => '模型排序';
-
-  @override
   String get providerModelsGetButton => '获取';
 
   @override
@@ -21681,51 +22756,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get miniMapScrollToBottomTooltip => '滚动到底部';
 
   @override
-  String get miniMapSearchHint => '在小地图中搜索';
-
-  @override
   String miniMapSearchMatchCount(int count) {
     return '$count 处';
   }
 
   @override
   String get miniMapSearchNoResults => '没有匹配的消息';
-
-  @override
-  String get miniMapSearchFailed => '搜索消息失败';
-
-  @override
-  String get conversationFindHint => '查找';
-
-  @override
-  String get conversationFindPrevious => '上一个匹配项';
-
-  @override
-  String get conversationFindNext => '下一个匹配项';
-
-  @override
-  String get conversationFindOptions => '查找选项';
-
-  @override
-  String conversationFindMatchPosition(int current, int total) {
-    return '$current/$total';
-  }
-
-  @override
-  String get conversationFindCaseSensitive => '区分大小写';
-
-  @override
-  String get conversationFindWholeWord => '全词匹配';
-
-  @override
-  String get conversationFindWholeWordTooltip =>
-      '对英文、数字等按单词边界匹配；查询里若含汉字、假名、韩文，此项不改变结果。';
-
-  @override
-  String get conversationFindIncludeThinking => '包含思考过程';
-
-  @override
-  String get conversationFindOpenTooltip => '在会话中查找';
 
   @override
   String get searchServicesPageApiKeyRequiredStatus => '需要 API Key';
@@ -21824,29 +22860,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get searchServicesEditDialogRegionOptional => '地区（可选，默认 us-en）';
 
   @override
-  String get searchServicesFourGetUrlInvalid => '请输入 HTTP 或 HTTPS 实例地址。';
-
-  @override
-  String get searchServicesFourGetScraperOptional => '上游搜索引擎（可选）';
-
-  @override
-  String get searchServicesFourGetPassOptional => 'pass Cookie（可选）';
-
-  @override
-  String get searchServicesFourGetPassHelp =>
-      '如果实例要求验证码，请完成验证并粘贴 pass Cookie 的值。';
-
-  @override
   String get searchServiceEditorProviderTypeTitle => '搜索提供商';
 
   @override
   String get searchServiceEditorConfigurationTitle => '服务配置';
-
-  @override
-  String get searchServiceEditorChangeIcon => '更换图标';
-
-  @override
-  String get searchServiceEditorIconFailed => '无法使用此图标，请另选图片或图标。';
 
   @override
   String get searchServiceEditorNoConfiguration => '此提供商无需额外配置。';
@@ -22024,13 +23041,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇没有名字的门开了一条缝。去设置里找找看。';
-
-  @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '这扇门你已经推开过了。';
-
-  @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '开源AI 助手';
@@ -22088,13 +23099,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aboutPageJoinQQGroup => '加入QQ群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
+  String get aboutPageQQGroupOne => 'Cuplivo 一群';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
+  String get aboutPageQQGroupTwo => 'Cuplivo 二群';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroupThree => 'Cuplivo 三群';
 
   @override
   String get aboutPageJoinDiscord => '在 Discord 中加入我们';
@@ -22247,8 +23258,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get displaySettingsPageEnableImageCropperTitle => '启用图片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '从相册或相机选择图片后，允许裁剪图片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '预览未发送图片时可主动裁剪';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -22357,13 +23367,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageAutoSwitchTopicsTitle => '自动切换话题';
-
-  @override
-  String get desktopDisplaySettingsFullWidthChatTitle => '聊天全宽显示';
-
-  @override
-  String get desktopDisplaySettingsFullWidthChatSubtitle =>
-      '让消息区和输入框随聊天栏的可用宽度展开。';
 
   @override
   String get desktopDisplaySettingsTopicPositionTitle => '话题位置';
@@ -23113,6 +24116,27 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get imageViewerPageNextButton => '下一张图片';
 
   @override
+  String get imageViewerPageZoomInButton => '放大';
+
+  @override
+  String get imageViewerPageZoomOutButton => '缩小';
+
+  @override
+  String get imageViewerPageResetZoomButton => '重置缩放';
+
+  @override
+  String get imageViewerPageFlipHorizontalButton => '左右镜像';
+
+  @override
+  String get imageViewerPageFlipVerticalButton => '上下镜像';
+
+  @override
+  String get imageViewerPageRotateLeftButton => '向左旋转';
+
+  @override
+  String get imageViewerPageRotateRightButton => '向右旋转';
+
+  @override
   String imageViewerPageCounter(int index, int total) {
     return '$index/$total';
   }
@@ -23134,7 +24158,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 开源AI助手';
+  String get settingsShare => 'Cuplivo - 开源AI助手';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -23163,10 +24187,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get searchProviderSearXNGDescription => '注重隐私的元搜索引擎。需自建实例，无跟踪。';
-
-  @override
-  String get searchProviderFourGetDescription =>
-      '通过已启用 API 的公开或自建 4get 实例搜索网页。';
 
   @override
   String get searchProviderTavilyDescription =>
@@ -23207,9 +24227,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get searchServiceNameSearXNG => 'SearXNG';
-
-  @override
-  String get searchServiceNameFourGet => '4get';
 
   @override
   String get searchServiceNameLinkUp => 'LinkUp';
@@ -23329,13 +24346,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       'You.com 搜索 API。返回网页与新闻结果，支持 Highlights 或 Snippets。';
 
   @override
-  String get searchServiceNameKeenable => 'Keenable';
-
-  @override
-  String get searchProviderKeenableDescription =>
-      'Keenable 搜索。API Key 可选，不填则使用公开搜索端点。';
-
-  @override
   String get searchServicesDialogContentMode => '内容模式';
 
   @override
@@ -23356,9 +24366,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get searchServicesDialogMaximumTokensInvalid =>
       '最大 token 数必须介于 1024 和 32768 之间。';
-
-  @override
-  String get searchServiceNameKelivo => 'Kelivo';
 
   @override
   String get searchServicesDialogCountryOptional => '国家/地区（可选）';
@@ -23634,7 +24641,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get healthDataSettingsDescription =>
-      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Kelivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
+      '当前助手在日常对话中可使用的 HealthKit 信号。开关表示 Cuplivo 可以尝试读取该范围，实际授权仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -24939,7 +25946,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get legacyMemoryExport => '导出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 旧版记忆导出';
+  String get legacyMemoryExportTitle => 'Cuplivo 旧版记忆导出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -25436,13 +26443,8 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String tokenDetailFirstResponse(String value) {
-    return '${value}s（首响应）';
-  }
-
-  @override
-  String tokenDetailFirstOutput(String value) {
-    return '${value}s（首输出）';
+  String tokenDetailFirstToken(String value) {
+    return '${value}s（首字）';
   }
 
   @override
@@ -25548,7 +26550,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
+      'Cuplivo 将聊天记录迁移到更快的 SQLite 数据库。升级会在应用打开前完成，避免新旧数据同时写入。';
 
   @override
   String get migrationBackupNote => '迁移开始前，会先导出包含设置、聊天记录和本地文件的 ZIP 备份。';
@@ -25590,14 +26592,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Kelivo 开启，等待备份完成。';
+      '正在导出设置、聊天记录、上传文件、图片和字体。请保持 Cuplivo 开启，等待备份完成。';
 
   @override
   String get migrationMigratingTitle => '正在迁移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Kelivo 在前台，等待迁移完成。';
+      '正在分批写入会话和消息，避免超大聊天记录占满内存。请保持 Cuplivo 在前台，等待迁移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -25656,7 +26658,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天记录已迁移到 SQLite。请重启 Kelivo 进入升级后的应用。';
+      '你的聊天记录已迁移到 SQLite。请重启 Cuplivo 进入升级后的应用。';
 
   @override
   String get migrationConversationCount => '对话';
@@ -25674,7 +26676,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get migrationMissingFilesCount => '缺失文件';
 
   @override
-  String get migrationRestartButton => '重启 Kelivo';
+  String get migrationRestartButton => '重启 Cuplivo';
 
   @override
   String get migrationFailedTitle => '迁移失败';
@@ -25700,7 +26702,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
+      'Cuplivo 将以空的聊天数据库启动。旧的聊天记录会保留在磁盘上（重命名为 .retired 后缀），但不会被迁移，也不会在应用中显示。之后如需找回，请使用已保存的备份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -26057,13 +27059,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '助手回复遇到空行时拆分，每段单独一个气泡';
 
   @override
-  String get messageStyleSettingsPageCustomizeThinkingToolCards => '自定义思考与工具卡片';
-
-  @override
-  String get messageStyleSettingsPageCustomizeThinkingToolCardsSubtitle =>
-      '为思考与工具调用单独设置卡片外观';
-
-  @override
   String get messageStyleSettingsPageStyleFrostedSubtitle => '半透明毛玻璃';
 
   @override
@@ -26112,9 +27107,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get messageStyleSettingsPageRoleAssistant => '助手';
 
   @override
-  String get messageStyleSettingsPageRoleThinkingTool => '思考与工具';
-
-  @override
   String get messageStyleSettingsPageRoleAssistantHint =>
       '翻译卡片跟随助手样式，思考与工具卡片默认也跟随助手样式。';
 
@@ -26125,7 +27117,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get localSnapshotEnabledTitle => '保留本地副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 会定期在本机存一份数据库副本，让数据不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 会定期在本机存一份数据库副本，让数据不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '备份频率';
@@ -26286,7 +27278,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String localSnapshotRestoreMessage(String when) {
-    return '当前聊天和设置将替换为 $when 的副本。替换前会保存当前聊天和设置的副本。未发送的草稿不包含在副本中，此次恢复会清除这些草稿。';
+    return '当前的对话和设置会被 $when 的这份副本替换。系统会先把现在的数据存一份，所以这一步可以撤销。';
   }
 
   @override
@@ -26348,9 +27340,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get toolSchemaSettingsGroupSearch => '搜索';
-
-  @override
-  String get toolSchemaSettingsGroupImages => '图片';
 
   @override
   String get toolSchemaSettingsGroupMemory => '记忆';
@@ -26922,7 +27911,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '请重启 Kelivo 以完成安装';
+  String get workspaceEnvRestartBanner => '请重启 Cuplivo 以完成安装';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在检测最快镜像…';
@@ -27003,16 +27992,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceEnvErrorPatchFailed => '无法完成沙箱配置。';
 
   @override
-  String get workspaceEnvErrorRepairInterrupted => '沙盒修复已中断，现有沙盒已保留。请重试以完成修复。';
-
-  @override
-  String get workspaceEnvErrorRepairTimeout => '沙盒修复超时，请检查网络连接后重试。现有沙盒已保留。';
-
-  @override
-  String get workspaceEnvRepairRestartBanner =>
-      '未能在限定时间内确认沙盒修复已停止。请完全退出并重新打开 Kelivo 后重试。现有沙盒已保留。';
-
-  @override
   String get workspaceEnvErrorCancelled => '安装已取消。';
 
   @override
@@ -27037,7 +28016,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系统终端，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系统终端，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -27941,7 +28920,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceDesktopFolderMissing => '请选择已存在的文件夹，或输入它的绝对路径。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 为此项目创建并管理文件夹。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 为此项目创建并管理文件夹。';
 
   @override
   String get workspaceDesktopHostHint => '在本机访问文件和执行命令。';
@@ -28155,38 +29134,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get incomingShareMoveFailed => '无法切换对话，草稿已保留。';
 
   @override
-  String attachmentEncodingUnrecognized(String name) {
-    return '「$name」无法识别这个文本的编码，可以另存为 UTF-8 后重发';
-  }
-
-  @override
-  String get attachmentEncodingUnrecognizedShort => '无法识别编码';
-
-  @override
-  String attachmentNotText(String name) {
-    return '「$name」这个文件不是文本，暂不支持';
-  }
-
-  @override
-  String get attachmentNotTextShort => '不是文本';
-
-  @override
-  String attachmentTruncatedNotice(int count) {
-    return '文件过大，只读取了前 $count 字，建议拆分后再发送';
-  }
-
-  @override
-  String get attachmentTruncatedCard => '将只发送开头';
-
-  @override
-  String attachmentDocumentTooLarge(String name) {
-    return '「$name」文件过大，无法在普通对话中读取';
-  }
-
-  @override
-  String get attachmentDocumentTooLargeShort => '文件过大';
-
-  @override
   String attachmentRequiresWorkspace(String name) {
     return '「$name」无法在普通对话中直接读取。请绑定工作区并启用文件工具，或将草稿移到已有工作区的对话。';
   }
@@ -28206,7 +29153,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Kelivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
+      '工作区和 Shell 需要直接读写外部文件夹，请在 Android 系统设置中允许 Cuplivo 访问文件。Android 11 及以上需开启“所有文件访问权限”，然后选择要挂载的本地文件夹。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授权';
@@ -28422,7 +29369,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backgroundSettingsTitle => '后台任务';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任务';
+  String get backgroundTaskTitle => 'Cuplivo 任务';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -28551,7 +29498,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backgroundOverlayIcon => '悬浮窗图标';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 图标';
+  String get backgroundIconDefault => 'Cuplivo 图标';
 
   @override
   String get backgroundIconImage => '选择图片';
@@ -28760,7 +29707,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Kelivo，卸载会一并删除这些快照。';
+      '即使数据库无法打开，也可以选择本机快照恢复聊天和设置。请勿卸载 Cuplivo，卸载会一并删除这些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本机找到数据库快照。请先导出数据，再尝试其他恢复操作。';
@@ -28770,7 +29717,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Kelivo 将重启以完成恢复。';
+    return '将聊天和设置恢复到 $when 的快照？快照之后的更改不会包含在内。现有附件文件和快照会保留，Cuplivo 将重启以完成恢复。';
   }
 
   @override
@@ -28779,7 +29726,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Kelivo 完成恢复。';
+  String get startupRecoverySnapshotReady => '快照已准备好，请重启 Cuplivo 完成恢复。';
 
   @override
   String get scheduledTasksTitle => '定时任务';
@@ -28850,7 +29797,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksReliability =>
-      '建议在电池设置中允许 Kelivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
+      '建议在电池设置中允许 Cuplivo 后台运行。强行停止后需重新打开应用。错过的任务不会补跑，执行时间跟随设备时区。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -29027,7 +29974,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '仅在 Kelivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
+      '仅在 Cuplivo 运行时执行，最小化或驻留托盘时也会继续。退出或电脑休眠期间错过的任务不会补运行，也不会自动启动应用。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -29394,7 +30341,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 后台限制，Kelivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Kelivo 才能补充。';
+      '受 iOS 后台限制，Cuplivo 不能在指定时间自动唤醒并运行模型。此功能会在 App 可运行时提前准备内容，由系统到点展示通知。每次仅准备下一次结果；离开 App 后不保证准备完成，后续任务需再次打开 Cuplivo 才能补充。';
 
   @override
   String get scheduledTasksContextPolicy => '对话上下文';
@@ -29458,7 +30405,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定时任务已到期，打开 Kelivo 继续。';
+  String get scheduledTasksReminderBody => '定时任务已到期，打开 Cuplivo 继续。';
 
   @override
   String get scheduledTasksResultBody => '定时任务结果已准备好。';
@@ -29472,7 +30419,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
+      '在 Cuplivo 可运行时，提前生成下一次任务的结果，到期前不会显示在聊天中。仅使用文字，不使用工具、附件或自定义请求体；调用模型可能产生费用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -29480,7 +30427,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Kelivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
+      '允许在任务到期前多久开始准备，最长 24 小时。例如第二天早上提醒，前一天中午打开 Cuplivo 时就有机会准备。时间越长，准备机会越多，但内容也可能更早过时。不会改变任务时间，也不代表能在后台定时运行。「立刻准备」不受这项自动等待和准备次数上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -29492,7 +30439,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Kelivo 正在打开运行，可直接执行任务。';
+      '到期时没有可用结果、也无法运行任务，就发送提醒或跳过本次。提醒不包含模型生成的回答，且需要开启通知。如果到期时 Cuplivo 正在打开运行，可直接执行任务。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -29668,14 +30615,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同时完成两项设置：在系统无障碍设置中启用“Kelivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
+      '需要同时完成两项设置：在系统无障碍设置中启用“Cuplivo 手机控制”，并在要使用的助手 → 本地工具中开启“手机控制”（也可从对话工具菜单开启）。每个助手单独配置，执行任务时请保持手机解锁。';
 
   @override
   String get phoneControlRestrictedTitle => '无法开启无障碍？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Kelivo 应用信息，完成后再返回无障碍设置。';
+      '部分下载的 APK 需要先在应用信息右上角菜单中选择“允许受限制的设置”。点击打开 Cuplivo 应用信息，完成后再返回无障碍设置。';
 
   @override
   String get phoneControlEnableAssistant => '允许此助手使用手机控制';
@@ -29865,14 +30812,14 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recoveryMissingDataBody =>
-      '暂时找不到当前聊天数据库，Kelivo 已暂停载入，没有新建空数据库。我们会在下方查找旧副本，现有文件会保留。';
+      '当前数据库缺失，但设备上仍有旧数据。Cuplivo 已暂停启动，没有新建空数据库，并保留现有文件和副本。';
 
   @override
   String get recoveryEmptyDataTitle => '当前聊天记录为空';
 
   @override
   String get recoveryEmptyDataBody =>
-      '当前聊天列表为空，但找到了旧副本。可以从下方选择副本找回聊天记录，现有文件会保留。';
+      '当前数据库没有对话，但发现了历史副本。Cuplivo 已暂停启动，你可以恢复副本，也可以明确选择保留当前数据。应用不会自动覆盖数据。';
 
   @override
   String get recoveryKeepCurrent => '继续使用空聊天列表';
@@ -29906,7 +30853,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recoveryStorageFailureBody =>
-      '数据更新暂时未能完成，原数据已保留。可以尝试重新打开 Kelivo，或选择下方的本地副本恢复。';
+      'Cuplivo 未能启用受保护的数据存储，已暂停启动并保留原数据。可以导出数据副本或重试，应用不会因此新建空数据库。';
 
   @override
   String get recoveryProtectingTitle => '正在保护聊天数据库';
@@ -29930,7 +30877,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      '存储空间不足，暂时无法安全地准备数据。请到系统设置释放一些空间，再重新打开 Kelivo，或重新检查下方的副本。请保留 Kelivo，不要删除它的数据和本地副本。';
+      '存储空间不足，暂时无法安全地准备数据。请到系统设置释放一些空间，再重新打开 Cuplivo，或重新检查下方的副本。请保留 Cuplivo，不要删除它的数据和本地副本。';
 
   @override
   String get migrationFreshStartTitle => '已重新开始';
@@ -30007,7 +30954,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupEncryptionInvalid => '加密备份不完整或格式无效。';
 
   @override
-  String get backupEncryptionUnsupported => '此加密备份需要更新版本的 Kelivo。';
+  String get backupEncryptionUnsupported => '此加密备份需要更新版本的 Cuplivo。';
 
   @override
   String get backupProgressEncrypting => '正在加密备份';
@@ -30169,7 +31116,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get browserRestoreTabs => '恢复标签页';
 
   @override
-  String get browserRestoreTabsDescription => '启动 Kelivo 时恢复上次的标签页。';
+  String get browserRestoreTabsDescription => '启动 Cuplivo 时恢复上次的标签页。';
 
   @override
   String get browserSaveHistory => '保存浏览记录';
@@ -31245,6 +32192,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get compressTaskAbandon => '放弃';
 
   @override
+  String get browserAgentTimedOut => '操作超时，AI 已暂停';
+
+  @override
   String get compressCancelledSnack => '已取消，上下文没有改动。';
 
   @override
@@ -31802,7 +32752,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '确定清理以下目录中的原数据副本？当前目录中的数据会保留，搬迁后发生变化的文件不会被删除。';
 
   @override
-  String get dataDirectoryMoving => '正在搬迁并校验数据…请保持 Kelivo 开启。';
+  String get dataDirectoryMoving => '正在搬迁并校验数据…请保持 Cuplivo 开启。';
 
   @override
   String get dataDirectoryStartupFailed => '无法打开数据目录';
@@ -31841,7 +32791,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get dataDirectoryGenericError =>
-      '操作未完成。请检查磁盘剩余空间、文件夹权限，以及是否有其他 Kelivo 进程运行，然后重试。已有数据已保留。';
+      '操作未完成。请检查磁盘剩余空间、文件夹权限，以及是否有其他 Cuplivo 进程运行，然后重试。已有数据已保留。';
 
   @override
   String get dataDirectoryCancelHint => '取消搬迁会保留目标目录中已复制的文件，你可以检查后手动清理这些副本。';
@@ -32085,7 +33035,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo 暂时无法载入数据，已暂停操作。我们会查找本地副本，供你选择恢复。现有文件会保留。';
+      'Cuplivo 暂时无法载入数据，已暂停操作。我们会查找本地副本，供你选择恢复。现有文件会保留。';
 
   @override
   String get recoverySpaceTitle => '需要一些存储空间';
@@ -32106,7 +33056,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recoveryRestoreRetryBody =>
-      '这次恢复尚未完成，选中的副本已保留。可以重新检查本地副本，或重新打开 Kelivo 继续。';
+      '这次恢复尚未完成，选中的副本已保留。可以重新检查本地副本，或重新打开 Cuplivo 继续。';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -32115,7 +33065,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      '部分副本来自更新版本的 Kelivo，请升级 App 后再恢复。这些副本仍然保留。';
+      '部分副本来自更新版本的 Cuplivo，请升级 App 后再恢复。这些副本仍然保留。';
 
   @override
   String get imageContextAllowRecall => '允许模型回读历史图片';
@@ -32138,18 +33088,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get imageContextOmitted => '本轮不发送';
-
-  @override
-  String get imageContextExclude => '从上下文排除';
-
-  @override
-  String get imageContextRestore => '取消排除';
-
-  @override
-  String get imageContextExcluded => '已手动排除';
-
-  @override
-  String get imageContextExcludedWithOriginal => '原图已排除';
 
   @override
   String get imageContextPin => '固定图片';
@@ -32208,9 +33146,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get contextOperationsTitle => '压缩与清空记录';
-
-  @override
-  String get contextOperationsLoadMore => '展开更多';
 
   @override
   String get contextOperationsDescription => '查看压缩和清空的记录，也可以撤销';
@@ -32385,12 +33320,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '摘要可参考助手的系统提示词、与这段历史匹配的世界书和当时保存的记忆。发生过的事和角色知道的事以聊天记录为准。';
 
   @override
-  String get compressionInstructionInjections => '压缩时参考指令注入';
-
-  @override
-  String get compressionInstructionInjectionsHint => '将当前对话启用的指令卡作为参考资料发给摘要模型。';
-
-  @override
   String get compressionToolReferences => '已读过的工具结果只保留引用';
 
   @override
@@ -32444,9 +33373,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get compressionIncomplete => '摘要没写完或被模型拒绝，上下文没有改动。可以调高输出上限，或换一个模型。';
-
-  @override
-  String get compressionProviderContextRejected => '服务端返回请求过大。可以换一个上下文更大的模型再试。';
 
   @override
   String get compressionReferenceChanged => '参考的背景已经变了。请先看一下这份摘要，或重新生成一次。';
@@ -32622,24 +33548,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get compressionTurnUnit => '轮';
 
   @override
-  String get compressionRequestTimeout => '压缩请求超时';
-
-  @override
-  String get compressionMinuteUnit => '分钟';
-
-  @override
-  String get compressionRequestTimeoutDefault => '默认';
-
-  @override
-  String get compressionRequestTimeoutHint =>
-      '请输入分钟数，须大于 0。留空则保持现在的默认（服务端压缩为 5 分钟）。分段压缩时，每一段的生成和合并会分别计时。';
-
-  @override
-  String compressionRequestTimedOut(num minutes) {
-    return '压缩超过 $minutes 分钟还没完成，已停止，上下文没有改动。可以再试一次，或把超时时间调长。';
-  }
-
-  @override
   String get compressionAdvancedOptions => '压缩细节';
 
   @override
@@ -32647,11 +33555,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get compressionAutomaticWindow => '自动';
-
-  @override
-  String compressionSummaryWindowEstimate(String tokens, String source) {
-    return '摘要模型窗口 · $tokens token · $source';
-  }
 
   @override
   String get compressionAutoOffHint => '需要时可在压缩页手动开始。';
@@ -32736,22 +33639,22 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Kelivo 本地预检：本次请求第 $index 张图片编码后为 $actual，超过单张预算 $limit。';
+    return 'Cuplivo 本地预检：本次请求第 $index 张图片编码后为 $actual，超过单张预算 $limit。';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Kelivo 本地预检：图片编码后合计 $actual，超过图片总预算 $limit。';
+    return 'Cuplivo 本地预检：图片编码后合计 $actual，超过图片总预算 $limit。';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Kelivo 本地预检：本次请求包含 $actual 张图片，超过数量上限 $limit 张。';
+    return 'Cuplivo 本地预检：本次请求包含 $actual 张图片，超过数量上限 $limit 张。';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Kelivo 本地预检：完整请求体为 $actual，超过请求体预算 $limit。';
+    return 'Cuplivo 本地预检：完整请求体为 $actual，超过请求体预算 $limit。';
   }
 
   @override
@@ -32825,13 +33728,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
       '达到设定的比例时，用当前对话模型做服务端压缩，然后再继续发送。失败时原文不动，也不会改用文字摘要。';
 
   @override
-  String get languageDisplayRussian => '俄语';
+  String get languageDisplayRussian => 'Русский';
 
   @override
   String get languageDisplayTurkish => '土耳其语';
-
-  @override
-  String get languageDisplayBangla => '孟加拉语';
 
   @override
   String sideDrawerDeleteConfirmContent(String title) {
@@ -32947,23 +33847,1353 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get workspaceEnvNativeShellSave => '保存';
 
   @override
+  String get storageSpaceCategoryAssistantData => '助手';
+
+  @override
+  String get storageSpaceSubAssistantAvatars => '头像';
+
+  @override
+  String get storageSpaceSubAssistantImages => '图片';
+
+  @override
+  String get storageSpaceSourceLabel => '来源';
+
+  @override
+  String get storageSpaceSourceAll => '全部';
+
+  @override
+  String get storageSpaceSourceUserUpload => '用户上传';
+
+  @override
+  String get storageSpaceSourceAssistant => '助手发出';
+
+  @override
+  String get languageDisplayPortuguese => 'Português';
+
+  @override
+  String get languageDisplayArabic => 'العربية';
+
+  @override
+  String get languageDisplayHindi => 'हिन्दी';
+
+  @override
+  String get languageDisplayThai => 'ไทย';
+
+  @override
+  String get languageDisplayVietnamese => 'Tiếng Việt';
+
+  @override
+  String get languageDisplayBengali => 'বাংলা';
+
+  @override
+  String get translateLanguageManagerTitle => '管理语言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '选择在翻译目标列表中显示的语言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '请至少保留一种语言。';
+
+  @override
+  String get assistantEditChatSuggestionsTitle => '聊天建议';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      '每次助手回复后额外发一条请求，生成最多三条后续建议；关闭则不再请求。';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff => '未生效：请先在「默认模型」中开启聊天建议。';
+
+  @override
+  String get hotkeyFocusInput => '聚焦输入框';
+
+  @override
+  String get hotkeyCopySelectionMarkdown => '复制选中为 Markdown';
+
+  @override
+  String get hotkeyReplySelection => '回复选中内容';
+
+  @override
+  String get compressingContext => '正在压缩上下文...';
+
+  @override
+  String compressContextReadoutRounds(int rounds) {
+    return '共 $rounds 轮';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    return '$rounds 轮 + 摘要';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens token';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max token';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String get messageQuotePreviewRemove => '移除回复';
+
+  @override
+  String get messageQuoteTargetMissing => '原消息不可用';
+
+  @override
+  String get messageMoreSheetReply => '回复';
+
+  @override
+  String get messageMoreSheetCopyLink => '复制链接';
+
+  @override
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return '当前档位：$level';
+  }
+
+  @override
+  String get chatMessageWidgetReplySelection => '回复';
+
+  @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
+  String get messageExportSheetUser => '用户';
+
+  @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle => '将选中的消息导出为 PDF 文档';
+
+  @override
+  String get pdfExportDialogTitle => '导出 PDF';
+
+  @override
+  String get pdfExportDialogCancel => '取消';
+
+  @override
+  String get pdfExportDialogExport => '导出 PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => '内容';
+
+  @override
+  String get pdfExportDialogSectionFonts => '字体';
+
+  @override
+  String get pdfExportFontRoleBody => '正文字体';
+
+  @override
+  String get pdfExportFontRoleMono => '代码字体';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji 字体';
+
+  @override
+  String get pdfExportFontCheck => '检查字体';
+
+  @override
+  String get pdfExportFontChecking => '正在检查…';
+
+  @override
+  String get pdfExportFontMissing => '未找到可嵌入的中文字体，中文可能显示为空白。';
+
+  @override
+  String get pdfExportFontUnusable => '所选字体不可用，已改用其它字体。';
+
+  @override
+  String get pdfExportFontBuiltIn => '内置字体';
+
+  @override
+  String get pdfExportFontNone => '未嵌入';
+
+  @override
+  String get pdfExportFontNeedsDownload => '需下载';
+
+  @override
+  String get pdfExportFontAuto => '自动';
+
+  @override
+  String get pdfExportFontGroupSystem => '系统字体';
+
+  @override
+  String get pdfExportFontGroupDownload => '下载';
+
+  @override
+  String get pdfExportFontGroupOther => '其他';
+
+  @override
+  String get pdfExportFontNoteCjk => '含中文';
+
+  @override
+  String get pdfExportFontNoteColour => '彩色';
+
+  @override
+  String get pdfExportFontNoteMonochrome => '单色';
+
+  @override
+  String get pdfExportFontBuiltInNote => '不嵌入字体，中文显示为空白';
+
+  @override
+  String get pdfExportFontDownloadNote => '含中文，约 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => '无法读取字体列表';
+
+  @override
+  String get pdfExportResultTitle => '导出完成';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages 页 · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count 项未能完整导出';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count 个公式已按原文本显示';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count 个图表已按代码显示';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count 张图片未能读取，已显示图片地址';
+  }
+
+  @override
+  String get pdfExportResultDone => '完成';
+
+  @override
+  String get sideDrawerMenuCopyLink => '复制链接';
+
+  @override
+  String get conversationLinkCopied => '已复制链接';
+
+  @override
+  String get conversationLinkMissing => '此对话不在本设备上。';
+
+  @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
+  String get modelDetailSheetSearchTool => '搜索';
+
+  @override
+  String get modelDetailSheetSearchToolDescription => '启用 Google 搜索集成';
+
+  @override
+  String get modelDetailSheetModelIdExistsError => '模型 ID 已存在';
+
+  @override
+  String get aboutPageQQGroup => 'Cuplivo 群';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失败，原图保持不变。';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleTitle => '自动回到底部延迟';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleSubtitle => '用户停止滚动后等待多久再自动回到底部';
+
+  @override
+  String get memorySettingsFullInjectionTypesTitle => '全量注入类型';
+
+  @override
+  String get memorySettingsFullInjectionTypesSubtitle =>
+      '可多选。选中类型会注入全局及当前助手的全部有效记忆，不受条数限制，会增加上下文和 token 消耗。';
+
+  @override
+  String get toolApprovalApprove => '批准';
+
+  @override
+  String get imageSettingsPageModeTitle => '压缩模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手动';
+
+  @override
+  String get imageSettingsPageModeAuto => '自动';
+
+  @override
+  String get imageSettingsPageModeOff => '关闭';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '图片按原样附加，在预览中可手动压缩';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加图片时按下方预设自动压缩';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '图片从不压缩';
+
+  @override
+  String get compressEditorTitle => '压缩图片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原图';
+
+  @override
+  String get compressEditorLongEdgeLabel => '长边';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '质量';
+
+  @override
+  String get compressEditorOriginalSide => '原图';
+
+  @override
+  String get compressEditorEstimating => '正在估算体积…';
+
+  @override
+  String get compressEditorEstimateFailed => '无法估算体积';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重编码';
+
+  @override
+  String get compressEditorDecodeFailed => '此图片无法预览，因此无法重新压缩。';
+
+  @override
+  String get compressEditorTooLarge => '此图片过大，无法在编辑器中打开，因此无法在这里重新压缩；附件将按原样保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '源图 $source，为控制内存按 $percent% 载入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '应用';
+
+  @override
+  String get compressEditorApplyAll => '应用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
+
+  @override
+  String get workspaceToolAllowAll => '本会话全部允许';
+
+  @override
+  String get workspaceEntryAllowAll => '本会话全部允许';
+
+  @override
+  String get workspaceEntryAllowAllSubtitle => '此对话中的 Shell 命令将不再需要批准。';
+
+  @override
+  String get recycleBinTitle => '回收站';
+
+  @override
+  String get recycleBinManage => '管理回收站';
+
+  @override
+  String get recycleBinStorageHint => '本机暂存，不参与同步与备份。';
+
+  @override
+  String get recycleBinEntriesLabel => '条目';
+
+  @override
+  String get recycleBinEmptyTitle => '回收站是空的';
+
+  @override
+  String get recycleBinEmptyBody => '你删除的对话与助手、被同步覆盖的设置都会暂存在这里，随时可以找回。';
+
+  @override
+  String get recycleBinUntitled => '未命名';
+
+  @override
+  String get recycleBinKindConversation => '对话';
+
+  @override
+  String get recycleBinKindAssistant => '助手';
+
+  @override
+  String get recycleBinKindProvider => '服务商';
+
+  @override
+  String get recycleBinKindWorldBook => '世界书';
+
+  @override
+  String get recycleBinKindMemory => '记忆';
+
+  @override
+  String get recycleBinKindPreference => '设置项';
+
+  @override
+  String get recycleBinKindWorkspaceFile => '工作区文件';
+
+  @override
+  String get recycleBinKindConfig => '配置';
+
+  @override
+  String get recycleBinOriginLocal => '本机删除';
+
+  @override
+  String get recycleBinOriginRemote => '同步删除';
+
+  @override
+  String get recycleBinReasonOverwritten => '被更新的版本替换';
+
+  @override
+  String get recycleBinRestore => '恢复';
+
+  @override
+  String get recycleBinDeleteForever => '彻底删除';
+
+  @override
+  String get recycleBinDeleteForeverBody => '该条目将被永久删除，无法再恢复。';
+
+  @override
+  String get recycleBinClearAll => '清空回收站';
+
+  @override
+  String get recycleBinClearAllBody => '回收站中的全部条目都将被永久删除，无法再恢复。';
+
+  @override
+  String get recycleBinRestored => '已恢复';
+
+  @override
+  String get recycleBinRestoreSkipped => '该项已重新存在，未做改动';
+
+  @override
+  String get recycleBinRestoreUnreadable => '暂存的副本已损坏，无法恢复';
+
+  @override
+  String get recycleBinRestoreUnsupported => '当前版本无法恢复该条目';
+
+  @override
+  String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreFailed => '恢复失败';
+
+  @override
+  String get recycleBinFilterAll => '全部';
+
+  @override
+  String get recycleBinFilterConversation => '对话';
+
+  @override
+  String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterSettings => '设置';
+
+  @override
+  String get recycleBinFilterFiles => '文件';
+
+  @override
+  String get recycleBinCancel => '取消';
+
+  @override
+  String get recycleBinInfoTitle => '关于回收站';
+
+  @override
+  String get recycleBinInfoBody =>
+      '在这里删除的东西——对话、助手、服务商、记忆、设置项——都会留在本机，随时可以找回。\n\n回收站不参与同步，也不会写进备份。条目保留 90 天，或直到超过 256 MB 或 1000 条；超过后从最旧的开始清理。\n\n恢复会把它记为当前时间，所以不会立刻又被上次胜出的版本覆盖。';
+
+  @override
+  String get recycleBinInfoClose => '知道了';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '随「$name」一起删除的 $count 个对话';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => '全部恢复';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return '已恢复 $restored 项，$skipped 项已存在';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已恢复 $restored 项，$failed 项未能恢复';
+  }
+
+  @override
+  String get recycleBinOpenDetail => '查看详情';
+
+  @override
+  String get recycleBinDetailKey => '标识';
+
+  @override
+  String get recycleBinDetailOrigin => '来源';
+
+  @override
+  String get recycleBinDetailWhen => '删除时间';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替换时间';
+
+  @override
+  String get recycleBinDetailSize => '占用';
+
+  @override
+  String get recycleBinDetailModified => '文件修改时间';
+
+  @override
+  String get recycleBinDetailContent => '内容';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count 行';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return '内容过大，只显示前 $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => '二进制文件，无法预览';
+
+  @override
+  String get recycleBinDetailUnreadable => '暂存的副本已损坏，读不出内容';
+
+  @override
+  String get recycleBinDetailCopyJson => '复制 JSON';
+
+  @override
+  String get recycleBinDetailCopyText => '复制文本';
+
+  @override
+  String get recycleBinDetailCopied => '已复制';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return '该对话属于助手「$name」，它已不在本机；恢复后需要为它重新指定助手。';
+  }
+
+  @override
+  String get settingsPageLanSync => '局域网同步';
+
+  @override
+  String get lanSyncThisDevice => '本设备';
+
+  @override
+  String get lanSyncListenerStarting => '正在启动监听…';
+
+  @override
+  String get lanSyncListenerNotRunning => '监听未运行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '监听启动失败：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get lanSyncPairIntro => '在局域网中的两台设备，一台扫描另一台展示的二维码配对。';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配对成功后会自动开始首次同步，可能耗时较长。请保持电脑端应用运行，手机端保持在本应用前台。';
+
+  @override
+  String get lanSyncShowCode => '显示配对二维码';
+
+  @override
+  String get lanSyncEnterCode => '扫码或输入配对码';
+
+  @override
+  String get lanSyncPairingCode => '配对码';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 后失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台设备上输入以下地址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到局域网地址。另一台设备仍可凭本机的 IP 或主机名连接。';
+
+  @override
+  String get lanSyncHostLabel => '地址';
+
+  @override
+  String get lanSyncPortLabel => '端口';
+
+  @override
+  String get lanSyncPairButton => '配对';
+
+  @override
+  String get lanSyncPairAgain => '重新配对';
+
+  @override
+  String get lanSyncPairingBusy => '配对中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已与 $name 配对';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配对码错误，或对方的配对窗口已关闭。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '请填写对方设备的地址和端口。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '无法核实对方身份，配对已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本设备的同步监听尚未启动。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配对失败：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '扫描配对二维码';
+
+  @override
+  String get lanSyncPairQrCaption => '扫码配对，或在另一台设备输入下方信息';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新与 $name 的配对';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '设备证书与二维码不符，已中止配对。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二维码中没有可用地址，请在下方输入地址完成配对。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '这不是 Cuplivo 的配对二维码。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配对二维码内容无法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二维码版本较新，请更新应用后重试。';
+
+  @override
+  String get lanSyncClosePairing => '关闭配对窗口';
+
+  @override
+  String get lanSyncPairedDevices => '已配对设备';
+
+  @override
+  String get lanSyncWorkspaces => '工作区';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count 个在同步内容';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => '同步中';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => '过大';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => '无法读取';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => '已关闭';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count 个文件';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ 个文件';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
+  String get lanSyncNoDevices => '还没有已配对的设备。配对后即可开始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知设备';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '从未同步';
+
+  @override
+  String get lanSyncJustSynced => '刚刚同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分钟前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小时前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '在线';
+
+  @override
+  String get lanSyncOnlineFromSession => '在线——上次同步成功连上';
+
+  @override
+  String get lanSyncOfflineFromSession => '离线——上次同步没能连上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在连接 $address…';
+  }
+
+  @override
+  String get lanSyncOffline => '离线';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在连接…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhaseSending => '正在发送变更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收变更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下载文件…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下载文件…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在应用变更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步进行中——请保持两台设备唤醒、Cuplivo 保持开启（手机端请保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重命名';
+
+  @override
+  String get lanSyncRenameTitle => '设备名称';
+
+  @override
+  String get lanSyncEditAddress => '修改地址';
+
+  @override
+  String get lanSyncAddressCopied => '地址已复制';
+
+  @override
+  String get lanSyncUnpair => '取消配对';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消与 $name 的配对？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '对话在两台设备上都会保留，只是不再与它同步，直到重新配对。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '发送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 条消息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 条消息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 个对话';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 项延后';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 个实体';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 项偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 个文件 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 个技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 处技能修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 个文件在对方设备上缺失';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count 个工作区文件';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count 个工作区文件 · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count 个工作区文件';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count 处工作区文件修改被覆盖';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count 个工作区文件未能应用';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count 个工作区未同步文件';
+  }
+
+  @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '已保留 $count 个工作区文件夹（开关已关闭）';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '两台设备的时钟相差约 $n 分钟，请校准设备时钟后重新同步';
+  }
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失败：无法连接到对方设备。它可能已离线或换了网络——重新扫描它的二维码，或在卡片上修改地址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失败：没有记录对方设备的地址。请重新扫描它的二维码，或在卡片上填写地址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失败：对方设备停止响应。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失败：对方设备报告了错误。';
+
+  @override
+  String get lanSyncReportInternal => '同步失败，详情见日志。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '对方数据库版本较新。请先更新本设备再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '对方使用不同的同步协议。请将两台设备都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本设备与对方对这次配对的记录已不一致——对方解除了配对，或重新配对没有在两台设备上完成。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '对方设备的身份不一致。请在两台设备上重新配对。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一个同步会话正在进行，请稍后再试。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火墙';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '端口 $port 的入站规则需要一次管理员授权。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允许访问（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站访问已允许。';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return '已与 $name 同步';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => '详情';
+
+  @override
+  String get lanSyncNever => '从未';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => '暂时连不上';
+
+  @override
+  String get lanSyncListening => '监听中';
+
+  @override
+  String get lanSyncCopy => '复制';
+
+  @override
+  String get lanSyncMoreActions => '更多操作';
+
+  @override
+  String get lanSyncEndpointTip =>
+      '每个地址一块：点名称可重命名，点延迟看详情（最近测量、成功次数、添加时间），在详情里可以编辑地址或删除它。';
+
+  @override
+  String get lanSyncJustNow => '刚刚';
+
+  @override
+  String get lanSyncShowAddresses => '地址';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      '配对码只在信任的网络上使用：输码配对能挡住被动窃听，挡不住中间人；二维码把对方证书指纹带过来，所以更稳妥。';
+
+  @override
+  String get lanSyncNoAddress => '还没有记住这个设备的地址。';
+
+  @override
+  String get lanSyncAddAddress => '添加地址';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return '本机已记住该设备的 $count 个地址，请先删除一个再添加。';
+  }
+
+  @override
+  String get lanSyncRenameEndpointTitle => '地址名称';
+
+  @override
+  String get lanSyncRenameEndpointHint => '例如：家中网络';
+
+  @override
+  String get lanSyncEndpointLatency => '延迟';
+
+  @override
+  String get lanSyncEndpointLastMeasured => '最近测量';
+
+  @override
+  String get lanSyncEndpointLastReached => '最近连通';
+
+  @override
+  String get lanSyncEndpointSuccessCount => '成功连接';
+
+  @override
+  String get lanSyncEndpointAddedAt => '添加于';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n 次';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => '删除此地址';
+
+  @override
+  String get lanSyncEndpointUnreachable => '连不上';
+
+  @override
+  String get lanSyncSupersededByPeer => '这次同步由另一台设备发起。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主动关怀';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未单独设置的对话默认跟随此开关';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '时间决策所用消息条数';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '决定下次主动发消息时间时，最多发送给决策模型的最近历史消息数量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各对话下次来信时间';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暂无已开启的对话';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未来 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已过期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 运行条件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精确闹钟';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自启动';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略电池优化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建议';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就绪';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '点击获取权限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手动确认';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主动发消息时间';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未设置';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主动关怀提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主动发消息时使用的提示词';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '请根据助手的角色设定、上下文、以及目前时间，给用户发一条消息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '决策时间功能说明提示词';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一个角色扮演场景的导演，负责判断助手（assistant）下一次应主动向用户发消息的时间。\n\n【功能说明】\n· 主动发消息：助手可在设定时间主动向用户发送消息，无需用户提问。\n· 若不设置主动发消息的时间，则助手无法在用户不发言的情况下主动发送任何消息。\n· 你需要评估当前设定的下次发消息时间：若认为无需调整，则保持原时间；否则进行修改。\n\n【注意】\n· 只考虑助手的视角看到的信息，不考虑用户的视角。\n\n【考虑角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情况下，应主动向用户报备或打招呼。\n2. 若上下文中提到助手因睡着、忙碌等原因未能及时查看用户的消息，则应设定在助手睡醒或忙完后，主动给用户发一条消息。\n3. 若上下文中提到助手需要在某个时间点监督或提醒用户，则设定在该时间点主动发消息。\n4. 当一个话题尚未聊完时，需要假设：用户在助手最后一条消息发出后始终没有回复，那么助手应在什么时间主动发消息？请据此设定时间。\n\n【示例】\n1. 聊天记录中，用户凌晨发消息称自己失眠，预计早上10:30起床，但助手没有失眠，会按正常时间（如8:30）起床。此时应将主动发消息时间设为助手的起床时间。\n2. 聊天记录中，用户与助手正在聊考试话题。你在8:30看到的最后一条消息是助手在8:30发出的一个提问。依据第4条规则，需考虑用户一直未回复的情况，助手应在10分钟之内主动发消息追问。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '选择日期和时间';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '请选择未来的时间。';
+
+  @override
+  String get conversationProactiveCareTitle => '对话主动关怀';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟随助手设置：已开启';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟随助手设置：已关闭';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '对话设置：已开启';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '对话设置：已关闭';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟随助手设置';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次发消息时间';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '无法更新对话主动关怀设置。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的来信决策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用于决定助手何时主动发消息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主动关怀消息生成失败，请打开应用检查模型配置与网络。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的来信已到达，打开应用即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的来信';
+
+  @override
+  String get backupProgressSkippedTitle => '备份完成，部分内容已跳过';
+
+  @override
+  String backupProgressSkippedMessage(int count) {
+    return '已跳过 $count 个无法读取的文件或目录，以下内容未包含在备份中。';
+  }
+
+  @override
+  String contextUsagePartialSummary(String tokens) {
+    return '已估算 $tokens，服务端压缩占用的量暂不知道';
+  }
+
+  @override
+  String get contextUsageBucketNativeCompaction => '服务端压缩';
+
+  @override
+  String get contextUsageUnknownTokens => '未知';
+
+  @override
+  String contextUsageLastRequestInput(String tokens) {
+    return '上次实际发给模型：$tokens';
+  }
+
+  @override
+  String get conversationFindHint => '查找';
+
+  @override
+  String get conversationFindPrevious => '上一个匹配项';
+
+  @override
+  String get conversationFindNext => '下一个匹配项';
+
+  @override
+  String get conversationFindOptions => '查找选项';
+
+  @override
+  String conversationFindMatchPosition(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get conversationFindCaseSensitive => '区分大小写';
+
+  @override
+  String get conversationFindWholeWord => '全词匹配';
+
+  @override
+  String get conversationFindWholeWordTooltip =>
+      '对英文、数字等按单词边界匹配；查询里若含汉字、假名、韩文，此项不改变结果。';
+
+  @override
+  String get conversationFindIncludeThinking => '包含思考过程';
+
+  @override
+  String get conversationFindOpenTooltip => '在会话中查找';
+
+  @override
+  String tokenDetailFirstResponse(String value) {
+    return '${value}s（首响应）';
+  }
+
+  @override
+  String tokenDetailFirstOutput(String value) {
+    return '${value}s（首输出）';
+  }
+
+  @override
+  String get toolSchemaSettingsGroupImages => '图片';
+
+  @override
+  String get workspaceEnvErrorRepairInterrupted => '沙盒修复已中断，现有沙盒已保留。请重试以完成修复。';
+
+  @override
+  String get workspaceEnvErrorRepairTimeout => '沙盒修复超时，请检查网络连接后重试。现有沙盒已保留。';
+
+  @override
+  String get workspaceEnvRepairRestartBanner =>
+      '未能在限定时间内确认沙盒修复已停止。请完全退出并重新打开 Cuplivo 后重试。现有沙盒已保留。';
+
+  @override
+  String get contextOperationsLoadMore => '展开更多';
+
+  @override
+  String get compressionRequestTimeout => '压缩请求超时';
+
+  @override
+  String get compressionMinuteUnit => '分钟';
+
+  @override
+  String get compressionRequestTimeoutDefault => '默认';
+
+  @override
+  String get compressionRequestTimeoutHint =>
+      '请输入分钟数，须大于 0。留空则保持现在的默认（服务端压缩为 5 分钟）。分段压缩时，每一段的生成和合并会分别计时。';
+
+  @override
+  String compressionRequestTimedOut(num minutes) {
+    return '压缩超过 $minutes 分钟还没完成，已停止，上下文没有改动。可以再试一次，或把超时时间调长。';
+  }
+
+  @override
   String get desktopAutostartTitle => '开机自启动';
 
   @override
-  String get desktopAutostartDescription => '登录这台电脑后自动启动 Kelivo。';
+  String get desktopAutostartDescription => '登录这台电脑后自动启动 Cuplivo。';
 
   @override
   String get desktopAutostartHiddenTitle => '自启动后隐藏到托盘';
 
   @override
   String get desktopAutostartHiddenDescription =>
-      '需要开启自启动和托盘图标。手动打开 Kelivo 时仍会显示窗口。';
+      '需要开启自启动和托盘图标。手动打开 Cuplivo 时仍会显示窗口。';
 
   @override
   String get desktopAutostartUnsupported => '开机自启动需要 macOS 13 或更高版本。';
 
   @override
-  String get desktopAutostartError => '无法应用启动设置。请检查系统启动项或登录项中的 Kelivo 设置后重试。';
+  String get desktopAutostartError => '无法应用启动设置。请检查系统启动项或登录项中的 Cuplivo 设置后重试。';
 
   @override
   String get compressionOutputBudget => '总输出上限（tokens）';
@@ -33252,15 +35482,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get compressionCarryListTitle => '消息预览';
 
   @override
-  String get compressionCarrySelectAllReplies => '全选助手回复';
-
-  @override
-  String get compressionCarryDeselectAllReplies => '全不选';
-
-  @override
-  String get compressionCarryPairNotFit => '剩余空间放不下这组原文和回复，本次会一起跳过。';
-
-  @override
   String compressionCarryImageCount(int count) {
     return '$count 张图片';
   }
@@ -33370,7 +35591,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupAutoKeychainUnavailable =>
-      'Kelivo 暂时无法访问系统钥匙串来保存或读取备份密码。你仍可手动备份。';
+      'Cuplivo 暂时无法访问系统钥匙串来保存或读取备份密码。你仍可手动备份。';
 
   @override
   String get backupAutoSucceeded => '已完成自动备份';
@@ -33406,14 +35627,287 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS 无法解锁登录钥匙串。请打开「钥匙串访问」，解锁「登录」，再回到 Kelivo 重试。';
+      'macOS 无法解锁登录钥匙串。请打开「钥匙串访问」，解锁「登录」，再回到 Cuplivo 重试。';
 
   @override
   String get backupMacOpenKeychainAccess => '打开钥匙串访问';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS 拒绝访问备份密码。如果出现系统提示，请允许 Kelivo 访问。你也可以在「钥匙串访问」中检查默认钥匙串和备份密码项目的权限。';
+      'macOS 拒绝访问备份密码。如果出现系统提示，请允许 Cuplivo 访问。你也可以在「钥匙串访问」中检查默认钥匙串和备份密码项目的权限。';
+
+  @override
+  String get storageSpaceCopyErrorDetails => '复制错误详情';
+
+  @override
+  String get storageAttachmentChecking => '正在检查附件使用情况…';
+
+  @override
+  String get storageAttachmentCheckFailed => '无法检查附件使用情况，请刷新后重试。';
+
+  @override
+  String get storageSpaceCopyErrorFailed => '无法复制错误详情，请重试。';
+
+  @override
+  String hotkeysShortcutInUse(String action) {
+    return '此快捷键已分配给「$action」。';
+  }
+
+  @override
+  String get hotkeysTextEditing => '文本编辑与焦点导航';
+
+  @override
+  String get backupPageChooseNewFile => '请使用新的文件名或选择其他文件夹保存备份。';
+
+  @override
+  String backupArchiveFileSizeLimit(String name, String limit) {
+    return '「$name」超过了备份单个文件 $limit 的大小上限。';
+  }
+
+  @override
+  String backupArchiveTotalSizeLimit(String limit) {
+    return '备份的未压缩大小超过了 $limit 的上限。';
+  }
+
+  @override
+  String get backupPageSettingsSaveFailed => '备份设置保存失败，请重试。';
+
+  @override
+  String get backupProgressScanning => '正在扫描备份文件';
+
+  @override
+  String backupProgressDiscoveredFiles(int count) {
+    return '已发现 $count 个文件';
+  }
+
+  @override
+  String get backupProgressCheckingDatabase => '正在检查数据库';
+
+  @override
+  String get backupProgressChoosingDestination => '正在选择保存位置';
+
+  @override
+  String get backupProgressSavingFile => '正在保存备份文件';
+
+  @override
+  String backupProgressElapsed(String time) {
+    return '已用时 $time';
+  }
+
+  @override
+  String get backupPageImportFromOtherAppsSubtitle =>
+      '新版 Chatbox、Cherry Studio 2.x，以及 ChatGPT、Claude、DeepSeek、Gemini、Grok、Open WebUI、NextChat、LobeChat。在浏览器本地转换成 Kelivo 备份后再导入，文件不会上传。';
+
+  @override
+  String get backupPageOpenImportToolbox => '打开工具箱';
+
+  @override
+  String backupPageImportToolboxOpenFailed(String url) {
+    return '无法打开浏览器，请手动访问：$url';
+  }
+
+  @override
+  String get backupPageToolboxImportMergeOnlyHint =>
+      '这是官方工具箱转换的备份。导入会合并到现有数据，不会替换已有聊天和助手。';
+
+  @override
+  String backupPageChatboxUnsupportedBackupVersion(String version) {
+    return '这是 Chatbox 新版备份（格式版本 $version），App 里暂时不能直接导入。请到官方工具箱转换成 Kelivo 备份，再回到「备份文件导入」，并选择「合并」。转换在浏览器本地完成，文件不会上传。';
+  }
+
+  @override
+  String get messageExportSheetExpandAllSteps => '展开全部步骤';
+
+  @override
+  String get modelSpecFormResponseSpeedTiers => '响应速度档位';
+
+  @override
+  String get modelSpecFormResponseSpeedTiersSubtitle =>
+      '自定义聊天中可为此模型选择的加速档位。两档均不勾选时，只提供标准档。';
+
+  @override
+  String get providerBalanceAutoRefresh => '余额自动刷新';
+
+  @override
+  String get providerBalanceScopeProvider => '此供应商';
+
+  @override
+  String get providerBalanceScopeGlobal => '全局默认';
+
+  @override
+  String get providerBalanceInterval => '定时刷新';
+
+  @override
+  String get providerBalanceRefreshOnReply => '回复后刷新';
+
+  @override
+  String providerBalanceFollowDefault(String value) {
+    return '默认 · $value';
+  }
+
+  @override
+  String get providerBalanceRefreshOff => '关闭';
+
+  @override
+  String get providerBalanceRefreshOn => '开启';
+
+  @override
+  String providerBalanceRefreshMinutes(int count) {
+    return '$count 分钟';
+  }
+
+  @override
+  String get providerBalanceRefreshHour => '1 小时';
+
+  @override
+  String get providerBalanceCustomInterval => '自定义间隔…';
+
+  @override
+  String get providerBalanceIntervalMinutes => '间隔分钟数';
+
+  @override
+  String get providerBalanceRefreshNow => '立即刷新余额';
+
+  @override
+  String providerBalanceLastUpdated(String date, String time) {
+    return '最后更新于 $date $time';
+  }
+
+  @override
+  String get providerDetailPageBalanceResetConfirmMessage =>
+      '这会覆盖当前供应商自定义的余额查询配置，将余额查询开关恢复为默认状态，并让自动刷新跟随全局设置。';
+
+  @override
+  String get providerDetailPageBalanceResetConfirmButton => '恢复默认';
+
+  @override
+  String get providerDetailPageReorderModels => '模型排序';
+
+  @override
+  String get miniMapSearchHint => '在小地图中搜索';
+
+  @override
+  String get miniMapSearchFailed => '搜索消息失败';
+
+  @override
+  String get searchServicesFourGetUrlInvalid => '请输入 HTTP 或 HTTPS 实例地址。';
+
+  @override
+  String get searchServicesFourGetScraperOptional => '上游搜索引擎（可选）';
+
+  @override
+  String get searchServicesFourGetPassOptional => 'pass Cookie（可选）';
+
+  @override
+  String get searchServicesFourGetPassHelp =>
+      '如果实例要求验证码，请完成验证并粘贴 pass Cookie 的值。';
+
+  @override
+  String get searchServiceEditorChangeIcon => '更换图标';
+
+  @override
+  String get searchServiceEditorIconFailed => '无法使用此图标，请另选图片或图标。';
+
+  @override
+  String get desktopDisplaySettingsFullWidthChatTitle => '聊天全宽显示';
+
+  @override
+  String get desktopDisplaySettingsFullWidthChatSubtitle =>
+      '让消息区和输入框随聊天栏的可用宽度展开。';
+
+  @override
+  String get searchProviderFourGetDescription =>
+      '通过已启用 API 的公开或自建 4get 实例搜索网页。';
+
+  @override
+  String get searchServiceNameFourGet => '4get';
+
+  @override
+  String get searchServiceNameKeenable => 'Keenable';
+
+  @override
+  String get searchProviderKeenableDescription =>
+      'Keenable 搜索。API Key 可选，不填则使用公开搜索端点。';
+
+  @override
+  String get messageStyleSettingsPageCustomizeThinkingToolCards => '自定义思考与工具卡片';
+
+  @override
+  String get messageStyleSettingsPageCustomizeThinkingToolCardsSubtitle =>
+      '为思考与工具调用单独设置卡片外观';
+
+  @override
+  String get messageStyleSettingsPageRoleThinkingTool => '思考与工具';
+
+  @override
+  String attachmentEncodingUnrecognized(String name) {
+    return '「$name」无法识别这个文本的编码，可以另存为 UTF-8 后重发';
+  }
+
+  @override
+  String get attachmentEncodingUnrecognizedShort => '无法识别编码';
+
+  @override
+  String attachmentNotText(String name) {
+    return '「$name」这个文件不是文本，暂不支持';
+  }
+
+  @override
+  String get attachmentNotTextShort => '不是文本';
+
+  @override
+  String attachmentTruncatedNotice(int count) {
+    return '文件过大，只读取了前 $count 字，建议拆分后再发送';
+  }
+
+  @override
+  String get attachmentTruncatedCard => '将只发送开头';
+
+  @override
+  String attachmentDocumentTooLarge(String name) {
+    return '「$name」文件过大，无法在普通对话中读取';
+  }
+
+  @override
+  String get attachmentDocumentTooLargeShort => '文件过大';
+
+  @override
+  String get imageContextExclude => '从上下文排除';
+
+  @override
+  String get imageContextRestore => '取消排除';
+
+  @override
+  String get imageContextExcluded => '已手动排除';
+
+  @override
+  String get imageContextExcludedWithOriginal => '原图已排除';
+
+  @override
+  String get compressionInstructionInjections => '压缩时参考指令注入';
+
+  @override
+  String get compressionInstructionInjectionsHint => '将当前对话启用的指令卡作为参考资料发给摘要模型。';
+
+  @override
+  String get compressionProviderContextRejected => '服务端返回请求过大。可以换一个上下文更大的模型再试。';
+
+  @override
+  String compressionSummaryWindowEstimate(String tokens, String source) {
+    return '摘要模型窗口 · $tokens token · $source';
+  }
+
+  @override
+  String get languageDisplayBangla => '孟加拉语';
+
+  @override
+  String get compressionCarrySelectAllReplies => '全选助手回复';
+
+  @override
+  String get compressionCarryDeselectAllReplies => '全不选';
+
+  @override
+  String get compressionCarryPairNotFit => '剩余空间放不下这组原文和回复，本次会一起跳过。';
 
   @override
   String get worldBookGroupActions => '分组操作';
@@ -33595,18 +36089,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get storageSpaceLoadFailed => '無法載入檔案或檢查圖片使用情況，請重新整理後重試。';
 
   @override
-  String get storageSpaceCopyErrorDetails => '複製錯誤詳情';
-
-  @override
-  String get storageAttachmentChecking => '正在檢查附件使用情況…';
-
-  @override
-  String get storageAttachmentCheckFailed => '無法檢查附件使用情況，請重新整理後再試。';
-
-  @override
-  String get storageSpaceCopyErrorFailed => '無法複製錯誤詳情，請重試。';
-
-  @override
   String get storageSpaceTotalLabel => '已用空間';
 
   @override
@@ -33654,7 +36136,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get storageSpaceClearDisplacedDatabasesConfirmMessage =>
-      '確定刪除這些保留的舊資料庫嗎？它們是 Kelivo 重建資料庫時留下的，可能是那些聊天記錄和設定僅存的一份。刪除後無法復原。';
+      '確定刪除這些保留的舊資料庫嗎？它們是 Cuplivo 重建資料庫時留下的，可能是那些聊天記錄和設定僅存的一份。刪除後無法復原。';
 
   @override
   String get storageSpaceRestoreTracesHint => '還原完成後保留的舊資料快照。清理不會影響目前的應用程式資料。';
@@ -34452,7 +36934,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get assistantEditStreamOutputDescription => '是否啟用訊息的串流輸出';
 
   @override
-  String get assistantEditThinkingBudgetTitle => '思考';
+  String get assistantEditThinkingBudgetTitle => '思考預算';
 
   @override
   String get assistantEditReasoningFollowDefault => '跟隨模型預設';
@@ -35031,14 +37513,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get hotkeysResetAll => '重置所有快捷鍵為預設';
 
   @override
-  String hotkeysShortcutInUse(String action) {
-    return '此快捷鍵已指派給「$action」。';
-  }
-
-  @override
-  String get hotkeysTextEditing => '文字編輯與焦點導覽';
-
-  @override
   String get assistantEditTemperatureTitle => '溫度';
 
   @override
@@ -35119,26 +37593,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageChooseExternalFolder =>
-      '請選擇 iCloud 雲碟或「我的 iPhone > Kelivo」以外的資料夾。Kelivo 資料夾會隨 App 解除安裝而刪除，本次備份尚未儲存。';
-
-  @override
-  String get backupPageChooseNewFile => '請選擇新的檔案名稱或其他資料夾來儲存備份。';
-
-  @override
-  String backupArchiveFileSizeLimit(String name, String limit) {
-    return '備份檔案「$name」超過單一檔案 $limit 的大小上限。';
-  }
-
-  @override
-  String backupArchiveTotalSizeLimit(String limit) {
-    return '備份的未壓縮大小超過 $limit 的上限。';
-  }
+      '請選擇 iCloud 雲碟或「我的 iPhone > Cuplivo」以外的資料夾。Cuplivo 資料夾會隨 App 解除安裝而刪除，本次備份尚未儲存。';
 
   @override
   String get backupPageFilesLabel => '檔案與圖片';
-
-  @override
-  String get backupPageSettingsSaveFailed => '無法儲存備份設定，請再試一次。';
 
   @override
   String get backupPageScopeTitle => '備份與匯入內容';
@@ -35201,21 +37659,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageRestartRequired => '需要重啟應用程式';
 
   @override
-  String get backupPageRestartContent => '匯入成功。重新啟動 Kelivo 後將安全套用。';
+  String get backupPageRestartContent => '匯入成功。重新啟動 Cuplivo 後將安全套用。';
 
   @override
   String backupPageRestartContentWithSkipped(int count) {
-    return '匯入已完成，但已略過 $count 個訊息順序無效的會話。重新啟動 Kelivo 後將安全套用已匯入的資料。';
+    return '匯入已完成，但已略過 $count 個訊息順序無效的會話。重新啟動 Cuplivo 後將安全套用已匯入的資料。';
   }
 
   @override
-  String get restartAppFailedMessage => 'Kelivo 無法自動重新啟動，請完全關閉後再重新開啟。';
+  String get restartAppFailedMessage => 'Cuplivo 無法自動重新啟動，請完全關閉後再重新開啟。';
 
   @override
   String get backupRestoreRolledBackTitle => '已保留原有資料';
 
   @override
-  String get backupRestoreRolledBackContent => '還原未能完成。Kelivo 已驗證並保留先前的資料。';
+  String get backupRestoreRolledBackContent => '還原未能完成。Cuplivo 已驗證並保留先前的資料。';
 
   @override
   String get backupRestoreDirectoryBlockedTitle => '還原正在等待資料夾釋放';
@@ -35232,21 +37690,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupRestoreFailureContent =>
-      'Kelivo 無法驗證完整的原有或新資料，因此未開啟聊天資料。請關閉 Kelivo 後重試；若問題持續發生，請保留診斷碼以供支援人員排查。';
+      'Cuplivo 無法驗證完整的原有或新資料，因此未開啟聊天資料。請關閉 Cuplivo 後重試；若問題持續發生，請保留診斷碼以供支援人員排查。';
 
   @override
-  String get backupRestoreBusinessLeaseUnavailableTitle => 'Kelivo 已在執行';
+  String get backupRestoreBusinessLeaseUnavailableTitle => 'Cuplivo 已在執行';
 
   @override
   String get backupRestoreBusinessLeaseUnavailableContent =>
-      'Kelivo 的資料仍由另一個應用程式程序使用。請關閉其他 Kelivo 視窗後重新啟動；目前程序尚未開啟聊天資料。';
+      'Cuplivo 的資料仍由另一個應用程式程序使用。請關閉其他 Cuplivo 視窗後重新啟動；目前程序尚未開啟聊天資料。';
 
   @override
   String get restoreProgressTitle => '正在還原備份';
 
   @override
   String get restoreProgressWarning =>
-      '請保持 Kelivo 開啟直到完成。此時關閉應用程式，下次啟動會從頭再來一次。';
+      '請保持 Cuplivo 開啟直到完成。此時關閉應用程式，下次啟動會從頭再來一次。';
 
   @override
   String get restoreProgressStageCheckingBackup => '正在驗證備份';
@@ -35267,7 +37725,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get restoreProgressStageFinishing => '即將完成';
 
   @override
-  String get backupRestoreFailureRestartButton => '重新啟動 Kelivo';
+  String get backupRestoreFailureRestartButton => '重新啟動 Cuplivo';
 
   @override
   String get backupRestoreFailureCopyButton => '複製診斷碼';
@@ -35306,14 +37764,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '修復未能完成。資料已保留，可選擇通過驗證的副本還原，或匯出資料進一步檢查。';
 
   @override
-  String get startupRecoveryResetFailed => '重設失敗。請完全關閉 Kelivo 後再重新開啟。';
+  String get startupRecoveryResetFailed => '重設失敗。請完全關閉 Cuplivo 後再重新開啟。';
 
   @override
   String get startupRecoveryResetDialogTitle => '確定從空清單重新開始？';
 
   @override
   String get startupRecoveryResetDialogContent =>
-      '這不會找回之前的聊天。Kelivo 會保留目前的資料庫和已有副本，建立新的空聊天清單。想找回聊天，請取消並選擇本機副本還原。';
+      '這不會找回之前的聊天。Cuplivo 會保留目前的資料庫和已有副本，建立新的空聊天清單。想找回聊天，請取消並選擇本機副本還原。';
 
   @override
   String get startupRecoveryResetDialogConfirm => '保留副本並重新開始';
@@ -35424,17 +37882,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupRecoveryDangerBody =>
-      '重新開始後，目前資料將不再顯示。Kelivo 會保留舊資料庫與既有副本以供還原，建議先匯出一份資料副本。';
+      '重新開始後，目前資料將不再顯示。Cuplivo 會保留舊資料庫與既有副本以供還原，建議先匯出一份資料副本。';
 
   @override
   String get startupRecoveryResetAcknowledge => '我確認暫不還原聊天，繼續使用空聊天清單。';
 
   @override
-  String get startupDatabaseUpdateRequiredTitle => '請更新 Kelivo 以繼續';
+  String get startupDatabaseUpdateRequiredTitle => '請更新 Cuplivo 以繼續';
 
   @override
   String get startupDatabaseUpdateRequiredContent =>
-      '本裝置上的聊天資料庫由更新版本的 Kelivo 建立，目前版本無法開啟。資料未被改動。請安裝最新版 Kelivo 後重新開啟。';
+      '本裝置上的聊天資料庫由更新版本的 Cuplivo 建立，目前版本無法開啟。資料未被改動。請安裝最新版 Cuplivo 後重新開啟。';
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeTitle => '若要改用舊版';
@@ -35445,7 +37903,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupDatabaseUpdateRequiredDowngradeStep1 =>
-      '先安裝並開啟最新版 Kelivo，在「設定 → 資料備份」匯出一份備份檔。';
+      '先安裝並開啟最新版 Cuplivo，在「設定 → 資料備份」匯出一份備份檔。';
 
   @override
   String startupDatabaseUpdateRequiredDowngradeStep2(String url) {
@@ -35486,8 +37944,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageOverwriteMode => '完全覆蓋';
 
   @override
-  String get backupPageOverwriteModeDescription =>
-      '取代所選內容，保留未選內容及其他本機設定。取代聊天時，也會清除本機未傳送的草稿。';
+  String get backupPageOverwriteModeDescription => '僅替換已選元件；保留未選元件及無關的本機設定';
 
   @override
   String get backupPageMergeMode => '合併';
@@ -35504,7 +37961,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String backupPageForwardCompatBody(int backupVersion, int currentVersion) {
-    return '這份備份由更新版本的 Kelivo 建立（資料格式 $backupVersion，目前版本支援 $currentVersion），且未聲明舊版本能否讀取。\n\n你可以繼續匯入：目前版本不認識的內容會被略過，備份檔案本身不會被修改。但如果新版本改變了既有資料的儲存方式，部分內容可能會被錯誤匯入。\n\n更穩妥的做法是先升級 Kelivo。';
+    return '這份備份由更新版本的 Cuplivo 建立（資料格式 $backupVersion，目前版本支援 $currentVersion），且未聲明舊版本能否讀取。\n\n你可以繼續匯入：目前版本不認識的內容會被略過，備份檔案本身不會被修改。但如果新版本改變了既有資料的儲存方式，部分內容可能會被錯誤匯入。\n\n更穩妥的做法是先升級 Cuplivo。';
   }
 
   @override
@@ -35515,7 +37972,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageSchemaTooNewMessage =>
-      '這份備份由更新版本的 Kelivo 建立，目前版本無法讀取。請先升級 Kelivo 後重試。';
+      '這份備份由更新版本的 Cuplivo 建立，目前版本無法讀取。請先升級 Cuplivo 後重試。';
 
   @override
   String get backupPageBackupUploaded => '已上傳備份';
@@ -35547,42 +38004,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupProgressErrorCopied => '錯誤已複製';
 
   @override
-  String get backupProgressSkippedTitle => '備份完成，部分內容已略過';
-
-  @override
-  String backupProgressSkippedMessage(int count) {
-    return '已略過 $count 個無法讀取的檔案或目錄，以下內容未包含在備份中。';
-  }
-
-  @override
   String get backupProgressPreparing => '準備中';
-
-  @override
-  String get backupProgressScanning => '正在掃描備份檔案';
-
-  @override
-  String backupProgressDiscoveredFiles(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '已發現 $count 個檔案',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get backupProgressCheckingDatabase => '正在檢查資料庫';
-
-  @override
-  String get backupProgressChoosingDestination => '正在選擇儲存位置';
-
-  @override
-  String get backupProgressSavingFile => '正在儲存備份檔案';
-
-  @override
-  String backupProgressElapsed(String time) {
-    return '已用時 $time';
-  }
 
   @override
   String get backupProgressSnapshotting => '正在建立資料庫快照';
@@ -35653,22 +38075,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageImportFromOtherApps => '從其他APP匯入';
-
-  @override
-  String get backupPageImportFromOtherAppsSubtitle =>
-      '新版 Chatbox、Cherry Studio 2.x，以及 ChatGPT、Claude、DeepSeek、Gemini、Grok、Open WebUI、NextChat、LobeChat。在瀏覽器本機轉換成 Kelivo 備份後再匯入，檔案不會上傳。';
-
-  @override
-  String get backupPageOpenImportToolbox => '開啟工具箱';
-
-  @override
-  String backupPageImportToolboxOpenFailed(String url) {
-    return '無法開啟瀏覽器，請手動前往：$url';
-  }
-
-  @override
-  String get backupPageToolboxImportMergeOnlyHint =>
-      '這是官方工具箱轉換的備份。匯入會合併到現有資料，不會取代已有聊天和助手。';
 
   @override
   String get backupPageNotSupportedYet => '暫不支援';
@@ -35749,19 +38155,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupPageIosSystemBackupNote =>
-      'Kelivo 的本機資料不參與 iCloud 系統備份。更換裝置或解除安裝 App 前，請將備份儲存到 iCloud 雲碟或 Kelivo 以外的資料夾。「我的 iPhone > Kelivo」中的檔案會隨 App 解除安裝而刪除。';
+      'Cuplivo 的本機資料不參與 iCloud 系統備份。更換裝置或解除安裝 App 前，請將備份儲存到 iCloud 雲碟或 Cuplivo 以外的資料夾。「我的 iPhone > Cuplivo」中的檔案會隨 App 解除安裝而刪除。';
 
   @override
   String get backupPageImportFromCherryStudio => '從 Cherry Studio 匯入';
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '這是 Cherry Studio 2.x 備份（格式版本 $version），App 裡暫時無法直接匯入。請到官方工具箱轉換成 Kelivo 備份，再回到「備份檔案匯入」，並選擇「合併」。轉換在瀏覽器本機完成，檔案不會上傳。';
-  }
-
-  @override
-  String backupPageChatboxUnsupportedBackupVersion(String version) {
-    return '這是 Chatbox 新版備份（格式版本 $version），App 裡暫時無法直接匯入。請到官方工具箱轉換成 Kelivo 備份，再回到「備份檔案匯入」，並選擇「合併」。轉換在瀏覽器本機完成，檔案不會上傳。';
+    return '此備份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。';
   }
 
   @override
@@ -35993,10 +38394,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get compressContextKeepRecentMessages => '保留最近原文';
 
   @override
-  String get compressContextKeepCountLabel => '保留最近幾則使用者訊息';
+  String get compressContextKeepCountLabel => '保留最近輪數';
 
   @override
-  String get compressContextKeepAllMessages => '要保留的條數已經覆蓋全部聊天，沒有可壓縮的內容了。';
+  String get compressContextKeepAllMessages => '保留輪數涵蓋全部訊息，無內容可壓縮';
 
   @override
   String compressContextEstimatePreview(
@@ -36488,9 +38889,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageExportSheetShowThinkingAndToolCards => '顯示深度思考卡片與工具卡片';
 
   @override
-  String get messageExportSheetExpandAllSteps => '展開全部步驟';
-
-  @override
   String get messageExportSheetShowThinkingContent => '顯示思考內容';
 
   @override
@@ -36863,22 +39261,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get contextUsageUnavailable => '暫時無法顯示用量。';
-
-  @override
-  String contextUsagePartialSummary(String tokens) {
-    return '已估算 $tokens，服務端壓縮佔用的量暫不知道';
-  }
-
-  @override
-  String get contextUsageBucketNativeCompaction => '服務端壓縮';
-
-  @override
-  String get contextUsageUnknownTokens => '未知';
-
-  @override
-  String contextUsageLastRequestInput(String tokens) {
-    return '上次實際傳送給模型：$tokens';
-  }
 
   @override
   String get contextUsageStateNone => '暫無資料';
@@ -37641,13 +40023,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '直接傳送 http(s) 圖片連結；關閉後捨棄遠端連結，只傳送本機圖片';
 
   @override
-  String get modelSpecFormResponseSpeedTiers => '回應速度等級';
-
-  @override
-  String get modelSpecFormResponseSpeedTiersSubtitle =>
-      '自訂此模型在聊天中可提供的加速等級。兩者皆不勾選時，僅提供標準等級。';
-
-  @override
   String get modelSpecFormPromptCacheControl => '提示快取標記';
 
   @override
@@ -37853,54 +40228,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get providerDetailPageClaudePromptCachingTtl1h => '1 小時';
 
   @override
-  String get providerBalanceAutoRefresh => '餘額自動重新整理';
-
-  @override
-  String get providerBalanceScopeProvider => '此供應商';
-
-  @override
-  String get providerBalanceScopeGlobal => '全域預設';
-
-  @override
-  String get providerBalanceInterval => '定時重新整理';
-
-  @override
-  String get providerBalanceRefreshOnReply => '回覆後重新整理';
-
-  @override
-  String providerBalanceFollowDefault(String value) {
-    return '預設 · $value';
-  }
-
-  @override
-  String get providerBalanceRefreshOff => '關閉';
-
-  @override
-  String get providerBalanceRefreshOn => '開啟';
-
-  @override
-  String providerBalanceRefreshMinutes(int count) {
-    return '$count 分鐘';
-  }
-
-  @override
-  String get providerBalanceRefreshHour => '1 小時';
-
-  @override
-  String get providerBalanceCustomInterval => '自訂間隔…';
-
-  @override
-  String get providerBalanceIntervalMinutes => '間隔分鐘數';
-
-  @override
-  String get providerBalanceRefreshNow => '立即重新整理餘額';
-
-  @override
-  String providerBalanceLastUpdated(String date, String time) {
-    return '最後更新於 $date $time';
-  }
-
-  @override
   String get providerDetailPageBalanceTitle => '帳戶餘額';
 
   @override
@@ -37935,13 +40262,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get providerDetailPageBalanceResetDefaultsButton => '恢復預設餘額設定';
-
-  @override
-  String get providerDetailPageBalanceResetConfirmMessage =>
-      '這會覆寫此供應商自訂的餘額查詢設定，將餘額查詢開關恢復為預設狀態，並讓自動重新整理跟隨全域設定。';
-
-  @override
-  String get providerDetailPageBalanceResetConfirmButton => '恢復預設';
 
   @override
   String providerDetailPageBalanceResult(String value) {
@@ -38290,9 +40610,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get providerDetailPageModelsTitle => '模型';
 
   @override
-  String get providerDetailPageReorderModels => '重新排序模型';
-
-  @override
   String get providerModelsGetButton => '取得';
 
   @override
@@ -38422,9 +40739,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get miniMapScrollToBottomTooltip => '捲動到底部';
 
   @override
-  String get miniMapSearchHint => '搜尋小地圖';
-
-  @override
   String miniMapSearchMatchCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -38436,42 +40750,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get miniMapSearchNoResults => '沒有符合的訊息';
-
-  @override
-  String get miniMapSearchFailed => '無法搜尋訊息';
-
-  @override
-  String get conversationFindHint => '查找';
-
-  @override
-  String get conversationFindPrevious => '上一個符合項';
-
-  @override
-  String get conversationFindNext => '下一個符合項';
-
-  @override
-  String get conversationFindOptions => '查找選項';
-
-  @override
-  String conversationFindMatchPosition(int current, int total) {
-    return '$current/$total';
-  }
-
-  @override
-  String get conversationFindCaseSensitive => '區分大小寫';
-
-  @override
-  String get conversationFindWholeWord => '全詞符合';
-
-  @override
-  String get conversationFindWholeWordTooltip =>
-      '對英文、數字等依單詞邊界符合；查詢若含漢字、假名、韓文，此項不改變結果。';
-
-  @override
-  String get conversationFindIncludeThinking => '包含思考過程';
-
-  @override
-  String get conversationFindOpenTooltip => '在對話中查找';
 
   @override
   String get searchServicesPageApiKeyRequiredStatus => '需要 API Key';
@@ -38570,29 +40848,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get searchServicesEditDialogRegionOptional => '地區（可選，預設 us-en）';
 
   @override
-  String get searchServicesFourGetUrlInvalid => '請輸入 HTTP 或 HTTPS 執行個體位址。';
-
-  @override
-  String get searchServicesFourGetScraperOptional => '上游搜尋引擎（選填）';
-
-  @override
-  String get searchServicesFourGetPassOptional => 'pass Cookie（選填）';
-
-  @override
-  String get searchServicesFourGetPassHelp =>
-      '如果執行個體要求驗證碼，請完成驗證並貼上 pass Cookie 的值。';
-
-  @override
   String get searchServiceEditorProviderTypeTitle => '搜尋提供商';
 
   @override
   String get searchServiceEditorConfigurationTitle => '服務設定';
-
-  @override
-  String get searchServiceEditorChangeIcon => '更換圖示';
-
-  @override
-  String get searchServiceEditorIconFailed => '無法使用此圖示，請另選圖片或圖示。';
 
   @override
   String get searchServiceEditorNoConfiguration => '此提供商無需額外設定。';
@@ -38770,13 +41029,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutPageEasterEggButton => '好的';
 
   @override
-  String get aboutPageKelivoSearchUnlocked => '有扇沒有名字的門開了一條縫。去設定裡找找看。';
-
-  @override
-  String get aboutPageKelivoSearchAlreadyUnlocked => '這扇門你已經推開過了。';
-
-  @override
-  String get aboutPageAppName => 'Kelivo';
+  String get aboutPageAppName => 'Cuplivo';
 
   @override
   String get aboutPageAppDescription => '開源 AI 助理';
@@ -38834,13 +41087,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutPageJoinQQGroup => '加入 QQ 群';
 
   @override
-  String get aboutPageQQGroupOne => 'Kelivo 一群';
+  String get aboutPageQQGroupOne => 'Cuplivo 一群';
 
   @override
-  String get aboutPageQQGroupTwo => 'Kelivo 二群';
+  String get aboutPageQQGroupTwo => 'Cuplivo 二群';
 
   @override
-  String get aboutPageQQGroupThree => 'Kelivo 三群';
+  String get aboutPageQQGroupThree => 'Cuplivo 三群';
 
   @override
   String get aboutPageJoinDiscord => '加入我們的 Discord';
@@ -38993,8 +41246,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get displaySettingsPageEnableImageCropperTitle => '啟用圖片裁剪';
 
   @override
-  String get displaySettingsPageEnableImageCropperSubtitle =>
-      '從相簿或相機選擇圖片後，允許裁剪圖片';
+  String get displaySettingsPageEnableImageCropperSubtitle => '預覽未發送圖片時可主動裁剪';
 
   @override
   String get displaySettingsPageKeepSidebarOpenOnAssistantTapTitle =>
@@ -39103,13 +41355,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get displaySettingsPageAutoSwitchTopicsTitle => '自動切換話題';
-
-  @override
-  String get desktopDisplaySettingsFullWidthChatTitle => '聊天全寬顯示';
-
-  @override
-  String get desktopDisplaySettingsFullWidthChatSubtitle =>
-      '讓訊息區和輸入框隨聊天欄的可用寬度展開。';
 
   @override
   String get desktopDisplaySettingsTopicPositionTitle => '主題位置';
@@ -39859,6 +42104,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get imageViewerPageNextButton => '下一張圖片';
 
   @override
+  String get imageViewerPageZoomInButton => '放大';
+
+  @override
+  String get imageViewerPageZoomOutButton => '縮小';
+
+  @override
+  String get imageViewerPageResetZoomButton => '重設縮放';
+
+  @override
+  String get imageViewerPageFlipHorizontalButton => '左右鏡像';
+
+  @override
+  String get imageViewerPageFlipVerticalButton => '上下鏡像';
+
+  @override
+  String get imageViewerPageRotateLeftButton => '向左旋轉';
+
+  @override
+  String get imageViewerPageRotateRightButton => '向右旋轉';
+
+  @override
   String imageViewerPageCounter(int index, int total) {
     return '$index/$total';
   }
@@ -39880,7 +42146,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsShare => 'Kelivo - 開源AI助理';
+  String get settingsShare => 'Cuplivo - 開源AI助理';
 
   @override
   String get searchProviderBingLocalDescription =>
@@ -39909,10 +42175,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get searchProviderSearXNGDescription => '重視隱私的元搜尋引擎。需自建實例，無追蹤。';
-
-  @override
-  String get searchProviderFourGetDescription =>
-      '透過已啟用 API 的公開或自架 4get 執行個體搜尋網頁。';
 
   @override
   String get searchProviderTavilyDescription =>
@@ -39954,9 +42216,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get searchServiceNameSearXNG => 'SearXNG';
-
-  @override
-  String get searchServiceNameFourGet => '4get';
 
   @override
   String get searchServiceNameLinkUp => 'LinkUp';
@@ -40076,13 +42335,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       'You.com 搜尋 API。返回網頁與新聞結果，支援 Highlights 或 Snippets。';
 
   @override
-  String get searchServiceNameKeenable => 'Keenable';
-
-  @override
-  String get searchProviderKeenableDescription =>
-      'Keenable 搜尋。API Key 可選，不填則使用公開搜尋端點。';
-
-  @override
   String get searchServicesDialogContentMode => '內容模式';
 
   @override
@@ -40103,9 +42355,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get searchServicesDialogMaximumTokensInvalid =>
       '最大 token 數必須介於 1024 和 32768 之間。';
-
-  @override
-  String get searchServiceNameKelivo => 'Kelivo';
 
   @override
   String get searchServicesDialogCountryOptional => '國家/地區（可選）';
@@ -40382,7 +42631,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get healthDataSettingsDescription =>
-      '目前助手在日常對話中可使用的 HealthKit 訊號。開關表示 Kelivo 可以嘗試讀取該範圍，實際授權仍由 iOS 管理。';
+      '目前助手在日常對話中可使用的 HealthKit 訊號。開關表示 Cuplivo 可以嘗試讀取該範圍，實際授權仍由 iOS 管理。';
 
   @override
   String healthDataSettingsBadge(int selected, int total) {
@@ -41687,7 +43936,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get legacyMemoryExport => '匯出';
 
   @override
-  String get legacyMemoryExportTitle => 'Kelivo 舊版記憶匯出';
+  String get legacyMemoryExportTitle => 'Cuplivo 舊版記憶匯出';
 
   @override
   String legacyMemoryAssistantHeader(String name) {
@@ -42184,13 +44433,8 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String tokenDetailFirstResponse(String value) {
-    return '${value}s（首次回應）';
-  }
-
-  @override
-  String tokenDetailFirstOutput(String value) {
-    return '${value}s（首次輸出）';
+  String tokenDetailFirstToken(String value) {
+    return '${value}s（首字）';
   }
 
   @override
@@ -42296,7 +44540,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationIntroSubtitle =>
-      'Kelivo 將聊天記錄遷移到更快的 SQLite 資料庫。升級會在應用程式開啟前完成，避免新舊資料同時寫入。';
+      'Cuplivo 將聊天記錄遷移到更快的 SQLite 資料庫。升級會在應用程式開啟前完成，避免新舊資料同時寫入。';
 
   @override
   String get migrationBackupNote => '遷移開始前，會先匯出包含設定、聊天記錄和本地檔案的 ZIP 備份。';
@@ -42338,14 +44582,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationBackingUpSubtitle =>
-      '正在匯出設定、聊天記錄、上傳檔案、圖片和字體。請保持 Kelivo 開啟，等待備份完成。';
+      '正在匯出設定、聊天記錄、上傳檔案、圖片和字體。請保持 Cuplivo 開啟，等待備份完成。';
 
   @override
   String get migrationMigratingTitle => '正在遷移到 SQLite';
 
   @override
   String get migrationMigratingSubtitle =>
-      '正在分批寫入對話和訊息，避免超大聊天記錄占滿記憶體。請保持 Kelivo 在前台，等待遷移完成。';
+      '正在分批寫入對話和訊息，避免超大聊天記錄占滿記憶體。請保持 Cuplivo 在前台，等待遷移完成。';
 
   @override
   String migrationBackingUpDetail(String fileName) {
@@ -42404,7 +44648,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationCompleteSubtitle =>
-      '你的聊天記錄已遷移到 SQLite。請重啟 Kelivo 進入升級後的應用程式。';
+      '你的聊天記錄已遷移到 SQLite。請重啟 Cuplivo 進入升級後的應用程式。';
 
   @override
   String get migrationConversationCount => '對話';
@@ -42422,7 +44666,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get migrationMissingFilesCount => '缺失檔案';
 
   @override
-  String get migrationRestartButton => '重啟 Kelivo';
+  String get migrationRestartButton => '重啟 Cuplivo';
 
   @override
   String get migrationFailedTitle => '遷移失敗';
@@ -42448,7 +44692,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get migrationSkipDialogMessage =>
-      'Kelivo 將以空的聊天資料庫啟動。舊的聊天記錄會保留在磁碟上（重新命名為 .retired 後綴），但不會被遷移，也不會在應用程式中顯示。之後如需找回，請使用已儲存的備份 ZIP。';
+      'Cuplivo 將以空的聊天資料庫啟動。舊的聊天記錄會保留在磁碟上（重新命名為 .retired 後綴），但不會被遷移，也不會在應用程式中顯示。之後如需找回，請使用已儲存的備份 ZIP。';
 
   @override
   String get migrationSkipDialogCancel => '取消';
@@ -42805,13 +45049,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '助手回覆遇到空行時拆分，每段單獨一個氣泡';
 
   @override
-  String get messageStyleSettingsPageCustomizeThinkingToolCards => '自訂思考與工具卡片';
-
-  @override
-  String get messageStyleSettingsPageCustomizeThinkingToolCardsSubtitle =>
-      '為思考與工具呼叫設定獨立外觀';
-
-  @override
   String get messageStyleSettingsPageStyleFrostedSubtitle => '半透明毛玻璃';
 
   @override
@@ -42860,9 +45097,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get messageStyleSettingsPageRoleAssistant => '助手';
 
   @override
-  String get messageStyleSettingsPageRoleThinkingTool => '思考與工具';
-
-  @override
   String get messageStyleSettingsPageRoleAssistantHint =>
       '翻譯卡片跟隨助手樣式，思考與工具卡片預設也跟隨助手樣式。';
 
@@ -42873,7 +45107,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localSnapshotEnabledTitle => '保留本機副本';
 
   @override
-  String get localSnapshotEnabledSubtitle => 'Kelivo 會定期在本機存一份資料庫副本，讓資料不只有一份。';
+  String get localSnapshotEnabledSubtitle => 'Cuplivo 會定期在本機存一份資料庫副本，讓資料不只有一份。';
 
   @override
   String get localSnapshotIntervalTitle => '備份頻率';
@@ -43034,7 +45268,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String localSnapshotRestoreMessage(String when) {
-    return '目前聊天和設定將取代為 $when 的副本。取代前會儲存目前聊天和設定的副本。未傳送的草稿不包含在副本中，此次還原會清除這些草稿。';
+    return '目前的對話和設定會被 $when 的這份副本替換。系統會先把現在的資料存一份，所以這一步可以復原。';
   }
 
   @override
@@ -43096,9 +45330,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get toolSchemaSettingsGroupSearch => '搜尋';
-
-  @override
-  String get toolSchemaSettingsGroupImages => '圖片';
 
   @override
   String get toolSchemaSettingsGroupMemory => '記憶';
@@ -43670,7 +45901,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceEnvUpToDate => '已是最新';
 
   @override
-  String get workspaceEnvRestartBanner => '請重新啟動 Kelivo 以完成安裝';
+  String get workspaceEnvRestartBanner => '請重新啟動 Cuplivo 以完成安裝';
 
   @override
   String get workspaceEnvDetectingMirrors => '正在偵測最快鏡像…';
@@ -43751,16 +45982,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceEnvErrorPatchFailed => '無法完成沙箱設定。';
 
   @override
-  String get workspaceEnvErrorRepairInterrupted => '沙盒修復已中斷，現有沙盒已保留。請重試以完成修復。';
-
-  @override
-  String get workspaceEnvErrorRepairTimeout => '沙盒修復逾時，請檢查網路連線後重試。現有沙盒已保留。';
-
-  @override
-  String get workspaceEnvRepairRestartBanner =>
-      '未能在限定時間內確認沙盒修復已停止。請完全關閉並重新開啟 Kelivo 後重試。現有沙盒已保留。';
-
-  @override
   String get workspaceEnvErrorCancelled => '安裝已取消。';
 
   @override
@@ -43785,7 +46006,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get workspaceEnvNativeExplanation =>
-      '在桌面端，Kelivo 使用系統終端機，而不是 Linux 沙箱。';
+      '在桌面端，Cuplivo 使用系統終端機，而不是 Linux 沙箱。';
 
   @override
   String workspaceEnvNativeShellPath(String path) {
@@ -44689,7 +46910,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceDesktopFolderMissing => '請選擇已存在的資料夾，或輸入它的絕對路徑。';
 
   @override
-  String get workspaceDesktopManagedHint => '由 Kelivo 為此專案建立並管理資料夾。';
+  String get workspaceDesktopManagedHint => '由 Cuplivo 為此專案建立並管理資料夾。';
 
   @override
   String get workspaceDesktopHostHint => '在本機存取檔案和執行命令。';
@@ -44904,38 +47125,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get incomingShareMoveFailed => '無法切換對話，草稿已保留。';
 
   @override
-  String attachmentEncodingUnrecognized(String name) {
-    return '無法辨識「$name」的文字編碼。請另存為 UTF-8 後重新傳送。';
-  }
-
-  @override
-  String get attachmentEncodingUnrecognizedShort => '無法辨識編碼';
-
-  @override
-  String attachmentNotText(String name) {
-    return '「$name」不是文字檔，因此無法在此使用。';
-  }
-
-  @override
-  String get attachmentNotTextShort => '不是文字檔';
-
-  @override
-  String attachmentTruncatedNotice(int count) {
-    return '檔案過大，僅讀取了前 $count 個字元。如需其餘內容，請拆分後重新傳送。';
-  }
-
-  @override
-  String get attachmentTruncatedCard => '將只傳送開頭部分';
-
-  @override
-  String attachmentDocumentTooLarge(String name) {
-    return '「$name」檔案過大，無法在一般對話中讀取。';
-  }
-
-  @override
-  String get attachmentDocumentTooLargeShort => '檔案過大';
-
-  @override
   String attachmentRequiresWorkspace(String name) {
     return '若要使用「$name」，請綁定工作區並啟用檔案工具，或將此草稿移至已有工作區的對話。此檔案無法在一般對話中直接讀取。';
   }
@@ -44955,7 +47144,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get workspaceExternalStorageMessage =>
-      '工作區和 Shell 需要直接讀寫外部資料夾，請在 Android 系統設定中允許 Kelivo 存取檔案。Android 11 及以上需開啟「所有檔案存取權限」，然後選擇要掛載的本機資料夾。';
+      '工作區和 Shell 需要直接讀寫外部資料夾，請在 Android 系統設定中允許 Cuplivo 存取檔案。Android 11 及以上需開啟「所有檔案存取權限」，然後選擇要掛載的本機資料夾。';
 
   @override
   String get workspaceExternalGrantAccess => '前往授權';
@@ -45171,7 +47360,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backgroundSettingsTitle => '背景任務';
 
   @override
-  String get backgroundTaskTitle => 'Kelivo 任務';
+  String get backgroundTaskTitle => 'Cuplivo 任務';
 
   @override
   String get backgroundCompleted => '生成完成';
@@ -45302,7 +47491,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backgroundOverlayIcon => '懸浮視窗圖示';
 
   @override
-  String get backgroundIconDefault => 'Kelivo 圖示';
+  String get backgroundIconDefault => 'Cuplivo 圖示';
 
   @override
   String get backgroundIconImage => '選擇圖片';
@@ -45511,7 +47700,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get startupRecoverySnapshotBody =>
-      '即使資料庫無法開啟，也可以選擇本機快照還原聊天和設定。請勿解除安裝 Kelivo，解除安裝會一併刪除這些快照。';
+      '即使資料庫無法開啟，也可以選擇本機快照還原聊天和設定。請勿解除安裝 Cuplivo，解除安裝會一併刪除這些快照。';
 
   @override
   String get startupRecoverySnapshotEmpty => '未在本機找到資料庫快照。請先匯出資料，再嘗試其他還原操作。';
@@ -45521,7 +47710,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String startupRecoverySnapshotConfirm(String when) {
-    return '將聊天和設定還原到 $when 的快照？快照之後的變更不會包含在內。現有附件檔案和快照會保留，Kelivo 將重新啟動以完成還原。';
+    return '將聊天和設定還原到 $when 的快照？快照之後的變更不會包含在內。現有附件檔案和快照會保留，Cuplivo 將重新啟動以完成還原。';
   }
 
   @override
@@ -45530,7 +47719,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get startupRecoverySnapshotReady => '快照已準備好，請重新啟動 Kelivo 完成還原。';
+  String get startupRecoverySnapshotReady => '快照已準備好，請重新啟動 Cuplivo 完成還原。';
 
   @override
   String get scheduledTasksTitle => '定時任務';
@@ -45601,7 +47790,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksReliability =>
-      '建議在電池設定中允許 Kelivo 背景執行。強制停止後需重新開啟應用程式。錯過的任務不會補跑，執行時間跟隨裝置時區。';
+      '建議在電池設定中允許 Cuplivo 背景執行。強制停止後需重新開啟應用程式。錯過的任務不會補跑，執行時間跟隨裝置時區。';
 
   @override
   String get scheduledTasksExecutionDetail =>
@@ -45778,7 +47967,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksDesktopReliability =>
-      '僅在 Kelivo 執行時運作，最小化或常駐系統匣時也會繼續。結束或電腦休眠期間錯過的任務不會補執行，也不會自動啟動應用程式。';
+      '僅在 Cuplivo 執行時運作，最小化或常駐系統匣時也會繼續。結束或電腦休眠期間錯過的任務不會補執行，也不會自動啟動應用程式。';
 
   @override
   String get scheduledTasksDesktopExecutionDetail =>
@@ -46145,7 +48334,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksIOSDetail =>
-      '受 iOS 背景限制，Kelivo 不能在指定時間自動喚醒並執行模型。此功能會在 App 可執行時提前準備內容，由系統到點顯示通知。每次僅準備下一次結果；離開 App 後不保證準備完成，後續任務需再次開啟 Kelivo 才能補充。';
+      '受 iOS 背景限制，Cuplivo 不能在指定時間自動喚醒並執行模型。此功能會在 App 可執行時提前準備內容，由系統到點顯示通知。每次僅準備下一次結果；離開 App 後不保證準備完成，後續任務需再次開啟 Cuplivo 才能補充。';
 
   @override
   String get scheduledTasksContextPolicy => '對話上下文';
@@ -46209,7 +48398,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get scheduledTasksCancelled => '已取消';
 
   @override
-  String get scheduledTasksReminderBody => '定時任務已到期，開啟 Kelivo 繼續。';
+  String get scheduledTasksReminderBody => '定時任務已到期，開啟 Cuplivo 繼續。';
 
   @override
   String get scheduledTasksResultBody => '定時任務結果已準備好。';
@@ -46223,7 +48412,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksAllowPreparationTip =>
-      '在 Kelivo 可執行時，提前產生下一次任務的結果，到期前不會顯示在聊天中。僅使用文字，不使用工具、附件或自訂請求內容；呼叫模型可能產生費用。';
+      '在 Cuplivo 可執行時，提前產生下一次任務的結果，到期前不會顯示在聊天中。僅使用文字，不使用工具、附件或自訂請求內容；呼叫模型可能產生費用。';
 
   @override
   String get scheduledTasksContextPolicyTip =>
@@ -46231,7 +48420,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksPreparationWindowTip =>
-      '允許在任務到期前多久開始準備，最長 24 小時。例如第二天早上提醒，前一天中午開啟 Kelivo 時就有機會準備。時間越長，準備機會越多，但內容也可能更早過時。不會改變任務時間，也不代表能在背景定時執行。「立刻準備」不受這項自動等待和準備次數上限限制。';
+      '允許在任務到期前多久開始準備，最長 24 小時。例如第二天早上提醒，前一天中午開啟 Cuplivo 時就有機會準備。時間越長，準備機會越多，但內容也可能更早過時。不會改變任務時間，也不代表能在背景定時執行。「立刻準備」不受這項自動等待和準備次數上限限制。';
 
   @override
   String get scheduledTasksPreparationAttemptsTip =>
@@ -46243,7 +48432,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get scheduledTasksUnavailableTip =>
-      '到期時沒有可用結果、也無法執行任務，就傳送提醒或略過本次。提醒不包含模型產生的回答，且需要開啟通知。如果到期時 Kelivo 正在開啟執行，可直接執行任務。';
+      '到期時沒有可用結果、也無法執行任務，就傳送提醒或略過本次。提醒不包含模型產生的回答，且需要開啟通知。如果到期時 Cuplivo 正在開啟執行，可直接執行任務。';
 
   @override
   String get scheduledTasksNotifyTip =>
@@ -46419,14 +48608,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get phoneControlAssistantHint =>
-      '需要同時完成兩項設定：在系統無障礙設定中啟用「Kelivo 手機控制」，並在要使用的助手 → 本地工具中開啟「手機控制」（也可從對話工具選單開啟）。每個助手單獨設定，執行任務時請保持手機解鎖。';
+      '需要同時完成兩項設定：在系統無障礙設定中啟用「Cuplivo 手機控制」，並在要使用的助手 → 本地工具中開啟「手機控制」（也可從對話工具選單開啟）。每個助手單獨設定，執行任務時請保持手機解鎖。';
 
   @override
   String get phoneControlRestrictedTitle => '無法開啟無障礙？';
 
   @override
   String get phoneControlRestrictedHint =>
-      '部分下載的 APK 需要先在應用程式資訊右上角選單中選擇「允許受限制的設定」。點擊開啟 Kelivo 應用程式資訊，完成後再返回無障礙設定。';
+      '部分下載的 APK 需要先在應用程式資訊右上角選單中選擇「允許受限制的設定」。點擊開啟 Cuplivo 應用程式資訊，完成後再返回無障礙設定。';
 
   @override
   String get phoneControlEnableAssistant => '允許此助手使用手機控制';
@@ -46616,14 +48805,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recoveryMissingDataBody =>
-      '暫時找不到目前的聊天資料庫，Kelivo 已暫停載入，沒有建立空資料庫。我們會在下方尋找舊副本，現有檔案會保留。';
+      '目前資料庫遺失，但裝置上仍有舊資料。Cuplivo 已暫停啟動，沒有建立空資料庫，並保留現有檔案與副本。';
 
   @override
   String get recoveryEmptyDataTitle => '目前聊天記錄為空';
 
   @override
   String get recoveryEmptyDataBody =>
-      '目前的聊天清單為空，但找到了舊副本。可以從下方選擇副本找回聊天記錄，現有檔案會保留。';
+      '目前資料庫沒有對話，但發現了歷史副本。Cuplivo 已暫停啟動，你可以還原副本，也可以明確選擇保留目前資料。應用程式不會自動覆寫資料。';
 
   @override
   String get recoveryKeepCurrent => '繼續使用空聊天清單';
@@ -46657,7 +48846,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recoveryStorageFailureBody =>
-      '資料更新暫時未能完成，原資料已保留。可以嘗試重新開啟 Kelivo，或選擇下方的本機副本還原。';
+      'Cuplivo 未能啟用受保護的資料儲存，已暫停啟動並保留原資料。可匯出資料副本或重試，應用程式不會因此建立空資料庫。';
 
   @override
   String get recoveryProtectingTitle => '正在保護聊天資料庫';
@@ -46681,7 +48870,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recoveryStorageInsufficientSpaceBody =>
-      '儲存空間不足，暫時無法安全地準備資料。請到系統設定釋放一些空間，再重新開啟 Kelivo，或重新檢查下方的副本。請保留 Kelivo，不要刪除它的資料和本機副本。';
+      '儲存空間不足，暫時無法安全地準備資料。請到系統設定釋放一些空間，再重新開啟 Cuplivo，或重新檢查下方的副本。請保留 Cuplivo，不要刪除它的資料和本機副本。';
 
   @override
   String get migrationFreshStartTitle => '已重新開始';
@@ -46759,7 +48948,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupEncryptionInvalid => '加密備份不完整或格式無效。';
 
   @override
-  String get backupEncryptionUnsupported => '此加密備份需要更新版本的 Kelivo。';
+  String get backupEncryptionUnsupported => '此加密備份需要更新版本的 Cuplivo。';
 
   @override
   String get backupProgressEncrypting => '正在加密備份';
@@ -46921,7 +49110,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get browserRestoreTabs => '還原分頁';
 
   @override
-  String get browserRestoreTabsDescription => '啟動 Kelivo 時還原上次的分頁。';
+  String get browserRestoreTabsDescription => '啟動 Cuplivo 時還原上次的分頁。';
 
   @override
   String get browserSaveHistory => '儲存瀏覽記錄';
@@ -47997,6 +50186,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get compressTaskAbandon => '放棄';
 
   @override
+  String get browserAgentTimedOut => '操作逾時，AI 已暫停';
+
+  @override
   String get compressCancelledSnack => '已取消，上下文沒有改動。';
 
   @override
@@ -48554,7 +50746,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '確定清理以下目錄中的原資料副本？目前目錄中的資料會保留，搬遷後發生變化的檔案不會被刪除。';
 
   @override
-  String get dataDirectoryMoving => '正在搬遷並驗證資料…請保持 Kelivo 開啟。';
+  String get dataDirectoryMoving => '正在搬遷並驗證資料…請保持 Cuplivo 開啟。';
 
   @override
   String get dataDirectoryStartupFailed => '無法開啟資料目錄';
@@ -48594,7 +50786,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get dataDirectoryGenericError =>
-      '操作未完成。請檢查磁碟剩餘空間、資料夾權限，以及是否有其他 Kelivo 處理程序執行，然後重試。現有資料已保留。';
+      '操作未完成。請檢查磁碟剩餘空間、資料夾權限，以及是否有其他 Cuplivo 處理程序執行，然後重試。現有資料已保留。';
 
   @override
   String get dataDirectoryCancelHint => '取消搬遷會保留目標目錄中已複製的檔案，你可以檢查後手動清理這些副本。';
@@ -48838,7 +51030,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recoveryGuideBody =>
-      'Kelivo 暫時無法載入資料，已暫停操作。我們會尋找本機副本，供你選擇還原。現有檔案會保留。';
+      'Cuplivo 暫時無法載入資料，已暫停操作。我們會尋找本機副本，供你選擇還原。現有檔案會保留。';
 
   @override
   String get recoverySpaceTitle => '需要一些儲存空間';
@@ -48859,7 +51051,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recoveryRestoreRetryBody =>
-      '這次還原尚未完成，選取的副本已保留。可以重新檢查本機副本，或重新開啟 Kelivo 繼續。';
+      '這次還原尚未完成，選取的副本已保留。可以重新檢查本機副本，或重新開啟 Cuplivo 繼續。';
 
   @override
   String recoverySpaceAmount(String required, String available) {
@@ -48868,7 +51060,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recoveryCopiesNeedUpdate =>
-      '部分副本來自更新版本的 Kelivo，請升級 App 後再還原。這些副本仍然保留。';
+      '部分副本來自更新版本的 Cuplivo，請升級 App 後再還原。這些副本仍然保留。';
 
   @override
   String get imageContextAllowRecall => '允許模型回讀歷史圖片';
@@ -48891,18 +51083,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get imageContextOmitted => '本輪不傳送';
-
-  @override
-  String get imageContextExclude => '從上下文排除';
-
-  @override
-  String get imageContextRestore => '取消排除';
-
-  @override
-  String get imageContextExcluded => '已手動排除';
-
-  @override
-  String get imageContextExcludedWithOriginal => '已排除原圖';
 
   @override
   String get imageContextPin => '固定圖片';
@@ -48961,9 +51141,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get contextOperationsTitle => '壓縮與清空記錄';
-
-  @override
-  String get contextOperationsLoadMore => '顯示更多';
 
   @override
   String get contextOperationsDescription => '查看壓縮和清空的記錄，也可以撤銷';
@@ -49138,13 +51315,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '摘要可參考助手的系統提示詞、與這段歷史相符的世界書條目，以及當時儲存的記憶。發生過的事和角色知道的事以聊天記錄為準。';
 
   @override
-  String get compressionInstructionInjections => '使用指令注入作為參考';
-
-  @override
-  String get compressionInstructionInjectionsHint =>
-      '將目前對話啟用的指令卡作為參考資料傳送給摘要模型。';
-
-  @override
   String get compressionToolReferences => '已讀過的工具結果只保留引用';
 
   @override
@@ -49198,9 +51368,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get compressionIncomplete => '摘要沒寫完或被模型拒絕，上下文沒有改動。可以調高輸出上限，或換一個模型。';
-
-  @override
-  String get compressionProviderContextRejected => '服務端回傳請求過大。可以換一個上下文更大的模型再試。';
 
   @override
   String get compressionReferenceChanged => '參考的背景已經變了。請先看一下這份摘要，或重新產生一次。';
@@ -49376,24 +51543,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get compressionTurnUnit => '輪';
 
   @override
-  String get compressionRequestTimeout => '壓縮請求逾時';
-
-  @override
-  String get compressionMinuteUnit => '分鐘';
-
-  @override
-  String get compressionRequestTimeoutDefault => '預設';
-
-  @override
-  String get compressionRequestTimeoutHint =>
-      '請輸入分鐘數，須大於 0。留空則保持現在的預設（服務端壓縮為 5 分鐘）。分段壓縮時，每一段的產生和合併會分別計時。';
-
-  @override
-  String compressionRequestTimedOut(num minutes) {
-    return '壓縮超過 $minutes 分鐘還沒完成，已停止，上下文沒有改動。可以再試一次，或把超時時間調長。';
-  }
-
-  @override
   String get compressionAdvancedOptions => '壓縮細節';
 
   @override
@@ -49401,11 +51550,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get compressionAutomaticWindow => '自動';
-
-  @override
-  String compressionSummaryWindowEstimate(String tokens, String source) {
-    return '摘要模型視窗 · $tokens token · $source';
-  }
 
   @override
   String get compressionAutoOffHint => '需要時可在壓縮頁手動開始。';
@@ -49490,22 +51634,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String requestBudgetSingleError(int index, String actual, String limit) {
-    return 'Kelivo 本機預檢：本次請求第 $index 張圖片編碼後為 $actual，超過單張預算 $limit。';
+    return 'Cuplivo 本機預檢：本次請求第 $index 張圖片編碼後為 $actual，超過單張預算 $limit。';
   }
 
   @override
   String requestBudgetTotalError(String actual, String limit) {
-    return 'Kelivo 本機預檢：圖片編碼後合計 $actual，超過圖片總預算 $limit。';
+    return 'Cuplivo 本機預檢：圖片編碼後合計 $actual，超過圖片總預算 $limit。';
   }
 
   @override
   String requestBudgetCountError(String actual, int limit) {
-    return 'Kelivo 本機預檢：本次請求包含 $actual 張圖片，超過數量上限 $limit 張。';
+    return 'Cuplivo 本機預檢：本次請求包含 $actual 張圖片，超過數量上限 $limit 張。';
   }
 
   @override
   String requestBudgetBodyError(String actual, String limit) {
-    return 'Kelivo 本機預檢：完整請求體為 $actual，超過請求體預算 $limit。';
+    return 'Cuplivo 本機預檢：完整請求體為 $actual，超過請求體預算 $limit。';
   }
 
   @override
@@ -49579,13 +51723,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '達到設定的比例時，用目前對話模型做服務端壓縮，然後再繼續傳送。失敗時原文不動，也不會改用文字摘要。';
 
   @override
-  String get languageDisplayRussian => '俄語';
+  String get languageDisplayRussian => 'Русский';
 
   @override
   String get languageDisplayTurkish => '土耳其語';
-
-  @override
-  String get languageDisplayBangla => '孟加拉語';
 
   @override
   String sideDrawerDeleteConfirmContent(String title) {
@@ -49701,24 +51842,1354 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get workspaceEnvNativeShellSave => '儲存';
 
   @override
+  String get storageSpaceCategoryAssistantData => '助理';
+
+  @override
+  String get storageSpaceSubAssistantAvatars => '頭像';
+
+  @override
+  String get storageSpaceSubAssistantImages => '圖片';
+
+  @override
+  String get storageSpaceSourceLabel => '來源';
+
+  @override
+  String get storageSpaceSourceAll => '全部';
+
+  @override
+  String get storageSpaceSourceUserUpload => '使用者上傳';
+
+  @override
+  String get storageSpaceSourceAssistant => '助理傳送';
+
+  @override
+  String get languageDisplayPortuguese => 'Português';
+
+  @override
+  String get languageDisplayArabic => 'العربية';
+
+  @override
+  String get languageDisplayHindi => 'हिन्दी';
+
+  @override
+  String get languageDisplayThai => 'ไทย';
+
+  @override
+  String get languageDisplayVietnamese => 'Tiếng Việt';
+
+  @override
+  String get languageDisplayBengali => 'বাংলা';
+
+  @override
+  String get translateLanguageManagerTitle => '管理語言';
+
+  @override
+  String get translateLanguageManagerSubtitle => '選擇在翻譯目標清單中顯示的語言。';
+
+  @override
+  String get translateLanguageManagerAtLeastOne => '請至少保留一種語言。';
+
+  @override
+  String get assistantEditChatSuggestionsTitle => '聊天建議';
+
+  @override
+  String get assistantEditChatSuggestionsTip =>
+      '每次助手回覆後額外發一條請求，生成最多三條後續建議；關閉則不再請求。';
+
+  @override
+  String get assistantEditChatSuggestionsGlobalOff => '未生效：請先在「預設模型」中開啟聊天建議。';
+
+  @override
+  String get hotkeyFocusInput => '聚焦輸入框';
+
+  @override
+  String get hotkeyCopySelectionMarkdown => '複製選取為 Markdown';
+
+  @override
+  String get hotkeyReplySelection => '回覆選取內容';
+
+  @override
+  String get compressingContext => '正在壓縮上下文...';
+
+  @override
+  String compressContextReadoutRounds(int rounds) {
+    return '共 $rounds 輪';
+  }
+
+  @override
+  String compressContextReadoutKeptRounds(int rounds) {
+    return '$rounds 輪 + 摘要';
+  }
+
+  @override
+  String compressContextReadoutTokens(String tokens) {
+    return '~$tokens token';
+  }
+
+  @override
+  String compressContextReadoutTokensBand(String min, String max) {
+    return '~$min–$max token';
+  }
+
+  @override
+  String compressContextReadoutReduction(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String get messageQuotePreviewRemove => '移除回覆';
+
+  @override
+  String get messageQuoteTargetMissing => '原訊息不可用';
+
+  @override
+  String get messageMoreSheetReply => '回覆';
+
+  @override
+  String get messageMoreSheetCopyLink => '複製連結';
+
+  @override
+  String reasoningBudgetSheetCurrentLevel(String level) {
+    return '目前檔位：$level';
+  }
+
+  @override
+  String get chatMessageWidgetReplySelection => '回覆';
+
+  @override
+  String get chatSelectionExportPdf => 'PDF';
+
+  @override
+  String get messageExportSheetUser => '使用者';
+
+  @override
+  String get messageExportSheetPdf => 'PDF';
+
+  @override
+  String get messageExportSheetBatchPdfSubtitle => '將選取的訊息匯出為 PDF 文件';
+
+  @override
+  String get pdfExportDialogTitle => '匯出 PDF';
+
+  @override
+  String get pdfExportDialogCancel => '取消';
+
+  @override
+  String get pdfExportDialogExport => '匯出 PDF';
+
+  @override
+  String get pdfExportDialogSectionContent => '內容';
+
+  @override
+  String get pdfExportDialogSectionFonts => '字型';
+
+  @override
+  String get pdfExportFontRoleBody => '正文字型';
+
+  @override
+  String get pdfExportFontRoleMono => '程式碼字型';
+
+  @override
+  String get pdfExportFontRoleEmoji => 'Emoji 字型';
+
+  @override
+  String get pdfExportFontCheck => '檢查字型';
+
+  @override
+  String get pdfExportFontChecking => '正在檢查…';
+
+  @override
+  String get pdfExportFontMissing => '找不到可嵌入的中文字型，中文可能顯示為空白。';
+
+  @override
+  String get pdfExportFontUnusable => '所選字型無法使用，已改用其他字型。';
+
+  @override
+  String get pdfExportFontBuiltIn => '內建字型';
+
+  @override
+  String get pdfExportFontNone => '未嵌入';
+
+  @override
+  String get pdfExportFontNeedsDownload => '需下載';
+
+  @override
+  String get pdfExportFontAuto => '自動';
+
+  @override
+  String get pdfExportFontGroupSystem => '系統字型';
+
+  @override
+  String get pdfExportFontGroupDownload => '下載';
+
+  @override
+  String get pdfExportFontGroupOther => '其他';
+
+  @override
+  String get pdfExportFontNoteCjk => '含中文';
+
+  @override
+  String get pdfExportFontNoteColour => '彩色';
+
+  @override
+  String get pdfExportFontNoteMonochrome => '單色';
+
+  @override
+  String get pdfExportFontBuiltInNote => '不嵌入字型，中文顯示為空白';
+
+  @override
+  String get pdfExportFontDownloadNote => '含中文，約 10 MB';
+
+  @override
+  String get pdfExportFontListFailed => '無法讀取字型列表';
+
+  @override
+  String get pdfExportResultTitle => '匯出完成';
+
+  @override
+  String pdfExportResultSummary(Object pages, Object size) {
+    return '$pages 頁 · $size';
+  }
+
+  @override
+  String pdfExportResultDegraded(Object count) {
+    return '$count 項未能完整匯出';
+  }
+
+  @override
+  String pdfExportResultDegradedMath(Object count) {
+    return '$count 個公式已按原始文字顯示';
+  }
+
+  @override
+  String pdfExportResultDegradedDiagram(Object count) {
+    return '$count 個圖表已按程式碼顯示';
+  }
+
+  @override
+  String pdfExportResultDegradedImage(Object count) {
+    return '$count 張圖片無法讀取，已顯示圖片位址';
+  }
+
+  @override
+  String get pdfExportResultDone => '完成';
+
+  @override
+  String get sideDrawerMenuCopyLink => '複製連結';
+
+  @override
+  String get conversationLinkCopied => '已複製連結';
+
+  @override
+  String get conversationLinkMissing => '此對話不在本裝置上。';
+
+  @override
+  String modelDetailSheetModelIdDisabledHint(String modelId) {
+    return '$modelId';
+  }
+
+  @override
+  String get modelDetailSheetSearchTool => '搜尋';
+
+  @override
+  String get modelDetailSheetSearchToolDescription => '啟用 Google 搜尋整合';
+
+  @override
+  String get modelDetailSheetModelIdExistsError => '模型 ID 已存在';
+
+  @override
+  String get aboutPageQQGroup => 'Cuplivo 群';
+
+  @override
+  String get draftImageCropAction => '裁剪';
+
+  @override
+  String get draftImageCropFailed => '裁剪失敗，原圖保持不變。';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleTitle => '自動回到底部延遲';
+
+  @override
+  String get displaySettingsPageAutoScrollIdleSubtitle => '使用者停止捲動後等待多久再自動回到底部';
+
+  @override
+  String get memorySettingsFullInjectionTypesTitle => '全量注入類型';
+
+  @override
+  String get memorySettingsFullInjectionTypesSubtitle =>
+      '可多選。選中類型會注入全域及目前助手的全部有效記憶，不受條數限制，會增加上下文和 token 消耗。';
+
+  @override
+  String get toolApprovalApprove => '批准';
+
+  @override
+  String get imageSettingsPageModeTitle => '壓縮模式';
+
+  @override
+  String get imageSettingsPageModeManual => '手動';
+
+  @override
+  String get imageSettingsPageModeAuto => '自動';
+
+  @override
+  String get imageSettingsPageModeOff => '關閉';
+
+  @override
+  String get imageSettingsPageModeManualSubtitle => '圖片按原樣附加，在預覽中可手動壓縮';
+
+  @override
+  String get imageSettingsPageModeAutoSubtitle => '附加圖片時按下方預設自動壓縮';
+
+  @override
+  String get imageSettingsPageModeOffSubtitle => '圖片從不壓縮';
+
+  @override
+  String get compressEditorTitle => '壓縮圖片';
+
+  @override
+  String get compressEditorFormatJpeg => 'JPEG';
+
+  @override
+  String get compressEditorFormatPng => 'PNG';
+
+  @override
+  String get compressEditorFormatOriginal => '原圖';
+
+  @override
+  String get compressEditorLongEdgeLabel => '長邊';
+
+  @override
+  String get compressEditorLongEdgeFull => '100%';
+
+  @override
+  String get compressEditorLongEdgeHalf => '50%';
+
+  @override
+  String get compressEditorLongEdgeQuarter => '25%';
+
+  @override
+  String get compressEditorQualityLabel => '品質';
+
+  @override
+  String get compressEditorOriginalSide => '原圖';
+
+  @override
+  String get compressEditorEstimating => '正在估算體積…';
+
+  @override
+  String get compressEditorEstimateFailed => '無法估算體積';
+
+  @override
+  String compressEditorSavings(int percent) {
+    return '−$percent%';
+  }
+
+  @override
+  String compressEditorGrowth(int percent) {
+    return '+$percent%';
+  }
+
+  @override
+  String get compressEditorNoReencode => '不做重編碼';
+
+  @override
+  String get compressEditorDecodeFailed => '此圖片無法預覽，因此無法重新壓縮。';
+
+  @override
+  String get compressEditorTooLarge => '此圖片過大，無法在編輯器中開啟，因此無法在這裡重新壓縮；附件將按原樣保留。';
+
+  @override
+  String compressEditorWorkingScale(String source, int percent) {
+    return '來源圖片 $source，為控制記憶體按 $percent% 載入';
+  }
+
+  @override
+  String get compressEditorCancel => '取消';
+
+  @override
+  String get compressEditorApply => '套用';
+
+  @override
+  String get compressEditorApplyAll => '套用到全部';
+
+  @override
+  String get compressEditorDone => '完成';
+
+  @override
+  String get workspaceToolAllowAll => '本工作階段全部允許';
+
+  @override
+  String get workspaceEntryAllowAll => '本工作階段全部允許';
+
+  @override
+  String get workspaceEntryAllowAllSubtitle => '此對話中的 Shell 命令將不再需要核准。';
+
+  @override
+  String get recycleBinTitle => '回收站';
+
+  @override
+  String get recycleBinManage => '管理回收站';
+
+  @override
+  String get recycleBinStorageHint => '本機暫存，不參與同步與備份。';
+
+  @override
+  String get recycleBinEntriesLabel => '條目';
+
+  @override
+  String get recycleBinEmptyTitle => '回收站是空的';
+
+  @override
+  String get recycleBinEmptyBody => '你刪除的對話與助手、被同步覆蓋的設定都會暫存在這裡，隨時可以找回。';
+
+  @override
+  String get recycleBinUntitled => '未命名';
+
+  @override
+  String get recycleBinKindConversation => '對話';
+
+  @override
+  String get recycleBinKindAssistant => '助手';
+
+  @override
+  String get recycleBinKindProvider => '服務商';
+
+  @override
+  String get recycleBinKindWorldBook => '世界書';
+
+  @override
+  String get recycleBinKindMemory => '記憶';
+
+  @override
+  String get recycleBinKindPreference => '設定項';
+
+  @override
+  String get recycleBinKindWorkspaceFile => '工作區檔案';
+
+  @override
+  String get recycleBinKindConfig => '設定';
+
+  @override
+  String get recycleBinOriginLocal => '本機刪除';
+
+  @override
+  String get recycleBinOriginRemote => '同步刪除';
+
+  @override
+  String get recycleBinReasonOverwritten => '被更新的版本替換';
+
+  @override
+  String get recycleBinRestore => '還原';
+
+  @override
+  String get recycleBinDeleteForever => '徹底刪除';
+
+  @override
+  String get recycleBinDeleteForeverBody => '該條目將被永久刪除，無法再還原。';
+
+  @override
+  String get recycleBinClearAll => '清空回收站';
+
+  @override
+  String get recycleBinClearAllBody => '回收站中的全部條目都將被永久刪除，無法再還原。';
+
+  @override
+  String get recycleBinRestored => '已還原';
+
+  @override
+  String get recycleBinRestoreSkipped => '該項已重新存在，未做變更';
+
+  @override
+  String get recycleBinRestoreUnreadable => '暫存的副本已損壞，無法還原';
+
+  @override
+  String get recycleBinRestoreUnsupported => '目前版本無法還原該條目';
+
+  @override
+  String get recycleBinRestoreNoWorkspace => '該檔案所屬的工作區已被刪除，沒有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreFailed => '還原失敗';
+
+  @override
+  String get recycleBinFilterAll => '全部';
+
+  @override
+  String get recycleBinFilterConversation => '對話';
+
+  @override
+  String get recycleBinFilterAssistants => '助手';
+
+  @override
+  String get recycleBinFilterSettings => '設定';
+
+  @override
+  String get recycleBinFilterFiles => '檔案';
+
+  @override
+  String get recycleBinCancel => '取消';
+
+  @override
+  String get recycleBinInfoTitle => '關於回收站';
+
+  @override
+  String get recycleBinInfoBody =>
+      '在這裡刪除的東西——對話、助手、服務商、記憶、設定項——都會留在本機，隨時可以找回。\n\n回收站不參與同步，也不會寫進備份。條目保留 90 天，或直到超過 256 MB 或 1000 條；超過後從最舊的開始清理。\n\n還原會把它記為目前時間，所以不會立刻又被上次勝出的版本覆蓋。';
+
+  @override
+  String get recycleBinInfoClose => '知道了';
+
+  @override
+  String recycleBinGroupHeader(Object count, Object name) {
+    return '隨「$name」一起刪除的 $count 個對話';
+  }
+
+  @override
+  String get recycleBinRestoreGroup => '全部還原';
+
+  @override
+  String recycleBinGroupRestored(Object restored, Object skipped) {
+    return '已還原 $restored 項，$skipped 項已存在';
+  }
+
+  @override
+  String recycleBinGroupRestoreFailed(Object failed, Object restored) {
+    return '已還原 $restored 項，$failed 項未能還原';
+  }
+
+  @override
+  String get recycleBinOpenDetail => '檢視詳情';
+
+  @override
+  String get recycleBinDetailKey => '識別';
+
+  @override
+  String get recycleBinDetailOrigin => '來源';
+
+  @override
+  String get recycleBinDetailWhen => '刪除時間';
+
+  @override
+  String get recycleBinDetailReplacedWhen => '替換時間';
+
+  @override
+  String get recycleBinDetailSize => '佔用';
+
+  @override
+  String get recycleBinDetailModified => '檔案修改時間';
+
+  @override
+  String get recycleBinDetailContent => '內容';
+
+  @override
+  String recycleBinDetailRows(Object count) {
+    return '$count 行';
+  }
+
+  @override
+  String recycleBinDetailTruncated(Object shown) {
+    return '內容過大，只顯示前 $shown';
+  }
+
+  @override
+  String get recycleBinDetailBinary => '二進位檔案，無法預覽';
+
+  @override
+  String get recycleBinDetailUnreadable => '暫存的副本已損壞，讀不出內容';
+
+  @override
+  String get recycleBinDetailCopyJson => '複製 JSON';
+
+  @override
+  String get recycleBinDetailCopyText => '複製文字';
+
+  @override
+  String get recycleBinDetailCopied => '已複製';
+
+  @override
+  String recycleBinDetailAssistantGone(Object name) {
+    return '該對話屬於助手「$name」，它已不在本機；還原後需要為它重新指定助手。';
+  }
+
+  @override
+  String get settingsPageLanSync => '區域網路同步';
+
+  @override
+  String get lanSyncThisDevice => '本裝置';
+
+  @override
+  String get lanSyncListenerStarting => '正在啟動監聽…';
+
+  @override
+  String get lanSyncListenerNotRunning => '監聽未執行';
+
+  @override
+  String lanSyncListenerFailed(Object error) {
+    return '監聽啟動失敗：$error';
+  }
+
+  @override
+  String get lanSyncPairSectionTitle => '配對裝置';
+
+  @override
+  String get lanSyncPairIntro => '在區域網路中的兩台裝置，一台掃描另一台顯示的二維碼配對。';
+
+  @override
+  String get lanSyncPairFirstSyncNote =>
+      '配對成功後會自動開始首次同步，可能耗時較長。請保持電腦端應用程式執行，手機端保持在這個應用程式前台。';
+
+  @override
+  String get lanSyncShowCode => '顯示配對二維碼';
+
+  @override
+  String get lanSyncEnterCode => '掃碼或輸入配對碼';
+
+  @override
+  String get lanSyncPairingCode => '配對碼';
+
+  @override
+  String lanSyncPairingExpiresIn(Object time) {
+    return '$time 後失效';
+  }
+
+  @override
+  String get lanSyncPairingEndpointHint => '在另一台裝置上輸入以下位址';
+
+  @override
+  String get lanSyncPairingNoIpHint => '未找到區域網路位址。另一台裝置仍可憑本機的 IP 或主機名稱連線。';
+
+  @override
+  String get lanSyncHostLabel => '位址';
+
+  @override
+  String get lanSyncPortLabel => '連接埠';
+
+  @override
+  String get lanSyncPairButton => '配對';
+
+  @override
+  String get lanSyncPairAgain => '重新配對';
+
+  @override
+  String get lanSyncPairingBusy => '配對中…';
+
+  @override
+  String lanSyncPairSuccess(Object name) {
+    return '已與 $name 配對';
+  }
+
+  @override
+  String get lanSyncPairErrorInvalidPin => '配對碼錯誤，或對方的配對視窗已關閉。';
+
+  @override
+  String get lanSyncPairErrorInvalidAddress => '請填寫對方裝置的位址和連接埠。';
+
+  @override
+  String get lanSyncPairErrorUnreachable => '無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。';
+
+  @override
+  String get lanSyncPairErrorNoCertificate => '對方未能出示身分，配對已中止。';
+
+  @override
+  String get lanSyncPairErrorIdMismatch => '無法核實對方身分，配對已中止。';
+
+  @override
+  String get lanSyncPairErrorNoListener => '本裝置的同步監聽尚未啟動。';
+
+  @override
+  String lanSyncPairErrorUnknown(Object error) {
+    return '配對失敗：$error';
+  }
+
+  @override
+  String get lanSyncScanQr => '掃描配對二維碼';
+
+  @override
+  String get lanSyncPairQrCaption => '掃碼配對，或在另一台裝置輸入下方資訊';
+
+  @override
+  String lanSyncPairUpdatedSnackbar(Object name) {
+    return '已更新與 $name 的配對';
+  }
+
+  @override
+  String get lanSyncPairErrorFingerprintMismatch => '裝置憑證與二維碼不符，已中止配對。';
+
+  @override
+  String get lanSyncPairErrorNoEndpointInQr => '二維碼中沒有可用位址，請在下方輸入位址完成配對。';
+
+  @override
+  String get lanSyncPairErrorNotPairingQr => '這不是 Cuplivo 的配對二維碼。';
+
+  @override
+  String get lanSyncPairErrorInvalidQr => '配對二維碼內容無法解析。';
+
+  @override
+  String get lanSyncPairErrorQrBadVersion => '二維碼版本較新，請更新應用後重試。';
+
+  @override
+  String get lanSyncClosePairing => '關閉配對視窗';
+
+  @override
+  String get lanSyncPairedDevices => '已配對裝置';
+
+  @override
+  String get lanSyncWorkspaces => '工作區';
+
+  @override
+  String get lanSyncWorkspaceTip =>
+      '不同步 .git 與相依/建置目錄以節省時間。超過 2,000 個檔案或 200 MB 的工作區不同步內容。工作區記錄始終同步，開關只控制檔案：關閉後該資料夾不會被傳送，也不會被同步刪除。';
+
+  @override
+  String lanSyncWorkspaceSyncing(Object count) {
+    return '$count 個正在同步內容';
+  }
+
+  @override
+  String get lanSyncWorkspaceStatusSyncing => '同步中';
+
+  @override
+  String get lanSyncWorkspaceStatusTooLarge => '過大';
+
+  @override
+  String get lanSyncWorkspaceStatusUnreadable => '無法讀取';
+
+  @override
+  String get lanSyncWorkspaceStatusOff => '已關閉';
+
+  @override
+  String lanSyncWorkspaceFiles(Object count) {
+    return '$count 個檔案';
+  }
+
+  @override
+  String lanSyncWorkspaceFilesAtLeast(Object count) {
+    return '$count+ 個檔案';
+  }
+
+  @override
+  String lanSyncWorkspaceSizeAtLeast(Object size) {
+    return '$size+';
+  }
+
+  @override
+  String get lanSyncNoDevices => '還沒有已配對的裝置。配對後即可開始同步。';
+
+  @override
+  String get lanSyncPlatformAndroid => 'Android';
+
+  @override
+  String get lanSyncPlatformIos => 'iOS';
+
+  @override
+  String get lanSyncPlatformWindows => 'Windows';
+
+  @override
+  String get lanSyncPlatformMacos => 'macOS';
+
+  @override
+  String get lanSyncPlatformLinux => 'Linux';
+
+  @override
+  String get lanSyncPlatformUnknown => '未知裝置';
+
+  @override
+  String lanSyncLastSyncedAt(Object time) {
+    return '上次同步 $time';
+  }
+
+  @override
+  String get lanSyncNeverSynced => '從未同步';
+
+  @override
+  String get lanSyncJustSynced => '剛剛同步';
+
+  @override
+  String lanSyncMinutesAgo(Object n) {
+    return '$n 分鐘前';
+  }
+
+  @override
+  String lanSyncHoursAgo(Object n) {
+    return '$n 小時前';
+  }
+
+  @override
+  String lanSyncDaysAgo(Object n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get lanSyncSyncNow => '立即同步';
+
+  @override
+  String get lanSyncOnline => '線上';
+
+  @override
+  String get lanSyncOnlineFromSession => '線上——上次同步成功連上';
+
+  @override
+  String get lanSyncOfflineFromSession => '離線——上次同步沒能連上';
+
+  @override
+  String lanSyncPhaseConnectingTo(Object address) {
+    return '正在連線 $address…';
+  }
+
+  @override
+  String get lanSyncOffline => '離線';
+
+  @override
+  String get lanSyncUpToDate => '已是最新';
+
+  @override
+  String get lanSyncPhaseConnecting => '正在連線…';
+
+  @override
+  String get lanSyncPhaseExchanging => '正在比對資料…';
+
+  @override
+  String get lanSyncPhaseSending => '正在傳送變更…';
+
+  @override
+  String get lanSyncPhaseReceiving => '正在接收變更…';
+
+  @override
+  String lanSyncPhaseFiles(Object done, Object total) {
+    return '正在下載檔案…（$done/$total）';
+  }
+
+  @override
+  String get lanSyncPhaseFilesNoTotal => '正在下載檔案…';
+
+  @override
+  String get lanSyncPhaseApplying => '正在套用變更…';
+
+  @override
+  String get lanSyncFirstSyncHint =>
+      '首次同步進行中——請保持兩台裝置喚醒、Cuplivo 保持開啟（手機端請保持前台），直到同步完成。';
+
+  @override
+  String get lanSyncRename => '重新命名';
+
+  @override
+  String get lanSyncRenameTitle => '裝置名稱';
+
+  @override
+  String get lanSyncEditAddress => '修改位址';
+
+  @override
+  String get lanSyncAddressCopied => '位址已複製';
+
+  @override
+  String get lanSyncUnpair => '取消配對';
+
+  @override
+  String lanSyncUnpairConfirmTitle(Object name) {
+    return '取消與 $name 的配對？';
+  }
+
+  @override
+  String get lanSyncUnpairConfirmBody => '對話在兩台裝置上都會保留，只是不再與它同步，直到重新配對。';
+
+  @override
+  String lanSyncReportSent(Object n) {
+    return '傳送 $n';
+  }
+
+  @override
+  String lanSyncReportReceived(Object n) {
+    return '接收 $n';
+  }
+
+  @override
+  String lanSyncReportMessagesUpserted(Object n) {
+    return '+$n 條訊息';
+  }
+
+  @override
+  String lanSyncReportMessagesDeleted(Object n) {
+    return '-$n 條訊息';
+  }
+
+  @override
+  String lanSyncReportConversationsDeleted(Object n) {
+    return '-$n 個對話';
+  }
+
+  @override
+  String lanSyncReportDeferred(Object n) {
+    return '$n 項延後';
+  }
+
+  @override
+  String lanSyncReportEntities(Object n) {
+    return '$n 個實體';
+  }
+
+  @override
+  String lanSyncReportPreferences(Object n) {
+    return '$n 項偏好';
+  }
+
+  @override
+  String lanSyncReportBlobsWithSize(Object n, Object size) {
+    return '$n 個檔案 · $size';
+  }
+
+  @override
+  String lanSyncReportBlobs(Object n) {
+    return '$n 個檔案';
+  }
+
+  @override
+  String lanSyncReportSkills(Object n) {
+    return '$n 個技能';
+  }
+
+  @override
+  String lanSyncReportSkillConflicts(Object n) {
+    return '$n 處技能修改被覆蓋';
+  }
+
+  @override
+  String lanSyncReportBlobsMissing(Object n) {
+    return '$n 個檔案在對方裝置上缺失';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFiles(Object count) {
+    return '$count 個工作區檔案';
+  }
+
+  @override
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size) {
+    return '$count 個工作區檔案 · $size';
+  }
+
+  @override
+  String lanSyncReportWorkspaceRemoved(Object count) {
+    return '-$count 個工作區檔案';
+  }
+
+  @override
+  String lanSyncReportWorkspaceConflicts(Object count) {
+    return '$count 處工作區檔案修改被覆蓋';
+  }
+
+  @override
+  String lanSyncReportWorkspaceMissing(Object count) {
+    return '$count 個工作區檔案未能套用';
+  }
+
+  @override
+  String lanSyncReportWorkspacesOmitted(Object count) {
+    return '$count 個工作區未同步檔案';
+  }
+
+  @override
+  String lanSyncReportWorkspacesKept(Object count) {
+    return '已保留 $count 個工作區資料夾（開關已關閉）';
+  }
+
+  @override
+  String lanSyncReportRowsLost(Object n) {
+    return '$n 條本地記錄被對端更新的版本覆蓋（可在回收站還原）';
+  }
+
+  @override
+  String lanSyncReportClockSkew(Object n) {
+    return '兩台設備的時鐘相差約 $n 分鐘，請校準設備時鐘後重新同步';
+  }
+
+  @override
+  String get lanSyncReportUnreachable =>
+      '同步失敗：無法連線到對方裝置。它可能已離線或換了網路——重新掃描它的二維碼，或在卡片上修改位址。';
+
+  @override
+  String get lanSyncReportNoEndpoint =>
+      '同步失敗：沒有記錄對方裝置的位址。請重新掃描它的二維碼，或在卡片上填寫位址。';
+
+  @override
+  String get lanSyncReportTimeout => '同步失敗：對方裝置停止回應。';
+
+  @override
+  String get lanSyncReportPeerError => '同步失敗：對方裝置回報了錯誤。';
+
+  @override
+  String get lanSyncReportInternal => '同步失敗，詳情見日誌。';
+
+  @override
+  String get lanSyncRefusedPeerSchemaNewer => '對方資料庫版本較新。請先更新本裝置再同步。';
+
+  @override
+  String get lanSyncRefusedProtocolUnknown => '對方使用不同的同步協定。請將兩台裝置都更新到最新版本。';
+
+  @override
+  String get lanSyncRefusedNotPaired =>
+      '本裝置與對方對這次配對的記錄已不一致——對方解除了配對，或重新配對沒有在兩台裝置上完成。請在兩台裝置上重新配對。';
+
+  @override
+  String get lanSyncRefusedIdentityMismatch => '對方裝置的身分不一致。請在兩台裝置上重新配對。';
+
+  @override
+  String get lanSyncRefusedBusy => '另一個同步工作階段正在進行，請稍後再試。';
+
+  @override
+  String get lanSyncFirewallTitle => 'Windows 防火牆';
+
+  @override
+  String lanSyncFirewallHint(Object port) {
+    return '連接埠 $port 的入站規則需要一次管理員授權。';
+  }
+
+  @override
+  String get lanSyncFirewallFix => '允許存取（UAC）';
+
+  @override
+  String get lanSyncFirewallFixed => '入站存取已允許。';
+
+  @override
+  String lanSyncArrivalToast(Object name) {
+    return '已與 $name 同步';
+  }
+
+  @override
+  String get lanSyncArrivalDetails => '詳情';
+
+  @override
+  String get lanSyncNever => '從未';
+
+  @override
+  String get lanSyncTemporarilyUnreachable => '暫時連不上';
+
+  @override
+  String get lanSyncListening => '監聽中';
+
+  @override
+  String get lanSyncCopy => '複製';
+
+  @override
+  String get lanSyncMoreActions => '更多操作';
+
+  @override
+  String get lanSyncEndpointTip =>
+      '每個位址一塊：點名稱可重新命名，點延遲看詳情（最近測量、成功次數、新增時間），在詳情裡可以修改位址或刪除它。';
+
+  @override
+  String get lanSyncJustNow => '剛剛';
+
+  @override
+  String get lanSyncShowAddresses => '位址';
+
+  @override
+  String get lanSyncPairTrustTip =>
+      '配對碼只在信任的網路上使用：輸入配對碼能擋住被動竊聽，擋不住中間人；二維碼把對方憑證指紋帶過來，所以更穩妥。';
+
+  @override
+  String get lanSyncNoAddress => '還沒有記住這個裝置的位址。';
+
+  @override
+  String get lanSyncAddAddress => '新增位址';
+
+  @override
+  String lanSyncAddressLimit(Object count) {
+    return '本機已記住該裝置的 $count 個位址，請先刪除一個再新增。';
+  }
+
+  @override
+  String get lanSyncRenameEndpointTitle => '位址名稱';
+
+  @override
+  String get lanSyncRenameEndpointHint => '例如：家中網路';
+
+  @override
+  String get lanSyncEndpointLatency => '延遲';
+
+  @override
+  String get lanSyncEndpointLastMeasured => '最近測量';
+
+  @override
+  String get lanSyncEndpointLastReached => '最近連通';
+
+  @override
+  String get lanSyncEndpointSuccessCount => '成功連線';
+
+  @override
+  String get lanSyncEndpointAddedAt => '新增於';
+
+  @override
+  String lanSyncEndpointSuccessTimes(Object n) {
+    return '$n 次';
+  }
+
+  @override
+  String get lanSyncDeleteEndpoint => '刪除此位址';
+
+  @override
+  String get lanSyncEndpointUnreachable => '連不上';
+
+  @override
+  String get lanSyncSupersededByPeer => '這次同步由另一台裝置發起。';
+
+  @override
+  String get assistantEditProactiveCareEnableTitle => '主動關懷';
+
+  @override
+  String get assistantEditProactiveCareDefaultDescription => '未單獨設定的對話預設跟隨此開關';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle =>
+      '時間決策所用訊息條數';
+
+  @override
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription =>
+      '決定下次主動發訊息時間時，最多傳送給決策模型的最近歷史訊息數量';
+
+  @override
+  String get assistantEditProactiveCareConversationTimesTitle => '各對話下次來信時間';
+
+  @override
+  String get assistantEditProactiveCareNoEligibleConversations => '此助手暫無已開啟的對話';
+
+  @override
+  String assistantEditProactiveCareConversationTimeFuture(String time) {
+    return '未來 · $time';
+  }
+
+  @override
+  String assistantEditProactiveCareConversationTimeExpired(String time) {
+    return '已過期 · $time';
+  }
+
+  @override
+  String get assistantEditProactiveCareConversationTimeUnset => '未設定';
+
+  @override
+  String get assistantEditProactiveCarePermissionsTitle => 'Android 執行條件';
+
+  @override
+  String get assistantEditProactiveCareNotificationsTitle => '通知';
+
+  @override
+  String get assistantEditProactiveCareExactAlarmTitle => '精確鬧鐘';
+
+  @override
+  String get assistantEditProactiveCareAutoStartTitle => '自動啟動';
+
+  @override
+  String get assistantEditProactiveCareBatteryTitle => '忽略電池最佳化';
+
+  @override
+  String get assistantEditProactiveCarePermissionRequired => '必需';
+
+  @override
+  String get assistantEditProactiveCarePermissionRecommended => '建議';
+
+  @override
+  String get assistantEditProactiveCarePermissionReady => '已就緒';
+
+  @override
+  String get assistantEditProactiveCarePermissionMissing => '點擊取得權限';
+
+  @override
+  String get assistantEditProactiveCarePermissionManual => '需手動確認';
+
+  @override
+  String get assistantEditProactiveCarePermissionUnknown => '未知';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeTitle => '下次助手主動發訊息時間';
+
+  @override
+  String get assistantEditProactiveCareNextMessageTimeUnset => '未設定';
+
+  @override
+  String get assistantEditProactiveCarePromptTitle => '主動關懷提示詞';
+
+  @override
+  String get assistantEditProactiveCarePromptHint => '助手主動發訊息時使用的提示詞';
+
+  @override
+  String get assistantEditProactiveCarePromptDefault =>
+      '請根據助手的角色設定、上下文、以及目前時間，給使用者發一條訊息';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptTitle => '決策時間功能說明提示詞';
+
+  @override
+  String get assistantEditProactiveCareDecisionPromptDefault =>
+      '你是一個角色扮演場景的導演，負責判斷助手（assistant）下一次應主動向使用者發訊息的時間。\n\n【功能說明】\n· 主動發訊息：助手可在設定時間主動向使用者發送訊息，無需使用者提問。\n· 若不設定主動發訊息的時間，則助手無法在使用者不發言的情況下主動發送任何訊息。\n· 你需要評估當前設定的下次發訊息時間：若認為無需調整，則保持原時間；否則進行修改。\n\n【注意】\n· 只考慮助手的視角看到的資訊，不考慮使用者的視角。\n\n【考慮角度】\n1. 助手在睡醒、完成某件事、安全回到宿舍等情況下，應主動向使用者報備或打招呼。\n2. 若上下文中提到助手因睡著、忙碌等原因未能及時查看使用者的訊息，則應設定在助手睡醒或忙完後，主動給使用者發一條訊息。\n3. 若上下文中提到助手需要在某個時間點監督或提醒使用者，則設定在該時間點主動發訊息。\n4. 當一個話題尚未聊完時，需要假設：使用者在助手最後一條訊息發出後始終沒有回覆，那麼助手應在什麼時間主動發訊息？請據此設定時間。\n\n【示例】\n1. 聊天記錄中，使用者凌晨發訊息稱自己失眠，預計早上10:30起床，但助手沒有失眠，會按正常時間（如8:30）起床。此時應將主動發訊息時間設為助手的起床時間。\n2. 聊天記錄中，使用者與助手正在聊考試話題。你在8:30看到的最後一條訊息是助手在8:30發出的一個提問。依據第4條規則，需考慮使用者一直未回覆的情況，助手應在10分鐘之內主動發訊息追問。';
+
+  @override
+  String get assistantEditProactiveCareDateTimePickerTitle => '選擇日期和時間';
+
+  @override
+  String get assistantEditProactiveCareTimeMustBeFuture => '請選擇未來的時間。';
+
+  @override
+  String get conversationProactiveCareTitle => '對話主動關懷';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOn => '跟隨助手設定：已開啟';
+
+  @override
+  String get conversationProactiveCareFollowingAssistantOff => '跟隨助手設定：已關閉';
+
+  @override
+  String get conversationProactiveCareExplicitOn => '對話設定：已開啟';
+
+  @override
+  String get conversationProactiveCareExplicitOff => '對話設定：已關閉';
+
+  @override
+  String get conversationProactiveCareRestoreFollowing => '跟隨助手設定';
+
+  @override
+  String get conversationProactiveCareClearTime => '清除下次發訊息時間';
+
+  @override
+  String get conversationProactiveCareUpdateFailed => '無法更新對話主動關懷設定。';
+
+  @override
+  String get defaultModelPageProactiveCareModelTitle => 'Ta的來信決策模型';
+
+  @override
+  String get defaultModelPageProactiveCareModelSubtitle => '用於決定助手何時主動發訊息的模型';
+
+  @override
+  String get proactiveCareFailedNotificationBody =>
+      '主動關懷訊息生成失敗，請開啟應用程式檢查模型配置與網路。';
+
+  @override
+  String get proactiveCareLetterArrivalBody => 'Ta的來信已到達，開啟應用程式即可查看。';
+
+  @override
+  String get assistantEditPageRoleplayTab => '角色扮演';
+
+  @override
+  String get assistantEditProactiveCareFeatureTitle => 'Ta的來信';
+
+  @override
+  String get backupProgressSkippedTitle => '備份完成，部分內容已略過';
+
+  @override
+  String backupProgressSkippedMessage(int count) {
+    return '已略過 $count 個無法讀取的檔案或目錄，以下內容未包含在備份中。';
+  }
+
+  @override
+  String contextUsagePartialSummary(String tokens) {
+    return '已估算 $tokens，服務端壓縮佔用的量暫不知道';
+  }
+
+  @override
+  String get contextUsageBucketNativeCompaction => '服務端壓縮';
+
+  @override
+  String get contextUsageUnknownTokens => '未知';
+
+  @override
+  String contextUsageLastRequestInput(String tokens) {
+    return '上次實際傳送給模型：$tokens';
+  }
+
+  @override
+  String get conversationFindHint => '查找';
+
+  @override
+  String get conversationFindPrevious => '上一個符合項';
+
+  @override
+  String get conversationFindNext => '下一個符合項';
+
+  @override
+  String get conversationFindOptions => '查找選項';
+
+  @override
+  String conversationFindMatchPosition(int current, int total) {
+    return '$current/$total';
+  }
+
+  @override
+  String get conversationFindCaseSensitive => '區分大小寫';
+
+  @override
+  String get conversationFindWholeWord => '全詞符合';
+
+  @override
+  String get conversationFindWholeWordTooltip =>
+      '對英文、數字等依單詞邊界符合；查詢若含漢字、假名、韓文，此項不改變結果。';
+
+  @override
+  String get conversationFindIncludeThinking => '包含思考過程';
+
+  @override
+  String get conversationFindOpenTooltip => '在對話中查找';
+
+  @override
+  String tokenDetailFirstResponse(String value) {
+    return '${value}s（首次回應）';
+  }
+
+  @override
+  String tokenDetailFirstOutput(String value) {
+    return '${value}s（首次輸出）';
+  }
+
+  @override
+  String get toolSchemaSettingsGroupImages => '圖片';
+
+  @override
+  String get workspaceEnvErrorRepairInterrupted => '沙盒修復已中斷，現有沙盒已保留。請重試以完成修復。';
+
+  @override
+  String get workspaceEnvErrorRepairTimeout => '沙盒修復逾時，請檢查網路連線後重試。現有沙盒已保留。';
+
+  @override
+  String get workspaceEnvRepairRestartBanner =>
+      '未能在限定時間內確認沙盒修復已停止。請完全關閉並重新開啟 Cuplivo 後重試。現有沙盒已保留。';
+
+  @override
+  String get contextOperationsLoadMore => '顯示更多';
+
+  @override
+  String get compressionRequestTimeout => '壓縮請求逾時';
+
+  @override
+  String get compressionMinuteUnit => '分鐘';
+
+  @override
+  String get compressionRequestTimeoutDefault => '預設';
+
+  @override
+  String get compressionRequestTimeoutHint =>
+      '請輸入分鐘數，須大於 0。留空則保持現在的預設（服務端壓縮為 5 分鐘）。分段壓縮時，每一段的產生和合併會分別計時。';
+
+  @override
+  String compressionRequestTimedOut(num minutes) {
+    return '壓縮超過 $minutes 分鐘還沒完成，已停止，上下文沒有改動。可以再試一次，或把超時時間調長。';
+  }
+
+  @override
   String get desktopAutostartTitle => '開機時啟動';
 
   @override
-  String get desktopAutostartDescription => '登入這台電腦後自動啟動 Kelivo。';
+  String get desktopAutostartDescription => '登入這台電腦後自動啟動 Cuplivo。';
 
   @override
   String get desktopAutostartHiddenTitle => '自動啟動後隱藏至系統匣';
 
   @override
   String get desktopAutostartHiddenDescription =>
-      '需要開啟開機時啟動及系統匣圖示。手動開啟 Kelivo 時仍會顯示視窗。';
+      '需要開啟開機時啟動及系統匣圖示。手動開啟 Cuplivo 時仍會顯示視窗。';
 
   @override
   String get desktopAutostartUnsupported => '開機時啟動需要 macOS 13 或以上版本。';
 
   @override
   String get desktopAutostartError =>
-      '無法套用啟動設定。請檢查系統啟動項目或登入項目中的 Kelivo 設定後再試一次。';
+      '無法套用啟動設定。請檢查系統啟動項目或登入項目中的 Cuplivo 設定後再試一次。';
 
   @override
   String get compressionOutputBudget => '總輸出上限（tokens）';
@@ -50019,15 +53490,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get compressionCarryListTitle => '訊息預覽';
 
   @override
-  String get compressionCarrySelectAllReplies => '全選回覆';
-
-  @override
-  String get compressionCarryDeselectAllReplies => '取消選取所有回覆';
-
-  @override
-  String get compressionCarryPairNotFit => '剩餘空間放不下這組訊息和回覆，本次會一起略過。';
-
-  @override
   String compressionCarryImageCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -50147,7 +53609,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupAutoKeychainUnavailable =>
-      'Kelivo 暫時無法存取系統鑰匙圈來儲存或讀取備份密碼。你仍可手動備份。';
+      'Cuplivo 暫時無法存取系統鑰匙圈來儲存或讀取備份密碼。你仍可手動備份。';
 
   @override
   String get backupAutoSucceeded => '已完成自動備份';
@@ -50183,14 +53645,293 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS 無法解鎖登入鑰匙圈。請開啟「鑰匙串存取」，解鎖「登入」，再回到 Kelivo 重試。';
+      'macOS 無法解鎖登入鑰匙圈。請開啟「鑰匙串存取」，解鎖「登入」，再回到 Cuplivo 重試。';
 
   @override
   String get backupMacOpenKeychainAccess => '開啟鑰匙圈存取';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS 拒絕存取備份密碼。如果出現系統提示，請允許 Kelivo 存取。你也可以在「鑰匙串存取」中檢查預設鑰匙串和備份密碼項目的權限。';
+      'macOS 拒絕存取備份密碼。如果出現系統提示，請允許 Cuplivo 存取。你也可以在「鑰匙串存取」中檢查預設鑰匙串和備份密碼項目的權限。';
+
+  @override
+  String get storageSpaceCopyErrorDetails => '複製錯誤詳情';
+
+  @override
+  String get storageAttachmentChecking => '正在檢查附件使用情況…';
+
+  @override
+  String get storageAttachmentCheckFailed => '無法檢查附件使用情況，請重新整理後再試。';
+
+  @override
+  String get storageSpaceCopyErrorFailed => '無法複製錯誤詳情，請重試。';
+
+  @override
+  String hotkeysShortcutInUse(String action) {
+    return '此快捷鍵已指派給「$action」。';
+  }
+
+  @override
+  String get hotkeysTextEditing => '文字編輯與焦點導覽';
+
+  @override
+  String get backupPageChooseNewFile => '請選擇新的檔案名稱或其他資料夾來儲存備份。';
+
+  @override
+  String backupArchiveFileSizeLimit(String name, String limit) {
+    return '備份檔案「$name」超過單一檔案 $limit 的大小上限。';
+  }
+
+  @override
+  String backupArchiveTotalSizeLimit(String limit) {
+    return '備份的未壓縮大小超過 $limit 的上限。';
+  }
+
+  @override
+  String get backupPageSettingsSaveFailed => '無法儲存備份設定，請再試一次。';
+
+  @override
+  String get backupProgressScanning => '正在掃描備份檔案';
+
+  @override
+  String backupProgressDiscoveredFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已發現 $count 個檔案',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get backupProgressCheckingDatabase => '正在檢查資料庫';
+
+  @override
+  String get backupProgressChoosingDestination => '正在選擇儲存位置';
+
+  @override
+  String get backupProgressSavingFile => '正在儲存備份檔案';
+
+  @override
+  String backupProgressElapsed(String time) {
+    return '已用時 $time';
+  }
+
+  @override
+  String get backupPageImportFromOtherAppsSubtitle =>
+      '新版 Chatbox、Cherry Studio 2.x，以及 ChatGPT、Claude、DeepSeek、Gemini、Grok、Open WebUI、NextChat、LobeChat。在瀏覽器本機轉換成 Kelivo 備份後再匯入，檔案不會上傳。';
+
+  @override
+  String get backupPageOpenImportToolbox => '開啟工具箱';
+
+  @override
+  String backupPageImportToolboxOpenFailed(String url) {
+    return '無法開啟瀏覽器，請手動前往：$url';
+  }
+
+  @override
+  String get backupPageToolboxImportMergeOnlyHint =>
+      '這是官方工具箱轉換的備份。匯入會合併到現有資料，不會取代已有聊天和助手。';
+
+  @override
+  String backupPageChatboxUnsupportedBackupVersion(String version) {
+    return '這是 Chatbox 新版備份（格式版本 $version），App 裡暫時無法直接匯入。請到官方工具箱轉換成 Kelivo 備份，再回到「備份檔案匯入」，並選擇「合併」。轉換在瀏覽器本機完成，檔案不會上傳。';
+  }
+
+  @override
+  String get messageExportSheetExpandAllSteps => '展開全部步驟';
+
+  @override
+  String get modelSpecFormResponseSpeedTiers => '回應速度等級';
+
+  @override
+  String get modelSpecFormResponseSpeedTiersSubtitle =>
+      '自訂此模型在聊天中可提供的加速等級。兩者皆不勾選時，僅提供標準等級。';
+
+  @override
+  String get providerBalanceAutoRefresh => '餘額自動重新整理';
+
+  @override
+  String get providerBalanceScopeProvider => '此供應商';
+
+  @override
+  String get providerBalanceScopeGlobal => '全域預設';
+
+  @override
+  String get providerBalanceInterval => '定時重新整理';
+
+  @override
+  String get providerBalanceRefreshOnReply => '回覆後重新整理';
+
+  @override
+  String providerBalanceFollowDefault(String value) {
+    return '預設 · $value';
+  }
+
+  @override
+  String get providerBalanceRefreshOff => '關閉';
+
+  @override
+  String get providerBalanceRefreshOn => '開啟';
+
+  @override
+  String providerBalanceRefreshMinutes(int count) {
+    return '$count 分鐘';
+  }
+
+  @override
+  String get providerBalanceRefreshHour => '1 小時';
+
+  @override
+  String get providerBalanceCustomInterval => '自訂間隔…';
+
+  @override
+  String get providerBalanceIntervalMinutes => '間隔分鐘數';
+
+  @override
+  String get providerBalanceRefreshNow => '立即重新整理餘額';
+
+  @override
+  String providerBalanceLastUpdated(String date, String time) {
+    return '最後更新於 $date $time';
+  }
+
+  @override
+  String get providerDetailPageBalanceResetConfirmMessage =>
+      '這會覆寫此供應商自訂的餘額查詢設定，將餘額查詢開關恢復為預設狀態，並讓自動重新整理跟隨全域設定。';
+
+  @override
+  String get providerDetailPageBalanceResetConfirmButton => '恢復預設';
+
+  @override
+  String get providerDetailPageReorderModels => '重新排序模型';
+
+  @override
+  String get miniMapSearchHint => '搜尋小地圖';
+
+  @override
+  String get miniMapSearchFailed => '無法搜尋訊息';
+
+  @override
+  String get searchServicesFourGetUrlInvalid => '請輸入 HTTP 或 HTTPS 執行個體位址。';
+
+  @override
+  String get searchServicesFourGetScraperOptional => '上游搜尋引擎（選填）';
+
+  @override
+  String get searchServicesFourGetPassOptional => 'pass Cookie（選填）';
+
+  @override
+  String get searchServicesFourGetPassHelp =>
+      '如果執行個體要求驗證碼，請完成驗證並貼上 pass Cookie 的值。';
+
+  @override
+  String get searchServiceEditorChangeIcon => '更換圖示';
+
+  @override
+  String get searchServiceEditorIconFailed => '無法使用此圖示，請另選圖片或圖示。';
+
+  @override
+  String get desktopDisplaySettingsFullWidthChatTitle => '聊天全寬顯示';
+
+  @override
+  String get desktopDisplaySettingsFullWidthChatSubtitle =>
+      '讓訊息區和輸入框隨聊天欄的可用寬度展開。';
+
+  @override
+  String get searchProviderFourGetDescription =>
+      '透過已啟用 API 的公開或自架 4get 執行個體搜尋網頁。';
+
+  @override
+  String get searchServiceNameFourGet => '4get';
+
+  @override
+  String get searchServiceNameKeenable => 'Keenable';
+
+  @override
+  String get searchProviderKeenableDescription =>
+      'Keenable 搜尋。API Key 可選，不填則使用公開搜尋端點。';
+
+  @override
+  String get messageStyleSettingsPageCustomizeThinkingToolCards => '自訂思考與工具卡片';
+
+  @override
+  String get messageStyleSettingsPageCustomizeThinkingToolCardsSubtitle =>
+      '為思考與工具呼叫設定獨立外觀';
+
+  @override
+  String get messageStyleSettingsPageRoleThinkingTool => '思考與工具';
+
+  @override
+  String attachmentEncodingUnrecognized(String name) {
+    return '無法辨識「$name」的文字編碼。請另存為 UTF-8 後重新傳送。';
+  }
+
+  @override
+  String get attachmentEncodingUnrecognizedShort => '無法辨識編碼';
+
+  @override
+  String attachmentNotText(String name) {
+    return '「$name」不是文字檔，因此無法在此使用。';
+  }
+
+  @override
+  String get attachmentNotTextShort => '不是文字檔';
+
+  @override
+  String attachmentTruncatedNotice(int count) {
+    return '檔案過大，僅讀取了前 $count 個字元。如需其餘內容，請拆分後重新傳送。';
+  }
+
+  @override
+  String get attachmentTruncatedCard => '將只傳送開頭部分';
+
+  @override
+  String attachmentDocumentTooLarge(String name) {
+    return '「$name」檔案過大，無法在一般對話中讀取。';
+  }
+
+  @override
+  String get attachmentDocumentTooLargeShort => '檔案過大';
+
+  @override
+  String get imageContextExclude => '從上下文排除';
+
+  @override
+  String get imageContextRestore => '取消排除';
+
+  @override
+  String get imageContextExcluded => '已手動排除';
+
+  @override
+  String get imageContextExcludedWithOriginal => '已排除原圖';
+
+  @override
+  String get compressionInstructionInjections => '使用指令注入作為參考';
+
+  @override
+  String get compressionInstructionInjectionsHint =>
+      '將目前對話啟用的指令卡作為參考資料傳送給摘要模型。';
+
+  @override
+  String get compressionProviderContextRejected => '服務端回傳請求過大。可以換一個上下文更大的模型再試。';
+
+  @override
+  String compressionSummaryWindowEstimate(String tokens, String source) {
+    return '摘要模型視窗 · $tokens token · $source';
+  }
+
+  @override
+  String get languageDisplayBangla => '孟加拉語';
+
+  @override
+  String get compressionCarrySelectAllReplies => '全選回覆';
+
+  @override
+  String get compressionCarryDeselectAllReplies => '取消選取所有回覆';
+
+  @override
+  String get compressionCarryPairNotFit => '剩餘空間放不下這組訊息和回覆，本次會一起略過。';
 
   @override
   String get worldBookGroupActions => '群組操作';

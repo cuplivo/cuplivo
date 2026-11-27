@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/features/home/services/context_usage_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/context_usage_ring.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/features/home/services/context_usage_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/context_usage_ring.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 ContextUsageSnapshot usageSnap({
   ContextUsageState state = ContextUsageState.estimated,

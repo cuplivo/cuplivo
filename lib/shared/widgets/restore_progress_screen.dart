@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/backup/backup_task_progress.dart';
 import '../../core/services/backup/restore_startup_gate.dart';
 import '../../l10n/app_localizations.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../utils/backup_progress_text.dart';
 import 'animated_progress_bar.dart';
 

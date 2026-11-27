@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "baseline": "00a2b7de0",
+  "roots": [
+    "lib",
+    "test",
+    "integration_test",
+    "tool",
+    ".github",
+    "android",
+    "ios",
+    "macos",
+    "windows",
+    "linux"
+  ],
+  "substitutions": [
+    {
+      "from": "package:Kelivo/",
+      "to": "package:Cuplivo/",
+      "why": "the Dart package name; the analyzer fails without it, so this is the one substitution the compiler also checks"
+    },
+    {
+      "from": "com.psyche.kelivo",
+      "to": "com.cuplivo.cuplivo",
+      "why": "the application id, in manifests, Gradle, entitlements, xcconfigs and the bundle-id whitelist"
+    }
+  ],
+  "path_moves": [
+    {
+      "from": "com/psyche/kelivo",
+      "to": "com/cuplivo/cuplivo",
+      "why": "the Java and Kotlin source package; a move, not a content substitution, so `--exact` resolves the base blob through it"
+    }
+  ],
+  "imports_must_be_gone": [
+    "package:Kelivo/"
+  ],
+  "names_the_needle": [
+    ".github/workflows/pr-check.yml"
+  ],
+  "names_the_needle_why": "files that may spell the needle on purpose, so the forward check exempts them: the CI workflow that *runs* the sweep documents what it looks for, which is the same reason docs/rebase-runbook.md says `package:Kelivo/` — a swept record asserts the opposite of what happened, and this one is inside the scanned roots",
+  "l10n": {
+    "dir": "lib/l10n",
+    "brand": "Kelivo",
+    "allowed_keys": [
+      "backupPageTargetKelivo",
+      "backupPageTargetKelivoNote",
+      "backupPageChatboxUnsupportedBackupVersion",
+      "backupPageImportFromOtherAppsSubtitle"
+    ],
+    "why": "the keys whose string names the other application because it describes *that* product: the two backup-target labels, and the two v1.3.7 strings that walk a reader through the official toolbox converting a foreign backup into a Kelivo archive. The archive those strings describe really is Kelivo's, so renaming it would make the string false — the same reasoning the protected list uses for `kelivo.psycheas.top`"
+  },
+  "protected": [
+    {
+      "name": "com.psyche.kelivo",
+      "min": 1,
+      "files": {
+        "lib/utils/kelivo_file_uri.dart": 1
+      },
+      "rewritten": true,
+      "why": "the *previous* application id, which is a filesystem identity rather than branding: kelivo_file_uri's whitelist resolves the macOS container and Windows AppData paths this fork wrote before the rename, so the old id has to stay beside the new one. A sweep turns it into a second `com.cuplivo.cuplivo`, the set stays syntactically valid and the analyzer sees nothing, while every path recorded by an older install silently stops resolving"
+    },
+    {
+      "name": "kelivo://",
+      "min": 1,
+      "why": "the workspace content scheme: persisted in tab state and in every kelivo://workspace|chat|session|skills|tmp|mounts URL"
+    },
+    {
+      "name": "kelivo-file:",
+      "min": 1,
+      "files": {
+        "lib/utils/kelivo_file_uri.dart": 1
+      },
+      "why": "the portable attachment URI scheme; every archived image and file reference in a backup is one"
+    },
+    {
+      "name": "uri\\.scheme == 'kelivo'",
+      "regex": true,
+      "min": 2,
+      "files": {
+        "lib/core/services/browser/browser_workspace_resources.dart": 2
+      },
+      "why": "the scheme *value* the accept side compares against, twice: the host check and the scope's owns(). The constructing side (`replace(scheme: 'kelivo')`) is what it has to agree with, so pinning only the literal's total count is not enough — this pair is what a sweep that renames one side and not the other breaks, and it made every workspace page load return null while the analyzer stayed clean"
+    },
+    {
+      "name": "KelivoLink",
+      "min": 1,
+      "files": {
+        "lib/core/services/workspace/file_link_resolver.dart": 1,
+        "lib/core/services/browser/browser_workspace_resources.dart": 1
+      },
+      "why": "the code identifier for a kelivo:// link; never renamed, the fork does not rename identifiers"
+    },
+    {
+      "name": "KelivoFileUri",
+      "min": 1,
+      "why": "the code identifier for a kelivo-file: URI"
+    },
+    {
+      "name": "KelivoOpenURL",
+      "min": 1,
+      "why": "the OSC 1337 terminal escape name"
+    },
+    {
+      "name": "KelivoISH",
+      "min": 1,
+      "why": "the iSH bridge symbols"
+    },
+    {
+      "name": "KelivoApplication",
+      "min": 1,
+      "why": "the Android Application class name, referenced from the manifest by string"
+    },
+    {
+      "name": "KelivoIN",
+      "min": 1,
+      "why": "the retired built-in provider key. The provider is gone (ADR-0018) but the *name* still appears where a persisted config is recognised and retired, and in the standing gate that keeps it retired"
+    },
+    {
+      "name": "KelivoCodeHighlighter",
+      "min": 1,
+      "why": "a code identifier in the markdown layer"
+    },
+    {
+      "name": "KelivoDiagramBlock",
+      "min": 1,
+      "why": "a code identifier in the markdown layer"
+    },
+    {
+      "name": "KelivoMathRenderer",
+      "min": 1,
+      "why": "a code identifier in the markdown layer"
+    },
+    {
+      "name": "kKelivoVersionFile",
+      "min": 1,
+      "why": "the proot runtime's version-file constant, referenced from native code"
+    },
+    {
+      "name": "kelivo.db",
+      "min": 1,
+      "why": "the database file name; every existing install's data lives in a file called this"
+    },
+    {
+      "name": "kelivo_backups",
+      "min": 1,
+      "why": "the backup prefix on disk and in the S3 bucket layout"
+    },
+    {
+      "name": "kelivo_backup_",
+      "min": 1,
+      "why": "the backup archive prefix, matched by recovery_file_discovery"
+    },
+    {
+      "name": "kelivo-snapshot-",
+      "min": 1,
+      "why": "the snapshot archive prefix, matched by recovery_file_discovery"
+    },
+    {
+      "name": ".kelivo_restore",
+      "min": 1,
+      "why": "the restore-in-progress marker file"
+    },
+    {
+      "name": "kelivo.restore-",
+      "min": 1,
+      "why": "the restore staging directory prefix"
+    },
+    {
+      "name": "kelivo.native/",
+      "min": 1,
+      "why": "a GenUI fence language, persisted in conversation text"
+    },
+    {
+      "name": "kelivo-ui",
+      "min": 1,
+      "why": "a GenUI fence language, persisted in conversation text"
+    },
+    {
+      "name": "kelivo-web",
+      "min": 1,
+      "why": "a GenUI fence language, persisted in conversation text"
+    },
+    {
+      "name": "@kelivo/fetch",
+      "min": 1,
+      "why": "the persisted MCP tool id; a tool id is data, not branding"
+    },
+    {
+      "name": "kelivo_fetch",
+      "min": 1,
+      "why": "the MCP server id behind @kelivo/fetch"
+    },
+    {
+      "name": "kelivo.psycheas.top",
+      "min": 1,
+      "why": "upstream's documentation and sponsor host, still linked from About, the sponsor page and the conversion-tool screen. update_provider.dart no longer names it because this fork checks its own GitHub releases"
+    },
+    {
+      "name": "afdian.com/a/kelivo",
+      "min": 1,
+      "why": "the sponsor link"
+    },
+    {
+      "name": "KELIVO_PERF_SCENE",
+      "min": 1,
+      "why": "the performance-trace environment variable"
+    },
+    {
+      "name": "kelivo-backup",
+      "min": 1,
+      "why": "the backup file-name prefix used by the sync side"
+    }
+  ]
+}

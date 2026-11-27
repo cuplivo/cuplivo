@@ -1,15 +1,15 @@
-import 'package:Kelivo/desktop/widgets/desktop_menu.dart';
+import 'package:Cuplivo/desktop/widgets/desktop_menu.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:Kelivo/features/chat/widgets/conversation_find_highlights.dart';
+import 'package:Cuplivo/features/chat/widgets/conversation_find_highlights.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream_core.dart';
-import 'package:Kelivo/features/chat/controllers/conversation_find_controller.dart';
-import 'package:Kelivo/features/chat/services/conversation_find_service.dart';
-import 'package:Kelivo/features/chat/widgets/conversation_find_bar.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/features/chat/controllers/conversation_find_controller.dart';
+import 'package:Cuplivo/features/chat/services/conversation_find_service.dart';
+import 'package:Cuplivo/features/chat/widgets/conversation_find_bar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 ConversationFindHit _hit(int i) => (
   messageId: 'm',

@@ -6,10 +6,10 @@ import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api/request_timeout.dart';
-import 'package:Kelivo/core/services/auth/provider_oauth_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/services/api/request_timeout.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_service.dart';
 
 import '../../../support/business_test_harness.dart';
 

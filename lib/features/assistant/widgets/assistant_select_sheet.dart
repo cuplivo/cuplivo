@@ -11,7 +11,7 @@ import '../../../core/services/haptics.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/avatar_image.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 
 // Show an assistant picker for moving a topic.

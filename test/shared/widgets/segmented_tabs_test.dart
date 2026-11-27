@@ -3,7 +3,7 @@ import 'dart:ui' show SemanticsAction;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/shared/widgets/segmented_tabs.dart';
+import 'package:Cuplivo/shared/widgets/segmented_tabs.dart';
 
 void main() {
   testWidgets(

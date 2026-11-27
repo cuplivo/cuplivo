@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:Kelivo/features/intelligent_ui/widgets/gallery/review_gallery.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/gallery/review_gallery.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import '../test/support/genui_review_exercise.dart';

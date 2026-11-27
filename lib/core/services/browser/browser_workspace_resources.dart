@@ -278,7 +278,7 @@ class BrowserWorkspaceScope {
     }
     // Write only to an unpredictable staging name, then publish with an
     // atomic no-replace operation. Never reopen the caller's leaf to truncate.
-    final staging = await target.parent.createTemp('.kelivo-screenshot-');
+    final staging = await target.parent.createTemp('.cuplivo-screenshot-');
     try {
       final temp = File(p.join(staging.path, 'page.png'));
       await temp.writeAsBytes(bytes, flush: true);

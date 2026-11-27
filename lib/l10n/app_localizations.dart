@@ -346,30 +346,6 @@ abstract class AppLocalizations {
   /// **'Could not load files or check which images are in use. Please refresh and try again.'**
   String get storageSpaceLoadFailed;
 
-  /// Button on the Images and Files storage detail pages that copies the load error and its stack trace to the clipboard.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy error details'**
-  String get storageSpaceCopyErrorDetails;
-
-  /// Inline status on the Images and Files storage pages while files are visible and the app checks which attachments are safe to delete.
-  ///
-  /// In en, this message translates to:
-  /// **'Checking attachment usage…'**
-  String get storageAttachmentChecking;
-
-  /// Inline error on the Images and Files storage pages when files can still be opened but their reference check failed and cleanup is unavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not check attachment usage. Refresh to try again.'**
-  String get storageAttachmentCheckFailed;
-
-  /// Error notification on the Images and Files storage detail pages when the clipboard cannot accept the diagnostic text. The user can tap the copy button again.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not copy the error details. Please try again.'**
-  String get storageSpaceCopyErrorFailed;
-
   /// Label for total used storage space, displayed with a formatted byte size.
   ///
   /// In en, this message translates to:
@@ -457,7 +433,7 @@ abstract class AppLocalizations {
   /// Warning dialog body when deleting set-aside databases, noting they may be the only surviving copy of chats/settings and deletion is irreversible.
   ///
   /// In en, this message translates to:
-  /// **'Delete these set-aside databases? Kelivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.'**
+  /// **'Delete these set-aside databases? Cuplivo kept them when it rebuilt its database, and they may be the only surviving copy of those chats and settings. This cannot be undone.'**
   String get storageSpaceClearDisplacedDatabasesConfirmMessage;
 
   /// Hint under the restore-traces category explaining these are old snapshots from completed restores and clearing them won't affect current app data.
@@ -1963,7 +1939,7 @@ abstract class AppLocalizations {
   /// Label for the reasoning/thinking setting; also the title of the dialog for picking a reasoning level.
   ///
   /// In en, this message translates to:
-  /// **'Thinking'**
+  /// **'Thinking Budget'**
   String get assistantEditThinkingBudgetTitle;
 
   /// Option meaning the assistant uses the model's own default reasoning level; shown as detail text when no level is set and as a picker row.
@@ -3088,18 +3064,6 @@ abstract class AppLocalizations {
   /// **'Reset all to defaults'**
   String get hotkeysResetAll;
 
-  /// Conflict message in desktop shortcut settings when a keyboard combination is shared by two actions that can be active at the same time. The action placeholder is the localized name shown for the other action in those settings.
-  ///
-  /// In en, this message translates to:
-  /// **'This shortcut is already assigned to {action}.'**
-  String hotkeysShortcutInUse(String action);
-
-  /// Action name substituted into the desktop shortcut conflict message for built-in keyboard behavior that types, edits text, or moves focus in a conversation.
-  ///
-  /// In en, this message translates to:
-  /// **'Text editing and focus navigation'**
-  String get hotkeysTextEditing;
-
   /// Label for the temperature sampling parameter control in assistant edit settings.
   ///
   /// In en, this message translates to:
@@ -3256,41 +3220,17 @@ abstract class AppLocalizations {
   /// **'Choose a backup folder'**
   String get backupPageChooseBackupFolder;
 
-  /// Error shown when an iOS local backup destination is inside the app container. No file is copied and the backup is not counted as successful. Ask the user to choose a folder that survives deleting Kelivo.
+  /// Error shown when an iOS local backup destination is inside the app container. No file is copied and the backup is not counted as successful. Ask the user to choose a folder that survives deleting Cuplivo.
   ///
   /// In en, this message translates to:
-  /// **'Choose iCloud Drive or a folder outside On My iPhone > Kelivo. Files in the Kelivo folder are deleted with the app. The backup was not saved.'**
+  /// **'Choose iCloud Drive or a folder outside On My iPhone > Cuplivo. Files in the Cuplivo folder are deleted with the app. The backup was not saved.'**
   String get backupPageChooseExternalFolder;
-
-  /// Error during a local backup export when the selected Android document already contains data or the file provider cannot confirm it is empty. Ask the user to select a fresh destination.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose a new filename or another folder to save your backup.'**
-  String get backupPageChooseNewFile;
-
-  /// Backup export or restore error. {name} is a file path inside the ZIP and {limit} is the formatted maximum supported uncompressed size of one file.
-  ///
-  /// In en, this message translates to:
-  /// **'The backup file “{name}” exceeds the per-file limit of {limit}.'**
-  String backupArchiveFileSizeLimit(String name, String limit);
-
-  /// Error when the combined file sizes in a backup ZIP exceed the supported uncompressed total. {limit} is the formatted maximum size.
-  ///
-  /// In en, this message translates to:
-  /// **'The uncompressed backup exceeds the {limit} limit.'**
-  String backupArchiveTotalSizeLimit(String limit);
 
   /// Category label in the backup and import content selector. Includes attachments, avatars, background images, custom fonts and session files.
   ///
   /// In en, this message translates to:
   /// **'Files and Images'**
   String get backupPageFilesLabel;
-
-  /// Error shown on the backup settings page when local storage cannot save WebDAV or S3 server settings or the shared backup and import content selection.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not save the backup settings. Please try again.'**
-  String get backupPageSettingsSaveFailed;
 
   /// Title of the backup scope selector tile listing which content categories to back up or import.
   ///
@@ -3406,22 +3346,22 @@ abstract class AppLocalizations {
   /// **'Restart Required'**
   String get backupPageRestartRequired;
 
-  /// Dialog body shown after a successful import, instructing the user to restart Kelivo to apply changes safely.
+  /// Dialog body shown after a successful import, instructing the user to restart Cuplivo to apply changes safely.
   ///
   /// In en, this message translates to:
-  /// **'Import successful. Restart Kelivo to apply it safely.'**
+  /// **'Import successful. Restart Cuplivo to apply it safely.'**
   String get backupPageRestartContent;
 
-  /// Dialog body after import when some conversations were skipped due to invalid message ordering; {count} is the number skipped.
+  /// Body of the restart dialog after an import that had to skip conversations whose stored message order was invalid; count is how many were skipped.
   ///
   /// In en, this message translates to:
-  /// **'Import completed, but {count} conversations with invalid message ordering were skipped. Restart Kelivo to apply the imported data safely.'**
+  /// **'Import completed, but {count} conversations with invalid message ordering were skipped. Restart Cuplivo to apply the imported data safely.'**
   String backupPageRestartContentWithSkipped(int count);
 
-  /// Error message shown when automatic app restart fails, asking the user to fully close and reopen Kelivo.
+  /// Error message shown when automatic app restart fails, asking the user to fully close and reopen Cuplivo.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not restart automatically. Fully close it, then open it again.'**
+  /// **'Cuplivo could not restart automatically. Fully close it, then open it again.'**
   String get restartAppFailedMessage;
 
   /// Dialog title indicating a restore was rolled back.
@@ -3433,7 +3373,7 @@ abstract class AppLocalizations {
   /// Dialog body explaining the restore could not complete and previous data was verified and kept.
   ///
   /// In en, this message translates to:
-  /// **'The restore could not be completed. Kelivo verified and kept your previous data.'**
+  /// **'The restore could not be completed. Cuplivo verified and kept your previous data.'**
   String get backupRestoreRolledBackContent;
 
   /// Restore failure screen title shown when a folder is locked and cannot be moved.
@@ -3460,22 +3400,22 @@ abstract class AppLocalizations {
   /// **'Restore requires attention'**
   String get backupRestoreFailureTitle;
 
-  /// Body text explaining Kelivo could not verify complete old or new data, so chat data was not opened, and advising restart and keeping the diagnostic code.
+  /// Body text explaining Cuplivo could not verify complete old or new data, so chat data was not opened, and advising restart and keeping the diagnostic code.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not verify a complete old or new data set, so chat data was not opened. Close Kelivo and try again. If this repeats, keep the diagnostic code for support.'**
+  /// **'Cuplivo could not verify a complete old or new data set, so chat data was not opened. Close Cuplivo and try again. If this repeats, keep the diagnostic code for support.'**
   String get backupRestoreFailureContent;
 
-  /// Restore failure title shown when another Kelivo process holds the data lock.
+  /// Restore failure title shown when another Cuplivo process holds the data lock.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo is already running'**
+  /// **'Cuplivo is already running'**
   String get backupRestoreBusinessLeaseUnavailableTitle;
 
-  /// Body explaining Kelivo's data is in use by another process, asking to close other windows and restart, noting chat data was not opened.
+  /// Body explaining Cuplivo's data is in use by another process, asking to close other windows and restart, noting chat data was not opened.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo\'s data is still in use by another app process. Close any other Kelivo window, then restart. Your chat data has not been opened by this process.'**
+  /// **'Cuplivo\'s data is still in use by another app process. Close any other Cuplivo window, then restart. Your chat data has not been opened by this process.'**
   String get backupRestoreBusinessLeaseUnavailableContent;
 
   /// Title on the restore progress screen shown while a backup is being restored.
@@ -3484,10 +3424,10 @@ abstract class AppLocalizations {
   /// **'Restoring your backup'**
   String get restoreProgressTitle;
 
-  /// Warning on the restore progress screen telling the user to keep Kelivo open or the restore restarts on next launch.
+  /// Warning on the restore progress screen telling the user to keep Cuplivo open or the restore restarts on next launch.
   ///
   /// In en, this message translates to:
-  /// **'Keep Kelivo open until this finishes. If you close it now, the next launch starts this over.'**
+  /// **'Keep Cuplivo open until this finishes. If you close it now, the next launch starts this over.'**
   String get restoreProgressWarning;
 
   /// Progress stage label indicating the backup is being verified.
@@ -3526,10 +3466,10 @@ abstract class AppLocalizations {
   /// **'Finishing up'**
   String get restoreProgressStageFinishing;
 
-  /// Button on the restore failure screen that restarts Kelivo; shown instead of the continue button when the restore cannot be resumed.
+  /// Button on the restore failure screen that restarts Cuplivo; shown instead of the continue button when the restore cannot be resumed.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo'**
+  /// **'Restart Cuplivo'**
   String get backupRestoreFailureRestartButton;
 
   /// Button label for copying the restore failure diagnostic code to the clipboard.
@@ -3568,7 +3508,7 @@ abstract class AppLocalizations {
   /// **'Export a copy of my data'**
   String get startupRecoveryExportButton;
 
-  /// Button that starts Kelivo with a new empty chat list, keeping the current database and existing copies.
+  /// Button that starts Cuplivo with a new empty chat list, keeping the current database and existing copies.
   ///
   /// In en, this message translates to:
   /// **'Start with an empty chat list'**
@@ -3598,10 +3538,10 @@ abstract class AppLocalizations {
   /// **'Repair could not complete. Your data is preserved; choose a validated copy or export your data for further diagnosis.'**
   String get startupRecoveryRepairFailed;
 
-  /// Error message shown when resetting after a startup failure fails; instructs the user to fully close and reopen Kelivo.
+  /// Error message shown when resetting after a startup failure fails; instructs the user to fully close and reopen Cuplivo.
   ///
   /// In en, this message translates to:
-  /// **'Reset failed. Fully close Kelivo, then open it again.'**
+  /// **'Reset failed. Fully close Cuplivo, then open it again.'**
   String get startupRecoveryResetFailed;
 
   /// Title of the confirmation dialog for starting with an empty chat list.
@@ -3613,7 +3553,7 @@ abstract class AppLocalizations {
   /// Dialog body warning that resetting will not recover previous chats but keeps the current database and copies; suggests canceling to restore a local copy.
   ///
   /// In en, this message translates to:
-  /// **'This will not recover your previous chats. Kelivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.'**
+  /// **'This will not recover your previous chats. Cuplivo will keep the current database and existing copies, and start a new empty chat list. To get your chats back, cancel and choose a local copy.'**
   String get startupRecoveryResetDialogContent;
 
   /// Confirm button in the reset dialog that keeps existing copies and starts with a fresh empty chat list.
@@ -3811,7 +3751,7 @@ abstract class AppLocalizations {
   /// Warning paragraph in the restore-failure screen's danger section explaining that a fresh start hides current data while old database and copies are preserved for recovery.
   ///
   /// In en, this message translates to:
-  /// **'A fresh start removes the current data from view. Kelivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.'**
+  /// **'A fresh start removes the current data from view. Cuplivo will preserve the old database and existing copies for recovery. Export a data copy first if possible.'**
   String get startupRecoveryDangerBody;
 
   /// Checkbox label on the restore-failure screen confirming the user accepts continuing with an empty chat list without restoring now.
@@ -3820,16 +3760,16 @@ abstract class AppLocalizations {
   /// **'I choose to continue with an empty chat list without recovering my chats now.'**
   String get startupRecoveryResetAcknowledge;
 
-  /// Headline on the update-required screen shown at startup when the local database was created by a newer Kelivo version.
+  /// Headline on the update-required screen shown at startup when the local database was created by a newer Cuplivo version.
   ///
   /// In en, this message translates to:
-  /// **'Update Kelivo to continue'**
+  /// **'Update Cuplivo to continue'**
   String get startupDatabaseUpdateRequiredTitle;
 
-  /// Body text on the update-required screen explaining the database is from a newer version, data is unchanged, and the user should install the latest Kelivo.
+  /// Body text on the update-required screen explaining the database is from a newer version, data is unchanged, and the user should install the latest Cuplivo.
   ///
   /// In en, this message translates to:
-  /// **'The chat database on this device was created by a newer version of Kelivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Kelivo, then open it again.'**
+  /// **'The chat database on this device was created by a newer version of Cuplivo and cannot be opened by this version. Your data has not been changed. Install the latest version of Cuplivo, then open it again.'**
   String get startupDatabaseUpdateRequiredContent;
 
   /// Section heading on the update-required screen introducing instructions for users who must stay on an older version.
@@ -3844,10 +3784,10 @@ abstract class AppLocalizations {
   /// **'This version cannot open the database on this device. If you must keep using an older version, follow the steps below. Do not delete or overwrite the data here until you have a backup.'**
   String get startupDatabaseUpdateRequiredDowngradeIntro;
 
-  /// First numbered step on the update-required screen: install latest Kelivo and export a backup from Settings → Backup.
+  /// First numbered step on the update-required screen: install latest Cuplivo and export a backup from Settings → Backup.
   ///
   /// In en, this message translates to:
-  /// **'Install and open the latest Kelivo, then export a backup from Settings → Backup.'**
+  /// **'Install and open the latest Cuplivo, then export a backup from Settings → Backup.'**
   String get startupDatabaseUpdateRequiredDowngradeStep1;
 
   /// Second numbered step on the update-required screen; {url} is the conversion tool address inserted into the sentence.
@@ -3913,7 +3853,7 @@ abstract class AppLocalizations {
   /// Subtitle explaining overwrite mode keeps unselected components and local settings, and clears unsent drafts when chats are replaced.
   ///
   /// In en, this message translates to:
-  /// **'Replace the selected components; keep unselected components and unrelated local settings. Replacing chats also clears local unsent drafts.'**
+  /// **'Replace the selected components; keep unselected components and unrelated local settings'**
   String get backupPageOverwriteModeDescription;
 
   /// Option title in the import-mode dialog for merging backup data into existing local data.
@@ -3934,16 +3874,16 @@ abstract class AppLocalizations {
   /// **'Restore'**
   String get backupPageRestore;
 
-  /// Dialog title warning that the selected backup was created by a newer Kelivo version.
+  /// Dialog title warning that the selected backup was created by a newer Cuplivo version.
   ///
   /// In en, this message translates to:
   /// **'Backup is from a newer version'**
   String get backupPageForwardCompatTitle;
 
-  /// Long warning in the forward-compatibility dialog; {backupVersion} and {currentVersion} are schema version numbers, explaining risks of importing a newer backup.
+  /// Body of the consent dialog shown when a backup was written by a newer Cuplivo than this one; backupVersion is the backup's data format version and currentVersion the newest this build can read.
   ///
   /// In en, this message translates to:
-  /// **'This backup was created by a newer version of Kelivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Kelivo first is the safer choice.'**
+  /// **'This backup was created by a newer version of Cuplivo (data format {backupVersion}; this version supports {currentVersion}), and it does not say whether older versions can read it.\n\nYou can continue: anything this version does not recognise will be skipped, and the backup file itself is not modified. But if the newer version changed how existing data is stored, some content may be imported incorrectly.\n\nUpdating Cuplivo first is the safer choice.'**
   String backupPageForwardCompatBody(int backupVersion, int currentVersion);
 
   /// Destructive-styled button in the forward-compatibility dialog that proceeds with importing the newer backup anyway.
@@ -3958,10 +3898,10 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get backupPageForwardCompatCancel;
 
-  /// Message shown when a backup's schema is too new to read, advising the user to update Kelivo and retry.
+  /// Message shown when a backup's schema is too new to read, advising the user to update Cuplivo and retry.
   ///
   /// In en, this message translates to:
-  /// **'This backup was created by a newer version of Kelivo and cannot be read by this version. Please update Kelivo and try again.'**
+  /// **'This backup was created by a newer version of Cuplivo and cannot be read by this version. Please update Cuplivo and try again.'**
   String get backupPageSchemaTooNewMessage;
 
   /// Fallback success notification shown after a backup is uploaded to a remote provider when no provider message is supplied.
@@ -4018,59 +3958,11 @@ abstract class AppLocalizations {
   /// **'Error copied'**
   String get backupProgressErrorCopied;
 
-  /// Completion heading in the backup progress dialog when unreadable asset files or directories were skipped; the archive was created successfully but does not include those items.
-  ///
-  /// In en, this message translates to:
-  /// **'Backup completed with skipped items'**
-  String get backupProgressSkippedTitle;
-
-  /// Warning above the skipped path list in the backup completion dialog. {count} is the number of unreadable files or directories omitted; an unreadable directory counts once including all its descendants.
-  ///
-  /// In en, this message translates to:
-  /// **'Unreadable files or directories skipped: {count}. They are not included in this backup.'**
-  String backupProgressSkippedMessage(int count);
-
   /// Progress phase label for the initial preparation stage of a backup or restore task.
   ///
   /// In en, this message translates to:
   /// **'Preparing'**
   String get backupProgressPreparing;
-
-  /// Phase in the backup and restore progress dialog while scanning the files to pack or validate.
-  ///
-  /// In en, this message translates to:
-  /// **'Scanning backup files'**
-  String get backupProgressScanning;
-
-  /// Subtitle during an export or restore file scan. {count} is the number of files discovered so far, not a final total.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, one{1 file found} other{{count} files found}}'**
-  String backupProgressDiscoveredFiles(int count);
-
-  /// Restore dialog phase while SQLite prepares or checks a database snapshot. The duration is unknown.
-  ///
-  /// In en, this message translates to:
-  /// **'Checking the database'**
-  String get backupProgressCheckingDatabase;
-
-  /// Local backup export phase while the system save dialog waits for the user to choose a destination.
-  ///
-  /// In en, this message translates to:
-  /// **'Choosing where to save'**
-  String get backupProgressChoosingDestination;
-
-  /// Local backup export phase while writing the finished archive to the user-selected destination.
-  ///
-  /// In en, this message translates to:
-  /// **'Saving backup file'**
-  String get backupProgressSavingFile;
-
-  /// Subtitle for a backup or restore phase without a measurable total. {time} is the elapsed time in minutes and seconds, for example 2:35.
-  ///
-  /// In en, this message translates to:
-  /// **'Elapsed {time}'**
-  String backupProgressElapsed(String time);
 
   /// Progress phase label for creating a database snapshot during backup.
   ///
@@ -4203,30 +4095,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import from Other Apps'**
   String get backupPageImportFromOtherApps;
-
-  /// Subtitle of Import from Other Apps in Local Backup. List every supported app by its product name and explain that the official toolbox converts the file privately in the browser.
-  ///
-  /// In en, this message translates to:
-  /// **'Newer Chatbox and Cherry Studio 2.x backups, plus ChatGPT, Claude, DeepSeek, Gemini, Grok, Open WebUI, NextChat, and LobeChat. Converts locally in your browser into a Kelivo backup; the file is not uploaded.'**
-  String get backupPageImportFromOtherAppsSubtitle;
-
-  /// Action in the backup import failure dialog and notification. Opens the official Kelivo conversion toolbox in the system browser.
-  ///
-  /// In en, this message translates to:
-  /// **'Open Toolbox'**
-  String get backupPageOpenImportToolbox;
-
-  /// Notification when the system browser cannot open the import toolbox. Show its complete address {url} so the user can open it manually.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn’t open the browser. Open this URL yourself: {url}'**
-  String backupPageImportToolboxOpenFailed(String url);
-
-  /// Explanation above Merge in the local backup import mode dialog when the file is a toolbox chat import. The user can merge or cancel.
-  ///
-  /// In en, this message translates to:
-  /// **'This file was converted by the official toolbox. It will be merged into your existing data and will not replace chats or assistants already on this device.'**
-  String get backupPageToolboxImportMergeOnlyHint;
 
   /// Status text indicating a feature or option is not yet supported.
   ///
@@ -4378,10 +4246,10 @@ abstract class AppLocalizations {
   /// **'Local Backup'**
   String get backupPageLocalBackup;
 
-  /// Note below Local Backup on iOS. Distinguishes iCloud device backups from an exported backup in iCloud Drive, and explains that the app-owned Kelivo folder is deleted when the app is deleted.
+  /// Note below Local Backup on iOS. Distinguishes iCloud device backups from an exported backup in iCloud Drive, and explains that the app-owned Cuplivo folder is deleted when the app is deleted.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo\'s local data is excluded from iCloud device backups. Before changing devices or deleting the app, back up to iCloud Drive or another folder outside Kelivo. Files in On My iPhone > Kelivo are deleted with the app.'**
+  /// **'Cuplivo\'s local data is excluded from iCloud device backups. Before changing devices or deleting the app, back up to iCloud Drive or another folder outside Cuplivo. Files in On My iPhone > Cuplivo are deleted with the app.'**
   String get backupPageIosSystemBackupNote;
 
   /// Button label and task title for importing data from a Cherry Studio backup.
@@ -4390,17 +4258,11 @@ abstract class AppLocalizations {
   /// **'Import from Cherry Studio'**
   String get backupPageImportFromCherryStudio;
 
-  /// Shown in the import progress dialog and notification for a Cherry Studio 2.x backup. {version} is the file format version. Refer to the official browser toolbox and the Import Backup File and Merge actions in the app.
+  /// Error shown when a Cherry Studio backup uses a format version this build cannot import; version is the format version found in the file.
   ///
   /// In en, this message translates to:
-  /// **'This is a Cherry Studio 2.x backup (format version {version}) and can’t be imported in the app directly. Convert it with the official toolbox into a Kelivo backup, then use Import Backup File and choose Merge. Conversion happens in your browser; the file is not uploaded.'**
+  /// **'This backup uses Cherry Studio format version {version}, which Cuplivo cannot import yet. Export from Cherry Studio v1 instead, or wait for a Cuplivo update that supports Cherry Studio v2 backups.'**
   String backupPageCherryStudioUnsupportedBackupVersion(String version);
-
-  /// Shown in the import progress dialog and notification for an unsupported Chatbox backup. {version} is the file format version. Refer to the official browser toolbox and the Import Backup File and Merge actions in the app.
-  ///
-  /// In en, this message translates to:
-  /// **'This is a newer Chatbox backup (format version {version}) and can’t be imported in the app directly. Convert it with the official toolbox into a Kelivo backup, then use Import Backup File and choose Merge. Conversion happens in your browser; the file is not uploaded.'**
-  String backupPageChatboxUnsupportedBackupVersion(String version);
 
   /// Button label and task title for importing data from a Chatbox backup.
   ///
@@ -4855,13 +4717,13 @@ abstract class AppLocalizations {
   /// Field label for the number of recent user messages to keep uncompressed.
   ///
   /// In en, this message translates to:
-  /// **'Recent user messages to keep'**
+  /// **'Keep recent rounds'**
   String get compressContextKeepCountLabel;
 
   /// Hint shown when the chosen keep count covers all messages, leaving nothing to compress.
   ///
   /// In en, this message translates to:
-  /// **'That many recent messages already covers the whole chat, so there’s nothing left to compress.'**
+  /// **'Keeping that many covers all rounds — nothing to compress'**
   String get compressContextKeepAllMessages;
 
   /// Keep-recent compression preview: summarized/kept char counts and the estimated result token band
@@ -5746,12 +5608,6 @@ abstract class AppLocalizations {
   /// **'Show Deep Thinking and tool cards'**
   String get messageExportSheetShowThinkingAndToolCards;
 
-  /// Switch in the single-message and batch PNG export options. On shows all thinking and tool-call steps in each card. Off folds older steps and shows the latest ones. The adjacent Show thinking content switch controls the reasoning text inside each step.
-  ///
-  /// In en, this message translates to:
-  /// **'Expand all steps'**
-  String get messageExportSheetExpandAllSteps;
-
   /// Label for a toggle controlling whether the expanded thinking content is included in the export.
   ///
   /// In en, this message translates to:
@@ -6459,30 +6315,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Usage isn’t available right now.'**
   String get contextUsageUnavailable;
-
-  /// Summary in the context usage panel and input-bar tooltip when OpenAI native compaction is present. Only readable content has been estimated; the encrypted compaction block's input token count is unknown. tokens is the already-formatted subtotal, such as 42k, not the full context total.
-  ///
-  /// In en, this message translates to:
-  /// **'Estimated {tokens}, plus unknown server-side usage'**
-  String contextUsagePartialSummary(String tokens);
-
-  /// Context-usage breakdown label for the opaque server-side compaction data.
-  ///
-  /// In en, this message translates to:
-  /// **'Server-side compression'**
-  String get contextUsageBucketNativeCompaction;
-
-  /// Token value in the context usage panel for encrypted native compaction content that cannot be counted locally; unknown must not be interpreted as zero.
-  ///
-  /// In en, this message translates to:
-  /// **'Unknown'**
-  String get contextUsageUnknownTokens;
-
-  /// Separate line below the native-compaction context usage breakdown showing input tokens reported by the last matching model request, not the current estimated window or the compaction operation's output usage. tokens is an already-formatted token count such as 42k.
-  ///
-  /// In en, this message translates to:
-  /// **'Last amount actually sent to the model: {tokens}'**
-  String contextUsageLastRequestInput(String tokens);
 
   /// Status text indicating no context usage data exists yet.
   ///
@@ -7885,18 +7717,6 @@ abstract class AppLocalizations {
   /// **'Send http(s) image links as-is; when off, remote links are dropped and only local images are sent'**
   String get modelSpecFormRemoteImageUrlsSubtitle;
 
-  /// Label for a switch in the model editor's request compatibility section that overrides the model's default list of available response speed tiers.
-  ///
-  /// In en, this message translates to:
-  /// **'Response speed tiers'**
-  String get modelSpecFormResponseSpeedTiers;
-
-  /// Help under the model editor's response speed tier switch. Fast and UltraFast can be enabled independently, and neither checked leaves Standard as the only available chat option. Users select the actual speed in each chat.
-  ///
-  /// In en, this message translates to:
-  /// **'Customize which acceleration tiers this model offers in chats. Clear both to offer only Standard.'**
-  String get modelSpecFormResponseSpeedTiersSubtitle;
-
   /// Toggle label in request quirks controlling whether a cache_control marker is added to OpenRouter requests.
   ///
   /// In en, this message translates to:
@@ -8293,90 +8113,6 @@ abstract class AppLocalizations {
   /// **'1 hour'**
   String get providerDetailPageClaudePromptCachingTtl1h;
 
-  /// Label for selecting whether to edit this provider's automatic balance refresh settings or the global defaults.
-  ///
-  /// In en, this message translates to:
-  /// **'Automatic balance refresh'**
-  String get providerBalanceAutoRefresh;
-
-  /// Scope choice in the automatic balance refresh settings for editing overrides that apply only to the current provider.
-  ///
-  /// In en, this message translates to:
-  /// **'This provider'**
-  String get providerBalanceScopeProvider;
-
-  /// Scope choice in the automatic balance refresh settings for editing defaults shared across providers.
-  ///
-  /// In en, this message translates to:
-  /// **'Global defaults'**
-  String get providerBalanceScopeGlobal;
-
-  /// Short row label in automatic balance refresh settings for choosing how often to update the balance on a timer. Shown for both the global default and the provider override.
-  ///
-  /// In en, this message translates to:
-  /// **'Timed refresh'**
-  String get providerBalanceInterval;
-
-  /// Short row label in automatic balance refresh settings. Updates the balance after each completed model reply. Shown for both the global default and the provider override.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh after replies'**
-  String get providerBalanceRefreshOnReply;
-
-  /// Compact current value and picker option that uses the global automatic balance refresh setting. Keep the wording short so it fits beside the row label. The value is the currently effective interval or localized on/off state.
-  ///
-  /// In en, this message translates to:
-  /// **'Default · {value}'**
-  String providerBalanceFollowDefault(String value);
-
-  /// Option disabling the selected balance refresh trigger, either the periodic interval or refresh after replies.
-  ///
-  /// In en, this message translates to:
-  /// **'Off'**
-  String get providerBalanceRefreshOff;
-
-  /// Provider override option that enables refreshing the account balance after replies.
-  ///
-  /// In en, this message translates to:
-  /// **'On'**
-  String get providerBalanceRefreshOn;
-
-  /// Account balance refresh interval displayed as a number of whole minutes.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 minute} other{{count} minutes}}'**
-  String providerBalanceRefreshMinutes(int count);
-
-  /// Preset selection for querying the account balance every one hour.
-  ///
-  /// In en, this message translates to:
-  /// **'1 hour'**
-  String get providerBalanceRefreshHour;
-
-  /// Option that opens the dialog for entering a custom balance refresh interval.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom interval…'**
-  String get providerBalanceCustomInterval;
-
-  /// Numeric field label in the custom account balance refresh interval dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'Interval in minutes'**
-  String get providerBalanceIntervalMinutes;
-
-  /// Action in the account balance badge context menu to query the provider immediately.
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh balance now'**
-  String get providerBalanceRefreshNow;
-
-  /// Balance badge tooltip showing the date and time of the most recent successful query. Both placeholders are already localized.
-  ///
-  /// In en, this message translates to:
-  /// **'Last updated {date} at {time}'**
-  String providerBalanceLastUpdated(String date, String time);
-
   /// Title of the account balance page and a row label opening balance settings.
   ///
   /// In en, this message translates to:
@@ -8442,18 +8178,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restore default balance settings'**
   String get providerDetailPageBalanceResetDefaultsButton;
-
-  /// Warning in the provider balance reset dialog. It replaces custom request fields with the provider preset, resets whether balance queries are enabled, and makes automatic refresh inherit the global settings.
-  ///
-  /// In en, this message translates to:
-  /// **'This will replace this provider’s custom balance request settings, restore the default state of its balance switch, and make automatic refresh follow the global settings.'**
-  String get providerDetailPageBalanceResetConfirmMessage;
-
-  /// Confirmation button in the provider balance reset dialog. Activating it restores default balance settings for the current provider.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore defaults'**
-  String get providerDetailPageBalanceResetConfirmButton;
 
   /// Success message and displayed value showing the queried balance, with {value} substituted by the balance amount.
   ///
@@ -9109,12 +8833,6 @@ abstract class AppLocalizations {
   /// **'Models'**
   String get providerDetailPageModelsTitle;
 
-  /// Tooltip in the desktop provider's model toolbar and title of the dialog where users drag models into their preferred order for the chat model picker.
-  ///
-  /// In en, this message translates to:
-  /// **'Reorder models'**
-  String get providerDetailPageReorderModels;
-
   /// Button label that fetches/refreshes the provider's available models.
   ///
   /// In en, this message translates to:
@@ -9361,12 +9079,6 @@ abstract class AppLocalizations {
   /// **'Scroll to bottom'**
   String get miniMapScrollToBottomTooltip;
 
-  /// Tooltip for the magnifying glass in the minimap and placeholder in its search field. Searches the current conversation and shows matching message previews inside the minimap.
-  ///
-  /// In en, this message translates to:
-  /// **'Search minimap'**
-  String get miniMapSearchHint;
-
   /// Compact label beside a minimap search preview. The count is the total number of keyword occurrences in that single message, including occurrences outside the preview.
   ///
   /// In en, this message translates to:
@@ -9378,72 +9090,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No matching messages'**
   String get miniMapSearchNoResults;
-
-  /// Status inside the minimap if searching the current conversation for matching messages fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn’t search messages'**
-  String get miniMapSearchFailed;
-
-  /// Placeholder in the search field of the current conversation’s find bar.
-  ///
-  /// In en, this message translates to:
-  /// **'Find'**
-  String get conversationFindHint;
-
-  /// Tooltip for the find bar button that selects the previous occurrence in the current conversation.
-  ///
-  /// In en, this message translates to:
-  /// **'Previous match'**
-  String get conversationFindPrevious;
-
-  /// Tooltip for the find bar button that selects the next occurrence in the current conversation.
-  ///
-  /// In en, this message translates to:
-  /// **'Next match'**
-  String get conversationFindNext;
-
-  /// Tooltip for the find bar button that opens the search options menu.
-  ///
-  /// In en, this message translates to:
-  /// **'Find options'**
-  String get conversationFindOptions;
-
-  /// Match counter in the conversation find bar. current is the one-based occurrence index and total is the number of occurrences. Both are zero for no matches.
-  ///
-  /// In en, this message translates to:
-  /// **'{current}/{total}'**
-  String conversationFindMatchPosition(int current, int total);
-
-  /// Toggle in the conversation find menu requiring the query to match uppercase and lowercase letters exactly.
-  ///
-  /// In en, this message translates to:
-  /// **'Match case'**
-  String get conversationFindCaseSensitive;
-
-  /// Toggle in the conversation find menu limiting matches to whole words.
-  ///
-  /// In en, this message translates to:
-  /// **'Whole word'**
-  String get conversationFindWholeWord;
-
-  /// Tooltip beside the whole-word search option explaining word boundaries and how CJK queries behave.
-  ///
-  /// In en, this message translates to:
-  /// **'Matches whole words for scripts with word boundaries (e.g. English). Queries that contain Chinese, Japanese, or Korean characters still use substring matching.'**
-  String get conversationFindWholeWordTooltip;
-
-  /// Toggle in the conversation find menu to also search the assistant’s reasoning steps.
-  ///
-  /// In en, this message translates to:
-  /// **'Include thinking'**
-  String get conversationFindIncludeThinking;
-
-  /// Tooltip for the message map button and label in desktop shortcut settings for opening the find bar in the current conversation.
-  ///
-  /// In en, this message translates to:
-  /// **'Find in conversation'**
-  String get conversationFindOpenTooltip;
 
   /// Status label indicating a search service still needs an API key to be configured.
   ///
@@ -9637,30 +9283,6 @@ abstract class AppLocalizations {
   /// **'Region (optional, default: us-en)'**
   String get searchServicesEditDialogRegionOptional;
 
-  /// Validation error under the 4get instance address or in a desktop notification. The address must be an absolute HTTP or HTTPS base URL without a query or fragment. HTTP and HTTPS are technical terms.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter an HTTP or HTTPS base URL.'**
-  String get searchServicesFourGetUrlInvalid;
-
-  /// Label for the optional upstream search engine identifier in the 4get settings form, such as ddg for DuckDuckGo. When empty, the instance chooses its default.
-  ///
-  /// In en, this message translates to:
-  /// **'Upstream engine (optional)'**
-  String get searchServicesFourGetScraperOptional;
-
-  /// Label for the optional masked 4get credential field in search service settings. Pass is the literal cookie name 'pass'. Preserve it as a name.
-  ///
-  /// In en, this message translates to:
-  /// **'Pass cookie (optional)'**
-  String get searchServicesFourGetPassOptional;
-
-  /// Help below the 4get credential field. Tell users to solve the instance's CAPTCHA when required and paste the value of the cookie whose literal name is 'pass'. Keep 'pass' lowercase and untranslated.
-  ///
-  /// In en, this message translates to:
-  /// **'If the instance requires a CAPTCHA, complete it and paste the value of the pass cookie.'**
-  String get searchServicesFourGetPassHelp;
-
   /// Section header for choosing the search provider type in the service editor.
   ///
   /// In en, this message translates to:
@@ -9672,18 +9294,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Configuration'**
   String get searchServiceEditorConfigurationTitle;
-
-  /// Tooltip and accessibility label for the button inside the search service editor that opens the icon source menu for this configured service.
-  ///
-  /// In en, this message translates to:
-  /// **'Change icon'**
-  String get searchServiceEditorChangeIcon;
-
-  /// Error shown in the search service editor when selecting or importing a custom service icon fails.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not use this icon. Choose another image or icon.'**
-  String get searchServiceEditorIconFailed;
 
   /// Placeholder text shown when the selected provider requires no extra configuration fields.
   ///
@@ -9991,25 +9601,13 @@ abstract class AppLocalizations {
   /// **'Nice!'**
   String get aboutPageEasterEggButton;
 
-  /// Success notification shown when a hidden feature is unlocked via the about page easter egg, hinting to look in Settings.
+  /// The app name 'Cuplivo' displayed in the about page header and desktop home page.
   ///
   /// In en, this message translates to:
-  /// **'An unnamed door opened a crack. You might find it in Settings.'**
-  String get aboutPageKelivoSearchUnlocked;
-
-  /// Success notification shown when the hidden feature was already unlocked previously.
-  ///
-  /// In en, this message translates to:
-  /// **'You\'ve already been through this door.'**
-  String get aboutPageKelivoSearchAlreadyUnlocked;
-
-  /// The app name 'Kelivo' displayed in the about page header and desktop home page.
-  ///
-  /// In en, this message translates to:
-  /// **'Kelivo'**
+  /// **'Cuplivo'**
   String get aboutPageAppName;
 
-  /// Short tagline under the app name on the about page describing Kelivo as an open-source AI assistant.
+  /// Short tagline under the app name on the about page describing Cuplivo as an open-source AI assistant.
   ///
   /// In en, this message translates to:
   /// **'Open-source AI Assistant'**
@@ -10087,13 +9685,13 @@ abstract class AppLocalizations {
   /// **'Other ({os})'**
   String aboutPagePlatformOther(String os);
 
-  /// Row label linking to the Kelivo official website.
+  /// Row label linking to the Cuplivo official website.
   ///
   /// In en, this message translates to:
   /// **'Website'**
   String get aboutPageWebsite;
 
-  /// Row label linking to the Kelivo GitHub repository.
+  /// Row label linking to the Cuplivo GitHub repository.
   ///
   /// In en, this message translates to:
   /// **'GitHub'**
@@ -10114,22 +9712,22 @@ abstract class AppLocalizations {
   /// Name of the first QQ group entry in the join sheet.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo Group 1'**
+  /// **'Cuplivo Group 1'**
   String get aboutPageQQGroupOne;
 
   /// Name of the second QQ group entry in the join sheet.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo Group 2'**
+  /// **'Cuplivo Group 2'**
   String get aboutPageQQGroupTwo;
 
   /// Name of the third QQ group entry in the join sheet.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo Group 3'**
+  /// **'Cuplivo Group 3'**
   String get aboutPageQQGroupThree;
 
-  /// Row label linking to the Kelivo Discord server invite.
+  /// Row label linking to the Cuplivo Discord server invite.
   ///
   /// In en, this message translates to:
   /// **'Join us on Discord'**
@@ -10399,10 +9997,10 @@ abstract class AppLocalizations {
   /// **'Enable Image Cropping'**
   String get displaySettingsPageEnableImageCropperTitle;
 
-  /// Toggle subtitle explaining images can be cropped after selecting from gallery or camera.
+  /// Subtitle under the setting that adds a Crop action to the preview of an image that has not been sent yet.
   ///
   /// In en, this message translates to:
-  /// **'Crop images after selecting from gallery or camera'**
+  /// **'Show a Crop action when previewing an unsent image'**
   String get displaySettingsPageEnableImageCropperSubtitle;
 
   /// Toggle row label in display settings: selecting an assistant does not auto-close the sidebar.
@@ -10608,18 +10206,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto switch to Topics'**
   String get displaySettingsPageAutoSwitchTopicsTitle;
-
-  /// Label for the switch in desktop Display settings that removes the fixed maximum width for the message list and input box.
-  ///
-  /// In en, this message translates to:
-  /// **'Full-width chat'**
-  String get desktopDisplaySettingsFullWidthChatTitle;
-
-  /// Tooltip beside the full-width chat switch in desktop Display settings. The chat area is the space available between the sidebars.
-  ///
-  /// In en, this message translates to:
-  /// **'Expand messages and the input box to fill the chat area.'**
-  String get desktopDisplaySettingsFullWidthChatSubtitle;
 
   /// Label for choosing whether the topic list sits on the left or right.
   ///
@@ -12055,6 +11641,48 @@ abstract class AppLocalizations {
   /// **'Next Image'**
   String get imageViewerPageNextButton;
 
+  /// Label of the button that zooms the image in.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom In'**
+  String get imageViewerPageZoomInButton;
+
+  /// Label of the button that zooms the image out.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom Out'**
+  String get imageViewerPageZoomOutButton;
+
+  /// Label of the button that resets the image zoom to its default level.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Zoom'**
+  String get imageViewerPageResetZoomButton;
+
+  /// Label of the button that mirrors the image left-to-right.
+  ///
+  /// In en, this message translates to:
+  /// **'Flip Horizontal'**
+  String get imageViewerPageFlipHorizontalButton;
+
+  /// Label of the button that mirrors the image top-to-bottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Flip Vertical'**
+  String get imageViewerPageFlipVerticalButton;
+
+  /// Label of the button that rotates the image counterclockwise.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate Left'**
+  String get imageViewerPageRotateLeftButton;
+
+  /// Label of the button that rotates the image clockwise.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate Right'**
+  String get imageViewerPageRotateRightButton;
+
   /// Compact position indicator in the image viewer showing current image number and total, e.g. 2/5.
   ///
   /// In en, this message translates to:
@@ -12085,10 +11713,10 @@ abstract class AppLocalizations {
   /// **'Save failed: {error}'**
   String imageViewerPageSaveFailed(String error);
 
-  /// Share message text for the app (Kelivo - Open Source AI Assistant); its share button usage is commented out in settings.
+  /// Share message text for the app (Cuplivo - Open Source AI Assistant); its share button usage is commented out in settings.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo - Open Source AI Assistant'**
+  /// **'Cuplivo - Open Source AI Assistant'**
   String get settingsShare;
 
   /// Description under the Bing (Local) search provider option explaining it scrapes Bing without an API key and may be unstable.
@@ -12138,12 +11766,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Privacy-respecting metasearch engine. Self-hosted instance required; no tracking.'**
   String get searchProviderSearXNGDescription;
-
-  /// Description for the 4get search provider option. The user supplies a public or self-hosted 4get instance where its search API is enabled. Preserve the brand name '4get'.
-  ///
-  /// In en, this message translates to:
-  /// **'Web search through a public or self-hosted 4get instance with the API enabled.'**
-  String get searchProviderFourGetDescription;
 
   /// Description under the Tavily search provider option noting it is an AI search API optimized for LLMs.
   ///
@@ -12216,12 +11838,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SearXNG'**
   String get searchServiceNameSearXNG;
-
-  /// Display name of the 4get web search provider in the search service pickers. Keep the brand spelling '4get'.
-  ///
-  /// In en, this message translates to:
-  /// **'4get'**
-  String get searchServiceNameFourGet;
 
   /// Display name for the 'linkup' search service type in the search service list and editor.
   ///
@@ -12433,18 +12049,6 @@ abstract class AppLocalizations {
   /// **'You.com Search API. Returns web and news results with highlights or snippets.'**
   String get searchProviderYouDescription;
 
-  /// Display name for the Keenable search provider, returned by a switch on the service type in the search services settings pane and editor page.
-  ///
-  /// In en, this message translates to:
-  /// **'Keenable'**
-  String get searchServiceNameKeenable;
-
-  /// Short description shown under the Keenable provider in the search service editor, noting that an API key is optional and keyless calls use the public endpoint.
-  ///
-  /// In en, this message translates to:
-  /// **'Keenable Search. An API key is optional; without one, requests use the public endpoint.'**
-  String get searchProviderKeenableDescription;
-
   /// Dropdown label in the search service settings for choosing You.com content mode (Highlights or Snippets).
   ///
   /// In en, this message translates to:
@@ -12486,12 +12090,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Maximum tokens must be between 1024 and 32768.'**
   String get searchServicesDialogMaximumTokensInvalid;
-
-  /// Display name for the built-in Kelivo search provider, returned by a switch on the service type in the search services settings pane and editor page.
-  ///
-  /// In en, this message translates to:
-  /// **'Kelivo'**
-  String get searchServiceNameKelivo;
 
   /// Text field label for an optional country/region filter (gl parameter) in the search service settings.
   ///
@@ -13009,10 +12607,10 @@ abstract class AppLocalizations {
   /// **'Health Data'**
   String get healthDataSettingsTitle;
 
-  /// Introductory description on the Health Data settings page explaining the switches control what Kelivo may try to read while iOS manages actual access.
+  /// Introductory description on the Health Data settings page explaining the switches control what Cuplivo may try to read while iOS manages actual access.
   ///
   /// In en, this message translates to:
-  /// **'HealthKit signals available to the current assistant in daily conversation. Switches control what Kelivo may try to read; iOS still manages actual Health access.'**
+  /// **'HealthKit signals available to the current assistant in daily conversation. Switches control what Cuplivo may try to read; iOS still manages actual Health access.'**
   String get healthDataSettingsDescription;
 
   /// Status badge on the Health Data page showing how many data types are enabled out of the total; {selected} and {total} are counts.
@@ -15466,7 +15064,7 @@ abstract class AppLocalizations {
   /// Heading line written at the top of the exported legacy memory text file.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo legacy memory export'**
+  /// **'Cuplivo legacy memory export'**
   String get legacyMemoryExportTitle;
 
   /// Section header grouping legacy memories by assistant; {name} is the assistant's name.
@@ -16357,17 +15955,11 @@ abstract class AppLocalizations {
   /// **'{value}s'**
   String tokenDetailDuration(String value);
 
-  /// Row in the token detail popup showing seconds from request preparation to the first client-received reasoning-start event or non-empty output, whichever arrives first. This is response activity, not the server's hidden reasoning-token time. {value} is the formatted duration in seconds.
+  /// Row in the token detail popup showing time to first token in seconds; {value} is the formatted number.
   ///
   /// In en, this message translates to:
-  /// **'{value}s (first response)'**
-  String tokenDetailFirstResponse(String value);
-
-  /// Row in the token detail popup showing seconds from request preparation to the first non-empty content received, such as a public reasoning summary, answer text, tool input, image or file. A reasoning-start event alone does not count. {value} is the formatted duration in seconds.
-  ///
-  /// In en, this message translates to:
-  /// **'{value}s (first output)'**
-  String tokenDetailFirstOutput(String value);
+  /// **'{value}s (first token)'**
+  String tokenDetailFirstToken(String value);
 
   /// Label showing the total token count, used in the token display widget and stats usage chart; {count} is the number.
   ///
@@ -16522,13 +16114,13 @@ abstract class AppLocalizations {
   /// Subtitle explaining chat history is moving to SQLite and the upgrade runs before the app opens.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.'**
+  /// **'Cuplivo is moving chat history to a faster SQLite database. The upgrade runs before the app opens so your data stays consistent.'**
   String get migrationIntroSubtitle;
 
   /// Info note on the migration page stating a ZIP backup of settings, chats, and local files is exported first.
   ///
   /// In en, this message translates to:
-  /// **'Before migration starts, Kelivo exports a ZIP backup with settings, chat history, and local files.'**
+  /// **'Before migration starts, Cuplivo exports a ZIP backup with settings, chat history, and local files.'**
   String get migrationBackupNote;
 
   /// Info note on the migration page describing faster startup, history loading, and search after migration.
@@ -16600,7 +16192,7 @@ abstract class AppLocalizations {
   /// Header subtitle during backup listing what is exported and asking the user to keep the app open.
   ///
   /// In en, this message translates to:
-  /// **'Exporting settings, chat history, uploaded files, images, and fonts. Keep Kelivo open until this finishes.'**
+  /// **'Exporting settings, chat history, uploaded files, images, and fonts. Keep Cuplivo open until this finishes.'**
   String get migrationBackingUpSubtitle;
 
   /// Header title on the migration page shown while data is being migrated to SQLite.
@@ -16612,7 +16204,7 @@ abstract class AppLocalizations {
   /// Header subtitle during migration explaining batched writes and asking to keep the app in the foreground.
   ///
   /// In en, this message translates to:
-  /// **'Writing conversations and messages in batches so large histories do not overload memory. Keep Kelivo in the foreground until migration finishes.'**
+  /// **'Writing conversations and messages in batches so large histories do not overload memory. Keep Cuplivo in the foreground until migration finishes.'**
   String get migrationMigratingSubtitle;
 
   /// Progress detail line during backup; {fileName} is the file currently being backed up.
@@ -16717,10 +16309,10 @@ abstract class AppLocalizations {
   /// **'Upgrade Complete'**
   String get migrationCompleteTitle;
 
-  /// Header subtitle after completion telling the user to restart Kelivo to enter the upgraded app.
+  /// Header subtitle after completion telling the user to restart Cuplivo to enter the upgraded app.
   ///
   /// In en, this message translates to:
-  /// **'Your chat history is now stored in SQLite. Restart Kelivo to enter the upgraded app.'**
+  /// **'Your chat history is now stored in SQLite. Restart Cuplivo to enter the upgraded app.'**
   String get migrationCompleteSubtitle;
 
   /// Stat label in the migration summary showing the number of conversations.
@@ -16753,10 +16345,10 @@ abstract class AppLocalizations {
   /// **'Missing files'**
   String get migrationMissingFilesCount;
 
-  /// Primary button on the Hive-to-SQLite migration page that restarts Kelivo; disabled when the onRestart callback is null.
+  /// Primary button on the Hive-to-SQLite migration page that restarts Cuplivo; disabled when the onRestart callback is null.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo'**
+  /// **'Restart Cuplivo'**
   String get migrationRestartButton;
 
   /// Heading shown on the migration page when the migration fails (unless the fresh-start path is selected, which uses a different title).
@@ -16801,10 +16393,10 @@ abstract class AppLocalizations {
   /// **'Skip migration?'**
   String get migrationSkipDialogTitle;
 
-  /// Dialog body warning that Kelivo will start with an empty chat database, old history is kept on disk with a .retired suffix but not migrated, and a backup ZIP is needed to recover.
+  /// Dialog body warning that Cuplivo will start with an empty chat database, old history is kept on disk with a .retired suffix but not migrated, and a backup ZIP is needed to recover.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.'**
+  /// **'Cuplivo will start with an empty chat database. Your old chat history stays on disk (renamed with a .retired suffix) but will NOT be migrated and will not appear in the app. Use your backup ZIP if you need to recover it later.'**
   String get migrationSkipDialogMessage;
 
   /// Cancel button in the skip-migration confirmation dialog; closes it without skipping.
@@ -17479,18 +17071,6 @@ abstract class AppLocalizations {
   /// **'Blank lines break an assistant reply into one bubble per paragraph'**
   String get messageStyleSettingsPageAssistantSplitParagraphsSubtitle;
 
-  /// Switch label in Message Style settings for the Frosted Glass and Solid styles. Enables a single independent visual style shared by thinking and tool-call cards.
-  ///
-  /// In en, this message translates to:
-  /// **'Customize thinking and tool cards'**
-  String get messageStyleSettingsPageCustomizeThinkingToolCards;
-
-  /// Subtitle below the Message Style switch for editing thinking and tool-call cards independently of the assistant reply bubbles. Both card types share the same appearance settings.
-  ///
-  /// In en, this message translates to:
-  /// **'Give thinking and tool calls their own appearance'**
-  String get messageStyleSettingsPageCustomizeThinkingToolCardsSubtitle;
-
   /// Subtitle for the Frosted background style option, describing a translucent frosted-glass look.
   ///
   /// In en, this message translates to:
@@ -17581,17 +17161,11 @@ abstract class AppLocalizations {
   /// **'User'**
   String get messageStyleSettingsPageRoleUser;
 
-  /// Segment label for editing the visual style of assistant replies in Message Style settings.
+  /// Right segment label selecting the Assistant role when editing message style.
   ///
   /// In en, this message translates to:
   /// **'Assistant'**
   String get messageStyleSettingsPageRoleAssistant;
-
-  /// Compact segment label for editing the shared style of thinking and tool-call cards in Message Style settings. The switch above already names thinking and tools, so use a short noun equivalent to Cards if the full label would be long.
-  ///
-  /// In en, this message translates to:
-  /// **'Cards'**
-  String get messageStyleSettingsPageRoleThinkingTool;
 
   /// Hint below the Message Style target selector. Translation cards always use the assistant style, and thinking and tool-call cards use it when their own customization is off.
   ///
@@ -17611,10 +17185,10 @@ abstract class AppLocalizations {
   /// **'Keep local copies'**
   String get localSnapshotEnabledTitle;
 
-  /// Explanation that Kelivo periodically saves a local database copy so data is never stored only once.
+  /// Explanation that Cuplivo periodically saves a local database copy so data is never stored only once.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo periodically saves a copy of its database on this device, so it is never the only one.'**
+  /// **'Cuplivo periodically saves a copy of its database on this device, so it is never the only one.'**
   String get localSnapshotEnabledSubtitle;
 
   /// Row label and picker title for how often local snapshots are taken.
@@ -17770,7 +17344,7 @@ abstract class AppLocalizations {
   /// Note explaining that local copies only protect against in-app data damage, not device loss or uninstall; suggests WebDAV/S3 for that. Shown on the copies page and as backup subtitle when disabled.
   ///
   /// In en, this message translates to:
-  /// **'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Kelivo — use WebDAV or S3 backup for that.'**
+  /// **'Local copies live on this device only. They protect against damage to your data inside the app, not against losing the device or uninstalling Cuplivo — use WebDAV or S3 backup for that.'**
   String get localSnapshotCopiesScopeNote;
 
   /// Label for a copy created automatically by the scheduler, shown in the copy's origin line.
@@ -17851,10 +17425,10 @@ abstract class AppLocalizations {
   /// **'Restore this copy?'**
   String get localSnapshotRestoreTitle;
 
-  /// Confirmation body warning that current chats/settings will be replaced by the copy from {when}, a safety copy is saved first, and unsent drafts are cleared.
+  /// Confirmation body for restoring a local snapshot; when is the human-readable time of that copy, and the text says current chats and settings are backed up first so the restore can be undone.
   ///
   /// In en, this message translates to:
-  /// **'Your current chats and settings will be replaced by this copy from {when}. A copy of the current chats and settings is saved first. Unsent drafts are excluded from copies and will be cleared.'**
+  /// **'Your current chats and settings will be replaced by this copy from {when}. A copy of what you have now is saved first, so this can be undone.'**
   String localSnapshotRestoreMessage(String when);
 
   /// Progress dialog title shown while preparing a copy for restore; also used as a button label in the recovery screen while restoring.
@@ -17958,12 +17532,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search'**
   String get toolSchemaSettingsGroupSearch;
-
-  /// Group heading in the mobile and desktop tool descriptions settings for the unified view_image tool, which can inspect conversation images or permitted workspace image files.
-  ///
-  /// In en, this message translates to:
-  /// **'Images'**
-  String get toolSchemaSettingsGroupImages;
 
   /// Group heading for memory-related built-in tools in the tool schema settings.
   ///
@@ -19009,10 +18577,10 @@ abstract class AppLocalizations {
   /// **'You\'re up to date'**
   String get workspaceEnvUpToDate;
 
-  /// Banner text prompting the user to restart Kelivo to complete sandbox installation.
+  /// Banner text prompting the user to restart Cuplivo to complete sandbox installation.
   ///
   /// In en, this message translates to:
-  /// **'Restart Kelivo to finish'**
+  /// **'Restart Cuplivo to finish'**
   String get workspaceEnvRestartBanner;
 
   /// Status text shown while probing mirrors for speed, used on download and mirror pages.
@@ -19153,24 +18721,6 @@ abstract class AppLocalizations {
   /// **'Could not finish setting up the sandbox.'**
   String get workspaceEnvErrorPatchFailed;
 
-  /// Error shown in the iOS workspace environment details after an interrupted or cancelled sandbox repair, including recovery on app startup. Explains that the existing filesystem was retained and the user can retry the in-place repair. No placeholders.
-  ///
-  /// In en, this message translates to:
-  /// **'Sandbox repair was interrupted. The existing sandbox has been kept. Retry to finish the repair.'**
-  String get workspaceEnvErrorRepairInterrupted;
-
-  /// Error shown in the iOS workspace environment details when sandbox repair exceeds its time limit and the command has stopped. Explains that the existing filesystem was retained and suggests checking the network before retrying the in-place repair. No placeholders.
-  ///
-  /// In en, this message translates to:
-  /// **'Sandbox repair timed out. Check your network connection and retry. The existing sandbox has been kept.'**
-  String get workspaceEnvErrorRepairTimeout;
-
-  /// Banner in iOS workspace environment details when a cancelled or timed-out repair command has not confirmed it stopped. Requires a full app restart before retrying so package transactions cannot overlap, and reassures that the existing filesystem was retained. No placeholders.
-  ///
-  /// In en, this message translates to:
-  /// **'Could not confirm that sandbox repair stopped within the time limit. Fully close and reopen Kelivo before retrying. The existing sandbox has been kept.'**
-  String get workspaceEnvRepairRestartBanner;
-
   /// Message for the 'cancelled' code and cancelled dependency installs, stating installation was cancelled.
   ///
   /// In en, this message translates to:
@@ -19213,10 +18763,10 @@ abstract class AppLocalizations {
   /// **'Restart required'**
   String get workspaceEnvChipRestart;
 
-  /// Section footer in the environment pane explaining that on desktop Kelivo uses the system shell rather than a Linux sandbox.
+  /// Section footer in the environment pane explaining that on desktop Cuplivo uses the system shell rather than a Linux sandbox.
   ///
   /// In en, this message translates to:
-  /// **'On desktop, Kelivo uses your system shell instead of a Linux sandbox.'**
+  /// **'On desktop, Cuplivo uses your system shell instead of a Linux sandbox.'**
   String get workspaceEnvNativeExplanation;
 
   /// Label showing the detected system shell path on desktop; {path} is the shell executable location.
@@ -20877,10 +20427,10 @@ abstract class AppLocalizations {
   /// **'Choose an existing folder or enter its absolute path.'**
   String get workspaceDesktopFolderMissing;
 
-  /// Hint in the create dialog explaining Kelivo creates and manages a folder for a managed project.
+  /// Hint in the create dialog explaining Cuplivo creates and manages a folder for a managed project.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo creates and manages a folder for this project.'**
+  /// **'Cuplivo creates and manages a folder for this project.'**
   String get workspaceDesktopManagedHint;
 
   /// Subtitle indicating files and commands run on this computer, shown for desktop-target workspaces.
@@ -21291,55 +20841,7 @@ abstract class AppLocalizations {
   /// **'Could not switch conversations. Your draft has been kept.'**
   String get incomingShareMoveFailed;
 
-  /// Detailed composer or generation error for an attachment whose text encoding cannot be recognized. {name} is the displayed file name.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn’t recognize the text encoding of “{name}”. Save it as UTF-8 and send it again.'**
-  String attachmentEncodingUnrecognized(String name);
-
-  /// Short error label on a composer attachment card when its text encoding cannot be recognized.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding unrecognized'**
-  String get attachmentEncodingUnrecognizedShort;
-
-  /// Detailed composer or generation error for a binary attachment. {name} is the displayed file name.
-  ///
-  /// In en, this message translates to:
-  /// **'“{name}” isn’t a text file, so it can’t be used here.'**
-  String attachmentNotText(String name);
-
-  /// Short error label on a composer attachment card for binary content.
-  ///
-  /// In en, this message translates to:
-  /// **'Not a text file'**
-  String get attachmentNotTextShort;
-
-  /// Shown on tapping a truncated composer attachment and after its text in the model prompt. {count} is the actual number of Unicode characters included.
-  ///
-  /// In en, this message translates to:
-  /// **'This file is too large, so only the first {count} characters were read. Split it and send again if you need the rest.'**
-  String attachmentTruncatedNotice(int count);
-
-  /// Short warning on a composer attachment card when only the start of its text will be sent.
-  ///
-  /// In en, this message translates to:
-  /// **'Only the beginning will be sent'**
-  String get attachmentTruncatedCard;
-
-  /// Detailed composer or generation error when a document exceeds the local extraction size limit. {name} is the displayed file name.
-  ///
-  /// In en, this message translates to:
-  /// **'“{name}” is too large to read in a regular chat.'**
-  String attachmentDocumentTooLarge(String name);
-
-  /// Short error label on a composer attachment card when a document exceeds the local extraction limit.
-  ///
-  /// In en, this message translates to:
-  /// **'File too large'**
-  String get attachmentDocumentTooLargeShort;
-
-  /// Warning in a conversation already bound to a workspace when an attachment cannot be read locally and the necessary file tools are unavailable. {name} is the displayed file name.
+  /// Warning shown when an attachment named {name} needs a bound workspace with file tools; suggests binding one or moving the draft to a workspace conversation.
   ///
   /// In en, this message translates to:
   /// **'To use “{name}”, bind a workspace and enable file tools, or move this draft to a conversation with a workspace. This file cannot be read directly in a regular chat.'**
@@ -21363,7 +20865,7 @@ abstract class AppLocalizations {
   /// **'Selected folders are mounted at /mounts/<name> and shared across workspaces. AI tools, Shell and the file browser can access them. Up to 10 folders.'**
   String get workspaceExternalMountSubtitle;
 
-  /// Title of a confirmation dialog asking the user to allow Kelivo file access before mounting external folders; paired with a message and a confirm button.
+  /// Title of a confirmation dialog asking the user to allow Cuplivo file access before mounting external folders; paired with a message and a confirm button.
   ///
   /// In en, this message translates to:
   /// **'Allow file access'**
@@ -21372,7 +20874,7 @@ abstract class AppLocalizations {
   /// Dialog body explaining that Android file access (All files access on Android 11+) is needed to read/write external folders, then a local folder is selected to mount. Also returned as an error message for the external_storage_permission code.
   ///
   /// In en, this message translates to:
-  /// **'To read and write external folders in the workspace and Shell, allow Kelivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.'**
+  /// **'To read and write external folders in the workspace and Shell, allow Cuplivo to manage files in Android settings. On Android 11 or later, enable All files access. Then select an on-device folder to mount.'**
   String get workspaceExternalStorageMessage;
 
   /// Confirm button label in the file-access dialog; tapping it proceeds to grant access and pick a folder.
@@ -21774,7 +21276,7 @@ abstract class AppLocalizations {
   /// Generic task title used in background notifications when privacy mode is on or the task has no title.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo task'**
+  /// **'Cuplivo task'**
   String get backgroundTaskTitle;
 
   /// Background task outcome text indicating generation finished successfully.
@@ -22017,10 +21519,10 @@ abstract class AppLocalizations {
   /// **'Floating icon'**
   String get backgroundOverlayIcon;
 
-  /// Row action that resets the overlay icon to the default Kelivo app icon.
+  /// Row action that resets the overlay icon to the default Cuplivo app icon.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo icon'**
+  /// **'Cuplivo icon'**
   String get backgroundIconDefault;
 
   /// Row action that opens an image picker to use a custom image as the overlay icon; shows ellipsis while importing.
@@ -22425,10 +21927,10 @@ abstract class AppLocalizations {
   /// **'Recover from a local copy'**
   String get startupRecoverySnapshotTitle;
 
-  /// Explanatory text describing snapshot recovery and warning that uninstalling Kelivo deletes the snapshots.
+  /// Explanatory text describing snapshot recovery and warning that uninstalling Cuplivo deletes the snapshots.
   ///
   /// In en, this message translates to:
-  /// **'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Kelivo: uninstalling also removes these snapshots.'**
+  /// **'Choose a snapshot on this device to recover your chats and settings, even when the database cannot open. Do not uninstall Cuplivo: uninstalling also removes these snapshots.'**
   String get startupRecoverySnapshotBody;
 
   /// Message shown when no database snapshots are found on the device, advising exporting data first.
@@ -22443,10 +21945,10 @@ abstract class AppLocalizations {
   /// **'Choose a copy to recover'**
   String get startupRecoverySnapshotButton;
 
-  /// Confirmation dialog text asking to restore chats and settings from a snapshot at {when}, noting later changes are excluded and Kelivo will restart.
+  /// Confirmation at startup before restoring a snapshot; when is the snapshot's date and time, and the text warns the app will restart and that later changes are not included.
   ///
   /// In en, this message translates to:
-  /// **'Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Kelivo will restart to complete the restore.'**
+  /// **'Restore chats and settings from {when}? Changes made after this snapshot will not be included. Existing attachment files and the snapshot will be kept. Cuplivo will restart to complete the restore.'**
   String startupRecoverySnapshotConfirm(String when);
 
   /// Error message shown when preparing a snapshot restore fails, with {reason} describing the cause.
@@ -22455,10 +21957,10 @@ abstract class AppLocalizations {
   /// **'Could not prepare the snapshot restore: {reason}'**
   String startupRecoverySnapshotFailed(String reason);
 
-  /// Status message indicating the snapshot is prepared and Kelivo must restart to finish restoring.
+  /// Status message indicating the snapshot is prepared and Cuplivo must restart to finish restoring.
   ///
   /// In en, this message translates to:
-  /// **'The snapshot is ready. Restart Kelivo to complete the restore.'**
+  /// **'The snapshot is ready. Restart Cuplivo to complete the restore.'**
   String get startupRecoverySnapshotReady;
 
   /// Page title and settings menu label for the scheduled tasks feature.
@@ -22596,7 +22098,7 @@ abstract class AppLocalizations {
   /// Section footer warning to keep the app unrestricted in battery settings; notes force-stop cancels alarms, missed runs are skipped, and tasks use device time zone.
   ///
   /// In en, this message translates to:
-  /// **'Keep Kelivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.'**
+  /// **'Keep Cuplivo unrestricted in battery settings for more reliable execution. Force stopping the app cancels alarms until you reopen it. Missed runs are skipped; tasks follow the device time zone.'**
   String get scheduledTasksReliability;
 
   /// Help text (non-desktop/iOS default) explaining results are saved in chats, a completion notification previews the reply, and runs stop after 10 minutes or when input/tool approval is needed.
@@ -22935,10 +22437,10 @@ abstract class AppLocalizations {
   /// **'No scheduled tasks'**
   String get scheduledTasksDesktopEmpty;
 
-  /// Informational note on the desktop scheduled-tasks page explaining that tasks run only while Kelivo is running (including minimized/tray), missed times are skipped, and the app does not auto-start.
+  /// Informational note on the desktop scheduled-tasks page explaining that tasks run only while Cuplivo is running (including minimized/tray), missed times are skipped, and the app does not auto-start.
   ///
   /// In en, this message translates to:
-  /// **'Tasks run only while Kelivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Kelivo will not start automatically.'**
+  /// **'Tasks run only while Cuplivo is running, including when minimized or in the system tray. Missed times are skipped after quitting or computer sleep. Cuplivo will not start automatically.'**
   String get scheduledTasksDesktopReliability;
 
   /// Help text in the scheduled-task editor on desktop platforms describing where results are saved and that runs stop after 10 minutes or when user input or tool approval is needed.
@@ -23610,7 +23112,7 @@ abstract class AppLocalizations {
   /// Explanation shown on iOS that background limits prevent timed model runs, so results are prepared in advance and delivered via notification.
   ///
   /// In en, this message translates to:
-  /// **'iOS background limits prevent Kelivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Kelivo to prepare subsequent occurrences.'**
+  /// **'iOS background limits prevent Cuplivo from waking at a set time to run a model. Instead, content is prepared while the app can run, and the system shows a notification at the scheduled time. Only the next occurrence is prepared. Preparation may not finish after leaving the app; reopen Cuplivo to prepare subsequent occurrences.'**
   String get scheduledTasksIOSDetail;
 
   /// Option label in the task editor for choosing which conversation context preparation uses.
@@ -23733,10 +23235,10 @@ abstract class AppLocalizations {
   /// **'Cancelled'**
   String get scheduledTasksCancelled;
 
-  /// Notification body text sent when a scheduled task is due, prompting the user to open Kelivo.
+  /// Notification body text sent when a scheduled task is due, prompting the user to open Cuplivo.
   ///
   /// In en, this message translates to:
-  /// **'Your scheduled task is due. Open Kelivo to continue.'**
+  /// **'Your scheduled task is due. Open Cuplivo to continue.'**
   String get scheduledTasksReminderBody;
 
   /// Notification body text indicating a scheduled task's prepared result is ready.
@@ -23760,7 +23262,7 @@ abstract class AppLocalizations {
   /// Tooltip on the advance preparation toggle explaining it generates results early, text-only, and may incur model charges.
   ///
   /// In en, this message translates to:
-  /// **'Generate the next result before its scheduled time, while Kelivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.'**
+  /// **'Generate the next result before its scheduled time, while Cuplivo can run. The result stays out of the chat until it is due. Preparation uses text only, without tools, attachments or custom request bodies. It may incur model charges.'**
   String get scheduledTasksAllowPreparationTip;
 
   /// Long help text under the context-policy option in the scheduled task editor, explaining 'follow latest conversation' vs 'preparation snapshot' modes and their effect on prepared results and charges.
@@ -23772,7 +23274,7 @@ abstract class AppLocalizations {
   /// Help tip for the preparation-window option (max 24h) in the scheduled task editor; explains how early preparation may start and that it neither changes the schedule nor guarantees background execution.
   ///
   /// In en, this message translates to:
-  /// **'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Kelivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.'**
+  /// **'How far ahead of the scheduled time preparation may begin, up to 24 hours. For example, opening Cuplivo at noon can prepare the next morning’s reminder. A larger window gives more chances to prepare, but the result may be less current. It does not change the scheduled time or guarantee background execution. Prepare now bypasses this automatic waiting period and all attempt limits.'**
   String get scheduledTasksPreparationWindowTip;
 
   /// Help tip for the preparation attempt-limit option; explains that all attempts count, that Prepare now bypasses the limit, and that it is not a spending cap.
@@ -23790,7 +23292,7 @@ abstract class AppLocalizations {
   /// Help tip for the unavailable-policy option; explains sending a reminder (no generated answer, needs notifications) or skipping when no prepared result exists and the task cannot run.
   ///
   /// In en, this message translates to:
-  /// **'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Kelivo is open when the task is due, it can run the task then.'**
+  /// **'If no prepared result is available and the task cannot run when due, send a reminder or skip the occurrence. A reminder contains no generated answer and requires notifications to be enabled. If Cuplivo is open when the task is due, it can run the task then.'**
   String get scheduledTasksUnavailableTip;
 
   /// Help tip for the notification toggle; notes that disabling it does not stop task execution or model charges, and system permission is still required.
@@ -24093,7 +23595,7 @@ abstract class AppLocalizations {
   /// Body text under the assistant heading explaining the two required permissions and that each assistant is configured separately.
   ///
   /// In en, this message translates to:
-  /// **'Both permissions are required: enable Kelivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.'**
+  /// **'Both permissions are required: enable Cuplivo phone control in system Accessibility settings, then enable Phone Control under your assistant’s Local Tools (also available in the chat tools menu). Each assistant is configured separately. Keep the phone unlocked while running a task.'**
   String get phoneControlAssistantHint;
 
   /// Tappable list item label in phone control settings for users who cannot enable the accessibility switch, opening app info.
@@ -24105,7 +23607,7 @@ abstract class AppLocalizations {
   /// Subtitle under the restricted-settings item explaining Android's 'Allow restricted settings' step for sideloaded APKs.
   ///
   /// In en, this message translates to:
-  /// **'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Kelivo’s app info, then return to Accessibility settings.'**
+  /// **'For some downloaded APKs, Android requires “Allow restricted settings” in the app info menu first. Tap to open Cuplivo’s app info, then return to Accessibility settings.'**
   String get phoneControlRestrictedHint;
 
   /// Centered button text in phone control settings that enables phone control for the current assistant.
@@ -24471,7 +23973,7 @@ abstract class AppLocalizations {
   /// Recovery screen body explaining the chat database is missing, loading is paused, and old copies will be searched while files are kept.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo could not find the current chat database. It has paused loading and has not created an empty database. We’ll look for previous copies below; existing files will be kept.'**
+  /// **'The current database is missing, but this device still contains previous data. Cuplivo has paused startup and has not created an empty database. Your remaining files and copies are being preserved.'**
   String get recoveryMissingDataBody;
 
   /// Recovery screen title shown when the current chat history is empty.
@@ -24483,7 +23985,7 @@ abstract class AppLocalizations {
   /// Recovery screen body explaining the chat list is empty but old copies were found, prompting selection of a copy to recover.
   ///
   /// In en, this message translates to:
-  /// **'The current chat list is empty, and previous copies were found. Choose a copy below to recover your chats. Existing files will be kept.'**
+  /// **'The current database has no conversations, but previous copies were found. Cuplivo has paused startup so you can recover a copy or explicitly keep the current data. Nothing will be overwritten automatically.'**
   String get recoveryEmptyDataBody;
 
   /// Action label to continue using an empty chat list instead of recovering; also used as a confirmation dialog title.
@@ -24537,7 +24039,7 @@ abstract class AppLocalizations {
   /// Recovery screen body explaining the data update could not finish, original data kept, and suggesting reopening or choosing a local copy.
   ///
   /// In en, this message translates to:
-  /// **'The data update could not finish. The original data has been kept. Try reopening Kelivo, or choose a local copy below to recover.'**
+  /// **'Cuplivo could not activate its protected data storage. Startup has stopped and the original data has been kept. Export a copy of your data or retry; no empty database will be created.'**
   String get recoveryStorageFailureBody;
 
   /// Progress screen title shown during the protecting-data stage of startup recovery.
@@ -24576,10 +24078,10 @@ abstract class AppLocalizations {
   /// **'Copies were found, but none passed validation. The originals have been kept. You can export your data for further diagnosis.'**
   String get recoveryNoValidCopies;
 
-  /// Warning that storage is insufficient to prepare data, advising freeing space and keeping Kelivo data and copies intact.
+  /// Warning that storage is insufficient to prepare data, advising freeing space and keeping Cuplivo data and copies intact.
   ///
   /// In en, this message translates to:
-  /// **'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Kelivo or recheck the copies below. Keep Kelivo installed and leave its data and local copies in place.'**
+  /// **'There is not enough storage to safely prepare your data. Free space in system settings, then reopen Cuplivo or recheck the copies below. Keep Cuplivo installed and leave its data and local copies in place.'**
   String get recoveryStorageInsufficientSpaceBody;
 
   /// Migration page header title shown when a fresh start has completed.
@@ -24723,7 +24225,7 @@ abstract class AppLocalizations {
   /// Error shown when the backup's encryption version is newer than this app supports.
   ///
   /// In en, this message translates to:
-  /// **'This encrypted backup requires a newer version of Kelivo.'**
+  /// **'This encrypted backup requires a newer version of Cuplivo.'**
   String get backupEncryptionUnsupported;
 
   /// Progress dialog status label for the backup encrypting phase.
@@ -25032,10 +24534,10 @@ abstract class AppLocalizations {
   /// **'Restore tabs'**
   String get browserRestoreTabs;
 
-  /// Subtitle under the restore-tabs switch explaining tabs reopen when Kelivo starts.
+  /// Subtitle under the restore-tabs switch explaining tabs reopen when Cuplivo starts.
   ///
   /// In en, this message translates to:
-  /// **'Reopen your tabs when Kelivo starts.'**
+  /// **'Reopen your tabs when Cuplivo starts.'**
   String get browserRestoreTabsDescription;
 
   /// Settings switch label controlling whether visited pages are recorded locally.
@@ -26982,6 +26484,12 @@ abstract class AppLocalizations {
   /// **'Dismiss'**
   String get compressTaskAbandon;
 
+  /// Browser agent status chip label shown when an operation timed out and the AI was paused.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation timed out; AI paused'**
+  String get browserAgentTimedOut;
+
   /// Snackbar confirming compression was cancelled and the current context is unchanged.
   ///
   /// In en, this message translates to:
@@ -27873,7 +27381,7 @@ abstract class AppLocalizations {
   /// Description of the approval-required permission mode: tools accessing files outside the workspace or running desktop commands ask before executing.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.'**
+  /// **'Cuplivo will ask before accessing files outside the workspace, running desktop commands, or using other tools that need approval.'**
   String get toolPermissionRequestApprovalDesc;
 
   /// Hint explaining only the selected character range is read into the summary; remaining replaced history is excluded but original messages remain viewable.
@@ -27978,10 +27486,10 @@ abstract class AppLocalizations {
   /// **'Remove the retained copy from the directory below? Data in the current directory will be kept. Files changed since the move will not be deleted.'**
   String get dataDirectoryCleanConfirm;
 
-  /// Progress message shown during startup while data is being moved and verified, asking the user to keep Kelivo open.
+  /// Progress message shown during startup while data is being moved and verified, asking the user to keep Cuplivo open.
   ///
   /// In en, this message translates to:
-  /// **'Moving and verifying data… Please keep Kelivo open.'**
+  /// **'Moving and verifying data… Please keep Cuplivo open.'**
   String get dataDirectoryMoving;
 
   /// Startup error title shown when the data directory cannot be opened.
@@ -28050,10 +27558,10 @@ abstract class AppLocalizations {
   /// **'The destination contains unexpected or changed files. The original data has been kept. Check the destination before retrying.'**
   String get dataDirectoryCopyChanged;
 
-  /// Fallback error message for a failed data directory operation; suggests checking disk space, permissions, and other Kelivo processes, noting data was kept.
+  /// Fallback error message for a failed data directory operation; suggests checking disk space, permissions, and other Cuplivo processes, noting data was kept.
   ///
   /// In en, this message translates to:
-  /// **'The operation could not finish. Check available disk space, folder permissions and whether another Kelivo process is running, then retry. Existing data has been kept.'**
+  /// **'The operation could not finish. Check available disk space, folder permissions and whether another Cuplivo process is running, then retry. Existing data has been kept.'**
   String get dataDirectoryGenericError;
 
   /// Hint shown in the directory-move cancel dialog explaining that cancelling keeps already-copied files in the destination for manual cleanup.
@@ -28479,7 +27987,7 @@ abstract class AppLocalizations {
   /// Explanatory body on the restore failure screen; states loading paused and local copies will be searched, existing files kept.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.'**
+  /// **'Cuplivo paused loading your data. We’ll look for local copies so you can choose what to recover. Existing files will be kept.'**
   String get recoveryGuideBody;
 
   /// Header title on the restore failure screen shown when insufficient storage space blocks recovery.
@@ -28515,7 +28023,7 @@ abstract class AppLocalizations {
   /// Message on the restore failure screen when a restore did not complete; the selected copy is kept and user can recheck or reopen.
   ///
   /// In en, this message translates to:
-  /// **'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Kelivo to continue.'**
+  /// **'The restore could not be completed. The selected copy has been kept. Check local copies again or reopen Cuplivo to continue.'**
   String get recoveryRestoreRetryBody;
 
   /// Message on the restore failure screen showing available space and required free space; {available} and {required} are formatted byte strings.
@@ -28524,10 +28032,10 @@ abstract class AppLocalizations {
   /// **'Last check: {available} available; at least {required} of free space is needed to prepare your data safely.'**
   String recoverySpaceAmount(String required, String available);
 
-  /// Message on the restore failure screen warning some copies come from a newer Kelivo version and require an app update; copies kept.
+  /// Message on the restore failure screen warning some copies come from a newer Cuplivo version and require an app update; copies kept.
   ///
   /// In en, this message translates to:
-  /// **'Some copies were made by a newer version of Kelivo. Update Kelivo before restoring them. These copies have been kept.'**
+  /// **'Some copies were made by a newer version of Cuplivo. Update Cuplivo before restoring them. These copies have been kept.'**
   String get recoveryCopiesNeedUpdate;
 
   /// Label for the conversation image recall switch in the image context panel and mobile/desktop chat tool menus. Controls the historical-image capability of view_image.
@@ -28571,30 +28079,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not included'**
   String get imageContextOmitted;
-
-  /// Tooltip on an image row action in the Image context panel. Exclude that image from subsequent model requests and conversation image recall, retaining the original image in chat.
-  ///
-  /// In en, this message translates to:
-  /// **'Exclude from context'**
-  String get imageContextExclude;
-
-  /// Tooltip on the image row action in the Image context panel that removes a manual exclusion. The current conversation and automatic selection rules determine when an eligible image is sent or recalled.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove exclusion'**
-  String get imageContextRestore;
-
-  /// Status shown beside an image in the Image context panel when the user has explicitly excluded that image from requests and conversation recall.
-  ///
-  /// In en, this message translates to:
-  /// **'Excluded by you'**
-  String get imageContextExcluded;
-
-  /// Status and disabled action tooltip in the Image context panel for a tool-recalled copy that inherits an exclusion from the original image.
-  ///
-  /// In en, this message translates to:
-  /// **'Original image excluded'**
-  String get imageContextExcludedWithOriginal;
 
   /// Tooltip on the pin button for an image; pins it to prioritize retention.
   ///
@@ -28703,12 +28187,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Compression and clear history'**
   String get contextOperationsTitle;
-
-  /// Button below the context operation history list. Loads and appends the next ten older records; initially only the three most recent records are shown. Hidden when all records are loaded. No placeholders.
-  ///
-  /// In en, this message translates to:
-  /// **'Show more'**
-  String get contextOperationsLoadMore;
 
   /// Subtitle of the compression and clear history entry; users can inspect records and undo operations.
   ///
@@ -29028,18 +28506,6 @@ abstract class AppLocalizations {
   /// **'The summary can draw on the assistant’s system prompt, world book entries matched to this part of the chat, and memories saved at the time. The chat history establishes what happened and what each character knows.'**
   String get compressionReferenceHint;
 
-  /// Switch under background references in text compression settings. Enables sending the instruction cards selected for the chat as reference material to the model generating a summary. No placeholders.
-  ///
-  /// In en, this message translates to:
-  /// **'Use instruction injections as references'**
-  String get compressionInstructionInjections;
-
-  /// Help below the instruction injection switch in text compression settings. Describes the selected chat instruction cards being sent as background material for the summary. No placeholders.
-  ///
-  /// In en, this message translates to:
-  /// **'Send the instruction cards enabled for this chat to the summary model as background references.'**
-  String get compressionInstructionInjectionsHint;
-
   /// Switch label for replacing already-consumed tool results with references.
   ///
   /// In en, this message translates to:
@@ -29129,12 +28595,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The summary was cut off or refused, and the context is unchanged. Raise the output limit, or try a different model.'**
   String get compressionIncomplete;
-
-  /// Compression error shown when the model provider actually rejected the final attempted input with a context length or payload size error. Original provider details are shown separately.
-  ///
-  /// In en, this message translates to:
-  /// **'The provider reported that the request was too large. Try a model with a larger context.'**
-  String get compressionProviderContextRejected;
 
   /// Error message when referenced background changed, advising reviewing the candidate or regenerating.
   ///
@@ -29460,36 +28920,6 @@ abstract class AppLocalizations {
   /// **'turns'**
   String get compressionTurnUnit;
 
-  /// Timeout field for each compression request, in minutes. Also labels the recovery action that opens this field.
-  ///
-  /// In en, this message translates to:
-  /// **'Compression request timeout'**
-  String get compressionRequestTimeout;
-
-  /// Minute unit suffix beside the compression request timeout numeric input. Keep it short to fit a narrow field suffix.
-  ///
-  /// In en, this message translates to:
-  /// **'min'**
-  String get compressionMinuteUnit;
-
-  /// Placeholder for an empty compression request timeout input. Empty preserves the current behavior of each mode, including the native compression default of five minutes.
-  ///
-  /// In en, this message translates to:
-  /// **'Default'**
-  String get compressionRequestTimeoutDefault;
-
-  /// Help text below the compression request timeout input in More settings. The value may contain decimals and limits total wait per model invocation, not idle time or the whole multi-request task.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a number of minutes greater than 0. Leave blank to keep the current default (5 minutes for server-side compression). When summarizing in parts, each part and the merge is timed separately.'**
-  String get compressionRequestTimeoutHint;
-
-  /// Compression task failure shown when the total deadline cancels a model request, distinct from user cancellation. minutes is the elapsed request limit in minutes, possibly fractional. Users can increase the timeout in More settings and retry.
-  ///
-  /// In en, this message translates to:
-  /// **'Compression stopped after {minutes} minutes and the context is unchanged. Try again, or allow a longer timeout.'**
-  String compressionRequestTimedOut(num minutes);
-
   /// Disclosure title in compression options and context operation widgets for advanced compression details.
   ///
   /// In en, this message translates to:
@@ -29507,12 +28937,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto'**
   String get compressionAutomaticWindow;
-
-  /// Read-only line in compression details showing the estimated capacity of the model used for summaries. The tokens placeholder is a compact count like 128K, and source is a localized model metadata source such as Catalog or Custom.
-  ///
-  /// In en, this message translates to:
-  /// **'Summary model window · {tokens} tokens · {source}'**
-  String compressionSummaryWindowEstimate(String tokens, String source);
 
   /// Hint in compression options when auto-compression is off, noting manual compression is available.
   ///
@@ -29667,25 +29091,25 @@ abstract class AppLocalizations {
   /// Preflight error stating that a specific image's encoded size exceeds the single-image budget.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo local preflight: image {index} has an encoded size of {actual}, exceeding the single-image limit of {limit}.'**
+  /// **'Cuplivo local preflight: image {index} has an encoded size of {actual}, exceeding the single-image limit of {limit}.'**
   String requestBudgetSingleError(int index, String actual, String limit);
 
   /// Preflight error stating that the combined encoded size of images exceeds the total image budget.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo local preflight: encoded images total {actual}, exceeding the image budget of {limit}.'**
+  /// **'Cuplivo local preflight: encoded images total {actual}, exceeding the image budget of {limit}.'**
   String requestBudgetTotalError(String actual, String limit);
 
   /// Preflight error stating that the request contains more images than the allowed count.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo local preflight: the request contains {actual} images, exceeding the limit of {limit}.'**
+  /// **'Cuplivo local preflight: the request contains {actual} images, exceeding the limit of {limit}.'**
   String requestBudgetCountError(String actual, int limit);
 
   /// Preflight error stating that the complete request body exceeds the request body budget.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo local preflight: the complete request body is {actual}, exceeding the request budget of {limit}.'**
+  /// **'Cuplivo local preflight: the complete request body is {actual}, exceeding the request budget of {limit}.'**
   String requestBudgetBodyError(String actual, String limit);
 
   /// Additional line in a budget error noting that the offending image is pinned.
@@ -29813,12 +29237,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Turkish'**
   String get languageDisplayTurkish;
-
-  /// Name of the Bengali language (Bangla) as a target in the assistant reply translation menu and standalone translator.
-  ///
-  /// In en, this message translates to:
-  /// **'Bangla'**
-  String get languageDisplayBangla;
 
   /// Confirmation question before deleting the named chat from the sidebar. Keep the title placeholder; reorder the sentence naturally.
   ///
@@ -30024,7 +29442,2341 @@ abstract class AppLocalizations {
   /// **'Save'**
   String get workspaceEnvNativeShellSave;
 
-  /// Desktop display settings, tray section: switch to register Kelivo to start when the user logs in to this device. Disabled by default.
+  /// Category title on the storage page for the space used by assistants' own data.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants'**
+  String get storageSpaceCategoryAssistantData;
+
+  /// Breakdown row on the storage page for avatar images belonging to assistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatars'**
+  String get storageSpaceSubAssistantAvatars;
+
+  /// Breakdown row on the storage page for images belonging to assistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get storageSpaceSubAssistantImages;
+
+  /// Label of the filter on the storage page that narrows a file list by who the file came from.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get storageSpaceSourceLabel;
+
+  /// Filter option on the storage page that shows files from every source.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get storageSpaceSourceAll;
+
+  /// Filter option on the storage page that shows only files the user uploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'User uploads'**
+  String get storageSpaceSourceUserUpload;
+
+  /// Filter option on the storage page that shows only files sent by an assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get storageSpaceSourceAssistant;
+
+  /// Name of Portuguese in the language picker's list of languages.
+  ///
+  /// In en, this message translates to:
+  /// **'Portuguese'**
+  String get languageDisplayPortuguese;
+
+  /// Name of Arabic in the language picker's list of languages.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic'**
+  String get languageDisplayArabic;
+
+  /// Name of Hindi in the language picker's list of languages.
+  ///
+  /// In en, this message translates to:
+  /// **'Hindi'**
+  String get languageDisplayHindi;
+
+  /// Name of Thai in the language picker's list of languages.
+  ///
+  /// In en, this message translates to:
+  /// **'Thai'**
+  String get languageDisplayThai;
+
+  /// Name of Vietnamese in the language picker's list of languages.
+  ///
+  /// In en, this message translates to:
+  /// **'Vietnamese'**
+  String get languageDisplayVietnamese;
+
+  /// Name of Bengali in the language picker's list of languages.
+  ///
+  /// In en, this message translates to:
+  /// **'Bengali'**
+  String get languageDisplayBengali;
+
+  /// Title of the sheet that chooses which languages appear in the translate language picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Languages'**
+  String get translateLanguageManagerTitle;
+
+  /// Subtitle under that title explaining that the chosen languages are the ones offered as translation targets.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which languages appear in the translate target list.'**
+  String get translateLanguageManagerSubtitle;
+
+  /// Warning shown when the user tries to hide every language from the translate picker; one must stay visible.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep at least one language visible.'**
+  String get translateLanguageManagerAtLeastOne;
+
+  /// Label of the per-assistant switch that offers follow-up suggestions after each reply.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat Suggestions'**
+  String get assistantEditChatSuggestionsTitle;
+
+  /// Help text for the Chat Suggestions switch, explaining that one extra request per reply proposes up to three follow-ups and that switching it off spends nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds one request after each reply to propose up to three follow-ups. Off spends nothing.'**
+  String get assistantEditChatSuggestionsTip;
+
+  /// Note under the per-assistant Chat Suggestions switch when the feature is switched off globally, saying to enable it under Default Models first.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive — turn on Chat Suggestions under Default Models first.'**
+  String get assistantEditChatSuggestionsGlobalOff;
+
+  /// Name of the keyboard shortcut action that puts the cursor into the message input box.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus Input'**
+  String get hotkeyFocusInput;
+
+  /// Name of the keyboard shortcut action that copies the selected message text as Markdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Selection as Markdown'**
+  String get hotkeyCopySelectionMarkdown;
+
+  /// Name of the keyboard shortcut action that starts a reply quoting the selected message text.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply to Selection'**
+  String get hotkeyReplySelection;
+
+  /// Status text shown while the app compresses the conversation's context into a shorter summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Compressing context...'**
+  String get compressingContext;
+
+  /// Left side of the compression readout, naming how many conversation rounds are about to be compressed; rounds is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{rounds, plural, =1{1 round} other{{rounds} rounds}}'**
+  String compressContextReadoutRounds(int rounds);
+
+  /// Right side of the compression readout, naming how many rounds stay verbatim next to the new summary; rounds is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{rounds, plural, =1{1 round} other{{rounds} rounds}} + summary'**
+  String compressContextReadoutKeptRounds(int rounds);
+
+  /// Left side of the compression readout, giving the conversation's current size in tokens; tokens is a formatted count.
+  ///
+  /// In en, this message translates to:
+  /// **'~{tokens} tokens'**
+  String compressContextReadoutTokens(String tokens);
+
+  /// Right side of the compression readout, giving the estimated size range of the compressed result; min and max are formatted token counts.
+  ///
+  /// In en, this message translates to:
+  /// **'~{min}–{max} tokens'**
+  String compressContextReadoutTokensBand(String min, String max);
+
+  /// Label above the arrow of the compression readout with the expected saving; percent is that reduction.
+  ///
+  /// In en, this message translates to:
+  /// **'−{percent}%'**
+  String compressContextReadoutReduction(int percent);
+
+  /// Tooltip on the close button of the reply preview above the composer, which drops the quoted message.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove reply'**
+  String get messageQuotePreviewRemove;
+
+  /// Shown in place of the quoted text when the message being replied to can no longer be found.
+  ///
+  /// In en, this message translates to:
+  /// **'Original message unavailable'**
+  String get messageQuoteTargetMissing;
+
+  /// Action in the message actions sheet that starts a reply quoting that message.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get messageMoreSheetReply;
+
+  /// Action in the message actions sheet that copies a link to that message.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Link'**
+  String get messageMoreSheetCopyLink;
+
+  /// Line in the reasoning-strength sheet showing which level is selected now; level is that level's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Level: {level}'**
+  String reasoningBudgetSheetCurrentLevel(String level);
+
+  /// Item in the text-selection context menu that replies to the selected text with it quoted.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get chatMessageWidgetReplySelection;
+
+  /// Action in the chat selection bar that exports the selected messages as a PDF document.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get chatSelectionExportPdf;
+
+  /// Role label printed for the user's own messages in an exported transcript.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get messageExportSheetUser;
+
+  /// Export option, titled PDF, in the sheet that offers formats for the selected messages.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF'**
+  String get messageExportSheetPdf;
+
+  /// Subtitle under the PDF export option, saying the selected messages become one PDF document.
+  ///
+  /// In en, this message translates to:
+  /// **'Export selected messages as a PDF document'**
+  String get messageExportSheetBatchPdfSubtitle;
+
+  /// Title of the dialog that configures a PDF export of chat messages.
+  ///
+  /// In en, this message translates to:
+  /// **'Export PDF'**
+  String get pdfExportDialogTitle;
+
+  /// Label of the button that closes the PDF export dialog without exporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get pdfExportDialogCancel;
+
+  /// Label of the button that starts the PDF export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export PDF'**
+  String get pdfExportDialogExport;
+
+  /// Section header in the PDF export dialog for the options that decide what the document contains.
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get pdfExportDialogSectionContent;
+
+  /// Section header in the PDF export dialog for the fonts used in the document.
+  ///
+  /// In en, this message translates to:
+  /// **'Fonts'**
+  String get pdfExportDialogSectionFonts;
+
+  /// Row label for the font used for the document's body text.
+  ///
+  /// In en, this message translates to:
+  /// **'Body font'**
+  String get pdfExportFontRoleBody;
+
+  /// Row label for the font used for code blocks in the exported document.
+  ///
+  /// In en, this message translates to:
+  /// **'Code font'**
+  String get pdfExportFontRoleMono;
+
+  /// Row label for the font used to draw emoji in the exported document.
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji font'**
+  String get pdfExportFontRoleEmoji;
+
+  /// Button that re-inspects which fonts are available for the PDF export.
+  ///
+  /// In en, this message translates to:
+  /// **'Check fonts'**
+  String get pdfExportFontCheck;
+
+  /// Label of that button while the font check is running.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get pdfExportFontChecking;
+
+  /// Footer warning in the PDF export dialog when no font with CJK glyphs can be embedded, so CJK text may print blank.
+  ///
+  /// In en, this message translates to:
+  /// **'No embeddable CJK font was found; CJK text may print blank.'**
+  String get pdfExportFontMissing;
+
+  /// Shown beside a font choice when the chosen font could not be used and another one was substituted.
+  ///
+  /// In en, this message translates to:
+  /// **'The chosen font could not be used; another was substituted.'**
+  String get pdfExportFontUnusable;
+
+  /// Description of a font choice that uses the PDF library's built-in font.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in font'**
+  String get pdfExportFontBuiltIn;
+
+  /// Description of the current font choice when no font is embedded in the document.
+  ///
+  /// In en, this message translates to:
+  /// **'Not embedded'**
+  String get pdfExportFontNone;
+
+  /// Description of a font choice that must be downloaded before it can be embedded.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs download'**
+  String get pdfExportFontNeedsDownload;
+
+  /// Name of the font choice that lets the app pick a suitable font automatically.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get pdfExportFontAuto;
+
+  /// Group heading in the font picker for fonts installed on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'System fonts'**
+  String get pdfExportFontGroupSystem;
+
+  /// Group heading in the font picker for fonts that are downloaded on demand.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get pdfExportFontGroupDownload;
+
+  /// Group heading in the font picker for the remaining, non-system font choices.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get pdfExportFontGroupOther;
+
+  /// Note marking a font that includes CJK glyphs.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes CJK'**
+  String get pdfExportFontNoteCjk;
+
+  /// Note marking an emoji font that draws colour glyphs.
+  ///
+  /// In en, this message translates to:
+  /// **'Colour'**
+  String get pdfExportFontNoteColour;
+
+  /// Note marking an emoji font that draws single-colour glyphs.
+  ///
+  /// In en, this message translates to:
+  /// **'Monochrome'**
+  String get pdfExportFontNoteMonochrome;
+
+  /// Subtitle of the built-in font choice, warning that it embeds no font and CJK text prints blank.
+  ///
+  /// In en, this message translates to:
+  /// **'Embeds no font; CJK prints blank'**
+  String get pdfExportFontBuiltInNote;
+
+  /// Subtitle of the downloadable font choice, saying it includes CJK glyphs and is about 10 MB.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes CJK, about 10 MB'**
+  String get pdfExportFontDownloadNote;
+
+  /// Error shown in the font picker when the list of available fonts could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read the font list'**
+  String get pdfExportFontListFailed;
+
+  /// Title of the dialog shown when a PDF export has finished.
+  ///
+  /// In en, this message translates to:
+  /// **'Export complete'**
+  String get pdfExportResultTitle;
+
+  /// Summary under that title giving the page count and the file size; pages and size hold those values.
+  ///
+  /// In en, this message translates to:
+  /// **'{pages} pages · {size}'**
+  String pdfExportResultSummary(Object pages, Object size);
+
+  /// Headline for the list of items in the exported document that could only be approximated; count is how many there were.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} item(s) not fully exported'**
+  String pdfExportResultDegraded(Object count);
+
+  /// Line in the export result naming formulas that were printed as plain text; count is how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} formula(s) shown as plain text'**
+  String pdfExportResultDegradedMath(Object count);
+
+  /// Line in the export result naming diagrams that were printed as code; count is how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} diagram(s) shown as code'**
+  String pdfExportResultDegradedDiagram(Object count);
+
+  /// Line in the export result naming images that could not be read and appear only as their reference; count is how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} image(s) could not be read and are shown as their reference'**
+  String pdfExportResultDegradedImage(Object count);
+
+  /// Button that closes the PDF export result dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get pdfExportResultDone;
+
+  /// Menu item in the conversation sidebar that copies a link to the conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Link'**
+  String get sideDrawerMenuCopyLink;
+
+  /// Toast confirming that a link to the message or conversation was copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link copied'**
+  String get conversationLinkCopied;
+
+  /// Toast shown when an opened conversation link points to a conversation that is not stored on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation isn\'t on this device.'**
+  String get conversationLinkMissing;
+
+  /// Hint text of the model ID field when the field is locked, showing the ID it currently holds; modelId is that identifier.
+  ///
+  /// In en, this message translates to:
+  /// **'{modelId}'**
+  String modelDetailSheetModelIdDisabledHint(String modelId);
+
+  /// Label of the built-in Search tool toggle in the model editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get modelDetailSheetSearchTool;
+
+  /// Description under the built-in Search tool toggle, saying it enables Google search integration.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Google Search integration'**
+  String get modelDetailSheetSearchToolDescription;
+
+  /// Validation error in the model editor when the entered model ID is already used by another model.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID already exists'**
+  String get modelDetailSheetModelIdExistsError;
+
+  /// Name of the QQ group listed on the About page as a place to join the community.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo Group'**
+  String get aboutPageQQGroup;
+
+  /// Title and button label for cropping an image that is about to be sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop'**
+  String get draftImageCropAction;
+
+  /// Error shown when cropping a draft image failed, noting the original image is left unchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not crop this image. The original is unchanged.'**
+  String get draftImageCropFailed;
+
+  /// Title of the setting that controls how long the chat waits before scrolling itself back to the newest message.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Scroll Back Delay'**
+  String get displaySettingsPageAutoScrollIdleTitle;
+
+  /// Subtitle of that setting, saying it is the wait time after the user scrolls before the chat jumps to the bottom again.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait time after user scroll before jumping to bottom'**
+  String get displaySettingsPageAutoScrollIdleSubtitle;
+
+  /// Section title in the memory settings for the memory types that are always injected in full.
+  ///
+  /// In en, this message translates to:
+  /// **'Always inject these types'**
+  String get memorySettingsFullInjectionTypesTitle;
+
+  /// Subtitle under that section, explaining that the chosen types skip the item limit so every visible active memory of that type is injected, at the cost of more context and tokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Select one or more types to inject all their active memories visible to the current assistant. These types ignore the item limit and use more context and tokens.'**
+  String get memorySettingsFullInjectionTypesSubtitle;
+
+  /// Button in the tool approval prompt that lets the pending tool call run.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get toolApprovalApprove;
+
+  /// Title of the setting that chooses how attached images are compressed.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression Mode'**
+  String get imageSettingsPageModeTitle;
+
+  /// Compression mode in which images are attached unchanged and compressed by hand from the preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get imageSettingsPageModeManual;
+
+  /// Compression mode in which images are re-encoded as they are attached, using the preset set below it.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get imageSettingsPageModeAuto;
+
+  /// Compression mode in which images are never compressed.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get imageSettingsPageModeOff;
+
+  /// Subtitle of the manual compression mode, saying images are attached as they are and compressed from the preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are attached unchanged; open the preview to compress them manually'**
+  String get imageSettingsPageModeManualSubtitle;
+
+  /// Subtitle of the automatic compression mode, saying images are re-encoded on attach with the preset below.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are re-encoded when attached, using the preset below'**
+  String get imageSettingsPageModeAutoSubtitle;
+
+  /// Subtitle of the disabled compression mode, saying images are never compressed.
+  ///
+  /// In en, this message translates to:
+  /// **'Images are never compressed'**
+  String get imageSettingsPageModeOffSubtitle;
+
+  /// Title of the editor that recompresses an image attached to a message, and label of the button that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Compress Image'**
+  String get compressEditorTitle;
+
+  /// Format option in the compression editor that re-encodes the image as JPEG.
+  ///
+  /// In en, this message translates to:
+  /// **'JPEG'**
+  String get compressEditorFormatJpeg;
+
+  /// Format option in the compression editor that re-encodes the image as PNG.
+  ///
+  /// In en, this message translates to:
+  /// **'PNG'**
+  String get compressEditorFormatPng;
+
+  /// Format option in the compression editor that keeps the image's current format.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get compressEditorFormatOriginal;
+
+  /// Label of the row that chooses how much to shrink the image's long edge.
+  ///
+  /// In en, this message translates to:
+  /// **'Long edge'**
+  String get compressEditorLongEdgeLabel;
+
+  /// Long-edge preset that keeps the image at its original size.
+  ///
+  /// In en, this message translates to:
+  /// **'100%'**
+  String get compressEditorLongEdgeFull;
+
+  /// Long-edge preset that halves the image's long edge.
+  ///
+  /// In en, this message translates to:
+  /// **'50%'**
+  String get compressEditorLongEdgeHalf;
+
+  /// Long-edge preset that cuts the image's long edge to a quarter.
+  ///
+  /// In en, this message translates to:
+  /// **'25%'**
+  String get compressEditorLongEdgeQuarter;
+
+  /// Label of the slider that sets the encoder quality of the recompressed image.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get compressEditorQualityLabel;
+
+  /// Caption under the original image in the compression editor's before-and-after comparison.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get compressEditorOriginalSide;
+
+  /// Placeholder in the size comparison while the compressed size is still being computed.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimating size…'**
+  String get compressEditorEstimating;
+
+  /// Shown in the size comparison when no estimate of the compressed size could be produced.
+  ///
+  /// In en, this message translates to:
+  /// **'Size estimate unavailable'**
+  String get compressEditorEstimateFailed;
+
+  /// Label above the arrow when recompressing makes the image smaller; percent is the saving.
+  ///
+  /// In en, this message translates to:
+  /// **'−{percent}%'**
+  String compressEditorSavings(int percent);
+
+  /// Label above the arrow when recompressing makes the image larger; percent is the increase.
+  ///
+  /// In en, this message translates to:
+  /// **'+{percent}%'**
+  String compressEditorGrowth(int percent);
+
+  /// Note in the size comparison when the chosen settings would re-encode nothing and the file stays as it is.
+  ///
+  /// In en, this message translates to:
+  /// **'no re-encode'**
+  String get compressEditorNoReencode;
+
+  /// Error shown when the image cannot be decoded, so it cannot be previewed or recompressed.
+  ///
+  /// In en, this message translates to:
+  /// **'This image can\'t be previewed, so it can\'t be re-compressed.'**
+  String get compressEditorDecodeFailed;
+
+  /// Error shown when the image is too large to open in the editor, saying it will be attached uncompressed.
+  ///
+  /// In en, this message translates to:
+  /// **'This image is too large to open in the editor, so it can\'t be re-compressed here. It will be attached as it is.'**
+  String get compressEditorTooLarge;
+
+  /// Shown when a very large image is worked at a reduced resolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Source {source}, loaded at {percent}% to stay within memory'**
+  String compressEditorWorkingScale(String source, int percent);
+
+  /// Button and tooltip that closes the compression editor without changing the image.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get compressEditorCancel;
+
+  /// Button that applies the chosen compression settings to the image being edited.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get compressEditorApply;
+
+  /// Button that applies the chosen compression settings to every image attached to the message.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to all'**
+  String get compressEditorApplyAll;
+
+  /// Button that closes the editor, shown instead of Apply when the settings change nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get compressEditorDone;
+
+  /// Option in the workspace tool approval that allows every further call of this kind for the rest of the session.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow all this session'**
+  String get workspaceToolAllowAll;
+
+  /// Option in the workspace approval prompt that stops asking for approval for the rest of the session.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow all this session'**
+  String get workspaceEntryAllowAll;
+
+  /// Subtitle under that option warning that shell commands in this conversation will then run without approval.
+  ///
+  /// In en, this message translates to:
+  /// **'Shell commands in this conversation will run without approval.'**
+  String get workspaceEntryAllowAllSubtitle;
+
+  /// Title of the recycle bin screen and of its card on the storage page.
+  ///
+  /// In en, this message translates to:
+  /// **'Recycle Bin'**
+  String get recycleBinTitle;
+
+  /// Button on the storage page that opens the recycle bin.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage recycle bin'**
+  String get recycleBinManage;
+
+  /// Hint on the storage page saying recycle-bin entries are kept on this device only and never sync or enter a backup.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept on this device only — never synced, never in a backup.'**
+  String get recycleBinStorageHint;
+
+  /// Unit word after the item count in the recycle bin footer, as in a number followed by items.
+  ///
+  /// In en, this message translates to:
+  /// **'items'**
+  String get recycleBinEntriesLabel;
+
+  /// Empty-state title in the recycle bin when nothing has been deleted on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in the bin'**
+  String get recycleBinEmptyTitle;
+
+  /// Empty-state body explaining that deleted conversations and assistants, and settings a sync merge replaced, are kept here so they can be brought back.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations and assistants you delete, and settings a sync merge replaced, are kept here so you can bring them back.'**
+  String get recycleBinEmptyBody;
+
+  /// Placeholder title for a recycle-bin entry that had no name when it was deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get recycleBinUntitled;
+
+  /// Kind label on a recycle-bin entry that is a conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation'**
+  String get recycleBinKindConversation;
+
+  /// Kind label on a recycle-bin entry that is an assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get recycleBinKindAssistant;
+
+  /// Kind label on a recycle-bin entry that is a model provider or provider group.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get recycleBinKindProvider;
+
+  /// Kind label on a recycle-bin entry that is a world book.
+  ///
+  /// In en, this message translates to:
+  /// **'World book'**
+  String get recycleBinKindWorldBook;
+
+  /// Kind label on a recycle-bin entry that is a memory or memory entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get recycleBinKindMemory;
+
+  /// Kind label on a recycle-bin entry that is a single setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting'**
+  String get recycleBinKindPreference;
+
+  /// Kind label on a recycle-bin entry that is a file from a workspace folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace file'**
+  String get recycleBinKindWorkspaceFile;
+
+  /// Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration'**
+  String get recycleBinKindConfig;
+
+  /// Origin note on a recycle-bin entry saying it was deleted on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted here'**
+  String get recycleBinOriginLocal;
+
+  /// Origin note on a recycle-bin entry saying it was removed by a sync from another device.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted by sync'**
+  String get recycleBinOriginRemote;
+
+  /// Origin note on a recycle-bin entry saying a newer copy from sync replaced it.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaced by a newer copy'**
+  String get recycleBinReasonOverwritten;
+
+  /// Button that puts a recycle-bin entry back where it came from.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get recycleBinRestore;
+
+  /// Button and confirmation title for destroying a recycle-bin entry for good.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get recycleBinDeleteForever;
+
+  /// Warning in that confirmation, saying the entry will be gone and can no longer be recovered.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry will be deleted for good and can no longer be recovered.'**
+  String get recycleBinDeleteForeverBody;
+
+  /// Button and confirmation title for emptying the whole recycle bin.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty the bin'**
+  String get recycleBinClearAll;
+
+  /// Warning in that confirmation, saying every entry in the bin will be deleted for good.
+  ///
+  /// In en, this message translates to:
+  /// **'Every entry in the bin will be deleted for good and can no longer be recovered.'**
+  String get recycleBinClearAllBody;
+
+  /// Toast confirming that a recycle-bin entry was restored.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored'**
+  String get recycleBinRestored;
+
+  /// Toast telling the user the entry is already back, so the restore changed nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'That item is back already, so nothing was changed'**
+  String get recycleBinRestoreSkipped;
+
+  /// Toast telling the user the staged copy is damaged and cannot be restored.
+  ///
+  /// In en, this message translates to:
+  /// **'The staged copy is damaged and cannot be restored'**
+  String get recycleBinRestoreUnreadable;
+
+  /// Toast telling the user this build cannot restore that kind of entry.
+  ///
+  /// In en, this message translates to:
+  /// **'This build cannot restore that entry'**
+  String get recycleBinRestoreUnsupported;
+
+  /// Toast explaining that the entry's workspace folder no longer exists, so there is nowhere to put the file back.
+  ///
+  /// In en, this message translates to:
+  /// **'This file\'s workspace was deleted, so there is no folder to put it back into.'**
+  String get recycleBinRestoreNoWorkspace;
+
+  /// Toast shown when restoring a recycle-bin entry failed for any other reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not restore that entry'**
+  String get recycleBinRestoreFailed;
+
+  /// Filter tab in the recycle bin that shows every kind of entry.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get recycleBinFilterAll;
+
+  /// Filter tab in the recycle bin that shows deleted conversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations'**
+  String get recycleBinFilterConversation;
+
+  /// Filter tab in the recycle bin that shows deleted assistants.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants'**
+  String get recycleBinFilterAssistants;
+
+  /// Filter tab in the recycle bin that shows replaced settings and other configuration entries.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get recycleBinFilterSettings;
+
+  /// Filter tab in the recycle bin that shows deleted workspace files.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get recycleBinFilterFiles;
+
+  /// Button that dismisses a recycle-bin confirmation without doing anything.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get recycleBinCancel;
+
+  /// Title of the dialog explaining how the recycle bin works; also the tooltip of the button that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'About the recycle bin'**
+  String get recycleBinInfoTitle;
+
+  /// Body of that dialog, describing what is kept, that the bin never syncs or enters a backup, and the retention time and size limits.
+  ///
+  /// In en, this message translates to:
+  /// **'What you delete here — a conversation, an assistant, a provider, a memory, a setting — is kept on this device so it can be brought back.\n\nThe bin never syncs and never goes into a backup. Entries are kept for 90 days, or until the bin passes 256 MB or 1000 entries; past either limit the oldest go first.\n\nBringing something back writes it as of now, so it is not immediately replaced by whatever won last time.'**
+  String get recycleBinInfoBody;
+
+  /// Button that closes the recycle-bin explanation dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get recycleBinInfoClose;
+
+  /// Header of a group of entries that were deleted together with a group chat; count is how many conversations went with it and name is the group's name.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} conversations deleted together with “{name}”'**
+  String recycleBinGroupHeader(Object count, Object name);
+
+  /// Button that restores every entry of such a deleted-together group at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore all'**
+  String get recycleBinRestoreGroup;
+
+  /// Toast after restoring a deleted-together group: restored is how many entries went back and skipped how many were already present.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {restored}, {skipped} already back'**
+  String recycleBinGroupRestored(Object restored, Object skipped);
+
+  /// Toast after restoring a deleted-together group: restored is how many entries went back and failed how many could not be restored.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored {restored}, {failed} could not be restored'**
+  String recycleBinGroupRestoreFailed(Object failed, Object restored);
+
+  /// Action that opens the detail page of a recycle-bin entry.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get recycleBinOpenDetail;
+
+  /// Field label on a recycle-bin entry's detail page identifying what the entry is, shown as a path or key.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get recycleBinDetailKey;
+
+  /// Field label on the detail page giving the entry's kind and where its deletion came from.
+  ///
+  /// In en, this message translates to:
+  /// **'Origin'**
+  String get recycleBinDetailOrigin;
+
+  /// Field label on the detail page with the date the entry was deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get recycleBinDetailWhen;
+
+  /// Field label used instead of Deleted when the entry was replaced by a newer copy from sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaced'**
+  String get recycleBinDetailReplacedWhen;
+
+  /// Field label on the detail page giving the entry's size.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get recycleBinDetailSize;
+
+  /// Field label on the detail page giving the modified time of the staged file.
+  ///
+  /// In en, this message translates to:
+  /// **'File modified'**
+  String get recycleBinDetailModified;
+
+  /// Section heading for the preview of a staged entry's contents.
+  ///
+  /// In en, this message translates to:
+  /// **'Contents'**
+  String get recycleBinDetailContent;
+
+  /// Count shown beside a table in the contents preview; count is the number of rows.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} rows'**
+  String recycleBinDetailRows(Object count);
+
+  /// Note under a contents preview that was cut short because the file is larger than the preview cap; shown is the formatted cap that limits what is displayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Too large — showing the first {shown}'**
+  String recycleBinDetailTruncated(Object shown);
+
+  /// Notice shown instead of a preview when the staged file is binary.
+  ///
+  /// In en, this message translates to:
+  /// **'Binary file — no preview'**
+  String get recycleBinDetailBinary;
+
+  /// Notice shown when the staged copy is damaged, so its contents cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'The staged copy is damaged; its contents cannot be read'**
+  String get recycleBinDetailUnreadable;
+
+  /// Button that copies the entry's JSON preview to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy JSON'**
+  String get recycleBinDetailCopyJson;
+
+  /// Button that copies the previewed file's text to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy text'**
+  String get recycleBinDetailCopyText;
+
+  /// Toast confirming that the preview was copied to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get recycleBinDetailCopied;
+
+  /// Warning on the detail page when the conversation's assistant was deleted too; name is that assistant, and an assistant must be chosen after restoring.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation belonged to “{name}”, which is no longer on this device. After restoring it you will need to choose an assistant for it.'**
+  String recycleBinDetailAssistantGone(Object name);
+
+  /// Settings entry and page title for syncing with other devices over the local network.
+  ///
+  /// In en, this message translates to:
+  /// **'LAN Sync'**
+  String get settingsPageLanSync;
+
+  /// Section header in LAN sync settings for this device's own listener and addresses.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get lanSyncThisDevice;
+
+  /// Status text while the sync listener on this device is starting up.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting listener…'**
+  String get lanSyncListenerStarting;
+
+  /// Status text when the sync listener on this device is not running.
+  ///
+  /// In en, this message translates to:
+  /// **'Listener not running'**
+  String get lanSyncListenerNotRunning;
+
+  /// Status text when the sync listener failed to start; error is the reason it reported.
+  ///
+  /// In en, this message translates to:
+  /// **'Listener failed to start: {error}'**
+  String lanSyncListenerFailed(Object error);
+
+  /// Section header for pairing another device.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair a device'**
+  String get lanSyncPairSectionTitle;
+
+  /// Explanation under that header, saying two devices on the same network pair by showing a QR code on one and scanning it with the other.
+  ///
+  /// In en, this message translates to:
+  /// **'Two devices on the same LAN: one shows the QR code, the other scans it.'**
+  String get lanSyncPairIntro;
+
+  /// Note in the pairing flow warning that the first sync starts by itself and can take a while, so both apps must stay open and the mobile app in the foreground.
+  ///
+  /// In en, this message translates to:
+  /// **'After pairing, the first sync starts automatically and can take a while. Keep the desktop app running and this app in the foreground on mobile.'**
+  String get lanSyncPairFirstSyncNote;
+
+  /// Button that opens the pairing window and shows this device's QR code.
+  ///
+  /// In en, this message translates to:
+  /// **'Show pairing QR'**
+  String get lanSyncShowCode;
+
+  /// Button and dialog title for pairing by scanning a QR code or entering the other device's code by hand.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan or enter code'**
+  String get lanSyncEnterCode;
+
+  /// Label of the field where the six-digit pairing code is entered; also the title of the window that displays this device's code.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing code'**
+  String get lanSyncPairingCode;
+
+  /// Countdown under the displayed pairing code; time is the remaining time before the window closes.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {time}'**
+  String lanSyncPairingExpiresIn(Object time);
+
+  /// Hint above the addresses shown in the pairing window, telling the user to enter them on the other device.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter this on the other device'**
+  String get lanSyncPairingEndpointHint;
+
+  /// Shown in the pairing window when no LAN address was found, noting the other device can still connect by IP or hostname.
+  ///
+  /// In en, this message translates to:
+  /// **'No LAN address was found. The other device can still reach this one by its IP or hostname.'**
+  String get lanSyncPairingNoIpHint;
+
+  /// Label of the address field where the other device's IP or hostname is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get lanSyncHostLabel;
+
+  /// Label of the port field where the other device's sync port is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get lanSyncPortLabel;
+
+  /// Button in the pairing dialog that starts pairing with the entered device.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair'**
+  String get lanSyncPairButton;
+
+  /// Button shown after a sync report when the pairing needs to be redone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair again'**
+  String get lanSyncPairAgain;
+
+  /// Label of the pair button while pairing is in progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing…'**
+  String get lanSyncPairingBusy;
+
+  /// Toast confirming a successful pairing; name is the other device's display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired with {name}'**
+  String lanSyncPairSuccess(Object name);
+
+  /// Pairing error shown when the code does not match or the other device's pairing window has already closed.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong pairing code, or the other device\'s pairing window is closed.'**
+  String get lanSyncPairErrorInvalidPin;
+
+  /// Pairing error shown when the address or port field is empty or not a valid number.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the other device\'s address and port.'**
+  String get lanSyncPairErrorInvalidAddress;
+
+  /// Pairing error shown when the other device could not be reached, suggesting the address, port and network are checked.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the device. Check the address and port, and that both devices are on the same network.'**
+  String get lanSyncPairErrorUnreachable;
+
+  /// Pairing error shown when the other device did not present a certificate, so pairing was aborted.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device did not identify itself. Pairing aborted.'**
+  String get lanSyncPairErrorNoCertificate;
+
+  /// Pairing error shown when the other device's identity could not be verified, so pairing was aborted.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device\'s identity could not be verified. Pairing aborted.'**
+  String get lanSyncPairErrorIdMismatch;
+
+  /// Pairing error shown when this device's sync listener is not running yet.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync listener on this device is not running yet.'**
+  String get lanSyncPairErrorNoListener;
+
+  /// Fallback pairing error carrying the underlying failure; error is that reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing failed: {error}'**
+  String lanSyncPairErrorUnknown(Object error);
+
+  /// Button in the pairing dialog that opens the camera to scan the other device's QR code.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan pairing QR'**
+  String get lanSyncScanQr;
+
+  /// Caption under the displayed pairing QR code, saying to scan it to pair or to enter the details below on the other device.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan to pair, or enter the details below on the other device'**
+  String get lanSyncPairQrCaption;
+
+  /// Toast confirming that pairing was refreshed for a device that was already known; name is that device's display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing with {name} updated'**
+  String lanSyncPairUpdatedSnackbar(Object name);
+
+  /// Pairing error shown when the other device's certificate does not match the one carried by the scanned code, so pairing was aborted.
+  ///
+  /// In en, this message translates to:
+  /// **'The device\'s certificate does not match the scanned code. Pairing aborted.'**
+  String get lanSyncPairErrorFingerprintMismatch;
+
+  /// Pairing error shown when the scanned code carries no address and one must be entered by hand.
+  ///
+  /// In en, this message translates to:
+  /// **'The code carries no address. Enter one below to pair.'**
+  String get lanSyncPairErrorNoEndpointInQr;
+
+  /// Pairing error shown when the scanned code is not a Cuplivo pairing code at all.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a Cuplivo pairing code.'**
+  String get lanSyncPairErrorNotPairingQr;
+
+  /// Pairing error shown when the scanned pairing code could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'The pairing code could not be read.'**
+  String get lanSyncPairErrorInvalidQr;
+
+  /// Pairing error shown when the scanned code was written by a newer app version, suggesting an update.
+  ///
+  /// In en, this message translates to:
+  /// **'This pairing code is from a newer version. Update the app and try again.'**
+  String get lanSyncPairErrorQrBadVersion;
+
+  /// Button that closes the pairing window and stops offering this device for pairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Close pairing window'**
+  String get lanSyncClosePairing;
+
+  /// Section header listing the devices already paired with this one.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired devices'**
+  String get lanSyncPairedDevices;
+
+  /// Section header listing the workspace folders whose files sync to the other devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspaces'**
+  String get lanSyncWorkspaces;
+
+  /// Help text for that section, explaining which folders are skipped, the size limits, and that the switch only governs files while the folder's record always syncs.
+  ///
+  /// In en, this message translates to:
+  /// **'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.'**
+  String get lanSyncWorkspaceTip;
+
+  /// Trailing count in the workspaces section header; count is how many files are being sent right now.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} syncing files'**
+  String lanSyncWorkspaceSyncing(Object count);
+
+  /// Status label on a workspace row while its files are being sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing'**
+  String get lanSyncWorkspaceStatusSyncing;
+
+  /// Status label on a workspace row that exceeds the file-count or size limit, so its files are not synced.
+  ///
+  /// In en, this message translates to:
+  /// **'Too large'**
+  String get lanSyncWorkspaceStatusTooLarge;
+
+  /// Status label on a workspace row whose folder could not be read on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreadable'**
+  String get lanSyncWorkspaceStatusUnreadable;
+
+  /// Status label on a workspace row whose switch is off, so its files are not synced.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get lanSyncWorkspaceStatusOff;
+
+  /// Count of files in a workspace row; count is the number of files.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files'**
+  String lanSyncWorkspaceFiles(Object count);
+
+  /// Count shown when the workspace scan stopped early, so the real number is larger than the count given.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}+ files'**
+  String lanSyncWorkspaceFilesAtLeast(Object count);
+
+  /// Size shown when the workspace scan stopped early, so the real total is at least this size.
+  ///
+  /// In en, this message translates to:
+  /// **'{size}+'**
+  String lanSyncWorkspaceSizeAtLeast(Object size);
+
+  /// Empty state in the paired devices section when nothing has been paired yet, inviting the user to pair one.
+  ///
+  /// In en, this message translates to:
+  /// **'No paired devices yet. Pair one to start syncing.'**
+  String get lanSyncNoDevices;
+
+  /// Platform name shown on a paired device running Android.
+  ///
+  /// In en, this message translates to:
+  /// **'Android'**
+  String get lanSyncPlatformAndroid;
+
+  /// Platform name shown on a paired device running iOS.
+  ///
+  /// In en, this message translates to:
+  /// **'iOS'**
+  String get lanSyncPlatformIos;
+
+  /// Platform name shown on a paired device running Windows.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows'**
+  String get lanSyncPlatformWindows;
+
+  /// Platform name shown on a paired device running macOS.
+  ///
+  /// In en, this message translates to:
+  /// **'macOS'**
+  String get lanSyncPlatformMacos;
+
+  /// Platform name shown on a paired device running Linux.
+  ///
+  /// In en, this message translates to:
+  /// **'Linux'**
+  String get lanSyncPlatformLinux;
+
+  /// Fallback label shown on a paired device whose platform is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown device'**
+  String get lanSyncPlatformUnknown;
+
+  /// Freshness label for a device; time is the formatted date and time of the last successful sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Last synced {time}'**
+  String lanSyncLastSyncedAt(Object time);
+
+  /// Freshness label for a device that has never completed a sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Never synced'**
+  String get lanSyncNeverSynced;
+
+  /// Freshness label for a device synced less than a minute ago.
+  ///
+  /// In en, this message translates to:
+  /// **'Just synced'**
+  String get lanSyncJustSynced;
+
+  /// Relative freshness label in minutes; n is the number of minutes since the last sync.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} min ago'**
+  String lanSyncMinutesAgo(Object n);
+
+  /// Relative freshness label in hours; n is the number of hours since the last sync.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} h ago'**
+  String lanSyncHoursAgo(Object n);
+
+  /// Relative freshness label in days; n is the number of days since the last sync.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} d ago'**
+  String lanSyncDaysAgo(Object n);
+
+  /// Button on a paired device card that starts a sync immediately.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get lanSyncSyncNow;
+
+  /// Presence label saying the other device is reachable on the network.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get lanSyncOnline;
+
+  /// Presence tooltip saying the device is online because the last sync connected to it.
+  ///
+  /// In en, this message translates to:
+  /// **'Online — the last sync connected'**
+  String get lanSyncOnlineFromSession;
+
+  /// Presence tooltip saying the device is offline because the last sync could not connect to it.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline — the last sync could not connect'**
+  String get lanSyncOfflineFromSession;
+
+  /// Progress line during a sync while connecting to the other device; address is the address being dialled.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {address}…'**
+  String lanSyncPhaseConnectingTo(Object address);
+
+  /// Presence label saying the other device is not currently reachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get lanSyncOffline;
+
+  /// Result shown after a sync when there was nothing to exchange.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get lanSyncUpToDate;
+
+  /// Progress line during a sync while a connection is being opened.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get lanSyncPhaseConnecting;
+
+  /// Progress line during a sync while both devices compare what they hold.
+  ///
+  /// In en, this message translates to:
+  /// **'Comparing data…'**
+  String get lanSyncPhaseExchanging;
+
+  /// Progress line during a sync while local changes are being sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending changes…'**
+  String get lanSyncPhaseSending;
+
+  /// Progress line during a sync while changes from the other device are arriving.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving changes…'**
+  String get lanSyncPhaseReceiving;
+
+  /// Progress line while attachment files download; done and total are the file counts so far and overall.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading files… ({done}/{total})'**
+  String lanSyncPhaseFiles(Object done, Object total);
+
+  /// Progress line while attachment files download, used when the total number is not known yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading files…'**
+  String get lanSyncPhaseFilesNoTotal;
+
+  /// Progress line during a sync while received changes are being written to this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Applying changes…'**
+  String get lanSyncPhaseApplying;
+
+  /// Banner on a freshly paired device card warning that the first sync takes a while and needs both apps open and awake.
+  ///
+  /// In en, this message translates to:
+  /// **'First sync in progress — keep both devices awake and Cuplivo open (in the foreground on mobile) until it finishes.'**
+  String get lanSyncFirstSyncHint;
+
+  /// Menu action that renames a paired device or one of its addresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get lanSyncRename;
+
+  /// Title and field label of the dialog that renames a paired device.
+  ///
+  /// In en, this message translates to:
+  /// **'Device name'**
+  String get lanSyncRenameTitle;
+
+  /// Button and dialog title for changing the address the app uses to reach the other device.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit address'**
+  String get lanSyncEditAddress;
+
+  /// Toast confirming that the address was copied to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Address copied'**
+  String get lanSyncAddressCopied;
+
+  /// Menu action and button that removes the pairing with a device.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair'**
+  String get lanSyncUnpair;
+
+  /// Title of the confirmation shown before unpairing; name is the device's display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpair {name}?'**
+  String lanSyncUnpairConfirmTitle(Object name);
+
+  /// Body of that confirmation, saying conversations stay on both devices and only syncing stops until they are paired again.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations stay on both devices. Syncing with it stops until you pair again.'**
+  String get lanSyncUnpairConfirmBody;
+
+  /// Sync report count of items sent to the other device; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} sent'**
+  String lanSyncReportSent(Object n);
+
+  /// Sync report count of items received from the other device; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} received'**
+  String lanSyncReportReceived(Object n);
+
+  /// Sync report count of messages added or updated; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'+{n} messages'**
+  String lanSyncReportMessagesUpserted(Object n);
+
+  /// Sync report count of messages deleted; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'-{n} messages'**
+  String lanSyncReportMessagesDeleted(Object n);
+
+  /// Sync report count of conversations deleted; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'-{n} conversations'**
+  String lanSyncReportConversationsDeleted(Object n);
+
+  /// Sync report count of changes postponed to a later sync; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} deferred'**
+  String lanSyncReportDeferred(Object n);
+
+  /// Sync report count of stored records exchanged; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} entities'**
+  String lanSyncReportEntities(Object n);
+
+  /// Sync report count of settings rows exchanged; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} preferences'**
+  String lanSyncReportPreferences(Object n);
+
+  /// Sync report count of attachment files moved, with their total size; n is the file count and size is the formatted total.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files · {size}'**
+  String lanSyncReportBlobsWithSize(Object n, Object size);
+
+  /// Sync report count of attachment files moved; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files'**
+  String lanSyncReportBlobs(Object n);
+
+  /// Sync report count of skill files updated; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} skills'**
+  String lanSyncReportSkills(Object n);
+
+  /// Sync report count of local skill edits that the other device's version replaced; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} skill edits replaced'**
+  String lanSyncReportSkillConflicts(Object n);
+
+  /// Sync report count of attachment files the other device refers to but does not have; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} files missing on the other device'**
+  String lanSyncReportBlobsMissing(Object n);
+
+  /// Sync report count of workspace files exchanged; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace files'**
+  String lanSyncReportWorkspaceFiles(Object count);
+
+  /// Sync report count of workspace files exchanged with their total size; count is the number of files and size the formatted total.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace files · {size}'**
+  String lanSyncReportWorkspaceFilesWithSize(Object count, Object size);
+
+  /// Sync report count of workspace files removed because the other device deleted them; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'-{count} workspace files'**
+  String lanSyncReportWorkspaceRemoved(Object count);
+
+  /// Sync report count of local workspace file edits that the other device's version replaced; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace file edits replaced'**
+  String lanSyncReportWorkspaceConflicts(Object count);
+
+  /// Sync report count of workspace files that arrived but could not be written; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace files could not be applied'**
+  String lanSyncReportWorkspaceMissing(Object count);
+
+  /// Sync report count of workspaces whose files were not synced at all; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspaces not syncing files'**
+  String lanSyncReportWorkspacesOmitted(Object count);
+
+  /// Sync report count of workspace folders kept on this device because their switch is off; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workspace folders kept (switch off)'**
+  String lanSyncReportWorkspacesKept(Object count);
+
+  /// Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)'**
+  String lanSyncReportRowsLost(Object n);
+
+  /// Sync report warning that the two devices' clocks differ, so the times of the sync cannot be trusted; n is the difference in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Clocks differ by ~{n} min — fix the device clock, then sync again'**
+  String lanSyncReportClockSkew(Object n);
+
+  /// Sync failure message saying the other device could not be reached, suggesting a rescan of its QR code or an address edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: the other device could not be reached. It may be offline or on another network — rescan its QR code, or edit its address on the card.'**
+  String get lanSyncReportUnreachable;
+
+  /// Sync failure message saying no address is stored for the other device, suggesting a rescan or entering the address.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: no address is stored for the other device. Rescan its QR code, or enter the address on its card.'**
+  String get lanSyncReportNoEndpoint;
+
+  /// Sync failure message saying the other device stopped responding.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: the other device stopped responding.'**
+  String get lanSyncReportTimeout;
+
+  /// Sync failure message saying the other device reported an error of its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed: the other device reported an error.'**
+  String get lanSyncReportPeerError;
+
+  /// Sync failure message for an unexpected internal error, pointing the user to the logs.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed. See the logs for details.'**
+  String get lanSyncReportInternal;
+
+  /// Refusal shown when the other device's database is newer than this build supports, telling the user to update this device first.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device\'s database is newer. Update this device first, then sync again.'**
+  String get lanSyncRefusedPeerSchemaNewer;
+
+  /// Refusal shown when the other device uses a sync protocol this build does not speak, telling the user to update both apps.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device speaks a different sync protocol. Update the app on both devices.'**
+  String get lanSyncRefusedProtocolUnknown;
+
+  /// Refusal shown when the two devices no longer agree on the pairing, so it must be redone on both.
+  ///
+  /// In en, this message translates to:
+  /// **'This device and the other one no longer agree on this pairing — it was unpaired there, or a re-pairing did not finish on both sides. Pair again on both devices.'**
+  String get lanSyncRefusedNotPaired;
+
+  /// Refusal shown when the other device presented an identity that does not match, so it must be paired again.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device presented a mismatched identity. Pair again on both devices.'**
+  String get lanSyncRefusedIdentityMismatch;
+
+  /// Refusal shown when another sync session is already running, asking the user to try again shortly.
+  ///
+  /// In en, this message translates to:
+  /// **'Another sync session is in progress. Try again shortly.'**
+  String get lanSyncRefusedBusy;
+
+  /// Section header on Windows for the firewall rule that lets other devices reach the sync listener.
+  ///
+  /// In en, this message translates to:
+  /// **'Windows Firewall'**
+  String get lanSyncFirewallTitle;
+
+  /// Explanation that the inbound rule for one port needs a one-time administrator approval; port is that port number.
+  ///
+  /// In en, this message translates to:
+  /// **'The inbound rule for port {port} needs one-time administrator approval.'**
+  String lanSyncFirewallHint(Object port);
+
+  /// Button that asks for the Windows elevation prompt and adds the firewall rule.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow access (UAC)'**
+  String get lanSyncFirewallFix;
+
+  /// Confirmation shown after that firewall rule was added, so inbound sync traffic is now allowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbound access allowed.'**
+  String get lanSyncFirewallFixed;
+
+  /// Toast announcing that a sync triggered by the other device has finished; name is that device's display name.
+  ///
+  /// In en, this message translates to:
+  /// **'Synced with {name}'**
+  String lanSyncArrivalToast(Object name);
+
+  /// Action on that toast that opens the report of what the sync changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get lanSyncArrivalDetails;
+
+  /// Shown as a value when something has no recorded date, such as an address that was never added or reached.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get lanSyncNever;
+
+  /// Note appended to a device card when a probe could not reach the device at this moment.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach right now'**
+  String get lanSyncTemporarilyUnreachable;
+
+  /// Status text on this device's card showing that the sync listener is running; the port number follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get lanSyncListening;
+
+  /// Button that copies an address from the endpoint detail sheet to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get lanSyncCopy;
+
+  /// Tooltip of the menu button on a paired device card.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get lanSyncMoreActions;
+
+  /// Help text for the paired-devices section, explaining that each address has its own tile and where renaming, details, editing and deletion happen.
+  ///
+  /// In en, this message translates to:
+  /// **'One tile per address: tap the name to rename it, tap the latency for details — when it was last measured, how many syncs it has carried, when it was added. Edit or delete the address there.'**
+  String get lanSyncEndpointTip;
+
+  /// Relative time label used when something happened less than a minute ago.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get lanSyncJustNow;
+
+  /// Toggle that reveals the list of addresses this device can be reached at.
+  ///
+  /// In en, this message translates to:
+  /// **'Addresses'**
+  String get lanSyncShowAddresses;
+
+  /// Help text for pairing, explaining what a pairing code protects against and why the QR code is the safer half.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a code only on a network you trust: it stops a passive eavesdropper, not a machine in the middle. The QR carries the other device\'s certificate fingerprint, which is why it is the safer half.'**
+  String get lanSyncPairTrustTip;
+
+  /// Shown on a paired device with no stored address, so it cannot be reached until one is added.
+  ///
+  /// In en, this message translates to:
+  /// **'No address is remembered for this device.'**
+  String get lanSyncNoAddress;
+
+  /// Button and dialog title for adding another address for a paired device.
+  ///
+  /// In en, this message translates to:
+  /// **'Add address'**
+  String get lanSyncAddAddress;
+
+  /// Warning shown when the device already stores the maximum number of addresses for that peer; count is that limit.
+  ///
+  /// In en, this message translates to:
+  /// **'This device already remembers {count} addresses for that device. Remove one before adding another.'**
+  String lanSyncAddressLimit(Object count);
+
+  /// Title, field label and accessibility label of the dialog that names one address of a paired device.
+  ///
+  /// In en, this message translates to:
+  /// **'Address name'**
+  String get lanSyncRenameEndpointTitle;
+
+  /// Example placeholder in that dialog, showing a name such as the network the address belongs to.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Home network'**
+  String get lanSyncRenameEndpointHint;
+
+  /// Field label showing how long the address took to answer the last probe.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency'**
+  String get lanSyncEndpointLatency;
+
+  /// Field label with the time the address's latency was last measured.
+  ///
+  /// In en, this message translates to:
+  /// **'Last measured'**
+  String get lanSyncEndpointLastMeasured;
+
+  /// Field label with the time a sync last connected through that address.
+  ///
+  /// In en, this message translates to:
+  /// **'Last connected'**
+  String get lanSyncEndpointLastReached;
+
+  /// Field label for the number of syncs carried by that address.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncs'**
+  String get lanSyncEndpointSuccessCount;
+
+  /// Field label with the date the address was added to the device.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get lanSyncEndpointAddedAt;
+
+  /// Value beside the sync count; n is how many successful syncs that address has carried.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} times'**
+  String lanSyncEndpointSuccessTimes(Object n);
+
+  /// Button that removes one address from a paired device.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this address'**
+  String get lanSyncDeleteEndpoint;
+
+  /// Shown as an address's latency when the last probe got no answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Not reachable'**
+  String get lanSyncEndpointUnreachable;
+
+  /// Status shown when the other device is the one running the current sync, so this device stays quiet.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device is running this sync.'**
+  String get lanSyncSupersededByPeer;
+
+  /// Title for the proactive care enable switch
+  ///
+  /// In en, this message translates to:
+  /// **'Proactive Care'**
+  String get assistantEditProactiveCareEnableTitle;
+
+  /// Explains that the assistant proactive care switch is a conversation default
+  ///
+  /// In en, this message translates to:
+  /// **'Default for conversations without an override'**
+  String get assistantEditProactiveCareDefaultDescription;
+
+  /// Title for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Messages used for time decisions'**
+  String get assistantEditProactiveCareDecisionHistoryLimitTitle;
+
+  /// Description for the proactive-care decision history message limit
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum number of recent conversation messages sent to the model when deciding the next proactive message time'**
+  String get assistantEditProactiveCareDecisionHistoryLimitDescription;
+
+  /// Title for the expandable conversation proactive care schedule section
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation next-letter times'**
+  String get assistantEditProactiveCareConversationTimesTitle;
+
+  /// Empty state for the assistant conversation proactive care schedule list
+  ///
+  /// In en, this message translates to:
+  /// **'No enabled conversations for this assistant'**
+  String get assistantEditProactiveCareNoEligibleConversations;
+
+  /// Status for a future conversation proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Future · {time}'**
+  String assistantEditProactiveCareConversationTimeFuture(String time);
+
+  /// Status for an expired conversation proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Expired · {time}'**
+  String assistantEditProactiveCareConversationTimeExpired(String time);
+
+  /// Status for an enabled conversation without a proactive care schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Unset'**
+  String get assistantEditProactiveCareConversationTimeUnset;
+
+  /// Title for the expandable Android proactive care readiness section
+  ///
+  /// In en, this message translates to:
+  /// **'Android readiness'**
+  String get assistantEditProactiveCarePermissionsTitle;
+
+  /// Android app and proactive care notification channel readiness row
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get assistantEditProactiveCareNotificationsTitle;
+
+  /// Android exact alarm readiness row
+  ///
+  /// In en, this message translates to:
+  /// **'Exact alarms'**
+  String get assistantEditProactiveCareExactAlarmTitle;
+
+  /// Android auto-start settings row
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-start'**
+  String get assistantEditProactiveCareAutoStartTitle;
+
+  /// Android battery optimization exemption row
+  ///
+  /// In en, this message translates to:
+  /// **'Battery optimization exemption'**
+  String get assistantEditProactiveCareBatteryTitle;
+
+  /// Marks an Android proactive care setting as required
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get assistantEditProactiveCarePermissionRequired;
+
+  /// Marks an Android proactive care setting as recommended
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get assistantEditProactiveCarePermissionRecommended;
+
+  /// Android proactive care setting is ready
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get assistantEditProactiveCarePermissionReady;
+
+  /// Android proactive care setting is missing
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to grant'**
+  String get assistantEditProactiveCarePermissionMissing;
+
+  /// Android proactive care setting must be checked manually
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get assistantEditProactiveCarePermissionManual;
+
+  /// Android proactive care setting could not be determined
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get assistantEditProactiveCarePermissionUnknown;
+
+  /// Label for the next proactive message time row
+  ///
+  /// In en, this message translates to:
+  /// **'Next proactive message time'**
+  String get assistantEditProactiveCareNextMessageTimeTitle;
+
+  /// Shown when no proactive message time is set
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get assistantEditProactiveCareNextMessageTimeUnset;
+
+  /// Title for the proactive care prompt editor
+  ///
+  /// In en, this message translates to:
+  /// **'Proactive care prompt'**
+  String get assistantEditProactiveCarePromptTitle;
+
+  /// Hint text for the proactive care prompt field
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt used when the assistant proactively sends a message'**
+  String get assistantEditProactiveCarePromptHint;
+
+  /// Default proactive care prompt
+  ///
+  /// In en, this message translates to:
+  /// **'Based on the assistant\'s character settings, conversation context, and the current time, send a message to the user.'**
+  String get assistantEditProactiveCarePromptDefault;
+
+  /// Title for the decision prompt editor
+  ///
+  /// In en, this message translates to:
+  /// **'Decision time instruction prompt'**
+  String get assistantEditProactiveCareDecisionPromptTitle;
+
+  /// Default decision prompt for proactive care timing
+  ///
+  /// In en, this message translates to:
+  /// **'You are the director of a role-playing scenario, responsible for deciding when the assistant should next proactively message the user.\n\n[Feature description]\n· Proactive messaging: the assistant can send a message to the user at a scheduled time without waiting for the user to speak first.\n· If no proactive message time is set, the assistant cannot send any message while the user is silent.\n· Evaluate the currently scheduled next message time: keep it if no adjustment is needed; otherwise change it.\n\n[Note]\n· Only consider information visible from the assistant\'s perspective, not the user\'s.\n\n[Considerations]\n1. The assistant should proactively check in or greet the user after waking up, finishing a task, arriving safely at the dorm, etc.\n2. If the context mentions the assistant missed the user\'s messages due to sleeping or being busy, schedule a message for when the assistant wakes up or finishes.\n3. If the context mentions the assistant needs to supervise or remind the user at a specific time, schedule the message for that time.\n4. When a topic is unfinished, assume the user never replies after the assistant\'s last message — decide when the assistant should proactively follow up.\n\n[Examples]\n1. The user messaged at midnight saying they have insomnia and plan to wake at 10:30, but the assistant sleeps normally and wakes at 8:30. Set the proactive message time to the assistant\'s wake-up time.\n2. The user and assistant are discussing an exam. At 8:30 the last message is a question from the assistant. Per rule 4, assume the user never replies — the assistant should follow up within 10 minutes.'**
+  String get assistantEditProactiveCareDecisionPromptDefault;
+
+  /// Title for the date/time picker bottom sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Choose date and time'**
+  String get assistantEditProactiveCareDateTimePickerTitle;
+
+  /// Warning when a proactive care time is no longer in the future
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a time in the future.'**
+  String get assistantEditProactiveCareTimeMustBeFuture;
+
+  /// Title and input action label for conversation-level proactive care
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation proactive care'**
+  String get conversationProactiveCareTitle;
+
+  /// Status when conversation proactive care inherits an enabled assistant setting
+  ///
+  /// In en, this message translates to:
+  /// **'Following assistant setting: On'**
+  String get conversationProactiveCareFollowingAssistantOn;
+
+  /// Status when conversation proactive care inherits a disabled assistant setting
+  ///
+  /// In en, this message translates to:
+  /// **'Following assistant setting: Off'**
+  String get conversationProactiveCareFollowingAssistantOff;
+
+  /// Status when conversation proactive care is explicitly enabled
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation setting: On'**
+  String get conversationProactiveCareExplicitOn;
+
+  /// Status when conversation proactive care is explicitly disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation setting: Off'**
+  String get conversationProactiveCareExplicitOff;
+
+  /// Action that clears the conversation proactive care override
+  ///
+  /// In en, this message translates to:
+  /// **'Follow assistant setting'**
+  String get conversationProactiveCareRestoreFollowing;
+
+  /// Action that clears the conversation proactive care time
+  ///
+  /// In en, this message translates to:
+  /// **'Clear next message time'**
+  String get conversationProactiveCareClearTime;
+
+  /// Error shown when a conversation proactive care update fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update conversation proactive care.'**
+  String get conversationProactiveCareUpdateFailed;
+
+  /// Title for the proactive care decision model card
+  ///
+  /// In en, this message translates to:
+  /// **'Ta\'s Letter Decision Model'**
+  String get defaultModelPageProactiveCareModelTitle;
+
+  /// Subtitle for the proactive care decision model card
+  ///
+  /// In en, this message translates to:
+  /// **'Model used to decide when the assistant should proactively message'**
+  String get defaultModelPageProactiveCareModelSubtitle;
+
+  /// Notification body when proactive care message generation fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t generate the proactive care message. Open the app to check the model settings and network.'**
+  String get proactiveCareFailedNotificationBody;
+
+  /// Notification body announcing a due proactive care letter on platforms that announce the arrival and generate the letter at the next app start
+  ///
+  /// In en, this message translates to:
+  /// **'A letter has arrived. Open the app to read it.'**
+  String get proactiveCareLetterArrivalBody;
+
+  /// Assistant edit page tab for roleplay features (Their Letter)
+  ///
+  /// In en, this message translates to:
+  /// **'Roleplay'**
+  String get assistantEditPageRoleplayTab;
+
+  /// Feature header for the proactive care (Their Letter) section
+  ///
+  /// In en, this message translates to:
+  /// **'Their Letter'**
+  String get assistantEditProactiveCareFeatureTitle;
+
+  /// Completion heading in the backup progress dialog when unreadable asset files or directories were skipped; the archive was created successfully but does not include those items.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup completed with skipped items'**
+  String get backupProgressSkippedTitle;
+
+  /// Warning above the skipped path list in the backup completion dialog. {count} is the number of unreadable files or directories omitted; an unreadable directory counts once including all its descendants.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreadable files or directories skipped: {count}. They are not included in this backup.'**
+  String backupProgressSkippedMessage(int count);
+
+  /// Summary in the context usage panel and input-bar tooltip when OpenAI native compaction is present. Only readable content has been estimated; the encrypted compaction block's input token count is unknown. tokens is the already-formatted subtotal, such as 42k, not the full context total.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated {tokens}, plus unknown server-side usage'**
+  String contextUsagePartialSummary(String tokens);
+
+  /// Context-usage breakdown label for the opaque server-side compaction data.
+  ///
+  /// In en, this message translates to:
+  /// **'Server-side compression'**
+  String get contextUsageBucketNativeCompaction;
+
+  /// Token value in the context usage panel for encrypted native compaction content that cannot be counted locally; unknown must not be interpreted as zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get contextUsageUnknownTokens;
+
+  /// Separate line below the native-compaction context usage breakdown showing input tokens reported by the last matching model request, not the current estimated window or the compaction operation's output usage. tokens is an already-formatted token count such as 42k.
+  ///
+  /// In en, this message translates to:
+  /// **'Last amount actually sent to the model: {tokens}'**
+  String contextUsageLastRequestInput(String tokens);
+
+  /// Placeholder in the search field of the current conversation’s find bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Find'**
+  String get conversationFindHint;
+
+  /// Tooltip for the find bar button that selects the previous occurrence in the current conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous match'**
+  String get conversationFindPrevious;
+
+  /// Tooltip for the find bar button that selects the next occurrence in the current conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Next match'**
+  String get conversationFindNext;
+
+  /// Tooltip for the find bar button that opens the search options menu.
+  ///
+  /// In en, this message translates to:
+  /// **'Find options'**
+  String get conversationFindOptions;
+
+  /// Match counter in the conversation find bar. current is the one-based occurrence index and total is the number of occurrences. Both are zero for no matches.
+  ///
+  /// In en, this message translates to:
+  /// **'{current}/{total}'**
+  String conversationFindMatchPosition(int current, int total);
+
+  /// Toggle in the conversation find menu requiring the query to match uppercase and lowercase letters exactly.
+  ///
+  /// In en, this message translates to:
+  /// **'Match case'**
+  String get conversationFindCaseSensitive;
+
+  /// Toggle in the conversation find menu limiting matches to whole words.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole word'**
+  String get conversationFindWholeWord;
+
+  /// Tooltip beside the whole-word search option explaining word boundaries and how CJK queries behave.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches whole words for scripts with word boundaries (e.g. English). Queries that contain Chinese, Japanese, or Korean characters still use substring matching.'**
+  String get conversationFindWholeWordTooltip;
+
+  /// Toggle in the conversation find menu to also search the assistant’s reasoning steps.
+  ///
+  /// In en, this message translates to:
+  /// **'Include thinking'**
+  String get conversationFindIncludeThinking;
+
+  /// Tooltip for the message map button that opens the find bar in the current conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Find in conversation'**
+  String get conversationFindOpenTooltip;
+
+  /// Row in the token detail popup showing seconds from request preparation to the first client-received reasoning-start event or non-empty output, whichever arrives first. This is response activity, not the server's hidden reasoning-token time. {value} is the formatted duration in seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}s (first response)'**
+  String tokenDetailFirstResponse(String value);
+
+  /// Row in the token detail popup showing seconds from request preparation to the first non-empty content received, such as a public reasoning summary, answer text, tool input, image or file. A reasoning-start event alone does not count. {value} is the formatted duration in seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{value}s (first output)'**
+  String tokenDetailFirstOutput(String value);
+
+  /// Group heading in the mobile and desktop tool descriptions settings for the unified view_image tool, which can inspect conversation images or permitted workspace image files.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get toolSchemaSettingsGroupImages;
+
+  /// Error shown in the iOS workspace environment details after an interrupted or cancelled sandbox repair, including recovery on app startup. Explains that the existing filesystem was retained and the user can retry the in-place repair. No placeholders.
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox repair was interrupted. The existing sandbox has been kept. Retry to finish the repair.'**
+  String get workspaceEnvErrorRepairInterrupted;
+
+  /// Error shown in the iOS workspace environment details when sandbox repair exceeds its time limit and the command has stopped. Explains that the existing filesystem was retained and suggests checking the network before retrying the in-place repair. No placeholders.
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox repair timed out. Check your network connection and retry. The existing sandbox has been kept.'**
+  String get workspaceEnvErrorRepairTimeout;
+
+  /// Banner in iOS workspace environment details when a cancelled or timed-out repair command has not confirmed it stopped. Requires a full app restart before retrying so package transactions cannot overlap, and reassures that the existing filesystem was retained. No placeholders.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not confirm that sandbox repair stopped within the time limit. Fully close and reopen Cuplivo before retrying. The existing sandbox has been kept.'**
+  String get workspaceEnvRepairRestartBanner;
+
+  /// Button below the context operation history list. Loads and appends the next ten older records; initially only the three most recent records are shown. Hidden when all records are loaded. No placeholders.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get contextOperationsLoadMore;
+
+  /// Timeout field for each compression request, in minutes. Also labels the recovery action that opens this field.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression request timeout'**
+  String get compressionRequestTimeout;
+
+  /// Minute unit suffix beside the compression request timeout numeric input. Keep it short to fit a narrow field suffix.
+  ///
+  /// In en, this message translates to:
+  /// **'min'**
+  String get compressionMinuteUnit;
+
+  /// Placeholder for an empty compression request timeout input. Empty preserves the current behavior of each mode, including the native compression default of five minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get compressionRequestTimeoutDefault;
+
+  /// Help text below the compression request timeout input in More settings. The value may contain decimals and limits total wait per model invocation, not idle time or the whole multi-request task.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a number of minutes greater than 0. Leave blank to keep the current default (5 minutes for server-side compression). When summarizing in parts, each part and the merge is timed separately.'**
+  String get compressionRequestTimeoutHint;
+
+  /// Compression task failure shown when the total deadline cancels a model request, distinct from user cancellation. minutes is the elapsed request limit in minutes, possibly fractional. Users can increase the timeout in More settings and retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression stopped after {minutes} minutes and the context is unchanged. Try again, or allow a longer timeout.'**
+  String compressionRequestTimedOut(num minutes);
+
+  /// Desktop display settings, tray section: switch to register Cuplivo to start when the user logs in to this device. Disabled by default.
   ///
   /// In en, this message translates to:
   /// **'Launch at startup'**
@@ -30033,10 +31785,10 @@ abstract class AppLocalizations {
   /// Tooltip for the desktop launch-at-startup switch. This is a device-local operating system setting.
   ///
   /// In en, this message translates to:
-  /// **'Start Kelivo when you sign in to this computer.'**
+  /// **'Start Cuplivo when you sign in to this computer.'**
   String get desktopAutostartDescription;
 
-  /// Desktop display settings, tray section: switch to keep the main window hidden only when the system starts Kelivo at login.
+  /// Desktop display settings, tray section: switch to keep the main window hidden only when the system starts Cuplivo at login.
   ///
   /// In en, this message translates to:
   /// **'Hide to tray on automatic startup'**
@@ -30045,7 +31797,7 @@ abstract class AppLocalizations {
   /// Tooltip for hiding the desktop window on automatic startup. Explains prerequisites and that manual launches remain visible.
   ///
   /// In en, this message translates to:
-  /// **'Requires launch at startup and the tray icon. Opening Kelivo manually still shows the window.'**
+  /// **'Requires launch at startup and the tray icon. Opening Cuplivo manually still shows the window.'**
   String get desktopAutostartHiddenDescription;
 
   /// Desktop startup switch tooltip when the current macOS version does not support the system login-item API.
@@ -30576,24 +32328,6 @@ abstract class AppLocalizations {
   /// **'Message preview'**
   String get compressionCarryListTitle;
 
-  /// Action beside the Message preview heading in manual context compression. Includes the available assistant replies for all currently selected user messages, including collapsed rows. Individual replies can still be switched off.
-  ///
-  /// In en, this message translates to:
-  /// **'Select all replies'**
-  String get compressionCarrySelectAllReplies;
-
-  /// Action beside the Message preview heading in manual context compression. Clears every assistant reply selection for this compression, including collapsed replies and those outside the token budget. The selected user messages stay checked.
-  ///
-  /// In en, this message translates to:
-  /// **'Deselect all replies'**
-  String get compressionCarryDeselectAllReplies;
-
-  /// Warning on the first user message whose selected assistant reply puts the pair over the remaining token budget in the fit-as-many-as-possible compression preview. This pair is omitted from the totals. The reply can still be switched off.
-  ///
-  /// In en, this message translates to:
-  /// **'This message and its reply exceed the remaining budget. Both will be left out.'**
-  String get compressionCarryPairNotFit;
-
   /// Preview title for a message containing only images. Count is the number of images.
   ///
   /// In en, this message translates to:
@@ -30636,10 +32370,10 @@ abstract class AppLocalizations {
   /// **'Back up automatically when due'**
   String get backupAutoEnableTitle;
 
-  /// Shown in external backup settings or completion notifications. When the scheduled time arrives, Kelivo backs up while the app is in the foreground. If the app is closed or killed, the backup does not keep running and is not resumed; the next time you open the app, a single full backup runs if it is still due.
+  /// Shown in external backup settings or completion notifications. When the scheduled time arrives, Cuplivo backs up while the app is in the foreground. If the app is closed or killed, the backup does not keep running and is not resumed; the next time you open the app, a single full backup runs if it is still due.
   ///
   /// In en, this message translates to:
-  /// **'When the scheduled time arrives, Kelivo backs up while the app is in the foreground. If the app is closed or killed, the backup does not keep running and is not resumed; the next time you open the app, a single full backup runs if it is still due.'**
+  /// **'When the scheduled time arrives, Cuplivo backs up while the app is in the foreground. If the app is closed or killed, the backup does not keep running and is not resumed; the next time you open the app, a single full backup runs if it is still due.'**
   String get backupAutoEnableHint;
 
   /// Shown in external backup settings or completion notifications. Automatic backup destination
@@ -30726,16 +32460,16 @@ abstract class AppLocalizations {
   /// **'Back up to this folder now'**
   String get backupAutoLocalNow;
 
-  /// Desktop automatic backup folder settings or write result. Can't write to the chosen folder. Check that it is still available, or choose another one. Kelivo won't change the saved location on its own.
+  /// Desktop automatic backup folder settings or write result. Can't write to the chosen folder. Check that it is still available, or choose another one. Cuplivo won't change the saved location on its own.
   ///
   /// In en, this message translates to:
-  /// **'Can\'t write to the chosen folder. Check that it is still available, or choose another one. Kelivo won\'t change the saved location on its own.'**
+  /// **'Can\'t write to the chosen folder. Check that it is still available, or choose another one. Cuplivo won\'t change the saved location on its own.'**
   String get backupAutoLocalDirUnavailable;
 
-  /// Desktop automatic backup folder settings or write result. You don't have permission to write to the chosen folder. Please choose the folder again. Kelivo won't change the saved location on its own.
+  /// Desktop automatic backup folder settings or write result. You don't have permission to write to the chosen folder. Please choose the folder again. Cuplivo won't change the saved location on its own.
   ///
   /// In en, this message translates to:
-  /// **'You don\'t have permission to write to the chosen folder. Please choose the folder again. Kelivo won\'t change the saved location on its own.'**
+  /// **'You don\'t have permission to write to the chosen folder. Please choose the folder again. Cuplivo won\'t change the saved location on its own.'**
   String get backupAutoLocalDirPermission;
 
   /// Desktop automatic backup folder settings or write result. There isn't enough disk space, so the backup didn't finish. Your earlier backups are still there.
@@ -30744,10 +32478,10 @@ abstract class AppLocalizations {
   /// **'There isn\'t enough disk space, so the backup didn\'t finish. Your earlier backups are still there.'**
   String get backupAutoLocalDirFull;
 
-  /// Desktop automatic backup folder settings or write result. Kelivo can't access the chosen folder. Please choose it again. The saved location won't be changed automatically.
+  /// Desktop automatic backup folder settings or write result. Cuplivo can't access the chosen folder. Please choose it again. The saved location won't be changed automatically.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo can\'t access the chosen folder. Please choose it again. The saved location won\'t be changed automatically.'**
+  /// **'Cuplivo can\'t access the chosen folder. Please choose it again. The saved location won\'t be changed automatically.'**
   String get backupAutoLocalBookmarkLost;
 
   /// Shown in external backup settings or completion notifications. Next automatic backup
@@ -30789,7 +32523,7 @@ abstract class AppLocalizations {
   /// Backup settings or automatic backup failure when access to the device credential store is unavailable. Manual backups can still prompt for the password.
   ///
   /// In en, this message translates to:
-  /// **'Kelivo can’t access the system keychain for the backup password. You can still back up manually.'**
+  /// **'Cuplivo can’t access the system keychain for the backup password. You can still back up manually.'**
   String get backupAutoKeychainUnavailable;
 
   /// Shown in external backup settings or completion notifications. Automatic backup finished
@@ -30855,7 +32589,7 @@ abstract class AppLocalizations {
   /// Shown after macOS denies authorization for the local backup password. Keychain Access is the name of the macOS utility. The user should unlock their login keychain there and retry.
   ///
   /// In en, this message translates to:
-  /// **'macOS couldn’t unlock the login keychain. Open Keychain Access, unlock “login”, then try again in Kelivo.'**
+  /// **'macOS couldn’t unlock the login keychain. Open Keychain Access, unlock “login”, then try again in Cuplivo.'**
   String get backupMacKeychainNeedsUnlock;
 
   /// Button on a backup-password authorization error that opens Apple’s Keychain Access app on macOS so the user can unlock their default keychain.
@@ -30867,8 +32601,476 @@ abstract class AppLocalizations {
   /// Backup password error when macOS denied access even though the default keychain was reported unlocked. Covers access denied by item permissions or an unusable login keychain without assuming that the user cancelled.
   ///
   /// In en, this message translates to:
-  /// **'macOS denied access to the backup password. If a system prompt appears, allow Kelivo to access it. You can also check the default keychain and the password item’s permissions in Keychain Access.'**
+  /// **'macOS denied access to the backup password. If a system prompt appears, allow Cuplivo to access it. You can also check the default keychain and the password item’s permissions in Keychain Access.'**
   String get backupMacKeychainAccessDenied;
+
+  /// Button on the Images and Files storage detail pages that copies the load error and its stack trace to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy error details'**
+  String get storageSpaceCopyErrorDetails;
+
+  /// Inline status on the Images and Files storage pages while files are visible and the app checks which attachments are safe to delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking attachment usage…'**
+  String get storageAttachmentChecking;
+
+  /// Inline error on the Images and Files storage pages when files can still be opened but their reference check failed and cleanup is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check attachment usage. Refresh to try again.'**
+  String get storageAttachmentCheckFailed;
+
+  /// Error notification on the Images and Files storage detail pages when the clipboard cannot accept the diagnostic text. The user can tap the copy button again.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not copy the error details. Please try again.'**
+  String get storageSpaceCopyErrorFailed;
+
+  /// Conflict message in desktop shortcut settings when a keyboard combination is shared by two actions that can be active at the same time. The action placeholder is the localized name shown for the other action in those settings.
+  ///
+  /// In en, this message translates to:
+  /// **'This shortcut is already assigned to {action}.'**
+  String hotkeysShortcutInUse(String action);
+
+  /// Action name substituted into the desktop shortcut conflict message for built-in keyboard behavior that types, edits text, or moves focus in a conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Text editing and focus navigation'**
+  String get hotkeysTextEditing;
+
+  /// Error during a local backup export when the selected Android document already contains data or the file provider cannot confirm it is empty. Ask the user to select a fresh destination.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new filename or another folder to save your backup.'**
+  String get backupPageChooseNewFile;
+
+  /// Backup export or restore error. {name} is a file path inside the ZIP and {limit} is the formatted maximum supported uncompressed size of one file.
+  ///
+  /// In en, this message translates to:
+  /// **'The backup file “{name}” exceeds the per-file limit of {limit}.'**
+  String backupArchiveFileSizeLimit(String name, String limit);
+
+  /// Error when the combined file sizes in a backup ZIP exceed the supported uncompressed total. {limit} is the formatted maximum size.
+  ///
+  /// In en, this message translates to:
+  /// **'The uncompressed backup exceeds the {limit} limit.'**
+  String backupArchiveTotalSizeLimit(String limit);
+
+  /// Error shown on the backup settings page when local storage cannot save WebDAV or S3 server settings or the shared backup and import content selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the backup settings. Please try again.'**
+  String get backupPageSettingsSaveFailed;
+
+  /// Phase in the backup and restore progress dialog while scanning the files to pack or validate.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning backup files'**
+  String get backupProgressScanning;
+
+  /// Subtitle during an export or restore file scan. {count} is the number of files discovered so far, not a final total.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 file found} other{{count} files found}}'**
+  String backupProgressDiscoveredFiles(int count);
+
+  /// Restore dialog phase while SQLite prepares or checks a database snapshot. The duration is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the database'**
+  String get backupProgressCheckingDatabase;
+
+  /// Local backup export phase while the system save dialog waits for the user to choose a destination.
+  ///
+  /// In en, this message translates to:
+  /// **'Choosing where to save'**
+  String get backupProgressChoosingDestination;
+
+  /// Local backup export phase while writing the finished archive to the user-selected destination.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving backup file'**
+  String get backupProgressSavingFile;
+
+  /// Subtitle for a backup or restore phase without a measurable total. {time} is the elapsed time in minutes and seconds, for example 2:35.
+  ///
+  /// In en, this message translates to:
+  /// **'Elapsed {time}'**
+  String backupProgressElapsed(String time);
+
+  /// Subtitle of Import from Other Apps in Local Backup. List every supported app by its product name and explain that the official toolbox converts the file privately in the browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Newer Chatbox and Cherry Studio 2.x backups, plus ChatGPT, Claude, DeepSeek, Gemini, Grok, Open WebUI, NextChat, and LobeChat. Converts locally in your browser into a Kelivo backup; the file is not uploaded.'**
+  String get backupPageImportFromOtherAppsSubtitle;
+
+  /// Action in the backup import failure dialog and notification. Opens the official Cuplivo conversion toolbox in the system browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Toolbox'**
+  String get backupPageOpenImportToolbox;
+
+  /// Notification when the system browser cannot open the import toolbox. Show its complete address {url} so the user can open it manually.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t open the browser. Open this URL yourself: {url}'**
+  String backupPageImportToolboxOpenFailed(String url);
+
+  /// Explanation above Merge in the local backup import mode dialog when the file is a toolbox chat import. The user can merge or cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'This file was converted by the official toolbox. It will be merged into your existing data and will not replace chats or assistants already on this device.'**
+  String get backupPageToolboxImportMergeOnlyHint;
+
+  /// Shown in the import progress dialog and notification for an unsupported Chatbox backup. {version} is the file format version. Refer to the official browser toolbox and the Import Backup File and Merge actions in the app.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a newer Chatbox backup (format version {version}) and can’t be imported in the app directly. Convert it with the official toolbox into a Kelivo backup, then use Import Backup File and choose Merge. Conversion happens in your browser; the file is not uploaded.'**
+  String backupPageChatboxUnsupportedBackupVersion(String version);
+
+  /// Switch in the single-message and batch PNG export options. On shows all thinking and tool-call steps in each card. Off folds older steps and shows the latest ones. The adjacent Show thinking content switch controls the reasoning text inside each step.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand all steps'**
+  String get messageExportSheetExpandAllSteps;
+
+  /// Label for a switch in the model editor's request compatibility section that overrides the model's default list of available response speed tiers.
+  ///
+  /// In en, this message translates to:
+  /// **'Response speed tiers'**
+  String get modelSpecFormResponseSpeedTiers;
+
+  /// Help under the model editor's response speed tier switch. Fast and UltraFast can be enabled independently, and neither checked leaves Standard as the only available chat option. Users select the actual speed in each chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize which acceleration tiers this model offers in chats. Clear both to offer only Standard.'**
+  String get modelSpecFormResponseSpeedTiersSubtitle;
+
+  /// Label for selecting whether to edit this provider's automatic balance refresh settings or the global defaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic balance refresh'**
+  String get providerBalanceAutoRefresh;
+
+  /// Scope choice in the automatic balance refresh settings for editing overrides that apply only to the current provider.
+  ///
+  /// In en, this message translates to:
+  /// **'This provider'**
+  String get providerBalanceScopeProvider;
+
+  /// Scope choice in the automatic balance refresh settings for editing defaults shared across providers.
+  ///
+  /// In en, this message translates to:
+  /// **'Global defaults'**
+  String get providerBalanceScopeGlobal;
+
+  /// Short row label in automatic balance refresh settings for choosing how often to update the balance on a timer. Shown for both the global default and the provider override.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed refresh'**
+  String get providerBalanceInterval;
+
+  /// Short row label in automatic balance refresh settings. Updates the balance after each completed model reply. Shown for both the global default and the provider override.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh after replies'**
+  String get providerBalanceRefreshOnReply;
+
+  /// Compact current value and picker option that uses the global automatic balance refresh setting. Keep the wording short so it fits beside the row label. The value is the currently effective interval or localized on/off state.
+  ///
+  /// In en, this message translates to:
+  /// **'Default · {value}'**
+  String providerBalanceFollowDefault(String value);
+
+  /// Option disabling the selected balance refresh trigger, either the periodic interval or refresh after replies.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get providerBalanceRefreshOff;
+
+  /// Provider override option that enables refreshing the account balance after replies.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get providerBalanceRefreshOn;
+
+  /// Account balance refresh interval displayed as a number of whole minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 minute} other{{count} minutes}}'**
+  String providerBalanceRefreshMinutes(int count);
+
+  /// Preset selection for querying the account balance every one hour.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get providerBalanceRefreshHour;
+
+  /// Option that opens the dialog for entering a custom balance refresh interval.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom interval…'**
+  String get providerBalanceCustomInterval;
+
+  /// Numeric field label in the custom account balance refresh interval dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Interval in minutes'**
+  String get providerBalanceIntervalMinutes;
+
+  /// Action in the account balance badge context menu to query the provider immediately.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh balance now'**
+  String get providerBalanceRefreshNow;
+
+  /// Balance badge tooltip showing the date and time of the most recent successful query. Both placeholders are already localized.
+  ///
+  /// In en, this message translates to:
+  /// **'Last updated {date} at {time}'**
+  String providerBalanceLastUpdated(String date, String time);
+
+  /// Warning in the provider balance reset dialog. It replaces custom request fields with the provider preset, resets whether balance queries are enabled, and makes automatic refresh inherit the global settings.
+  ///
+  /// In en, this message translates to:
+  /// **'This will replace this provider’s custom balance request settings, restore the default state of its balance switch, and make automatic refresh follow the global settings.'**
+  String get providerDetailPageBalanceResetConfirmMessage;
+
+  /// Confirmation button in the provider balance reset dialog. Activating it restores default balance settings for the current provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore defaults'**
+  String get providerDetailPageBalanceResetConfirmButton;
+
+  /// Tooltip in the desktop provider's model toolbar and title of the dialog where users drag models into their preferred order for the chat model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder models'**
+  String get providerDetailPageReorderModels;
+
+  /// Tooltip for the magnifying glass in the minimap and placeholder in its search field. Searches the current conversation and shows matching message previews inside the minimap.
+  ///
+  /// In en, this message translates to:
+  /// **'Search minimap'**
+  String get miniMapSearchHint;
+
+  /// Status inside the minimap if searching the current conversation for matching messages fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t search messages'**
+  String get miniMapSearchFailed;
+
+  /// Validation error under the 4get instance address or in a desktop notification. The address must be an absolute HTTP or HTTPS base URL without a query or fragment. HTTP and HTTPS are technical terms.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an HTTP or HTTPS base URL.'**
+  String get searchServicesFourGetUrlInvalid;
+
+  /// Label for the optional upstream search engine identifier in the 4get settings form, such as ddg for DuckDuckGo. When empty, the instance chooses its default.
+  ///
+  /// In en, this message translates to:
+  /// **'Upstream engine (optional)'**
+  String get searchServicesFourGetScraperOptional;
+
+  /// Label for the optional masked 4get credential field in search service settings. Pass is the literal cookie name 'pass'. Preserve it as a name.
+  ///
+  /// In en, this message translates to:
+  /// **'Pass cookie (optional)'**
+  String get searchServicesFourGetPassOptional;
+
+  /// Help below the 4get credential field. Tell users to solve the instance's CAPTCHA when required and paste the value of the cookie whose literal name is 'pass'. Keep 'pass' lowercase and untranslated.
+  ///
+  /// In en, this message translates to:
+  /// **'If the instance requires a CAPTCHA, complete it and paste the value of the pass cookie.'**
+  String get searchServicesFourGetPassHelp;
+
+  /// Tooltip and accessibility label for the button inside the search service editor that opens the icon source menu for this configured service.
+  ///
+  /// In en, this message translates to:
+  /// **'Change icon'**
+  String get searchServiceEditorChangeIcon;
+
+  /// Error shown in the search service editor when selecting or importing a custom service icon fails.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not use this icon. Choose another image or icon.'**
+  String get searchServiceEditorIconFailed;
+
+  /// Label for the switch in desktop Display settings that removes the fixed maximum width for the message list and input box.
+  ///
+  /// In en, this message translates to:
+  /// **'Full-width chat'**
+  String get desktopDisplaySettingsFullWidthChatTitle;
+
+  /// Tooltip beside the full-width chat switch in desktop Display settings. The chat area is the space available between the sidebars.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand messages and the input box to fill the chat area.'**
+  String get desktopDisplaySettingsFullWidthChatSubtitle;
+
+  /// Description for the 4get search provider option. The user supplies a public or self-hosted 4get instance where its search API is enabled. Preserve the brand name '4get'.
+  ///
+  /// In en, this message translates to:
+  /// **'Web search through a public or self-hosted 4get instance with the API enabled.'**
+  String get searchProviderFourGetDescription;
+
+  /// Display name of the 4get web search provider in the search service pickers. Keep the brand spelling '4get'.
+  ///
+  /// In en, this message translates to:
+  /// **'4get'**
+  String get searchServiceNameFourGet;
+
+  /// Display name for the Keenable search provider, returned by a switch on the service type in the search services settings pane and editor page.
+  ///
+  /// In en, this message translates to:
+  /// **'Keenable'**
+  String get searchServiceNameKeenable;
+
+  /// Short description shown under the Keenable provider in the search service editor, noting that an API key is optional and keyless calls use the public endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keenable Search. An API key is optional; without one, requests use the public endpoint.'**
+  String get searchProviderKeenableDescription;
+
+  /// Switch label in Message Style settings for the Frosted Glass and Solid styles. Enables a single independent visual style shared by thinking and tool-call cards.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize thinking and tool cards'**
+  String get messageStyleSettingsPageCustomizeThinkingToolCards;
+
+  /// Subtitle below the Message Style switch for editing thinking and tool-call cards independently of the assistant reply bubbles. Both card types share the same appearance settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Give thinking and tool calls their own appearance'**
+  String get messageStyleSettingsPageCustomizeThinkingToolCardsSubtitle;
+
+  /// Compact segment label for editing the shared style of thinking and tool-call cards in Message Style settings. The switch above already names thinking and tools, so use a short noun equivalent to Cards if the full label would be long.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards'**
+  String get messageStyleSettingsPageRoleThinkingTool;
+
+  /// Detailed composer or generation error for an attachment whose text encoding cannot be recognized. {name} is the displayed file name.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t recognize the text encoding of “{name}”. Save it as UTF-8 and send it again.'**
+  String attachmentEncodingUnrecognized(String name);
+
+  /// Short error label on a composer attachment card when its text encoding cannot be recognized.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding unrecognized'**
+  String get attachmentEncodingUnrecognizedShort;
+
+  /// Detailed composer or generation error for a binary attachment. {name} is the displayed file name.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” isn’t a text file, so it can’t be used here.'**
+  String attachmentNotText(String name);
+
+  /// Short error label on a composer attachment card for binary content.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a text file'**
+  String get attachmentNotTextShort;
+
+  /// Shown on tapping a truncated composer attachment and after its text in the model prompt. {count} is the actual number of Unicode characters included.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is too large, so only the first {count} characters were read. Split it and send again if you need the rest.'**
+  String attachmentTruncatedNotice(int count);
+
+  /// Short warning on a composer attachment card when only the start of its text will be sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the beginning will be sent'**
+  String get attachmentTruncatedCard;
+
+  /// Detailed composer or generation error when a document exceeds the local extraction size limit. {name} is the displayed file name.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” is too large to read in a regular chat.'**
+  String attachmentDocumentTooLarge(String name);
+
+  /// Short error label on a composer attachment card when a document exceeds the local extraction limit.
+  ///
+  /// In en, this message translates to:
+  /// **'File too large'**
+  String get attachmentDocumentTooLargeShort;
+
+  /// Tooltip on an image row action in the Image context panel. Exclude that image from subsequent model requests and conversation image recall, retaining the original image in chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclude from context'**
+  String get imageContextExclude;
+
+  /// Tooltip on the image row action in the Image context panel that removes a manual exclusion. The current conversation and automatic selection rules determine when an eligible image is sent or recalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove exclusion'**
+  String get imageContextRestore;
+
+  /// Status shown beside an image in the Image context panel when the user has explicitly excluded that image from requests and conversation recall.
+  ///
+  /// In en, this message translates to:
+  /// **'Excluded by you'**
+  String get imageContextExcluded;
+
+  /// Status and disabled action tooltip in the Image context panel for a tool-recalled copy that inherits an exclusion from the original image.
+  ///
+  /// In en, this message translates to:
+  /// **'Original image excluded'**
+  String get imageContextExcludedWithOriginal;
+
+  /// Switch under background references in text compression settings. Enables sending the instruction cards selected for the chat as reference material to the model generating a summary. No placeholders.
+  ///
+  /// In en, this message translates to:
+  /// **'Use instruction injections as references'**
+  String get compressionInstructionInjections;
+
+  /// Help below the instruction injection switch in text compression settings. Describes the selected chat instruction cards being sent as background material for the summary. No placeholders.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the instruction cards enabled for this chat to the summary model as background references.'**
+  String get compressionInstructionInjectionsHint;
+
+  /// Compression error shown when the model provider actually rejected the final attempted input with a context length or payload size error. Original provider details are shown separately.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider reported that the request was too large. Try a model with a larger context.'**
+  String get compressionProviderContextRejected;
+
+  /// Read-only line in compression details showing the estimated capacity of the model used for summaries. The tokens placeholder is a compact count like 128K, and source is a localized model metadata source such as Catalog or Custom.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary model window · {tokens} tokens · {source}'**
+  String compressionSummaryWindowEstimate(String tokens, String source);
+
+  /// Name of the Bengali language (Bangla) as a target in the assistant reply translation menu and standalone translator.
+  ///
+  /// In en, this message translates to:
+  /// **'Bangla'**
+  String get languageDisplayBangla;
+
+  /// Action beside the Message preview heading in manual context compression. Includes the available assistant replies for all currently selected user messages, including collapsed rows. Individual replies can still be switched off.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all replies'**
+  String get compressionCarrySelectAllReplies;
+
+  /// Action beside the Message preview heading in manual context compression. Clears every assistant reply selection for this compression, including collapsed replies and those outside the token budget. The selected user messages stay checked.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect all replies'**
+  String get compressionCarryDeselectAllReplies;
+
+  /// Warning on the first user message whose selected assistant reply puts the pair over the remaining token budget in the fit-as-many-as-possible compression preview. This pair is omitted from the totals. The reply can still be switched off.
+  ///
+  /// In en, this message translates to:
+  /// **'This message and its reply exceed the remaining budget. Both will be left out.'**
+  String get compressionCarryPairNotFit;
 
   /// Tooltip for a group-related action menu in World Book settings. A group header shows actions for its folder, and the main menu shows actions across folders.
   ///

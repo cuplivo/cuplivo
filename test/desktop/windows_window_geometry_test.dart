@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/desktop/windows_window_geometry.dart';
+import 'package:Cuplivo/desktop/windows_window_geometry.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

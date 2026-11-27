@@ -1,11 +1,11 @@
-import 'package:Kelivo/desktop/desktop_overlay_backdrop.dart';
+import 'package:Cuplivo/desktop/desktop_overlay_backdrop.dart';
 import 'package:flutter/material.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/models/quick_phrase.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 class QuickPhraseMenu extends StatelessWidget {
   const QuickPhraseMenu({

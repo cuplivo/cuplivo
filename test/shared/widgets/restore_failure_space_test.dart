@@ -6,8 +6,8 @@ import 'package:path/path.dart' as p;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/shared/widgets/restore_failure_screen.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/shared/widgets/restore_failure_screen.dart';
 import '../../support/recovery_snapshot_fixture.dart';
 import 'restore_failure_screen_test.dart' as helpers;
 
@@ -127,7 +127,7 @@ void main() {
       );
       await helpers.settleDiagnostics(tester);
       expect(
-        find.textContaining('Update Kelivo before restoring them'),
+        find.textContaining('Update Cuplivo before restoring them'),
         findsOneWidget,
       );
       expect(find.textContaining('validation failed'), findsNothing);

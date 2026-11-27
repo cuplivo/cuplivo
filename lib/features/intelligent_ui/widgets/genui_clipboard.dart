@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import '../catalog/ui_budgets.dart';
 
 Future<void> copyGenUiText(

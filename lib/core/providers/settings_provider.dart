@@ -100,7 +100,6 @@ class SettingsProvider extends ChangeNotifier {
     'Gemini',
     'STA1N API',
     'OpenRouter',
-    'KelivoIN',
     '10dian-API',
     'DeepSeek',
     'SiliconFlow',
@@ -1583,7 +1582,6 @@ class SettingsProvider extends ChangeNotifier {
     if (_providerConfigs.isEmpty) {
       // Seed a couple of sensible defaults on first launch, but do not recreate
       // providers implicitly during later reads (e.g., when switching chats).
-      ensureProviderConfig('KelivoIN', defaultName: 'KelivoIN');
       ensureProviderConfig('Tensdaq', defaultName: 'Tensdaq');
       ensureProviderConfig('SiliconFlow', defaultName: 'SiliconFlow');
       ensureProviderConfig('AIhubmix', defaultName: 'AIhubmix');
@@ -1593,22 +1591,7 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.setString(_providerConfigsKey, jsonEncode(seededConfigs));
     }
 
-    final kelivo = _providerConfigs['KelivoIN'];
-    final kelivoHost = Uri.tryParse(kelivo?.baseUrl ?? '')?.host.toLowerCase();
-    if (kelivo != null &&
-        (kelivoHost == 'pollinations.ai' ||
-            (kelivoHost?.endsWith('.pollinations.ai') ?? false))) {
-      // The retired service cannot be used anymore. Drop its saved credentials,
-      // models and selections before installing the current built-in provider.
-      await onProviderModelsRetired?.call('KelivoIN');
-      await removeProviderConfig('KelivoIN');
-      await setProviderConfig(
-        'KelivoIN',
-        ProviderConfig.defaultsFor(
-          'KelivoIN',
-        ).copyWith(enabled: kelivo.enabled),
-      );
-    }
+    await _retireDeadBuiltInProviderConfig();
 
     // kick off a one-time connectivity test for services (exclude local Bing)
     if (_searchAutoTestOnLaunch) {
@@ -1634,6 +1617,49 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Hosts an earlier build of this fork wrote into the retired built-in
+  /// provider.
+  ///
+  /// Both are our mistakes, never a user's choice: `pollinations.ai` is the free
+  /// backend upstream retired, and `api.cuplivoas.top` is what an identity sweep
+  /// made of upstream's own host — a domain with no records at all. A config
+  /// pointing at either can never answer, so it leaves together with every
+  /// assistant and conversation reference to it.
+  ///
+  /// The key stays spelled `KelivoIN`: it is a persisted provider key, not a
+  /// brand string, and a sweep that rewrites it makes this repair match nothing
+  /// (see `79696e6f6`).
+  static const List<String> _retiredProviderHosts = [
+    'pollinations.ai',
+    'api.cuplivoas.top',
+  ];
+
+  static bool _isRetiredProviderHost(String? host) {
+    if (host == null || host.isEmpty) return false;
+    return _retiredProviderHosts.any(
+      (retired) => host == retired || host.endsWith('.$retired'),
+    );
+  }
+
+  /// Drops the built-in provider config when it points at a host that cannot
+  /// answer, and every selection that names it.
+  ///
+  /// Decided from the persisted state on every load rather than from a one-shot
+  /// flag, so the rule stays idempotent and a restored backup meets it again.
+  /// A config on any other host is a user's choice and is left alone — including
+  /// upstream's own free-service host, which is external infrastructure this
+  /// fork has no business deleting.
+  Future<void> _retireDeadBuiltInProviderConfig() async {
+    final config = _providerConfigs['KelivoIN'];
+    if (config == null) return;
+    final host = Uri.tryParse(config.baseUrl)?.host.toLowerCase();
+    if (!_isRetiredProviderHost(host)) return;
+    // Selections first: a config removed while an assistant still names it
+    // comes back as an empty default on the next read.
+    await onProviderModelsRetired?.call('KelivoIN');
+    await removeProviderConfig('KelivoIN');
   }
 
   Future<void> setGlobalProxyEnabled(bool v) async {
@@ -2606,7 +2632,7 @@ class SettingsProvider extends ChangeNotifier {
     final services = List<SearchServiceOptions>.from(_searchServices);
     final common = _searchCommonOptions;
     for (final s in services) {
-      if (s is BingLocalOptions || s is KelivoOptions) {
+      if (s is BingLocalOptions) {
         _searchConnection[s.id] = null;
         continue;
       }
@@ -6267,15 +6293,6 @@ Requirements:
   }
 
   // Search service settings
-  Future<bool> unlockKelivoSearch() async {
-    if (_searchServices.any((s) => s is KelivoOptions)) return false;
-    await setSearchServices([
-      ..._searchServices,
-      KelivoOptions(id: KelivoOptions.builtInId),
-    ]);
-    return true;
-  }
-
   Future<void> updateSearchService(
     SearchServiceOptions service, {
     required AvatarConfig? avatar,
@@ -7307,7 +7324,6 @@ class ProviderConfig {
   static String _defaultBase(String key) {
     final k = key.toLowerCase();
     if (k.contains('tensdaq')) return 'https://tensdaq-api.x-aio.com/v1';
-    if (k.contains('kelivoin')) return 'https://api.psycheas.top/v1';
     if (k.contains('openrouter')) return 'https://openrouter.ai/api/v1';
     if (k.contains('vercel')) return 'https://ai-gateway.vercel.sh/v1';
     if (k.contains('aihubmix')) return 'https://aihubmix.com/v1';
@@ -7352,7 +7368,6 @@ class ProviderConfig {
       if (s.contains('gemini') || s.contains('google')) return true;
       if (s.contains('silicon')) return true;
       if (s.contains('openrouter')) return true;
-      if (s.contains('kelivoin')) return true;
       return false; // others disabled by default
     }
 
@@ -7412,62 +7427,6 @@ class ProviderConfig {
           claudePromptCachingEnabled: false,
         );
       case ProviderKind.openai:
-        // Special-case KelivoIN default models and overrides
-        if (lowerKey.contains('kelivoin')) {
-          return ProviderConfig(
-            id: key,
-            enabled: defaultEnabled(key),
-            name: displayName ?? key,
-            apiKey: '',
-            baseUrl: _defaultBase(key),
-            providerType: ProviderKind.openai,
-            chatPath: '/chat/completions',
-            useResponseApi: false,
-            models: const [
-              'Qwen/Qwen3-8B',
-              'Qwen/Qwen3.5-4B',
-              'THUDM/GLM-4-9B-0414',
-              'auto',
-            ],
-            modelOverrides: const {
-              'Qwen/Qwen3-8B': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool', 'reasoning'],
-              },
-              'Qwen/Qwen3.5-4B': {
-                'abilities': ['tool', 'reasoning'],
-              },
-              'THUDM/GLM-4-9B-0414': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool'],
-              },
-              'auto': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool', 'reasoning'],
-                'reasoning': {'dialect': 'openaiReasoningEffort'},
-              },
-            },
-            proxyEnabled: false,
-            proxyHost: '',
-            proxyPort: '8080',
-            proxyUsername: '',
-            proxyPassword: '',
-            multiKeyEnabled: false,
-            apiKeys: const [],
-            keyManagement: const KeyManagementConfig(),
-            aihubmixAppCodeEnabled: false,
-            balanceEnabled: false,
-            balanceApiPath: _defaultBalanceApiPath(key),
-            balanceResultPath: _defaultBalanceResultPath(key),
-            claudePromptCachingEnabled: false,
-          );
-        }
         return ProviderConfig(
           id: key,
           enabled: defaultEnabled(key),

@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/auth/provider_oauth_adapter.dart';
+import 'package:Cuplivo/core/services/auth/provider_oauth_adapter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

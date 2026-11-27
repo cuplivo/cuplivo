@@ -30,7 +30,10 @@ void main() {
       'backup_reminder_enabled_v1',
       'backup_reminder_interval_days_v1',
       'backup_reminder_minutes_of_day_v1',
+      'balance_refresh_interval_v1',
+      'balance_refresh_on_reply_v1',
       'chat_bubble_style_overrides_v1',
+      'chat_bubble_style_thinking_tool_card_v1',
       'chat_owner_order_v1',
       'compress_generation_thinking_enabled_v1',
       'compress_keep_user_messages_v1',
@@ -107,6 +110,7 @@ void main() {
       'user_name',
       'webdav_config_v1',
       'world_books_active_ids_by_assistant_v1',
+      'world_books_grouping_v1',
     ], reason: 'a change here changes what a paired device receives');
   });
 

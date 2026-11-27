@@ -557,13 +557,16 @@ So of the 40, **7 are the two proven machine classes** and **33 are the tree's**
 | `display_pane_full_width_chat_test` | 1 | 0 | **the second missing registry row** — `display_desktop_full_width_chat_v1`, absent from the same fail-closed table, so the switch could not save. Registered `backupOnly` / `deviceViewState` beside the other display rows. |
 | `translate_page_test` | 2 | 0 | the fixture asked for a language the picker does not offer: the target list is the user's visible set, the fork's Bengali sits behind "Manage Languages", and this tree's label for upstream's own entry is `Bengali`, not `Bangla`. The case uses Italian, which is what it is not about anyway. |
 | `image_recall_tools_test` | 1 | 0 | `ImageContextSettings.allowRecall` defaults to false now, so the fixture — whose subject is a picture that is *not* replayed still being listable — has to opt in. |
-| `context_memory_usage_test` | 1 | 1 | open: a frozen prompt's OCR block is not rewritten when one of its images is excluded, so the excluded picture's text survives into the request. |
-| `desktop_provider_detail_pane_test` | 1 | 1 | open: keyboard traversal does not reach the balance scope's "This provider" row within 64 tabs. |
+| `context_memory_usage_test` | 1 | 0 | `OcrService.replaceOcrBlocks` **had no caller** — the helper survived the merge, the code that used it did not. An exclusion is reversible, so the frozen row keeps what was sent and only the request drops the excluded picture's OCR; the frozen branch now asks the OCR for what the remaining images describe (`cacheOnly` for a preview or a turned-off OCR) and rewrites every block on the way out. The helper also needed its own boundary: the pattern stops at `</image_file_ocr>` while `formatOcrBlock` ends its block with a blank line, so replacing one with the other added two newlines per occurrence. |
+| `desktop_provider_detail_pane_test` | 1 | 0 | the balance dropdowns were **not focus stops**: the fork's `DesktopSelectDropdown` defaults `focusable: false`, and that row is a label plus this one control. Without it the keyboard ring ran out at about forty tabs and the scope selector, interval and switch were mouse-only. |
 | `view_image_test` + `storage_space_images_test` | 7 | 7 | the two machine classes, unchanged and proven. |
 
 The pattern worth carrying to the next re-base: **two of the five tree clusters were a single
 unregistered preference key**, and both failed as "the UI does not work" rather than as a sync
-complaint, because the registry is fail-closed and the write path swallows its own errors.
+complaint, because the registry is fail-closed and the write path swallows its own errors. The two that
+followed were the other shape this replay kept producing — a helper that survived while its caller did
+not (`replaceOcrBlocks`), and a widget the fork rewrote whose default quietly removed a capability
+(`focusable`).
 
 **The world-book cluster is behavioural, not a missing file.** Measured before touching it: the group
 UI exists in this tree (`world_book_group_actions.dart`, `world_book_library.dart`,

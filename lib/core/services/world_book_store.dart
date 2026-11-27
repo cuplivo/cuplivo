@@ -11,7 +11,6 @@ class WorldBookStore {
   static const String _activeIdsByAssistantKey =
       'world_books_active_ids_by_assistant_v1';
   static const String _collapsedBooksKey = 'world_books_collapsed_v1';
-  static const String _groupingKey = WorldBookGrouping.preferenceKey;
   static const String _defaultAssistantKey = '__global__';
 
   final BusinessPreferences _preferences;
@@ -60,7 +59,7 @@ class WorldBookStore {
   }) async {
     await _preferences.setMany({
       _itemsKey: jsonEncode(items.map((e) => e.toJson()).toList()),
-      if (grouping != null) _groupingKey: grouping.encode(),
+      if (grouping != null) WorldBookGrouping.preferenceKey: grouping.encode(),
     });
   }
 
@@ -114,16 +113,16 @@ class WorldBookStore {
     await save(const <WorldBook>[]);
     await _preferences.remove(_activeIdsByAssistantKey);
     await _preferences.remove(_collapsedBooksKey);
-    await _preferences.remove(_groupingKey);
+    await _preferences.remove(WorldBookGrouping.preferenceKey);
   }
 
   Future<WorldBookGrouping> getGrouping() async {
     await _preferences.load();
-    return WorldBookGrouping.decode(_preferences.get(_groupingKey));
+    return WorldBookGrouping.decode(_preferences.get(WorldBookGrouping.preferenceKey));
   }
 
   Future<void> saveGrouping(WorldBookGrouping grouping) async {
-    await _preferences.setString(_groupingKey, grouping.encode());
+    await _preferences.setString(WorldBookGrouping.preferenceKey, grouping.encode());
   }
 
   Future<void> reorder({required int oldIndex, required int newIndex}) async {

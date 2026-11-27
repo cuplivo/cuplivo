@@ -28,6 +28,7 @@ import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
 import '../../../support/gated_xfile.dart';
+import '../../../support/temp_directory_cleanup.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/database/business_preferences.dart';
 import 'package:Cuplivo/core/models/chat_input_data.dart';
@@ -608,7 +609,7 @@ void main() {
     try {
       await repository.close().timeout(const Duration(seconds: 10));
     } catch (_) {}
-    if (await directory.exists()) await directory.delete(recursive: true);
+    await deleteDirectoryWhenReleased(directory, keepLockedLeftovers: true);
   });
 
   Future<HomePageController> pumpHarness(

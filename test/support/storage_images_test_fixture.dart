@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
+
+import 'temp_directory_cleanup.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
@@ -71,7 +73,9 @@ class StorageImagesFixture {
     await database.close();
     PathProviderPlatform.instance = previousPaths;
     SandboxPathResolver.debugSetDirs();
-    await root.delete(recursive: true);
+    // The harness keeps a decoded image handle past the test on Windows, so
+    // the unlink cannot be won there; the directory is per-test and disposable.
+    await deleteDirectoryWhenReleased(root, keepLockedLeftovers: true);
   }
 }
 

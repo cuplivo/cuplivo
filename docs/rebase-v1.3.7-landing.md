@@ -220,6 +220,23 @@ them land in between. Unit 2's job was the floor, and the floor is what it is: 1
 remaining work is either the last tip-only repairs or the units whose subjects those tests name, and
 the plan's "gate units 1 and 2" line should be read as *run the suite there*, not *zero it there*.
 
+### The platform pass over those 23
+
+The four Windows cases were repairable on the spot and are repaired (23 → 17):
+
+- `storage_image_usage_test` compared the stored path to the cache's own spelling with `==`.
+  `IconCache` resolves its root through `AppDirectories`, which joins with `/`; the storage service
+  joins with `p.join` — one file, two spellings. Both comparisons use `p.equals` now, and the `path`
+  import the replay had dropped as "unused" is back, because it is used.
+- `chat_send_race_test` and `storage_images_test_fixture` deleted their temp root once and lost the
+  race with a database or image handle (`errno = 32`). Both now use `deleteDirectoryWhenReleased`,
+  with `keepLockedLeftovers` set: those harnesses keep a reader open past the test, which is the
+  helper's own documented case where the unlink cannot be won on Windows, and each directory is
+  per-test.
+
+The 17 that remain are the string/seam classes (2–4 above) — they belong to the units whose subjects
+they name, and the tip's gate is where they close.
+
 ## Procedure for this attempt
 
 ```bash

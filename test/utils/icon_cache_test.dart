@@ -234,9 +234,7 @@ void main() {
       final restored = File('${directory.path}/after/avatars/$name');
       await restored.parent.create(recursive: true);
       await File(stored).copy(restored.path);
-      PathProviderPlatform.instance = _Paths(
-        p.join(directory.path, 'after'),
-      );
+      PathProviderPlatform.instance = _Paths(p.join(directory.path, 'after'));
       // The icon cache resolves its root through AppDirectories, which joins
       // with '/'; compare with path semantics rather than byte equality.
       expect(

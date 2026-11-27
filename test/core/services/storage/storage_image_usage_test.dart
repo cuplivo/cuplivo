@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:Cuplivo/core/models/avatar_config.dart';
 import 'package:Cuplivo/core/models/message_part.dart';
 import 'package:Cuplivo/utils/icon_cache.dart';
@@ -424,7 +425,7 @@ void main() {
       final entries = await StorageUsageService.listUploadEntries(
         images: false,
       );
-      expect(entries.single.path, path);
+      expect(p.equals(entries.single.path, path), isTrue);
       expect(entries.single.isInUse, isTrue);
       expect(
         await StorageUsageService.deleteUploadFiles([path], images: false),
@@ -460,7 +461,7 @@ void main() {
         ]),
       );
       final entries = await StorageUsageService.listUploadEntries(images: true);
-      expect(entries.single.path, path);
+      expect(p.equals(entries.single.path, path), isTrue);
       expect(entries.single.isInUse, isTrue);
       expect(
         await StorageUsageService.deleteUploadFiles([path], images: true),

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/utils/svg_preview_html.dart';
-import 'package:Kelivo/shared/widgets/plantuml_block.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/utils/svg_preview_html.dart';
+import 'package:Cuplivo/shared/widgets/plantuml_block.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
 
-import 'package:Kelivo/features/intelligent_ui/host/ui_markdown_builder.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_markdown_builder.dart';
 
 import 'citation_syntax.dart';
 import 'chat_prose_direction.dart';
@@ -18,6 +18,36 @@ import 'markdown_image_sources.dart';
 import 'markdown_actions.dart';
 import 'link_image_handlers.dart';
 import 'math_adapter.dart';
+
+Map<String, String> markdownAlertLabels(AppLocalizations l10n) =>
+    <String, String>{
+      'note': l10n.markdownNoteLabel,
+      'tip': l10n.markdownTipLabel,
+      'important': l10n.markdownImportantLabel,
+      'warning': l10n.markdownWarningLabel,
+      'caution': l10n.markdownCautionLabel,
+      'danger': l10n.markdownDangerLabel,
+    };
+
+/// The inline grammar the parser needs, exported on its own because a consumer
+/// with no widget tree — the PDF export parses inside a background isolate —
+/// still has to read the same syntax the message does.
+const kelivoInlineSyntaxes = <InlineSyntax>[
+  CitationSyntax(),
+  LocalImagePathSyntax(),
+  QuoteSyntax(),
+];
+
+/// Translates the two settings the screen reads into the parser options a
+/// widget-less caller can construct.
+ParserOptions markdownParserOptionsFor({
+  required bool enableMathRendering,
+  required bool enableDollarLatex,
+}) => switch ((enableMathRendering, enableDollarLatex)) {
+  (true, true) => const ParserOptions(),
+  (true, false) => const ParserOptions(dollarInlineMath: false),
+  (false, _) => const ParserOptions(inlineMath: false, mathBlocks: false),
+};
 
 // Stable registration identity preserves the parser and completed prefix trees.
 final kelivoMarkdownExtensions = _extensions();
@@ -33,11 +63,7 @@ MarkstreamExtensions markdownExtensionsFor(BuildContext context) =>
 MarkstreamExtensions _extensions({LiteralSpanBuilder? literalSpanBuilder}) =>
     MarkstreamExtensions(
       proseDirection: chatProseDirection,
-      inlineSyntaxes: const [
-        CitationSyntax(),
-        LocalImagePathSyntax(),
-        QuoteSyntax(),
-      ],
+      inlineSyntaxes: kelivoInlineSyntaxes,
       namedInlineBuilders: {
         'kelivo-citation': buildCitation,
         'kelivo-quote': buildQuoteInline,

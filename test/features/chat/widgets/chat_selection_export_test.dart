@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/features/chat/widgets/message_export_sheet.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/widgets/message_export_sheet.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
 
 import '../../../support/business_test_harness.dart';
 
@@ -72,19 +72,33 @@ void main() {
       expect(find.byType(BottomSheet), desktop ? findsNothing : findsOneWidget);
       expect(find.text('Markdown'), findsOneWidget);
       expect(find.text('Plain Text'), findsOneWidget);
-      expect(find.text('Export as Image'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Show thinking content'),
-        120,
-        scrollable: find
-            .descendant(
-              of: find.byType(ListView),
-              matching: find.byType(Scrollable),
-            )
-            .last,
+      // A format of this menu, read from the menu's own label: the PDF entry was
+      // carried out to the selection bar by a re-base and belongs here.
+      expect(find.text('PDF'), findsOneWidget);
+      expect(
+        find.text('Export selected messages as a PDF document'),
+        findsOneWidget,
       );
-      await tester.pumpAndSettle();
+
+      // The desktop dialog is height-bounded, so a later format sits below the
+      // fold it was measured against; the list is what has to show it.
+      Future<void> reveal(String text) async {
+        await tester.scrollUntilVisible(
+          find.text(text),
+          120,
+          scrollable: find
+              .descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              )
+              .last,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await reveal('Export as Image');
+      expect(find.text('Export as Image'), findsOneWidget);
+      await reveal('Show thinking content');
       IosSwitch tools() =>
           tester.widget<IosSwitch>(find.byType(IosSwitch).first);
       IosSwitch thinking() =>

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
 /// Structured message part — single source of truth for attachments and text.
 ///
 /// Payload contract:
@@ -8,6 +10,15 @@ import 'dart:convert';
 /// - `assistant_round_end`: JSON reasoning-details array or `null`
 /// - `image`: `{"uri","mime"?,"assetId"?,"unavailable"?}`
 /// - `file`: `{"uri","name","mime"?,"assetId"?,"unavailable"?}`
+/// - `subagent_result`: `{"childConversationId","elapsedMs"?,"label"?,
+///   "outcome"?}` — the marker on the one message a finished subagent writes
+///   into its parent conversation; `label` and `outcome` are what the divider and
+///   the panel read, so an import or a sync must carry them too; the brief itself
+///   is the message's `text` part
+/// - `subagent_mail`: `{"fromRole","senderConversationId"}` — the marker on a
+///   message one conversation in a delegation sends to the other while the work
+///   is still going. It travels as `user` because that is what the receiving
+///   model should read, but nobody in that conversation typed it
 /// - unknown kinds: stored in [UnknownPart] and written back unchanged
 /// - malformed known kinds: created only while hydrating database rows and
 ///   stored in [MalformedPart] for lossless write-back
@@ -32,6 +43,10 @@ sealed class MessagePart {
         return ProviderAuthErrorPart.fromPayload(payload);
       case 'response_truncation':
         return ResponseTruncationPart.fromPayload(payload);
+      case 'subagent_result':
+        return SubagentResultPart.fromPayload(payload);
+      case 'subagent_mail':
+        return SubagentMailPart.fromPayload(payload);
       default:
         return UnknownPart(rawKind: kind, payload: payload);
     }
@@ -118,6 +133,204 @@ final class ProviderAuthErrorPart extends MessagePart {
       other is ProviderAuthErrorPart && other.providerId == providerId;
   @override
   int get hashCode => providerId.hashCode;
+}
+
+/// The marker on the one message a finished subagent writes into its parent.
+///
+/// The brief travels as that message's [TextPart], so the parent model reads an
+/// ordinary user turn. Identity lives here rather than in the message id: an
+/// import, a restore or a sync may rewrite ids, and the part travels with the
+/// row — a rewritten id must not turn a subagent's conclusion into a user
+/// utterance nobody wrote.
+final class SubagentResultPart extends MessagePart {
+  const SubagentResultPart({
+    required this.childConversationId,
+    this.elapsedMs,
+    this.label,
+    this.outcome,
+  });
+
+  factory SubagentResultPart.fromPayload(String payload) {
+    final data = _decodeObjectPayload(payload);
+    final child = data['childConversationId'];
+    if (child is! String || child.isEmpty) {
+      throw const _MessagePartFormatException('missing_child_conversation_id');
+    }
+    final elapsed = data['elapsedMs'];
+    if (elapsed != null && (elapsed is! int || elapsed < 0)) {
+      throw const _MessagePartFormatException('invalid_elapsed');
+    }
+    final label = data['label'];
+    if (label != null && label is! String) {
+      throw const _MessagePartFormatException('invalid_label');
+    }
+    final outcome = data['outcome'];
+    if (outcome != null && outcome is! String) {
+      throw const _MessagePartFormatException('invalid_outcome');
+    }
+    return SubagentResultPart(
+      childConversationId: child,
+      elapsedMs: elapsed as int?,
+      label: label as String?,
+      outcome: outcome as String?,
+    );
+  }
+
+  final String childConversationId;
+
+  /// How long the child ran. Null when the caller had no start time.
+  final int? elapsedMs;
+
+  /// What the child was called, as the model named it. The divider, the panel
+  /// and the sidebar all show this same word.
+  final String? label;
+
+  /// One of `completed`, `failed`, `cancelled`, `interrupted`.
+  ///
+  /// Kept apart from the brief on purpose: the brief is prose for the model, so
+  /// a renderer that parsed it would break the day the wording changes. A value
+  /// this class does not know renders as a neutral finished state.
+  final String? outcome;
+
+  /// The result message one segment of [childConversationId] writes.
+  ///
+  /// A plain UUID, so nothing has to parse it; deterministic, so a second
+  /// delivery of the same segment collides with the first instead of adding a
+  /// row. [runId] names the segment: a delegation that was continued writes one
+  /// result per turn, and the old seed (no run id) is kept only so rows written
+  /// before this shape still answer.
+  static String messageIdFor(String childConversationId, {String? runId}) {
+    final seed = runId == null
+        ? 'cuplivo/subagent-result/$childConversationId'
+        : 'cuplivo/subagent-result/$childConversationId/$runId';
+    return const Uuid().v5(Namespace.url.value, seed);
+  }
+
+  @override
+  String get kind => 'subagent_result';
+
+  @override
+  String encodePayload() => jsonEncode({
+    'childConversationId': childConversationId,
+    if (elapsedMs != null) 'elapsedMs': elapsedMs,
+    if (label != null) 'label': label,
+    if (outcome != null) 'outcome': outcome,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is SubagentResultPart &&
+      other.childConversationId == childConversationId &&
+      other.elapsedMs == elapsedMs &&
+      other.label == label &&
+      other.outcome == outcome;
+
+  @override
+  int get hashCode =>
+      Object.hash(childConversationId, elapsedMs, label, outcome);
+}
+
+/// Whether [parts] carry the notice a finished subagent wrote into its parent.
+///
+/// Identity is the part, never the message id: an import, a restore or a sync may
+/// rewrite ids, and the part travels with the row. Everything that has to know
+/// "this `user` message is not something the user typed" asks here, so the answer
+/// cannot drift between the request builder, the image selector and the renderer.
+bool hasSubagentResultPart(Iterable<MessagePart> parts) =>
+    subagentResultPartOf(parts) != null;
+
+/// The notice in [parts], or null when this is an ordinary message.
+SubagentResultPart? subagentResultPartOf(Iterable<MessagePart> parts) {
+  for (final part in parts) {
+    if (part is SubagentResultPart) return part;
+  }
+  return null;
+}
+
+/// Who wrote a mail row, seen from the conversation holding it.
+enum SubagentMailSender {
+  /// The conversation that delegated the work.
+  delegator,
+
+  /// The subagent doing it.
+  subagent,
+}
+
+/// The marker on a message one side of a delegation sends the other mid-work.
+///
+/// It travels as a `user` message because that is the role the receiving model
+/// should read, but no person in that conversation typed it: the row keeps its
+/// identity here for the same reason [SubagentResultPart] does — an import, a
+/// restore or a sync may rewrite ids, and the part travels with the row.
+final class SubagentMailPart extends MessagePart {
+  const SubagentMailPart({
+    required this.from,
+    required this.senderConversationId,
+  });
+
+  factory SubagentMailPart.fromPayload(String payload) {
+    final data = _decodeObjectPayload(payload);
+    final from = switch (data['fromRole']) {
+      'delegator' => SubagentMailSender.delegator,
+      'subagent' => SubagentMailSender.subagent,
+      _ => throw const _MessagePartFormatException('invalid_mail_sender'),
+    };
+    final sender = data['senderConversationId'];
+    if (sender is! String || sender.isEmpty) {
+      throw const _MessagePartFormatException('missing_sender_conversation_id');
+    }
+    return SubagentMailPart(from: from, senderConversationId: sender);
+  }
+
+  final SubagentMailSender from;
+
+  /// The conversation the message came from.
+  final String senderConversationId;
+
+  /// The row one mail delivery writes.
+  ///
+  /// Deterministic on the sender and the tool call that carried it, so a retried
+  /// tool call collides with its own row instead of adding a second copy. A call
+  /// without an id falls back to a random one: there is nothing to be idempotent
+  /// about, and two sends must not collapse into one.
+  static String messageIdFor(String senderConversationId, String toolCallId) {
+    final call = toolCallId.trim();
+    if (call.isEmpty) return const Uuid().v4();
+    return const Uuid().v5(
+      Namespace.url.value,
+      'cuplivo/subagent-mail/$senderConversationId/$call',
+    );
+  }
+
+  @override
+  String get kind => 'subagent_mail';
+
+  @override
+  String encodePayload() => jsonEncode({
+    'fromRole': from.name,
+    'senderConversationId': senderConversationId,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is SubagentMailPart &&
+      other.from == from &&
+      other.senderConversationId == senderConversationId;
+
+  @override
+  int get hashCode => Object.hash(from, senderConversationId);
+}
+
+/// Whether [parts] carry a message one side of a delegation sent the other.
+bool hasSubagentMailPart(Iterable<MessagePart> parts) =>
+    subagentMailPartOf(parts) != null;
+
+/// The mail marker in [parts], or null when this is an ordinary message.
+SubagentMailPart? subagentMailPartOf(Iterable<MessagePart> parts) {
+  for (final part in parts) {
+    if (part is SubagentMailPart) return part;
+  }
+  return null;
 }
 
 final class TextPart extends MessagePart {
@@ -229,6 +442,18 @@ final class AssistantRoundEndPart extends MessagePart {
   int get hashCode => encodePayload().hashCode;
 }
 
+/// Progress of a promised image whose bytes have not been written yet.
+///
+/// `null` on [ImagePart.state] means the bytes are there (or the part predates
+/// image jobs). Unknown future values decode to `null`, so an older build still
+/// shows the image instead of dropping the part.
+///
+/// `pending` is what the job writes; `failed` is what it writes when the picture
+/// could not be made; `interrupted` is never written — the renderer derives it
+/// when a persisted `pending` part has no live job behind it (the app died).
+/// There is no `cancelled`: nothing in the product can cancel a job.
+enum ImagePartState { pending, failed, interrupted }
+
 final class ImagePart extends MessagePart {
   const ImagePart({
     required this.uri,
@@ -236,6 +461,12 @@ final class ImagePart extends MessagePart {
     this.assetId,
     this.id,
     this.unavailable = false,
+    this.jobId,
+    this.state,
+    this.prompt,
+    this.model,
+    this.failureReason,
+    this.durationMs,
   });
 
   factory ImagePart.fromPayload(String payload) {
@@ -249,6 +480,12 @@ final class ImagePart extends MessagePart {
       mime: _optionalString(map, 'mime'),
       assetId: _optionalString(map, 'assetId'),
       unavailable: _optionalBool(map, 'unavailable'),
+      jobId: _optionalString(map, 'jobId'),
+      state: _decodeImagePartState(_optionalString(map, 'state')),
+      prompt: _optionalString(map, 'prompt'),
+      model: _optionalString(map, 'model'),
+      failureReason: _optionalString(map, 'failureReason'),
+      durationMs: _optionalInt(map, 'durationMs'),
     );
   }
 
@@ -260,6 +497,88 @@ final class ImagePart extends MessagePart {
   final String? id;
   final bool unavailable;
 
+  /// The job that will fill [uri]; written so a restart can tell "still
+  /// painting" from "interrupted".
+  final String? jobId;
+
+  /// `null` once the bytes exist.
+  final ImagePartState? state;
+
+  /// What was asked for. Kept on the part so the panel can still show it after a
+  /// restart, when no live job remembers the prompt.
+  final String? prompt;
+
+  /// `providerId::modelId` that drew it. The panel names it after a restart,
+  /// when the resolved binding is gone.
+  final String? model;
+
+  /// Why the attempt failed, in words a person can act on. Kept on the part so
+  /// a failed picture still explains itself after a restart.
+  final String? failureReason;
+
+  /// How long the attempt took, kept on the part so the header still reads
+  /// `(14.5s)` after a restart instead of a bare title. Milliseconds.
+  final int? durationMs;
+
+  /// The duration as a [Duration], or null when this picture never reported one.
+  Duration? get duration =>
+      durationMs == null ? null : Duration(milliseconds: durationMs!);
+
+  /// The same picture with its location or availability replaced.
+  ///
+  /// Restore and path-rewrite passes touch every attachment; rebuilding the part
+  /// field by field there is how an illustration lost its job state, prompt,
+  /// model, reason and duration. `state` is not cosmetic: `hasBytes` derives
+  /// from it, so a stripped `pending` part would be sent to a provider as if its
+  /// bytes existed.
+  ImagePart copyWith({String? uri, bool? unavailable, String? mime}) {
+    return ImagePart(
+      uri: uri ?? this.uri,
+      mime: mime ?? this.mime,
+      assetId: assetId,
+      id: id,
+      unavailable: unavailable ?? this.unavailable,
+      jobId: jobId,
+      state: state,
+      prompt: prompt,
+      model: model,
+      failureReason: failureReason,
+      durationMs: durationMs,
+    );
+  }
+
+  /// Whether there are bytes to send.
+  ///
+  /// A part with a [state] is a promise from an image job: the uri is already
+  /// reserved, but the file it names does not exist yet. Nothing may hand that
+  /// to a model — there is no picture to encode — so every outbound path asks
+  /// this instead of re-deriving "is this thing real" from the uri. Whether the
+  /// file passed [unavailable] once it *was* written is a separate question.
+  bool get hasBytes => state == null;
+
+  /// The same image at a new stage. [state] `null` means the bytes are here;
+  /// [uri] moves to wherever the bytes actually landed; [failureReason] lets a
+  /// live job explain a failure the persisted snapshot never saw.
+  ImagePart withState(
+    ImagePartState? state, {
+    String? uri,
+    String? failureReason,
+  }) {
+    return ImagePart(
+      uri: uri ?? this.uri,
+      mime: mime,
+      assetId: assetId,
+      id: id,
+      unavailable: unavailable,
+      jobId: jobId,
+      state: state,
+      prompt: prompt,
+      model: model,
+      failureReason: failureReason ?? this.failureReason,
+      durationMs: durationMs,
+    );
+  }
+
   @override
   String get kind => 'image';
 
@@ -269,6 +588,12 @@ final class ImagePart extends MessagePart {
     if (mime != null) 'mime': mime,
     if (assetId != null) 'assetId': assetId,
     if (unavailable) 'unavailable': true,
+    if (jobId != null) 'jobId': jobId,
+    if (state != null) 'state': state!.name,
+    if (prompt != null) 'prompt': prompt,
+    if (model != null) 'model': model,
+    if (failureReason != null) 'failureReason': failureReason,
+    if (durationMs != null) 'durationMs': durationMs,
   });
 
   @override
@@ -279,10 +604,28 @@ final class ImagePart extends MessagePart {
           mime == other.mime &&
           assetId == other.assetId &&
           id == other.id &&
-          unavailable == other.unavailable;
+          unavailable == other.unavailable &&
+          jobId == other.jobId &&
+          state == other.state &&
+          prompt == other.prompt &&
+          model == other.model &&
+          failureReason == other.failureReason &&
+          durationMs == other.durationMs;
 
   @override
-  int get hashCode => Object.hash(uri, mime, assetId, id, unavailable);
+  int get hashCode => Object.hash(
+    uri,
+    mime,
+    assetId,
+    id,
+    unavailable,
+    jobId,
+    state,
+    prompt,
+    model,
+    failureReason,
+    durationMs,
+  );
 }
 
 final class FilePart extends MessagePart {
@@ -451,6 +794,25 @@ bool _optionalBool(Map<String, dynamic> map, String key) {
     throw const _MessagePartFormatException('invalid_unavailable');
   }
   return value;
+}
+
+int? _optionalInt(Map<String, dynamic> map, String key) {
+  final value = map[key];
+  if (value == null) return null;
+  if (value is! int || value < 0) {
+    throw const _MessagePartFormatException('invalid_duration');
+  }
+  return value;
+}
+
+/// An unknown value is not a format error: a newer build may write a state this
+/// one does not know, and the image itself is still described by [ImagePart.uri].
+ImagePartState? _decodeImagePartState(String? raw) {
+  if (raw == null) return null;
+  for (final state in ImagePartState.values) {
+    if (state.name == raw) return state;
+  }
+  return null;
 }
 
 /// Whether persisted split triples can drive the historical interleaving

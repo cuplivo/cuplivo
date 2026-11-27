@@ -1,25 +1,25 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/request_budget.dart';
-import 'package:Kelivo/core/models/carried_original.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/models/native_compaction.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
-import 'package:Kelivo/core/services/api/chat_api_helpers.dart';
-import 'package:Kelivo/core/services/api/request_history_context.dart';
-import 'package:Kelivo/core/services/api/tool_result_content.dart';
-import 'package:Kelivo/core/services/tools/view_image_tool.dart';
-import 'package:Kelivo/core/services/api/providers/openai/chat_completions_api.dart';
-import 'package:Kelivo/core/services/api/native_input_attachments.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
-import 'package:Kelivo/features/home/services/context_assembly.dart';
+import 'package:Cuplivo/core/models/request_budget.dart';
+import 'package:Cuplivo/core/models/carried_original.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/services/api/chat_api_helpers.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/api/tool_result_content.dart';
+import 'package:Cuplivo/core/services/tools/view_image_tool.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/chat_completions_api.dart';
+import 'package:Cuplivo/core/services/api/native_input_attachments.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/features/home/services/context_assembly.dart';
 
 const pixels = 'data:image/png;base64,YWJj';
 ChatContextImage image(
@@ -822,6 +822,33 @@ void main() {
     },
   );
 
+  test('a delegation mail row does not take over the user’s turn', () {
+    final human = ChatMessage(
+      id: 'human-1',
+      role: 'user',
+      conversationId: 'c',
+      parts: const [TextPart('look')],
+    );
+    final mail = ChatMessage(
+      id: 'mail-1',
+      role: 'user',
+      conversationId: 'c',
+      parts: const [
+        SubagentMailPart(
+          from: SubagentMailSender.subagent,
+          senderConversationId: 'child-1',
+        ),
+        TextPart('found it'),
+      ],
+    );
+
+    final turns = RequestImageContext.userTurnsFor([human, mail]);
+    // The mail row belongs to the human's turn: a picture attached there keeps
+    // its owner (and its protected bytes) instead of being retired.
+    expect(turns[mail.id], 'human-1');
+    expect(turns[human.id], 'human-1');
+  });
+
   test('remote preview size is a reservation and never loads pixels', () async {
     var loads = 0;
     final remote = ChatContextImage(
@@ -1166,6 +1193,79 @@ void main() {
       }).drain<void>();
     },
   );
+
+  test('an assistant picture is not reported as part of the request', () async {
+    final assistant = ChatMessage(
+      id: 'answer',
+      role: 'assistant',
+      conversationId: 'chat',
+      parts: [const ImagePart(uri: pixels)],
+    );
+    final request = RequestImageContext(
+      settings: const ImageContextSettings(),
+      images: RequestImageContext.collect([assistant]),
+      targetMessageId: 'answer',
+    );
+    final messages = <Map<String, dynamic>>[
+      {'role': 'user', 'content': 'draw it', imageContextOwnerKey: 'ask'},
+      {
+        'role': 'assistant',
+        'content': 'done',
+        imageContextOwnerKey: 'answer',
+        multimodalInternalMediaPathsKey: [encodeInternalMediaRef(uri: pixels)],
+      },
+    ];
+
+    await request.prepareMessages(
+      messages,
+      const [],
+      parseMarkdownImages: true,
+      allowRemoteImages: true,
+    );
+
+    final preview = await request.preview();
+    expect(preview, hasLength(1));
+    expect(
+      preview.single.included,
+      isFalse,
+      reason:
+          'the picture is never replayed, so the panel must not list it '
+          'as sent',
+    );
+    // The message itself keeps the ref: image editing reads it from history.
+    expect(messages[1][multimodalInternalMediaPathsKey], isNotEmpty);
+  });
+
+  test('a promised picture with no bytes is never part of the context', () {
+    // An image job reserves the uri and writes the part *before* the file
+    // exists. Letting that part into the catalog invents an image the provider
+    // cannot load — the same reason the outbound body skips it. `hasBytes` is
+    // the question; `unavailable` is a different one (bytes that went missing).
+    final owner = ChatMessage(
+      id: 'owner',
+      role: 'assistant',
+      conversationId: 'chat',
+      parts: [
+        const ImagePart(
+          uri: '/tmp/promised',
+          assetId: 'img_promised',
+          jobId: 'job-1',
+          state: ImagePartState.pending,
+        ),
+        const ImagePart(
+          uri: '/tmp/failed',
+          assetId: 'img_failed',
+          jobId: 'job-2',
+          state: ImagePartState.failed,
+        ),
+        const ImagePart(uri: '/tmp/done', assetId: 'img_done'),
+      ],
+    );
+
+    final collected = RequestImageContext.collect([owner]);
+
+    expect(collected.map((image) => image.uri), ['/tmp/done']);
+  });
 
   test(
     'composer paths reuse image references and leave other media untouched',

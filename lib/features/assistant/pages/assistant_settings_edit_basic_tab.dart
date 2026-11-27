@@ -50,6 +50,7 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ap = context.watch<AssistantProvider>();
     final a = ap.getById(widget.assistantId)!;
+    final settingsProvider = context.watch<SettingsProvider>();
 
     Widget avatarWidget({double size = 56}) {
       final bg = cs.primary.withValues(alpha: isDark ? 0.18 : 0.12);
@@ -188,6 +189,23 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
               _iosDivider(context),
               AssistantDefaultWorkspaceRow(assistantId: widget.assistantId),
               _iosDivider(context),
+              // The value slot holds a state, not a preview. A description is a
+              // sentence with newlines; any preview wide enough to be useful is
+              // also wide enough to push this row's label off the screen, and
+              // the sheet behind the row shows the whole thing anyway. An empty
+              // description shows nothing — the same grammar every other
+              // optional row uses.
+              _iosNavRow(
+                context,
+                icon: Lucide.SquarePen,
+                label: l10n.assistantEditDescriptionTitle,
+                tip: l10n.assistantEditDescriptionTip,
+                detailText: a.description.trim().isEmpty
+                    ? null
+                    : l10n.assistantEditDescriptionSet,
+                onTap: () => _showDescriptionSheet(context, a),
+              ),
+              _iosDivider(context),
               // Use assistant avatar
               _iosSwitchRow(
                 context,
@@ -218,6 +236,43 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
                 onChanged: (v) => context
                     .read<AssistantProvider>()
                     .updateAssistant(a.copyWith(streamOutput: v)),
+              ),
+              _iosDivider(context),
+              // Chat suggestions: a per-assistant opt-out of the global switch.
+              KeyedSubtree(
+                key: _chatSuggestionsSwitchKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _iosSwitchRow(
+                      context,
+                      icon: Lucide.MessagesSquare,
+                      label: l10n.assistantEditChatSuggestionsTitle,
+                      tip: l10n.assistantEditChatSuggestionsTip,
+                      value: a.suggestionsEnabled,
+                      onChanged: (v) => context
+                          .read<AssistantProvider>()
+                          .updateAssistant(a.copyWith(suggestionsEnabled: v)),
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      child: settingsProvider.isSuggestionOptOutInactiveFor(a)
+                          ? Padding(
+                              padding: const EdgeInsets.fromLTRB(48, 0, 44, 8),
+                              child: Text(
+                                l10n.assistantEditChatSuggestionsGlobalOff,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.3,
+                                  color: cs.onSurface.withValues(alpha: 0.58),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -484,105 +539,150 @@ class _BasicSettingsTabState extends State<_BasicSettingsTab> {
   }
 
   Future<void> _showAvatarPicker(BuildContext context, Assistant a) async {
+    await showAvatarMenu(
+      context,
+      value: a.avatar,
+      onSelected: (avatar) async {
+        await context.read<AssistantProvider>().updateAssistant(
+          a.copyWith(avatar: avatar, clearAvatar: avatar == null),
+        );
+      },
+    );
+  }
+
+  /// The description, in the sheet Max tokens uses: close / title / save, a
+  /// box big enough for a sentence, and the one line that says who reads it.
+  ///
+  /// Multi-line on purpose: the row can only show a clipped value, and a
+  /// description squeezed into one line is one the user cannot check before
+  /// saving.
+  Future<void> _showDescriptionSheet(BuildContext context, Assistant a) async {
     final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final controller = TextEditingController(text: a.description);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.overlaySurface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
-        final cs = Theme.of(ctx).colorScheme;
-        final maxH = MediaQuery.of(ctx).size.height * 0.8;
-        Widget row(String text, Future<void> Function() action) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: SizedBox(
-              height: 48,
-              child: IosCardPress(
-                borderRadius: BorderRadius.circular(14),
-                baseColor: sheetTileColor(ctx),
-                duration: const Duration(milliseconds: 260),
-                onTap: () async {
-                  Haptics.light();
-                  Navigator.of(ctx).pop();
-                  await Future<void>.delayed(const Duration(milliseconds: 10));
-                  await action();
-                },
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: AppFontWeights.medium,
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                 ),
-              ),
-            ),
-          );
-        }
-
-        return SafeArea(
-          top: false,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxH),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: cs.onSurface.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(999),
+                    _TactileIconButton(
+                      icon: Lucide.X,
+                      color: cs.onSurface,
+                      size: 20,
+                      onTap: () => Navigator.of(ctx).pop(),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          l10n.assistantEditDescriptionTitle,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: AppFontWeights.semibold,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    row(
-                      l10n.assistantEditAvatarChooseImage,
-                      () async => _pickLocalImage(context, a),
+                    _TactileRow(
+                      onTap: () {
+                        context.read<AssistantProvider>().updateAssistant(
+                          a.copyWith(description: controller.text),
+                        );
+                        Navigator.of(ctx).pop();
+                      },
+                      pressedScale: 0.95,
+                      builder: (pressed) {
+                        final color = pressed
+                            ? cs.primary.withValues(alpha: 0.7)
+                            : cs.primary;
+                        return Text(
+                          l10n.assistantSettingsAddSheetSave,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 16,
+                            fontWeight: AppFontWeights.semibold,
+                          ),
+                        );
+                      },
                     ),
-                    row(l10n.assistantEditAvatarChooseEmoji, () async {
-                      final assistantProvider = context
-                          .read<AssistantProvider>();
-                      final emoji = await _pickEmoji(context);
-                      if (!context.mounted || emoji == null) return;
-                      await assistantProvider.updateAssistant(
-                        a.copyWith(avatar: emoji),
-                      );
-                    }),
-                    row(
-                      l10n.assistantEditAvatarEnterLink,
-                      () async => _inputAvatarUrl(context, a),
-                    ),
-                    row(
-                      l10n.assistantEditAvatarImportQQ,
-                      () async => _inputQQAvatar(context, a),
-                    ),
-                    row(l10n.assistantEditAvatarReset, () async {
-                      await context.read<AssistantProvider>().updateAssistant(
-                        a.copyWith(clearAvatar: true),
-                      );
-                    }),
-                    const SizedBox(height: 4),
                   ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  minLines: 3,
+                  maxLines: 5,
+                  maxLength: Assistant.maxDescriptionLength,
+                  keyboardType: TextInputType.multiline,
+                  style: const TextStyle(fontSize: 14.5, height: 1.45),
+                  decoration: InputDecoration(
+                    hintText: l10n.assistantEditDescriptionHint,
+                    filled: true,
+                    fillColor: ctx.appColors.surfaceFill,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: cs.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: cs.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: cs.primary.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                ),
+                Text(
+                  l10n.assistantEditDescriptionTip,
+                  style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
         );
       },
     );
+    controller.dispose();
   }
 
   Future<void> _pickBackground(BuildContext context, Assistant a) async {
@@ -1404,552 +1504,5 @@ class _ValuePill extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-extension _AssistantAvatarActions on _BasicSettingsTabState {
-  Future<String?> _pickEmoji(BuildContext context) async {
-    final l10n = AppLocalizations.of(context)!;
-    final controller = TextEditingController();
-    String value = '';
-    bool validGrapheme(String s) {
-      final trimmed = s.characters.take(1).toString().trim();
-      return trimmed.isNotEmpty && trimmed == s.trim();
-    }
-
-    final List<String> quick = const [
-      '😀',
-      '😁',
-      '😂',
-      '🤣',
-      '😃',
-      '😄',
-      '😅',
-      '😊',
-      '😍',
-      '😘',
-      '😗',
-      '😙',
-      '😚',
-      '🙂',
-      '🤗',
-      '🤩',
-      '🫶',
-      '🤝',
-      '👍',
-      '👎',
-      '👋',
-      '🙏',
-      '💪',
-      '🔥',
-      '✨',
-      '🌟',
-      '💡',
-      '🎉',
-      '🎊',
-      '🎈',
-      '🌈',
-      '☀️',
-      '🌙',
-      '⭐',
-      '⚡',
-      '☁️',
-      '❄️',
-      '🌧️',
-      '🍎',
-      '🍊',
-      '🍋',
-      '🍉',
-      '🍇',
-      '🍓',
-      '🍒',
-      '🍑',
-      '🥭',
-      '🍍',
-      '🥝',
-      '🍅',
-      '🥕',
-      '🌽',
-      '🍞',
-      '🧀',
-      '🍔',
-      '🍟',
-      '🍕',
-      '🌮',
-      '🌯',
-      '🍣',
-      '🍜',
-      '🍰',
-      '🍪',
-      '🍩',
-      '🍫',
-      '🍻',
-      '☕',
-      '🧋',
-      '🥤',
-      '⚽',
-      '🏀',
-      '🏈',
-      '🎾',
-      '🏐',
-      '🎮',
-      '🎧',
-      '🎸',
-      '🎹',
-      '🎺',
-      '📚',
-      '✏️',
-      '💼',
-      '💻',
-      '🖥️',
-      '📱',
-      '🛩️',
-      '✈️',
-      '🚗',
-      '🚕',
-      '🚙',
-      '🚌',
-      '🚀',
-      '🛰️',
-      '🧠',
-      '🫀',
-      '💊',
-      '🩺',
-      '🐶',
-      '🐱',
-      '🐭',
-      '🐹',
-      '🐰',
-      '🦊',
-      '🐻',
-      '🐼',
-      '🐨',
-      '🐯',
-      '🦁',
-      '🐮',
-      '🐷',
-      '🐸',
-      '🐵',
-    ];
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final cs = Theme.of(ctx).colorScheme;
-        return StatefulBuilder(
-          builder: (ctx, setLocal) {
-            final media = MediaQuery.of(ctx);
-            final avail = media.size.height - media.viewInsets.bottom;
-            final double gridHeight = (avail * 0.28).clamp(120.0, 220.0);
-            return AlertDialog(
-              scrollable: true,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              backgroundColor: context.overlaySurface,
-              title: Text(l10n.assistantEditEmojiDialogTitle),
-              content: SizedBox(
-                width: 360,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.08),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: EmojiText(
-                        value.isEmpty
-                            ? '🙂'
-                            : value.characters.take(1).toString(),
-                        fontSize: 40,
-                        optimizeEmojiAlign: true,
-                        nudge: Offset.zero, // picker preview: no extra nudge
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: controller,
-                      autofocus: true,
-                      onChanged: (v) => setLocal(() => value = v),
-                      onSubmitted: (_) {
-                        if (validGrapheme(value)) {
-                          Navigator.of(
-                            ctx,
-                          ).pop(value.characters.take(1).toString());
-                        }
-                      },
-                      decoration: InputDecoration(
-                        hintText: l10n.assistantEditEmojiDialogHint,
-                        filled: true,
-                        fillColor: ctx.appColors.surfaceFill,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.transparent),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.transparent),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: cs.primary.withValues(alpha: 0.4),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: gridHeight,
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 8,
-                              mainAxisSpacing: 8,
-                              crossAxisSpacing: 8,
-                            ),
-                        itemCount: quick.length,
-                        itemBuilder: (c, i) {
-                          final e = quick[i];
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () => Navigator.of(ctx).pop(e),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: cs.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              alignment: Alignment.center,
-                              child: EmojiText(
-                                e,
-                                fontSize: 20,
-                                optimizeEmojiAlign: true,
-                                nudge:
-                                    Offset.zero, // picker grid: no extra nudge
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: Text(l10n.assistantEditEmojiDialogCancel),
-                ),
-                TextButton(
-                  onPressed: validGrapheme(value)
-                      ? () => Navigator.of(
-                          ctx,
-                        ).pop(value.characters.take(1).toString())
-                      : null,
-                  child: Text(
-                    l10n.assistantEditEmojiDialogSave,
-                    style: TextStyle(
-                      color: validGrapheme(value)
-                          ? cs.primary
-                          : cs.onSurface.withValues(alpha: 0.38),
-                      fontWeight: AppFontWeights.semibold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _inputAvatarUrl(BuildContext context, Assistant a) async {
-    final l10n = AppLocalizations.of(context)!;
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final cs = Theme.of(ctx).colorScheme;
-        bool valid(String s) =>
-            s.trim().startsWith('http://') || s.trim().startsWith('https://');
-        String value = '';
-        return StatefulBuilder(
-          builder: (ctx, setLocal) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              backgroundColor: context.overlaySurface,
-              title: Text(l10n.assistantEditImageUrlDialogTitle),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: l10n.assistantEditImageUrlDialogHint,
-                  filled: true,
-                  fillColor: ctx.appColors.surfaceFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.transparent),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.transparent),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: cs.primary.withValues(alpha: 0.4),
-                    ),
-                  ),
-                ),
-                onChanged: (v) => setLocal(() => value = v),
-                onSubmitted: (_) {
-                  if (valid(value)) Navigator.of(ctx).pop(true);
-                },
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(l10n.assistantEditImageUrlDialogCancel),
-                ),
-                TextButton(
-                  onPressed: valid(value)
-                      ? () => Navigator.of(ctx).pop(true)
-                      : null,
-                  child: Text(
-                    l10n.assistantEditImageUrlDialogSave,
-                    style: TextStyle(
-                      color: valid(value)
-                          ? cs.primary
-                          : cs.onSurface.withValues(alpha: 0.38),
-                      fontWeight: AppFontWeights.semibold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    if (ok == true) {
-      final url = controller.text.trim();
-      if (!context.mounted || url.isEmpty) return;
-      final assistantProvider = context.read<AssistantProvider>();
-      await assistantProvider.updateAssistant(a.copyWith(avatar: url));
-    }
-  }
-
-  Future<void> _inputQQAvatar(BuildContext context, Assistant a) async {
-    final l10n = AppLocalizations.of(context)!;
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final cs = Theme.of(ctx).colorScheme;
-        final assistantProvider = context.read<AssistantProvider>();
-        final dialogNavigator = Navigator.of(ctx);
-        String value = '';
-        bool valid(String s) => RegExp(r'^[0-9]{5,12}$').hasMatch(s.trim());
-        String randomQQ() {
-          final lengths = <int>[5, 6, 7, 8, 9, 10, 11];
-          final weights = <int>[1, 20, 80, 100, 500, 5000, 80];
-          final total = weights.fold<int>(0, (a, b) => a + b);
-          final rnd = math.Random();
-          int roll = rnd.nextInt(total) + 1;
-          int chosenLen = lengths.last;
-          int acc = 0;
-          for (int i = 0; i < lengths.length; i++) {
-            acc += weights[i];
-            if (roll <= acc) {
-              chosenLen = lengths[i];
-              break;
-            }
-          }
-          final sb = StringBuffer();
-          final firstGroups = <List<int>>[
-            [1, 2],
-            [3, 4],
-            [5, 6, 7, 8],
-            [9],
-          ];
-          final firstWeights = <int>[128, 4, 2, 1];
-          final firstTotal = firstWeights.fold<int>(0, (a, b) => a + b);
-          int r2 = rnd.nextInt(firstTotal) + 1;
-          int idx = 0;
-          int a2 = 0;
-          for (int i = 0; i < firstGroups.length; i++) {
-            a2 += firstWeights[i];
-            if (r2 <= a2) {
-              idx = i;
-              break;
-            }
-          }
-          final group = firstGroups[idx];
-          sb.write(group[rnd.nextInt(group.length)]);
-          for (int i = 1; i < chosenLen; i++) {
-            sb.write(rnd.nextInt(10));
-          }
-          return sb.toString();
-        }
-
-        return StatefulBuilder(
-          builder: (ctx, setLocal) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              backgroundColor: context.overlaySurface,
-              title: Text(l10n.assistantEditQQAvatarDialogTitle),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: l10n.assistantEditQQAvatarDialogHint,
-                  filled: true,
-                  fillColor: ctx.appColors.surfaceFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.transparent),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.transparent),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: cs.primary.withValues(alpha: 0.4),
-                    ),
-                  ),
-                ),
-                onChanged: (v) => setLocal(() => value = v),
-                onSubmitted: (_) {
-                  if (valid(value)) Navigator.of(ctx).pop(true);
-                },
-              ),
-              actionsAlignment: MainAxisAlignment.spaceBetween,
-              actions: [
-                TextButton(
-                  onPressed: () async {
-                    const int maxTries = 20;
-                    bool applied = false;
-                    for (int i = 0; i < maxTries; i++) {
-                      final qq = randomQQ();
-                      final url =
-                          'https://q2.qlogo.cn/headimg_dl?dst_uin=$qq&spec=100';
-                      try {
-                        final resp = await http
-                            .get(Uri.parse(url))
-                            .timeout(const Duration(seconds: 5));
-                        if (resp.statusCode == 200 &&
-                            resp.bodyBytes.isNotEmpty) {
-                          await assistantProvider.updateAssistant(
-                            a.copyWith(avatar: url),
-                          );
-                          applied = true;
-                          break;
-                        }
-                      } catch (_) {}
-                    }
-                    if (applied) {
-                      if (dialogNavigator.mounted && dialogNavigator.canPop()) {
-                        dialogNavigator.pop(false);
-                      }
-                    } else {
-                      if (!context.mounted) return;
-                      showAppSnackBar(
-                        context,
-                        message: l10n.assistantEditQQAvatarFailedMessage,
-                        type: NotificationType.error,
-                      );
-                    }
-                  },
-                  child: Text(l10n.assistantEditQQAvatarRandomButton),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: Text(l10n.assistantEditQQAvatarDialogCancel),
-                    ),
-                    TextButton(
-                      onPressed: valid(value)
-                          ? () => Navigator.of(ctx).pop(true)
-                          : null,
-                      child: Text(
-                        l10n.assistantEditQQAvatarDialogSave,
-                        style: TextStyle(
-                          color: valid(value)
-                              ? cs.primary
-                              : cs.onSurface.withValues(alpha: 0.38),
-                          fontWeight: AppFontWeights.semibold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    if (ok == true) {
-      final qq = controller.text.trim();
-      if (!context.mounted || qq.isEmpty) return;
-      final assistantProvider = context.read<AssistantProvider>();
-      final url = 'https://q2.qlogo.cn/headimg_dl?dst_uin=$qq&spec=100';
-      await assistantProvider.updateAssistant(a.copyWith(avatar: url));
-    }
-  }
-
-  Future<void> _pickLocalImage(BuildContext context, Assistant a) async {
-    if (kIsWeb) {
-      await _inputAvatarUrl(context, a);
-      return;
-    }
-    try {
-      final assistantProvider = context.read<AssistantProvider>();
-      final picker = ImagePicker();
-      final XFile? file = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        imageQuality: 90,
-      );
-      if (!context.mounted || file == null) return;
-      await assistantProvider.updateAssistant(a.copyWith(avatar: file.path));
-      return;
-    } on PlatformException {
-      if (!context.mounted) return;
-      final l10n = AppLocalizations.of(context)!;
-      showAppSnackBar(
-        context,
-        message: l10n.assistantEditGalleryErrorMessage,
-        type: NotificationType.error,
-      );
-      await _inputAvatarUrl(context, a);
-      return;
-    } catch (_) {
-      if (!context.mounted) return;
-      final l10n = AppLocalizations.of(context)!;
-      showAppSnackBar(
-        context,
-        message: l10n.assistantEditGeneralErrorMessage,
-        type: NotificationType.error,
-      );
-      await _inputAvatarUrl(context, a);
-      return;
-    }
   }
 }

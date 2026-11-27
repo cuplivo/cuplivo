@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/memory/memory_tools.dart';
-import 'package:Kelivo/core/services/search/search_tool_service.dart';
-import 'package:Kelivo/features/home/services/built_in_tool_names.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/core/services/memory/memory_tools.dart';
+import 'package:Cuplivo/core/services/search/search_tool_service.dart';
+import 'package:Cuplivo/features/home/services/built_in_tool_names.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
 
 void main() {
   test('BuiltInToolNames.all reserves search, memory, and local names', () {
@@ -39,6 +39,11 @@ void main() {
       LocalToolNames.remindersQuery,
       LocalToolNames.remindersCreate,
       LocalToolNames.remindersComplete,
+      LocalToolNames.generateImage,
+      LocalToolNames.delegate,
+      LocalToolNames.awaitJob,
+      LocalToolNames.sendMessage,
+      LocalToolNames.interrupt,
     ]);
   });
 }

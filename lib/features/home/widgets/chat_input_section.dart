@@ -1,5 +1,5 @@
 import '../services/composer_document_route.dart';
-import 'package:Kelivo/features/chat/utils/prompt_injection_selection.dart';
+import 'package:Cuplivo/features/chat/utils/prompt_injection_selection.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/conversation_mcp_settings.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/services/api/reasoning/reasoning_level_options.dart';
 import '../../../core/services/api/reasoning/reasoning_dialects.dart';
 import '../../../core/services/api/reasoning/reasoning_selection.dart';
@@ -30,6 +31,11 @@ import '../../../theme/design_tokens.dart';
 import 'chat_input_bar.dart';
 import 'model_icon.dart';
 import '../../chat/widgets/context_operations_panel.dart';
+import '../../subagent/widgets/subagent_task_strip.dart';
+import '../../../core/models/group_chat.dart';
+import '../../group_chat/models/group_quick_entries.dart';
+import '../../group_chat/widgets/group_member_cluster.dart';
+import '../../../l10n/app_localizations.dart';
 
 /// Callback for checking if a model supports tool calling.
 typedef IsToolModelCallback = bool Function(String providerKey, String modelId);
@@ -97,6 +103,8 @@ class ChatInputSection extends StatelessWidget {
     this.onContextOperations,
     this.conversationId,
     this.sendButtonTooltip,
+    this.group,
+    this.onOpenGroupMembers,
     this.backgroundImageActive = false,
   });
 
@@ -165,6 +173,25 @@ class ChatInputSection extends StatelessWidget {
   /// thinking budget shared by every other conversation under that assistant.
   final bool chatModelIsConversationOverride;
   final String? sendButtonTooltip;
+
+  /// Non-null when this conversation belongs to a group chat.
+  ///
+  /// A group has no single model, no single assistant prompt and no per-chat
+  /// search switch: the composer keeps what belongs to the *conversation*
+  /// (attachments, browser, mini map, context management and its ring) and drops
+  /// what belongs to one assistant. This field decides what a group *has*, never
+  /// where it goes: every action a group keeps is offered in the same place the
+  /// 1:1 composer offers it.
+  ///
+  /// The search and reasoning entries follow the roster for the same reason
+  /// [group] exists: a group's reply is sent by its speaker, so an entry reports
+  /// what the members have. Uniform members show their shared value, members
+  /// that disagree show the neutral glyph, and each panel edits one member at a
+  /// time — writing through the same 1:1 call it makes for a single assistant
+  /// (the member's own search switch; the model-level reasoning level).
+  final GroupChat? group;
+  final VoidCallback? onOpenGroupMembers;
+
   final bool backgroundImageActive;
 
   @override
@@ -173,9 +200,33 @@ class ChatInputSection extends StatelessWidget {
     final asr = context.watch<AsrProvider>();
     final ap = context.watch<AssistantProvider>();
     final a = ap.currentAssistant;
+    final group = this.group;
+    final isGroup = group != null;
+    final groupMembers = <Assistant>[
+      if (group != null)
+        for (final id in group.memberIds)
+          if (ap.getById(id) case final assistant?) assistant,
+    ];
+    // A group has no single model, so the two composed entries report the
+    // roster instead of one assistant's value: uniform members show their own
+    // value, disagreeing members show the neutral glyph.
+    final groupSearch = isGroup
+        ? resolveGroupSearch(settings: settings, members: groupMembers)
+        : null;
+    final groupReasoning = isGroup
+        ? resolveGroupReasoning(
+            settings: settings,
+            members: groupMembers,
+            supportsReasoning: isReasoningModel,
+          )
+        : null;
 
-    final pk = chatModelProviderKey;
-    final mid = chatModelId;
+    // The model this chat sends with, and what the 1:1 search, reasoning and
+    // tools entries speak for. A group sends with each speaker's own model and
+    // reports its roster instead, so these stay null there and nothing derived
+    // from them is handed to the bar.
+    final pk = isGroup ? null : chatModelProviderKey;
+    final mid = isGroup ? null : chatModelId;
     final supportsModelTools =
         pk != null && mid != null && isToolModel(pk, mid);
     final supportsReasoning =
@@ -214,6 +265,15 @@ class ChatInputSection extends StatelessWidget {
     if (showWorkspaceButton || showEnvChip) {
       workspaceBound = _isWorkspaceBound(context);
     }
+    // Where the conversation's tools go. The wide layouts have room for them in
+    // the left action bar; a phone does not, so it offers them in the composer's
+    // + panel instead, and keeps the mini map in the top bar where it always
+    // was. This decision covers these tools and nothing else: search, reasoning,
+    // the tools button and quick phrases stay in that bar on every layout.
+    // A group used to force the tools into the phone's bar as well, which pushed
+    // the row past its width and made the bar's overflow button sit beside the
+    // panel's own "+".
+    final leftBarTools = isTablet;
 
     final tools = supportsModelTools
         ? _toolsState(context, a, workspaceBound)
@@ -223,8 +283,8 @@ class ChatInputSection extends StatelessWidget {
       chatModelProviderKey: pk,
       chatModelId: mid,
       onMore: onMore,
-      onSelectModel: onSelectModel,
-      onLongPressSelectModel: onLongPressSelectModel,
+      onSelectModel: isGroup ? null : onSelectModel,
+      onLongPressSelectModel: isGroup ? null : onLongPressSelectModel,
       conversationId: conversationId,
       onOpenTools: onOpenTools,
       onLongPressTools: onLongPressTools,
@@ -232,8 +292,20 @@ class ChatInputSection extends StatelessWidget {
       showWorkspaceButton: showWorkspaceButton,
       workspaceActive: workspaceBound,
       onOpenSkills: openSkills,
-      skillsActive: openSkills != null && _isSkillsActive(context, a),
+      skillsActive:
+          openSkills != null &&
+          (isGroup
+              ? _isGroupSkillsActive(context, groupMembers)
+              : _isSkillsActive(context, a)),
       onStop: onStop,
+      leading: isGroup
+          ? GroupMemberCluster(members: groupMembers, onTap: onOpenGroupMembers)
+          : null,
+      onTapLeading: onOpenGroupMembers,
+      leadingTooltip: AppLocalizations.of(context)!.groupChatMembers,
+      leadingExtent: isGroup
+          ? GroupMemberCluster.extentFor(groupMembers.length)
+          : 30,
       modelIcon: (pk != null && mid != null)
           ? CurrentModelIcon(
               providerKey: pk,
@@ -250,13 +322,23 @@ class ChatInputSection extends StatelessWidget {
       onConfigureReasoning: onConfigureReasoning,
       reasoningButtonKey: reasoningButtonKey,
       onOpenContextUsage: onOpenContextUsage,
-      reasoningActive: isReasoningEnabled(effectiveReasoning),
-      reasoning: effectiveReasoning,
-      reasoningCustomBudget: reasoningSpec != null
+      reasoningActive:
+          groupReasoning?.anyActive ?? isReasoningEnabled(effectiveReasoning),
+      reasoning: groupReasoning != null
+          ? groupReasoning.request
+          : effectiveReasoning,
+      reasoningCustomBudget: groupReasoning != null
+          ? false
+          : reasoningSpec != null
           ? isCustomBudgetSelection(reasoningSpec, selectedReasoning)
           : false,
-      supportsReasoning: supportsReasoning,
+      supportsReasoning: groupReasoning != null
+          ? groupReasoning.anySupported
+          : (pk != null && mid != null)
+          ? isReasoningModel(pk, mid)
+          : false,
       showResponseSpeedAction: showResponseSpeedAction,
+      groupSearch: groupSearch,
       onOpenSearch: onOpenSearch,
       onSend: onSend,
       loading: isLoading,
@@ -268,40 +350,77 @@ class ChatInputSection extends StatelessWidget {
       queuedPaused: queuedPaused,
       onCancelQueuedInput: onCancelQueuedInput,
       onExpandedChanged: onExpandedChanged,
-      showToolsButton: supportsModelTools,
-      toolsActive: tools.active,
+      // A group offers the tools entry while some member's model can call a
+      // tool, which is the 1:1 rule (`supportsModelTools`) read across the
+      // roster; whether anything is switched on decides the lit state below.
+      showToolsButton: isGroup
+          ? anyGroupMemberCanCallTools(
+              settings: settings,
+              members: groupMembers,
+              supportsTools: isToolModel,
+            )
+          : supportsModelTools,
+      toolsActive: isGroup
+          ? _groupToolsActive(context, groupMembers, workspaceBound)
+          : tools.active,
       toolsConnectionIssue: tools.connectionIssue,
-      showQuickPhraseButton: _hasQuickPhrases(context, a),
+      // The quick-phrase list is a union, so a group offers the entry as soon as
+      // any member has a phrase — and never in a "lit" state, exactly as the
+      // 1:1 entry behaves.
+      showQuickPhraseButton: isGroup
+          ? _groupHasQuickPhrases(context, groupMembers)
+          : _hasQuickPhrases(context, a),
       onQuickPhrase: onQuickPhrase,
       onLongPressQuickPhrase: onLongPressQuickPhrase,
       // OCR button: show on desktop for mobile layout, always check settings for tablet layout
-      showOcrButton: isTablet
+      showOcrButton: isGroup
+          ? false
+          : isTablet
           ? (settings.ocrModelProvider != null && settings.ocrModelId != null)
           : (isDesktop &&
                 settings.ocrModelProvider != null &&
                 settings.ocrModelId != null),
       ocrActive: settings.ocrEnabled,
-      onToggleOcr: onToggleOcr,
-      // Tablet-specific parameters
-      showMiniMapButton: isTablet,
-      onOpenMiniMap: isTablet ? onOpenMiniMap : null,
-      onPickCamera: isTablet ? (isDesktop ? null : onPickCamera) : null,
-      onPickPhotos: isTablet ? (isDesktop ? null : onPickPhotos) : null,
-      onUploadFiles: isTablet ? onUploadFiles : null,
-      onOpenBrowser: isTablet ? onOpenBrowser : null,
+      onToggleOcr: isGroup ? null : onToggleOcr,
+      showMiniMapButton: leftBarTools,
+      onOpenMiniMap: leftBarTools ? onOpenMiniMap : null,
+      onPickCamera: leftBarTools ? (isDesktop ? null : onPickCamera) : null,
+      onPickPhotos: leftBarTools ? (isDesktop ? null : onPickPhotos) : null,
+      onUploadFiles: leftBarTools ? onUploadFiles : null,
+      onOpenBrowser: leftBarTools ? onOpenBrowser : null,
       onToggleLearningMode: isTablet ? onToggleLearningMode : null,
       onOpenWorldBook: hasWorldBooks ? onOpenWorldBook : null,
       onLongPressLearning: isTablet ? onLongPressLearning : null,
       learningModeActive:
           isTablet &&
-          _isPromptSelectionActive(context, a, PromptSelectionKind.instruction),
+          (isGroup
+              ? _anyGroupMemberSelects(
+                  context,
+                  groupMembers,
+                  PromptSelectionKind.instruction,
+                )
+              : _isPromptSelectionActive(
+                  context,
+                  a,
+                  PromptSelectionKind.instruction,
+                )),
       worldBookActive:
           isTablet &&
-          _isPromptSelectionActive(context, a, PromptSelectionKind.worldBook),
+          (isGroup
+              ? _anyGroupMemberSelects(
+                  context,
+                  groupMembers,
+                  PromptSelectionKind.worldBook,
+                )
+              : _isPromptSelectionActive(
+                  context,
+                  a,
+                  PromptSelectionKind.worldBook,
+                )),
       showMoreButton: !isTablet,
-      onClearContext: isTablet ? onClearContext : null,
-      onCompressContext: isTablet ? onCompressContext : null,
-      onContextOperations: isTablet ? onContextOperations : null,
+      onClearContext: leftBarTools ? onClearContext : null,
+      onCompressContext: leftBarTools ? onCompressContext : null,
+      onContextOperations: leftBarTools ? onContextOperations : null,
       backgroundImageActive: backgroundImageActive,
       inputBackgroundOpacityLight: settings.chatInputBackgroundOpacityLight,
       inputBackgroundOpacityDark: settings.chatInputBackgroundOpacityDark,
@@ -330,6 +449,8 @@ class ChatInputSection extends StatelessWidget {
               onTap: () => WorkspaceNavigation.openEnvironmentPage(context),
             ),
           ),
+        if (conversationId != null)
+          SubagentTaskStrip(conversationId: conversationId!),
         Flexible(child: bar),
       ],
     );
@@ -368,6 +489,41 @@ class ChatInputSection extends StatelessWidget {
               ?.resolveForAssistant(assistant, conversationOverride: skillIds)
               .isNotEmpty ??
           false,
+    );
+  }
+
+  /// Any member that brings at least one skill. A group's reply is written by
+  /// its speaker, so the entry is lit when *somebody* the round will ask has one
+  /// — the same rule the 1:1 entry applies to its single assistant.
+  bool _isGroupSkillsActive(BuildContext context, List<Assistant> members) {
+    final skillIds = context.select<ChatService?, List<String>?>((chat) {
+      final extras = chat?.getConversation(conversationId ?? '')?.extras;
+      return SkillsBinding.fromExtras(extras ?? const {}).skillIds;
+    });
+    return context.select<SkillsService?, bool>((skills) {
+      if (skills == null) return false;
+      return members.any(
+        (member) => skills
+            .resolveForAssistant(member, conversationOverride: skillIds)
+            .isNotEmpty,
+      );
+    });
+  }
+
+  /// The roster version of [_isPromptSelectionActive]: lit when any member has
+  /// an active injection or world book, which is the same "somebody will use it"
+  /// the 1:1 entry reports for one assistant.
+  bool _anyGroupMemberSelects(
+    BuildContext context,
+    List<Assistant> members,
+    PromptSelectionKind kind,
+  ) {
+    if (kind == PromptSelectionKind.worldBook &&
+        context.watch<WorldBookProvider>().books.isEmpty) {
+      return false;
+    }
+    return members.any(
+      (member) => _isPromptSelectionActive(context, member, kind),
     );
   }
 
@@ -470,5 +626,40 @@ class ChatInputSection extends StatelessWidget {
         ? quickPhraseProvider.getForAssistant(a.id).length
         : 0;
     return (globalCount + assistantCount) > 0;
+  }
+
+  /// Union over the roster: the quick-phrase entry exists when any member
+  /// offers one, global phrases included.
+  bool _groupHasQuickPhrases(BuildContext context, List<Assistant> members) {
+    final quickPhraseProvider = context.watch<QuickPhraseProvider>();
+    if (quickPhraseProvider.globalPhrases.isNotEmpty) return true;
+    return members.any(
+      (member) => quickPhraseProvider.getForAssistant(member.id).isNotEmpty,
+    );
+  }
+
+  /// Any member that both brings tools and can call them; [resolveGroupToolsActive]
+  /// holds the rule, because the capability gate has to come before the
+  /// workspace binding as well as before the configuration.
+  bool _groupToolsActive(
+    BuildContext context,
+    List<Assistant> members,
+    bool workspaceBound,
+  ) {
+    final settings = context.watch<SettingsProvider>();
+    final connected = context.watch<McpProvider>().connectedServers;
+    final conversation = conversationId == null
+        ? null
+        : context.select<ChatService?, Conversation?>(
+            (chat) => chat?.getConversation(conversationId!),
+          );
+    return resolveGroupToolsActive(
+      settings: settings,
+      members: members,
+      workspaceBound: workspaceBound,
+      supportsTools: isToolModel,
+      connectedServerIds: [for (final server in connected) server.id],
+      conversation: conversation,
+    );
   }
 }

@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import '../../l10n/app_localizations.dart';
 import '../models/mobile_background_settings.dart';
 import '../providers/settings_provider.dart';
+import 'conversation_link.dart';
 import 'notification_service.dart';
 
 enum BackgroundTaskPhase { requesting, generating, thinking, tool, retrying }
@@ -30,6 +31,7 @@ class _BackgroundTask {
     required this.cancel,
     required this.startedAt,
     required this.scheduled,
+    this.detail,
     this.scheduledNotify = true,
     this.scheduledPreview = true,
   });
@@ -40,6 +42,10 @@ class _BackgroundTask {
   final Future<void> Function() cancel;
   final DateTime startedAt;
   final bool scheduled;
+
+  /// Replaces the phase-derived line for work whose phase is not chat
+  /// generation, such as a proactive-care letter. Null keeps the phase text.
+  final String? detail;
   final bool scheduledNotify, scheduledPreview;
   BackgroundTaskPhase phase = BackgroundTaskPhase.requesting;
   String toolName = '';
@@ -91,16 +97,44 @@ class MobileBackgroundCoordinator extends ChangeNotifier
   Future<void> initialize() async {
     if (!supported || _initialized) return;
     _initialized = true;
-    _foreground =
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    // A binding with no lifecycle state yet (a widget test, or a process that has
+    // not received its first event) is not evidence of being in the background:
+    // only an explicit non-resumed state is. Reading `null` as "backgrounded"
+    // stopped every queue drain that ran before the first lifecycle event.
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (lifecycle != null) {
+      _foreground = lifecycle == AppLifecycleState.resumed;
+    }
     WidgetsBinding.instance.addObserver(this);
     _channel.setMethodCallHandler(_handleNativeCall);
     await _enqueue(() async {
+      // Native Android notifications carry row keys directly; they may refer to
+      // imported ids that the bounded external URL grammar cannot carry.
+      if (platform == TargetPlatform.android) {
+        final id = await _channel.invokeMethod<String>(
+          'takePendingConversation',
+        );
+        if (id != null) NotificationService.openConversation(id);
+      }
+      // Each native delivery path becomes ready when its own inbox is drained.
+      // Both platforms hand over external URLs whole, preserving message anchors.
       final pending = await _channel.invokeMethod<String>(
-        'takePendingConversation',
+        'takePendingConversationLink',
       );
-      if (pending != null) NotificationService.openConversation(pending);
+      if (pending != null) _openConversationLink(pending);
     });
+  }
+
+  /// Opens the app-scoped link the OS handed over:
+  /// `cuplivo://conversation/<id>[?message=<id>]`. Anything else is ignored —
+  /// this input is untrusted (any web page can fire the scheme).
+  void _openConversationLink(String raw) {
+    final link = ConversationLink.tryParse(raw);
+    if (link == null) return;
+    NotificationService.openConversation(
+      link.conversationId,
+      messageId: link.messageId,
+    );
   }
 
   /// Settings can finish loading after the last frame before going background.
@@ -149,6 +183,7 @@ class MobileBackgroundCoordinator extends ChangeNotifier
     required String conversationId,
     required String title,
     required Future<void> Function() cancel,
+    String? detail,
     bool scheduled = false,
     bool scheduledNotify = true,
     bool scheduledPreview = true,
@@ -161,6 +196,7 @@ class MobileBackgroundCoordinator extends ChangeNotifier
       cancel: cancel,
       startedAt: DateTime.now(),
       scheduled: scheduled,
+      detail: detail,
       scheduledNotify: scheduledNotify,
       scheduledPreview: scheduledPreview,
     );
@@ -216,7 +252,7 @@ class MobileBackgroundCoordinator extends ChangeNotifier
           await _notificationSender(
             conversationId: task.conversationId,
             title: _settings.privacyMode || task.title.trim().isEmpty
-                ? (l10n?.backgroundTaskTitle ?? 'Kelivo')
+                ? (l10n?.backgroundTaskTitle ?? 'Cuplivo')
                 : task.title,
             body:
                 task.scheduled &&
@@ -260,11 +296,12 @@ class MobileBackgroundCoordinator extends ChangeNotifier
       'id': task.id,
       'conversationId': task.conversationId,
       'title': _settings.privacyMode
-          ? (_l10n?.backgroundTaskTitle ?? 'Kelivo')
+          ? (_l10n?.backgroundTaskTitle ?? 'Cuplivo')
           : task.title,
       'detail': _settings.privacyMode
           ? (_l10n?.backgroundWorking ?? 'Working')
-          : '${detail ?? task.phase.name}${task.phase == BackgroundTaskPhase.tool && task.toolName.isNotEmpty ? ': ${task.toolName}' : ''}',
+          : task.detail ??
+                '${detail ?? task.phase.name}${task.phase == BackgroundTaskPhase.tool && task.toolName.isNotEmpty ? ': ${task.toolName}' : ''}',
       'tokens': _settings.privacyMode ? 0 : task.tokens,
       'startedAt': task.startedAt.millisecondsSinceEpoch,
     };
@@ -286,14 +323,15 @@ class MobileBackgroundCoordinator extends ChangeNotifier
     'tasks': _tasks.values.map(_taskMap).toList(),
     'terminal': terminal,
     'labels': {
-      'app': 'Kelivo',
+      'app': 'Cuplivo',
       'working': _l10n?.backgroundWorking ?? 'Working',
       'tasks': _l10n?.backgroundTasks ?? 'Tasks',
       'stop': _l10n?.backgroundStopTasks ?? 'Stop tasks',
       'open': _l10n?.backgroundOpenChat ?? 'Open chat',
       'close': _l10n?.commonClose ?? 'Close',
       'completed': _l10n?.backgroundCompleted ?? 'Generation complete',
-      'stale': _l10n?.backgroundStale ?? 'Open Kelivo to check the task.',
+      'careWorking': _l10n?.backgroundCareWorking ?? 'Preparing your letter',
+      'stale': _l10n?.backgroundStale ?? 'Open Cuplivo to check the task.',
     },
   };
 
@@ -306,7 +344,7 @@ class MobileBackgroundCoordinator extends ChangeNotifier
         'privacyMode': true,
       };
       void redact(Map<String, Object?> task, {bool terminal = false}) {
-        task['title'] = _l10n?.backgroundTaskTitle ?? 'Kelivo';
+        task['title'] = _l10n?.backgroundTaskTitle ?? 'Cuplivo';
         if (!terminal) task['detail'] = _l10n?.backgroundWorking ?? 'Working';
         task['tokens'] = 0;
       }
@@ -381,6 +419,9 @@ class MobileBackgroundCoordinator extends ChangeNotifier
     if (call.method == 'openConversation') {
       final id = call.arguments as String?;
       if (id != null) NotificationService.openConversation(id);
+    } else if (call.method == 'openConversationLink') {
+      final url = call.arguments as String?;
+      if (url != null) _openConversationLink(url);
     } else if (call.method == 'cancelTasks' || call.method == 'interrupted') {
       final args = Map<String, dynamic>.from(call.arguments as Map? ?? {});
       final ids = (args['ids'] as List? ?? []).cast<String>().toSet();

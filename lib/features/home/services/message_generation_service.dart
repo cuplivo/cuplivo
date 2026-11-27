@@ -8,7 +8,7 @@ import '../../../core/models/context_operation.dart';
 import '../../../core/models/image_context.dart';
 import '../../../core/services/api/request_image_context.dart';
 import '../../intelligent_ui/host/ui_context_submission.dart';
-import 'package:Kelivo/core/providers/external_mounts_provider.dart';
+import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import 'dart:async';
 import '../../../core/models/quote_ref.dart';
 import 'package:flutter/widgets.dart';
@@ -361,6 +361,10 @@ class MessageGenerationService {
           workspaceContext: workspaceContext,
         );
       }
+      await messageBuilderService.injectSubagentPrompt(
+        apiMessages,
+        conversationId: currentConversation?.id,
+      );
     } catch (e) {
       if (workspaceContext != null && !workspaceContext.skillsOnly) {
         rethrow;
@@ -683,7 +687,19 @@ class MessageGenerationService {
       omitUserImages: settings.ocrActive,
       omitImages: omitImages,
       latestUserId: history
-          .where((m) => m.role == 'user' && !ContextOperation.isSummary(m))
+          .where(
+            (m) =>
+                m.role == 'user' &&
+                !ContextOperation.isSummary(m) &&
+                // A subagent's notice is a `user` message, but it is not the
+                // human's turn: the images that own the protected budget belong
+                // to the message the user actually sent. Mail between the two
+                // sides of a delegation is the same — without this the mail row
+                // would own the protected budget and every earlier picture
+                // would be evictable.
+                !hasSubagentResultPart(m.parts) &&
+                !hasSubagentMailPart(m.parts),
+          )
           .lastOrNull
           ?.id,
       budget: cfg.requestBudgetForModel(modelId),
@@ -1019,6 +1035,30 @@ class MessageGenerationService {
     );
   }
 
+  /// Create the user turn of a group conversation.
+  ///
+  /// The authoring [assistant] is only the member whose model rules decide how
+  /// text and attachments are prepared (regexes, image routing); it is not "the
+  /// assistant being asked", because a group round picks speakers afterwards.
+  Future<ChatMessage> beginGroupUserMessage({
+    required String conversationId,
+    required ChatInputData input,
+    required Assistant authoringAssistant,
+  }) {
+    return buildPersistedUserMessageParts(
+      input,
+      assistant: authoringAssistant,
+    ).then(
+      (parts) => chatService.beginUserMessage(
+        conversationId: conversationId,
+        userParts: parts,
+        draftSubmission: input.draftSubmission,
+        uiContext: _uiContext(input),
+        quotes: input.quotes,
+      ),
+    );
+  }
+
   Future<({ChatMessage assistantMessage, String? runId})> beginRegeneration({
     required String conversationId,
     required String modelId,
@@ -1027,6 +1067,7 @@ class MessageGenerationService {
     required int version,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     if (chatService.isTemporaryConversation(conversationId)) {
       final assistantMessage = await createAssistantPlaceholder(
@@ -1046,6 +1087,7 @@ class MessageGenerationService {
       groupId: groupId,
       version: version,
       truncateFuture: truncateFuture,
+      senderId: senderId,
     );
     return (assistantMessage: result.assistantMessage, runId: result.run.id);
   }
@@ -1058,6 +1100,7 @@ class MessageGenerationService {
     required String anchorGroupId,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     if (chatService.isTemporaryConversation(conversationId)) {
       final assistantMessage = await createAssistantPlaceholder(
@@ -1075,6 +1118,7 @@ class MessageGenerationService {
       providerId: providerKey,
       anchorGroupId: anchorGroupId,
       truncateFuture: truncateFuture,
+      senderId: senderId,
     );
     return (assistantMessage: result.assistantMessage, runId: result.run.id);
   }

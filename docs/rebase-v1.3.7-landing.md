@@ -547,7 +547,18 @@ next census:
 
 So of the 40, **7 are the two proven machine classes** and **33 are the tree's**, in five clusters.
 
-**The first two clusters are fixed; the census is now 9 failures, only 2 of them the tree's.**
+**The first two clusters are fixed; the full suite now fails only on this machine's three proven classes.**
+
+**Final measurement at `4111be40b`: `flutter test` — 14966 passed, 95 skipped, 9 failed.**
+
+| failing file | cases | class | proof |
+| --- | --- | --- | --- |
+| `core/services/workspace/view_image_test.dart` | 5 | the shell's `HTTP_PROXY`/`HTTPS_PROXY` reach `findProxyFromEnvironment` | probed at unit 2: `('http://127.0.0.1:9/x')=DIRECT`, `('https://example.com/x')=PROXY 127.0.0.1:10808`; the file under test is upstream's, unchanged |
+| `features/settings/pages/storage_space_images_test.dart` | 2 | Windows holds the file the tile's own `FileImage` re-decodes: `PathAccessException … errno = 32` | probed at unit 3; CI is `ubuntu-latest` only |
+| `features/world_book/world_book_page_test.dart` | 2 | host font metrics: the label lands 49 px from where the fixture expects it at textScale 1.4 with a CJK title | measured at unit 2 |
+
+None of the nine is caused by this tree: each has a measurement behind it, and two were reproduced before
+the replay moved past the baseline.
 
 | cluster | before | now | what it was |
 | --- | --- | --- | --- |
@@ -559,7 +570,8 @@ So of the 40, **7 are the two proven machine classes** and **33 are the tree's**
 | `image_recall_tools_test` | 1 | 0 | `ImageContextSettings.allowRecall` defaults to false now, so the fixture — whose subject is a picture that is *not* replayed still being listable — has to opt in. |
 | `context_memory_usage_test` | 1 | 0 | `OcrService.replaceOcrBlocks` **had no caller** — the helper survived the merge, the code that used it did not. An exclusion is reversible, so the frozen row keeps what was sent and only the request drops the excluded picture's OCR; the frozen branch now asks the OCR for what the remaining images describe (`cacheOnly` for a preview or a turned-off OCR) and rewrites every block on the way out. The helper also needed its own boundary: the pattern stops at `</image_file_ocr>` while `formatOcrBlock` ends its block with a blank line, so replacing one with the other added two newlines per occurrence. |
 | `desktop_provider_detail_pane_test` | 1 | 0 | the balance dropdowns were **not focus stops**: the fork's `DesktopSelectDropdown` defaults `focusable: false`, and that row is a label plus this one control. Without it the keyboard ring ran out at about forty tabs and the scope selector, interval and switch were mouse-only. |
-| `view_image_test` + `storage_space_images_test` | 7 | 7 | the two machine classes, unchanged and proven. |
+| `business_key_registry_sync_test` | 2 | 0 | the pin that lists the synced face, and a source scan that resolves a write's key through a literal or a `Class.staticConst` — `WorldBookStore` aliased the grouping key into a local the scan cannot follow. Both now green; the store names the model's key directly. |
+| `view_image_test`, `storage_space_images_test`, `world_book_page_test` | 9 | 9 | the three machine classes, each with its measurement. |
 
 The pattern worth carrying to the next re-base: **two of the five tree clusters were a single
 unregistered preference key**, and both failed as "the UI does not work" rather than as a sync

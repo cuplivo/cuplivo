@@ -291,25 +291,39 @@ void main() {
     ]);
   });
 
-  test('an image the model drew last turn is not uploaded', () async {
-    final api = fakeApi();
+  test(
+    'an image the model drew last turn is neither uploaded nor replayed',
+    () async {
+      final api = fakeApi();
 
-    await sendClaudeStream(api.client, _officialClaude(), _model, [
-      {'role': 'user', 'content': 'draw a chart'},
-      {
-        'role': 'assistant',
-        'content': 'done',
-        multimodalInternalMediaPathsKey: [chart.path],
-        multimodalInternalClaudeContainerKey: '{"id":"container_1"}',
-      },
-      {'role': 'user', 'content': 'which bar is tallest'},
-    ], stream: false).toList();
+      await sendClaudeStream(api.client, _officialClaude(), _model, [
+        {'role': 'user', 'content': 'draw a chart'},
+        {
+          'role': 'assistant',
+          'content': 'done',
+          multimodalInternalMediaPathsKey: [chart.path],
+          multimodalInternalClaudeContainerKey: '{"id":"container_1"}',
+        },
+        {'role': 'user', 'content': 'which bar is tallest'},
+      ], stream: false).toList();
 
-    expect(api.requests.map((r) => r.url.path), ['/v1/messages']);
-    final body = jsonDecode(api.requests.single.body) as Map<String, dynamic>;
-    // The chart reaches the model as an image block, not a container file.
-    expect(_blocks(body).map((b) => b['type']), ['text', 'image', 'text']);
-  });
+      expect(api.requests.map((r) => r.url.path), ['/v1/messages']);
+      final body = jsonDecode(api.requests.single.body) as Map<String, dynamic>;
+      // Neither a container file nor an image block: the picture stays a
+      // recallable asset on the message instead of being sent back.
+      final messages = (body['messages'] as List).cast<Map>();
+      final types = [
+        for (final message in messages)
+          if (message['content'] is List)
+            ...(message['content'] as List).cast<Map>().map((b) => b['type'])
+          else
+            'text',
+      ];
+      expect(types, isNot(contains('image')));
+      expect(types, ['text', 'text', 'text']);
+      expect(messages.last['content'], 'which bar is tallest');
+    },
+  );
 
   test('without the tool nothing is uploaded', () async {
     final api = fakeApi();

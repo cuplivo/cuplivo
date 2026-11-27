@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第十一轮 — 开关/勾 + 展开子行</title>
+<style>
+  :root{--bg:#F7F7F7;--tile:rgba(120,125,140,.10);--ink:#202020;--muted:#6B6B73;
+        --line:rgba(20,20,25,.08);--primary:#4D5C92}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:800px;margin:0 auto;padding:26px 20px 44px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:58em}
+  .lede b{color:var(--ink);font-weight:600}
+  .stage{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+  .card{width:352px;max-width:100%;background:#fff;border:1px solid var(--line);
+        border-radius:18px;box-shadow:0 10px 28px rgba(20,20,25,.08);padding:14px 14px 16px}
+  .cap{font-size:11.5px;color:var(--muted);margin:0 4px 10px;letter-spacing:.03em}
+  .handle{width:40px;height:4px;border-radius:999px;background:rgba(32,32,32,.2);margin:0 auto 12px}
+  .head{display:flex;align-items:center;margin:0 4px 10px}
+  .head .t{font-size:15px;font-weight:600;flex:1}
+  .head .x{color:var(--muted);font-size:15px}
+  .tile{height:48px;border-radius:14px;background:var(--tile);display:flex;align-items:center;
+        gap:10px;padding:0 12px;margin-bottom:6px}
+  .tile svg.ico{width:20px;height:20px;flex:none}
+  .tile .label{flex:1;font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .detail{font-size:13px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:2px}
+  .tile .detail .chev{color:rgba(32,32,32,.35);font-size:14px}
+  .mark{width:18px;flex:none;display:flex;align-items:center;justify-content:center}
+  .check{width:18px;height:18px;color:var(--primary)}
+  .sw{width:40px;height:24px;border-radius:999px;background:rgba(20,20,25,.12);position:relative;flex:none}
+  .sw.on{background:var(--primary)}
+  .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;
+        box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .sw.on .knob{left:18px}
+  /* 开启后长出来的配置子行 */
+  .subrow{display:flex;align-items:center;gap:6px;height:34px;margin:-2px 0 6px 42px;
+          padding:0 12px 0 0;font-size:13px;color:var(--muted)}
+  .subrow .grow{flex:1}
+  .subrow .chev{color:rgba(32,32,32,.35)}
+  .subrow.warn{color:#9a6b2f}
+  .notes{flex:1 1 260px;min-width:240px}
+  h2{font-size:13px;font-weight:650;margin:0 0 8px}
+  ul{margin:0 0 14px;padding-left:18px}
+  li{font-size:13.5px;line-height:1.65;color:#3A3A42;margin-bottom:5px}
+  table{border-collapse:collapse;font-size:13px;margin:0 0 14px;width:100%}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:600;color:var(--ink);font-size:12px}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:20px}
+  .closing b{color:var(--ink)}
+  @media (max-width:700px){.page{padding:18px 10px 40px}.card{width:100%}.notes{flex-basis:100%}}
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="kicker">生图 Job · 第十一轮 · 修订 A</p>
+  <h1>开的时候，下面长出一行</h1>
+  <p class="lede">主行只负责<b>开关和名字</b>；下一级不是主行右边的箭头，而是<b>开启后长出来的子行</b>。手机用开关，桌面用打勾，其余结构一模一样 —— 手机收起时看不到模型，桌面常显在 detail 里。</p>
+
+  <div class="stage">
+    <div class="card">
+      <div class="cap">手机 · 开关 + 展开子行</div>
+      <div class="handle"></div>
+      <div class="head"><div class="t">工具</div><div class="x">✕</div></div>
+
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
+        <span class="label">绘图</span>
+        <div class="sw on"><div class="knob"></div></div>
+      </div>
+      <div class="subrow"><span class="grow">模型 · gpt-image-1</span><span class="chev">›</span></div>
+
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M17 8.5h4M19 6.5v4"/></svg>
+        <span class="label">子代理</span>
+        <div class="sw"><div class="knob"></div></div>
+      </div>
+
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12h18"/></svg>
+        <span class="label">浏览器</span>
+        <div class="sw"><div class="knob"></div></div>
+      </div>
+
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+        <span class="label">时间</span>
+        <div class="sw on"><div class="knob"></div></div>
+      </div>
+
+      <div class="cap" style="margin-top:14px">同一张表，开了但没配：</div>
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
+        <span class="label">绘图</span>
+        <div class="sw on"><div class="knob"></div></div>
+      </div>
+      <div class="subrow warn"><span class="grow">未配置 · 去选择</span><span class="chev">›</span></div>
+    </div>
+
+    <div class="card">
+      <div class="cap">桌面 · 打勾 + 同样的展开子行</div>
+      <div class="head"><div class="t">工具</div><div class="x">✕</div></div>
+
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 15l-4.5-4.5L8 19"/></svg>
+        <span class="label">绘图</span>
+        <span class="mark"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </div>
+      <div class="subrow"><span class="grow">模型 · gpt-image-1</span><span class="chev">›</span></div>
+
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M17 8.5h4M19 6.5v4"/></svg>
+        <span class="label">子代理</span>
+        <span class="mark"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </div>
+      <div class="subrow"><span class="grow">委托目标 · Haiku 4.5</span><span class="chev">›</span></div>
+
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12h18"/></svg>
+        <span class="label">浏览器</span>
+        <span class="mark"></span>
+      </div>
+
+      <div class="tile">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+        <span class="label">时间</span>
+        <span class="mark"><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>三态怎么走</h2>
+      <table>
+        <tr><th>状态</th><th>手机</th><th>桌面</th></tr>
+        <tr><td>关</td><td>一行，无子行</td><td>一行，detail 常显，无勾</td></tr>
+        <tr><td>开 · 已配</td><td>行 + 子行「模型 · X ›」</td><td>一行，detail「X ›」+ 勾</td></tr>
+        <tr><td>开 · 未配</td><td>行 + 子行「未配置 · 去选择 ›」</td><td>detail「未配置 ›」+ 勾</td></tr>
+      </table>
+      <h2>交互</h2>
+      <ul>
+        <li>点开关/勾 = 开或关；开启的瞬间若未配置，直接展开子行，不弹单独对话框。</li>
+        <li>点子行 / detail = 进模型选择页（和聊天同一个选择器）。</li>
+        <li>关掉：子行收起，高度回到一行；已选的模型记住，下次开直接用。</li>
+      </ul>
+      <h2>代价</h2>
+      <ul>
+        <li>手机收起时看不到模型，得开一次；桌面常显，不占额外高度。</li>
+        <li>开启与配置是两步（开 → 选），不能一键开；这换来的是"不会静默开一个画不了图的工具"。</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="closing"><b>这一版定下的：</b>主行只放开关/勾与名字；配置是开启后长出来的子行（手机），或 detail（桌面）；开而未配时子行/ detail 显示「未配置 · 去选择」。</p>
+</main>
+</body>
+</html>

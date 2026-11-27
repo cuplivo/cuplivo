@@ -192,7 +192,7 @@ http.Response _claudeReply(
 void main() {
   for (final vertex in [false, true]) {
     test(
-      'Claude assistant images skip injected user lore: vertex=$vertex',
+      'Claude never replays an assistant image, lore or not: vertex=$vertex',
       () async {
         late Map body;
         final client = MockClient((request) async {
@@ -255,7 +255,9 @@ void main() {
                 .where((part) => part['type'] == 'image')
                 .length,
         ];
-        expect(counts, [0, 0, 1]);
+        // The picture stays on its message as a recallable asset; no turn —
+        // the injected lore or the real user turn — picks it up.
+        expect(counts, [0, 0, 0]);
       },
     );
   }

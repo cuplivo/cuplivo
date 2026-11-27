@@ -29,6 +29,38 @@ final _image = ChatContextImage(
 );
 
 void main() {
+  test('an assistant picture is recallable without being sent', () async {
+    final chart = ChatContextImage(
+      identity: const ContextImageIdentity('assistant', 'part:0'),
+      uri: 'data:image/png;base64,YWJj',
+      source: ContextImageSource.assistant,
+      label: 'chart',
+    );
+    final context = RequestImageContext(
+      settings: const ImageContextSettings(),
+      images: [chart],
+      latestUserId: 'user',
+    );
+
+    // Not replayed on any turn, so the recall tool stays advertised.
+    final request = await context.project({
+      'tools': [ViewImageTool.withHistory()],
+      'messages': [
+        {'role': 'user', 'content': 'draw it'},
+        {'role': 'assistant', 'content': 'done'},
+        {'role': 'user', 'content': 'what was in it?'},
+      ],
+    });
+    expect(request['tools'], isNotNull);
+    expect(jsonEncode(request), isNot(contains('data:image/png')));
+
+    // And the model can still list it and read it back.
+    final listed = jsonDecode(context.readImage('').content) as Map;
+    expect(listed['images'].single['image_id'], chart.handle);
+    expect(listed['images'].single['source'], 'assistant');
+    expect(context.readImage(chart.handle).metadata, isNotNull);
+  });
+
   test(
     'current images need no recall tool; missing history can still be read',
     () async {

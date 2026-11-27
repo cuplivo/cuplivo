@@ -127,6 +127,7 @@ class SettingsProvider extends ChangeNotifier {
   static const String _selectedModelKey = 'selected_model_v1';
   static const String _perChatModelEnabledKey = 'per_chat_model_enabled_v1';
   static const String _titleModelKey = 'title_model_v1';
+  static const String _imageModelKey = 'image_model_v1';
   static const String _titleGenerationEnabledKey =
       'title_generation_enabled_v1';
   static const String _titlePromptKey = 'title_prompt_v1';
@@ -677,6 +678,16 @@ class SettingsProvider extends ChangeNotifier {
         .contains(ReasoningLevel.max);
   }
 
+  /// Whether `provider + model` can actually draw a picture.
+  ///
+  /// The same rule the pickers filter by and the job refuses by, so a value that
+  /// arrived from a sync or an import cannot smuggle a text model into the
+  /// drawing row by skipping the picker.
+  static bool canDrawPictures(ProviderConfig config, String modelId) {
+    final spec = ModelSpecResolver.instance.spec(config, modelId);
+    return spec.type == ModelType.image || spec.output.contains(Modality.image);
+  }
+
   // Explicitly ensure a provider config exists in memory (without persisting to storage).
   // Useful for seeding first-run defaults.
   ProviderConfig ensureProviderConfig(String key, {String? defaultName}) {
@@ -868,6 +879,15 @@ class SettingsProvider extends ChangeNotifier {
       if (parts.length >= 2) {
         _titleModelProvider = parts[0];
         _titleModelId = parts.sublist(1).join('::');
+      }
+    }
+    // load image model
+    final imageSel = prefs.getString(_imageModelKey);
+    if (imageSel != null && imageSel.contains('::')) {
+      final parts = imageSel.split('::');
+      if (parts.length >= 2) {
+        _imageModelProvider = parts[0];
+        _imageModelId = parts.sublist(1).join('::');
       }
     }
     // load proactive care decision model
@@ -3887,6 +3907,16 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.remove(_translateModelKey);
       changed = true;
     }
+    // The drawing model: dropped like every other per-task model, so a stale
+    // pair cannot keep a tool "configured". This inline rule is the only copy —
+    // the assistant-level tier is swept by
+    // `AssistantProvider.clearModelSelectionsForProvider`.
+    if (_imageModelProvider == providerKey) {
+      _imageModelProvider = null;
+      _imageModelId = null;
+      await prefs.remove(_imageModelKey);
+      changed = true;
+    }
     if (_ocrModelProvider == providerKey) {
       _ocrModelProvider = null;
       _ocrModelId = null;
@@ -4190,6 +4220,41 @@ class SettingsProvider extends ChangeNotifier {
   bool _titleGenerationEnabled = true;
   String? get titleModelProvider => _titleModelProvider;
   String? get titleModelId => _titleModelId;
+
+  // Image (drawing) model: the fallback every assistant falls through to.
+  // Nothing else picks it — not the conversation, and never the text model.
+  String? _imageModelProvider;
+  String? _imageModelId;
+  String? get imageModelProvider => _imageModelProvider;
+  String? get imageModelId => _imageModelId;
+  bool get hasImageModel =>
+      (_imageModelProvider?.trim().isNotEmpty ?? false) &&
+      (_imageModelId?.trim().isNotEmpty ?? false);
+
+  Future<void> setImageModel(String providerKey, String modelId) async {
+    if (!isValidImageModelSelection(providerKey, modelId)) {
+      throw ArgumentError('An image model needs both a provider and a model.');
+    }
+    if (!canDrawPictures(getProviderConfig(providerKey), modelId)) {
+      throw ArgumentError('That model cannot draw pictures.');
+    }
+    _imageModelProvider = providerKey;
+    _imageModelId = modelId;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setString(_imageModelKey, '$providerKey::$modelId');
+  }
+
+  Future<void> resetImageModel() async {
+    _imageModelProvider = null;
+    _imageModelId = null;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.remove(_imageModelKey);
+  }
+
+  static bool isValidImageModelSelection(String providerKey, String modelId) =>
+      providerKey.trim().isNotEmpty && modelId.trim().isNotEmpty;
   String? get titleModelKey =>
       (_titleModelProvider != null && _titleModelId != null)
       ? '${_titleModelProvider!}::${_titleModelId!}'
@@ -6665,6 +6730,8 @@ Requirements:
     copy._perChatModelEnabled = _perChatModelEnabled;
     copy._titleModelProvider = _titleModelProvider;
     copy._titleModelId = _titleModelId;
+    copy._imageModelProvider = _imageModelProvider;
+    copy._imageModelId = _imageModelId;
     copy._titleGenerationEnabled = _titleGenerationEnabled;
     copy._titlePrompt = _titlePrompt;
     copy._directorModelProvider = _directorModelProvider;

@@ -733,7 +733,9 @@ class MessageBuilderService {
     final refs = <Map<String, dynamic>>[];
     for (final part in message.parts) {
       if (part is ImagePart) {
-        if (part.unavailable) continue;
+        // A promise has no bytes: sending its reserved uri would ask the model
+        // to fetch a file that does not exist yet.
+        if (part.unavailable || !part.hasBytes) continue;
         final uri = part.uri.trim();
         if (uri.isEmpty) continue;
         refs.add(encodeInternalMediaRef(uri: uri, mime: part.mime));
@@ -791,7 +793,7 @@ class MessageBuilderService {
   /// that should survive into API preparation even without media refs.
   static bool _hasUsableAttachmentPart(ChatMessage message) {
     for (final part in message.parts) {
-      if (part is ImagePart && !part.unavailable) {
+      if (part is ImagePart && !part.unavailable && part.hasBytes) {
         if (part.uri.trim().isNotEmpty) return true;
       } else if (part is FilePart && !part.unavailable) {
         if (part.uri.trim().isNotEmpty) return true;
@@ -930,8 +932,8 @@ class MessageBuilderService {
         textParts.add(part.text);
       } else if (part is ImagePart) {
         // Unavailable parts stay in persisted history for UI placeholders but
-        // must not enter API media paths.
-        if (part.unavailable) continue;
+        // must not enter API media paths; a promise has no bytes at all.
+        if (part.unavailable || !part.hasBytes) continue;
         final uri = part.uri.trim();
         if (uri.isNotEmpty) images.add(uri);
       } else if (part is FilePart) {
@@ -1392,7 +1394,7 @@ class MessageBuilderService {
       if (chatMessageForParts != null) {
         for (final part in chatMessageForParts.parts) {
           if (part is ImagePart) {
-            if (part.unavailable) continue;
+            if (part.unavailable || !part.hasBytes) continue;
             final uri = part.uri.trim();
             if (uri.isEmpty) continue;
             // Prefer resolved media mime over stale generics like

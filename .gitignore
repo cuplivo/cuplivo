@@ -96,3 +96,9 @@ internationalization.md
 /dependencies/*/example/**/flutter_export_environment.sh
 /dependencies/*/example/**/.plugin_symlinks/
 /macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Clarity round/test artefacts: screenshots and review output stay local.
+/.clarity/
+# Tool caches redirected into the workspace during sandboxed runs.
+/.gh-cache/
+

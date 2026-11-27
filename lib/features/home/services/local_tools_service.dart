@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/health_data_type.dart';
 import '../../../core/services/browser/browser_tools_service.dart';
+import '../../subagent/services/subagent_rules.dart' show targetMenuLine;
+import '../../subagent/services/subagent_target.dart';
 import 'calculator_service.dart';
 
 typedef TextToSpeechStarter = Future<void> Function(String text);
@@ -31,6 +33,23 @@ class LocalToolNames {
   static const String remindersCreate = 'reminders_create';
   static const String remindersComplete = 'reminders_complete';
 
+  /// Draws a picture with a separate image model while the reply keeps going.
+  static const String generateImage = 'generate_image';
+
+  /// Hands a self-contained task to a child conversation that inherits this
+  /// one's assistant and workspace, and answers before the child is done.
+  static const String delegate = 'delegate';
+
+  /// Waits for a delegation the model chose to block on.
+  static const String awaitJob = 'await_job';
+
+  /// Sends a message to the other side of a delegation: a delegator steering its
+  /// child, or a child reporting a finding before it finishes.
+  static const String sendMessage = 'send_message';
+
+  /// Asks a subagent to stop what it is doing, without ending the conversation.
+  static const String interrupt = 'interrupt';
+
   static const List<String> all = [
     timeInfo,
     clipboard,
@@ -48,6 +67,11 @@ class LocalToolNames {
     remindersQuery,
     remindersCreate,
     remindersComplete,
+    generateImage,
+    delegate,
+    awaitJob,
+    sendMessage,
+    interrupt,
   ];
 
   static const List<String> requiresUserApproval = [
@@ -460,6 +484,16 @@ class LocalToolsService {
         return _askUserDefinition;
       case LocalToolNames.calculate:
         return _calculateDefinition;
+      case LocalToolNames.generateImage:
+        return generateImageDefinition;
+      case LocalToolNames.delegate:
+        return delegateDefinition;
+      case LocalToolNames.awaitJob:
+        return awaitJobDefinition;
+      case LocalToolNames.sendMessage:
+        return sendMessageDefinition(subagent: false);
+      case LocalToolNames.interrupt:
+        return interruptDefinition;
       case LocalToolNames.screenTime:
         return _screenTimeDefinition();
       case LocalToolNames.calendarQuery:
@@ -486,6 +520,10 @@ class LocalToolsService {
   static List<Map<String, dynamic>> buildToolDefinitions({
     required Assistant? assistant,
     required bool supportsTools,
+    bool allowDelegation = true,
+    List<Assistant> delegateTargets = const <Assistant>[],
+    bool isSubagent = false,
+    String? parentConversationId,
   }) {
     if (!supportsTools || assistant == null) {
       return const <Map<String, dynamic>>[];
@@ -496,9 +534,32 @@ class LocalToolsService {
     }
 
     final tools = <Map<String, dynamic>>[];
+    final enabled = assistant.localToolIds;
+    // The pair is one capability: an assistant switched on before `await_job`
+    // existed has only `delegate`, and reading membership literally would hand it
+    // half the toolbox while the dialog reports "on".
+    final delegation = enabled.contains(LocalToolNames.delegate);
     for (final id in LocalToolNames.all) {
-      if (!assistant.localToolIds.contains(id)) continue;
+      // The two mail tools are added after the loop: which schema a conversation
+      // sees depends on whether it is the delegator or the child, and a tool
+      // list is built for exactly one of them.
+      if (id == LocalToolNames.sendMessage || id == LocalToolNames.interrupt) {
+        continue;
+      }
+      final on = id == LocalToolNames.awaitJob
+          ? delegation
+          : enabled.contains(id);
+      if (!on) continue;
       if (!isAvailableOnThisPlatform(id)) continue;
+      // A conversation already at the delegation limit does not get the pair at
+      // all: a model that cannot see it does not spend a call discovering the
+      // limit, and the handler still refuses if one is remembered from history.
+      // `await_job` goes with `delegate` — a wait tool with no delegation it
+      // could have started only ever answers `not_found`.
+      if (!allowDelegation &&
+          (id == LocalToolNames.delegate || id == LocalToolNames.awaitJob)) {
+        continue;
+      }
       if (id == LocalToolNames.healthSummary) {
         tools.add(
           _healthSummaryDefinition(
@@ -508,10 +569,31 @@ class LocalToolsService {
             ),
           ),
         );
+      } else if (id == LocalToolNames.delegate) {
+        // The one definition whose body depends on the assistant's own
+        // settings: with no targets selected it is the const schema, and the
+        // model is never told it could have named somebody.
+        tools.add(delegateDefinitionFor(delegateTargets));
       } else {
         tools.add(definitionFor(id));
       }
     }
+    if (isSubagent) {
+      // A child always has a delegator to answer, whatever its own assistant is
+      // configured to do; the id is handed over in the description so the model
+      // can name it instead of relying on the default.
+      tools.add(
+        sendMessageDefinition(
+          subagent: true,
+          parentConversationId: parentConversationId,
+        ),
+      );
+    } else if (delegation && allowDelegation) {
+      tools.add(sendMessageDefinition(subagent: false));
+    }
+    // Stopping is for whoever may actually create a child: the delegator, and a
+    // child whose own assistant has delegation on and was handed levels.
+    if (delegation && allowDelegation) tools.add(interruptDefinition);
     return tools;
   }
 
@@ -521,9 +603,14 @@ class LocalToolsService {
     Assistant? assistant, {
     TextToSpeechStarter? onSpeakText,
   }) async {
-    if (assistant == null || !assistant.localToolIds.contains(name)) {
-      return null;
-    }
+    if (assistant == null) return null;
+    // `await_job` is the blocking half of 子代理: it is offered and handled
+    // wherever `delegate` is, so an assistant configured before the pair existed
+    // still gets both.
+    final on = name == LocalToolNames.awaitJob
+        ? assistant.localToolIds.contains(LocalToolNames.delegate)
+        : assistant.localToolIds.contains(name);
+    if (!on) return null;
     if (name == LocalToolNames.timeInfo) {
       return jsonEncode(_buildTimeInfoPayload(DateTime.now()));
     }
@@ -776,6 +863,290 @@ class LocalToolsService {
           },
         },
         'required': ['questions'],
+      },
+    },
+  };
+
+  /// The image tool's schema, exactly as agreed in the tool contract.
+  ///
+  /// Three fields, no picture, no base64: the model gets a promise it can write
+  /// into the reply. Two things are deliberately absent — quality and any
+  /// user-set ratio — because cost belongs to the user and `auto` is the right
+  /// answer most of the time.
+  static const Map<String, dynamic> generateImageDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.generateImage,
+      'description':
+          'Generate an image with another model to support your reply. The tool '
+          'is non-blocking: you immediately get asset_id and uri, and you may '
+          'place uri in your reply as a Markdown image placeholder. You will not '
+          'see the finished image; never claim that you have seen it, and there '
+          'is no need to say you cannot — just keep the reply flowing. One '
+          'picture per call.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'prompt': {
+            'type': 'string',
+            'description':
+                'Complete description of the picture: subject, setting, style, '
+                'lighting. This is everything the image model sees.',
+          },
+          'aspect_ratio': {
+            'type': 'string',
+            'enum': ['auto', '1:1', '3:2', '2:3', '16:9'],
+            'default': 'auto',
+            'description':
+                'Only set it when the layout of the picture matters. auto lets '
+                'the backend choose.',
+          },
+          'reference_image_ids': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description':
+                'Optional. Reference or keep editing an image already in this '
+                'conversation. Ids outside this conversation are rejected.',
+          },
+        },
+        'required': ['prompt'],
+      },
+    },
+  };
+
+  /// The delegation tool's schema.
+  ///
+  /// The description carries the two things a model gets wrong here: it must
+  /// not claim the work as its own (the child may fail), and it must not repeat
+  /// the call (one task, one child). Everything else is deliberately short —
+  /// the child sees no history, so the task text has to stand alone.
+  ///
+  /// This is the shape with no target to choose from, which is also every
+  /// assistant that has not selected any: the parameter does not exist, so the
+  /// request is byte-for-byte what it was before delegation targets shipped.
+  static const Map<String, dynamic> delegateDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.delegate,
+      'description': _delegateToolDescription,
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'task': _delegateTaskParameter,
+          'label': _delegateLabelParameter,
+        },
+        'required': ['task', 'label'],
+      },
+    },
+  };
+
+  /// The same schema, with one more parameter: who runs the task.
+  ///
+  /// [targets] is already filtered by `delegableAssistants`, and one menu line
+  /// per target is `targetMenuLine` — the value the model must emit, then what
+  /// that assistant is for. Ids travel, names are read: a name is not unique
+  /// and can change under a request.
+  static Map<String, dynamic> delegateDefinitionFor(List<Assistant> targets) {
+    if (targets.isEmpty) return delegateDefinition;
+    final menu = <String>[
+      'Who runs the task, in this same workspace:',
+      '${SubagentTargetKeys.general} — a copy of yourself.',
+      for (final target in targets) targetMenuLine(target),
+    ];
+    return {
+      'type': 'function',
+      'function': {
+        'name': LocalToolNames.delegate,
+        'description': _delegateToolDescription,
+        'parameters': {
+          'type': 'object',
+          'properties': {
+            'task': _delegateTaskParameter,
+            'label': _delegateLabelParameter,
+            'target': {
+              'type': 'string',
+              'enum': <String>[
+                SubagentTargetKeys.general,
+                for (final target in targets)
+                  SubagentTarget.assistant(target.id).encode(),
+              ],
+              'description': menu.join('\n'),
+            },
+          },
+          'required': ['task', 'label', 'target'],
+        },
+      },
+    };
+  }
+
+  static const String _delegateToolDescription =
+      'Hand one self-contained task to a subagent. It works in its own '
+      'conversation, in this same workspace. By default it runs as a copy of '
+      'yourself; the `target` parameter (when this assistant offers one) runs '
+      'it as that assistant instead, with their prompt, model and tools. It '
+      'can take a while. This call returns immediately with a '
+      'conversation id and NOT with the result: the subagent is still '
+      'working. When it finishes, its conclusion arrives here as a notice '
+      'and you will be asked to continue. Until that notice arrives, do '
+      'not claim the task is done, do not delegate the same task again, '
+      'and if you have nothing else to do just end your reply.';
+
+  static const Map<String, dynamic> _delegateTaskParameter = {
+    'type': 'string',
+    'description':
+        'Everything the subagent needs, in full sentences. It cannot '
+        'see this conversation, so name the files, the goal and the '
+        'constraints.',
+  };
+
+  static const Map<String, dynamic> _delegateLabelParameter = {
+    'type': 'string',
+    'description':
+        'A short name for this job, used on the card, the progress '
+        'line and the new conversation title. A noun phrase, not a '
+        'sentence, in the language the user is writing in.',
+  };
+
+  /// The blocking counterpart of [delegateDefinition].
+  ///
+  /// Waiting is a decision the model makes, not the default: the notice arrives
+  /// on its own, so this is only for the case where the next step genuinely
+  /// cannot start without the answer. It waits as long as the task takes — and
+  /// returns early, not with a timeout, when the subagent stops to ask the user
+  /// something, because only a person can unblock that.
+  static const Map<String, dynamic> awaitJobDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.awaitJob,
+      'description':
+          'Wait for a task you started with `delegate` to finish, and get its '
+          'conclusion here. It blocks until the task ends, however long that '
+          'takes, or until the subagent stops to ask the user something — then '
+          'it returns `waiting_for_input` and you should end your reply. Prefer '
+          'not to use it: the conclusion arrives on its own as a notice, and a '
+          'reply that ends while the task runs is normal. Use it only when your '
+          'next step truly cannot start without the answer.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'job_id': {
+            'type': 'string',
+            'description':
+                'The `job_id` that `delegate` returned for this task.',
+          },
+        },
+        'required': ['job_id'],
+      },
+    },
+  };
+
+  /// Sends a message to the other side of a delegation.
+  ///
+  /// One name, two roles. A delegator names the job it is steering. A child has
+  /// a delegator and may also have subagents of its own: it replies upward by
+  /// omitting `job_id` (or naming the delegator's conversation id, which the
+  /// description hands it), and reaches one of its own children by naming that
+  /// job. The child schema is built with the delegator's id so the model never
+  /// has to guess it or remember it from the brief.
+  static Map<String, dynamic> sendMessageDefinition({
+    required bool subagent,
+    String? parentConversationId,
+  }) {
+    if (subagent) {
+      final parentId = (parentConversationId ?? '').trim();
+      final parent = parentId.isEmpty
+          ? 'your delegator'
+          : 'your delegator (conversation `$parentId`)';
+      return <String, dynamic>{
+        'type': 'function',
+        'function': {
+          'name': LocalToolNames.sendMessage,
+          'description':
+              'Send a message to another conversation in this delegation. Omit '
+              '`job_id`, or pass $parent\'s conversation id, to reply to your '
+              'delegator: a finding that changes what it should do next, or a '
+              'question you cannot answer yourself. Pass the `job_id` of one of '
+              'your own subagents to message it. This returns when the message '
+              'is delivered, NOT with an answer — do not wait for one, keep '
+              'working with what you have. Sending a message does not end your '
+              'turn; your final reply is still delivered as the result.',
+          'parameters': <String, dynamic>{
+            'type': 'object',
+            'properties': <String, dynamic>{
+              'job_id': {
+                'type': 'string',
+                'description':
+                    'Optional. One of your own subagents\' job ids, or your '
+                    'delegator\'s conversation id. Omit to reply to your '
+                    'delegator.',
+              },
+              'text': {
+                'type': 'string',
+                'description':
+                    'The message, self-contained: what you found, what you '
+                    'need, and what you will do next.',
+              },
+            },
+            'required': <String>['text'],
+          },
+        },
+      };
+    }
+    return <String, dynamic>{
+      'type': 'function',
+      'function': {
+        'name': LocalToolNames.sendMessage,
+        'description':
+            'Send a message to a subagent you started with `delegate`: to '
+            'correct it, answer a question it asked, or give it a new task '
+            'after it finished. This returns when the message is delivered, '
+            'NOT with the subagent\'s reply — its answer arrives later as a '
+            'notice and you will be asked to continue. A subagent that has '
+            'finished or was stopped by `interrupt` starts a new turn with '
+            'your message; one that is still working reads it before its next '
+            'step. A subagent the user stopped cannot be continued.',
+        'parameters': <String, dynamic>{
+          'type': 'object',
+          'properties': <String, dynamic>{
+            'job_id': {
+              'type': 'string',
+              'description':
+                  'The `job_id` that `delegate` returned for this job.',
+            },
+            'text': {
+              'type': 'string',
+              'description':
+                  'The message, self-contained: what to change, or what to do '
+                  'next.',
+            },
+          },
+          'required': <String>['job_id', 'text'],
+        },
+      },
+    };
+  }
+
+  /// The stop half of the delegation pair.
+  static const Map<String, dynamic> interruptDefinition = {
+    'type': 'function',
+    'function': {
+      'name': LocalToolNames.interrupt,
+      'description':
+          'Ask a subagent you started with `delegate` to stop what it is '
+          'doing. This returns immediately, NOT when it has stopped, and the '
+          'stop is silent: nothing arrives later. If you need what it had '
+          'concluded, call `await_job` first, or `send_message` to continue it '
+          'with a correction.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'job_id': {
+            'type': 'string',
+            'description':
+                'The `job_id` that `delegate` returned for this job.',
+          },
+        },
+        'required': ['job_id'],
       },
     },
   };

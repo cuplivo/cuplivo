@@ -38,6 +38,26 @@ final class GenerationRunCommands {
     return row == null ? null : _map(row);
   }
 
+  /// The newest run started in [conversationId].
+  ///
+  /// A turn is a chain of runs now: a message that arrives mid-turn ends the
+  /// segment it interrupted and starts a new one under a fresh run row. Anything
+  /// watching a conversation (the subagent watcher) therefore asks for the
+  /// newest run instead of holding one id that goes terminal while the turn
+  /// continues.
+  Future<GenerationRun?> latestFor(String conversationId) async {
+    final row =
+        await (_db.select(_db.generationRunRows)
+              ..where((run) => run.conversationId.equals(conversationId))
+              ..orderBy([
+                (run) => OrderingTerm.desc(run.createdAt),
+                (run) => OrderingTerm.desc(run.updatedAt),
+              ])
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _map(row);
+  }
+
   Future<GenerationRun> transition({
     required String id,
     required GenerationRunState expectedState,

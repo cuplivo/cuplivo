@@ -1,6 +1,6 @@
 import 'composer_draft.dart' show DraftSubmission;
 import 'quote_ref.dart';
-import 'package:Kelivo/features/intelligent_ui/models/ui_context_attachment.dart';
+import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
 
 class DocumentAttachment {
   final String path; // absolute file path
@@ -44,10 +44,3 @@ class ChatInputData {
 }
 
 enum ChatInputSubmissionResult { sent, queued, rejected }
-
-class QueuedChatInput {
-  final String conversationId;
-  final ChatInputData input;
-
-  const QueuedChatInput({required this.conversationId, required this.input});
-}

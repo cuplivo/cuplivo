@@ -5,20 +5,21 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/native_compaction.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_container.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_history.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/api/providers/google/gemini_thought_signature.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
-import 'package:Kelivo/features/home/services/message_builder_service.dart';
-import 'package:Kelivo/features/home/services/ocr_service.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_container.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_history.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/api/message_authorship.dart';
+import 'package:Cuplivo/core/services/api/providers/google/gemini_thought_signature.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/features/home/services/message_builder_service.dart';
+import 'package:Cuplivo/features/home/services/ocr_service.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 
 import '../../../support/business_test_harness.dart';
 
@@ -49,6 +50,10 @@ class _FakeChatService extends ChatService {
         .where((message) => message.conversationId == conversationId)
         .toList();
   }
+
+  @override
+  Conversation? getConversation(String id) =>
+      id == 'child-1' ? Conversation(id: 'child-1', title: 'auth') : null;
 }
 
 ChatMessage _message({
@@ -57,6 +62,7 @@ ChatMessage _message({
   required String content,
   String? reasoningText,
   String? groupId,
+  String? senderId,
   int version = 0,
 }) {
   return ChatMessage(
@@ -66,6 +72,7 @@ ChatMessage _message({
     conversationId: 'conversation-1',
     reasoningText: reasoningText,
     groupId: groupId,
+    senderId: senderId,
     version: version,
   );
 }
@@ -392,6 +399,43 @@ void main() {
       expect(apiMessages.single[MessageBuilderService.internalMediaPathsKey], [
         encodeInternalMediaRef(uri: '/tmp/only.png', mime: 'image/png'),
       ]);
+    });
+
+    test('mail between a delegation’s two sides names its sender', () {
+      final service = MessageBuilderService(
+        chatService: _FakeChatService(const {}),
+        contextProvider: _FakeBuildContext(),
+      );
+      final apiMessages = service.buildApiMessages(
+        messages: [
+          ChatMessage(
+            id: 'm1',
+            role: 'user',
+            conversationId: 'conversation-1',
+            parts: const [
+              SubagentMailPart(
+                from: SubagentMailSender.subagent,
+                senderConversationId: 'child-1',
+              ),
+              TextPart('found the bug'),
+            ],
+          ),
+        ],
+        versionSelections: const {},
+        currentConversation: Conversation(title: 'parent'),
+      );
+
+      // The row stores the body; the model is told who sent it here, once.
+      expect(
+        apiMessages.single['content'],
+        'Subagent auth sent a message: found the bug',
+      );
+      expect(apiMessages.single[subagentMailKey], isTrue);
+      // Not the human's turn: no revision id for a message nobody can edit.
+      expect(
+        apiMessages.single,
+        isNot(contains(MessageBuilderService.internalRevisionIdKey)),
+      );
     });
 
     test('assistant ImagePart gets media paths too', () {
@@ -1314,6 +1358,46 @@ void main() {
         'recent 4',
         'recent 5',
       ]);
+    });
+
+    test('群成员的 turn 带 marker 且不占用用户的 revision id', () {
+      final service = MessageBuilderService(
+        chatService: _FakeChatService({}),
+        contextProvider: _FakeBuildContext(),
+      );
+
+      final apiMessages = service.buildApiMessages(
+        messages: [
+          _message(id: 'u1', role: 'user', content: 'plan the week'),
+          _message(
+            id: 'p1',
+            role: 'user',
+            content: '<group_message from="Bob">\nTuesday\n</group_message>',
+            senderId: 'a2',
+          ),
+        ],
+        versionSelections: const {},
+        currentConversation: Conversation(title: 'test'),
+      );
+
+      // The user's own turn keeps the revision id every edit path relies on.
+      expect(
+        apiMessages.first[MessageBuilderService.internalRevisionIdKey],
+        'u1',
+      );
+      expect(apiMessages.first.containsKey(groupPeerSenderKey), isFalse);
+
+      // A peer's turn is a user message that is not the user's: marked, and
+      // deliberately without a revision id so "the last user message" still
+      // means the human's own turn.
+      expect(apiMessages.last['role'], 'user');
+      expect(apiMessages.last[groupPeerSenderKey], 'a2');
+      expect(
+        apiMessages.last.containsKey(
+          MessageBuilderService.internalRevisionIdKey,
+        ),
+        isFalse,
+      );
     });
 
     test('WorldBook 注入后的最终裁剪会限制发送消息数', () {

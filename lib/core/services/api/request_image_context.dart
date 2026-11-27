@@ -23,6 +23,7 @@ import '../../../utils/sandbox_path_resolver.dart';
 import '../mcp/mcp_image_snapshot.dart';
 import '../tools/view_image_tool.dart';
 import 'chat_api_helpers.dart';
+import 'message_authorship.dart';
 
 /// Kept out of prompts and removed before a provider serializes a request.
 const imageContextOwnerKey = '_kelivo_image_owner';
@@ -44,6 +45,15 @@ bool isUserInputMessage(
   required bool hasOwners,
 }) {
   if (message['role'] != 'user') return false;
+  // A group peer's turn travels as `user` but is not the user's own words; its
+  // images and attachments belong to the member that sent it.
+  if (message[groupPeerSenderKey] != null) return false;
+  // A subagent's conclusion is the app's notice, so the human's own turn keeps
+  // the attachments even when the notice is the most recent user-role turn.
+  if (message[subagentResultKey] != null) return false;
+  // A message one side of a delegation sends the other is not the human's turn
+  // either, so it must not take over carried images or the search query.
+  if (message[subagentMailKey] != null) return false;
   if (!hasOwners) return true;
   final owner = message[imageContextOwnerKey];
   return owner is String &&
@@ -267,6 +277,11 @@ class RequestImageContext {
     for (final message in messages) {
       for (var ordinal = 0; ordinal < message.parts.length; ordinal++) {
         final part = message.parts[ordinal];
+        // A picture an image job has only *promised* has no bytes yet: the uri
+        // is reserved and the file is not there. Handing it to the context would
+        // invent an image the provider cannot load, so it is skipped here exactly
+        // as the outbound body already skips it. `hasBytes` is that question.
+        if (part is ImagePart && !part.hasBytes) continue;
         if (part is ImagePart || part is FilePart) {
           final uri = part is ImagePart ? part.uri : (part as FilePart).uri;
           final mime = part is ImagePart ? part.mime : (part as FilePart).mime;
@@ -431,7 +446,16 @@ class RequestImageContext {
     final turns = <String, String?>{};
     String? user;
     for (final message in messages) {
-      if (message.role == 'user') user = message.id;
+      // A subagent's notice is a `user` row, but it owns no images: keeping the
+      // previous turn as the owner is what makes an attached picture stay with
+      // the message a person actually sent. Mail between the two sides of a
+      // delegation is the same kind of row, so it must not become the owner
+      // either — otherwise every picture the human attached retires.
+      if (message.role == 'user' &&
+          !hasSubagentResultPart(message.parts) &&
+          !hasSubagentMailPart(message.parts)) {
+        user = message.id;
+      }
       turns[message.id] = user;
     }
     return turns;
@@ -638,6 +662,13 @@ class RequestImageContext {
         message[multimodalInternalMediaPathsKey] = refs;
         continue;
       }
+      // A picture the assistant produced is never put back on the wire: no
+      // provider takes it in an assistant turn, and the providers that carry it
+      // forward made the model read its own old work as a fresh user upload.
+      // It stays on the message as a recallable asset (`view_image`), so no
+      // reference is prepared for it here either — `activeHandles` is what the
+      // image panel reports as sent, and this keeps that answer honest.
+      if (message['role'] == 'assistant') continue;
       final raw = message['content'];
       if (raw is String && parseMarkdownImages) {
         final parsed = await parseTextAndImages(

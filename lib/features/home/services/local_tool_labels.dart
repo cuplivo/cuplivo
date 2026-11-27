@@ -1,15 +1,24 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 import 'local_tools_service.dart';
 
 /// Ids of the local tools offered on this platform, in the order the assistant
 /// "Local tools" tab lists them.
+///
+/// `await_job`, `send_message` and `interrupt` are not listed: they belong to
+/// 子代理, registered and switched together with `delegate`, and a second row
+/// would let a user turn off the half a delegation needs to report back or be
+/// steered.
 List<String> availableLocalToolIds() => [
   for (final id in LocalToolNames.all)
-    if (LocalToolsService.isAvailableOnThisPlatform(id)) id,
+    if (id != LocalToolNames.awaitJob &&
+        id != LocalToolNames.sendMessage &&
+        id != LocalToolNames.interrupt &&
+        LocalToolsService.isAvailableOnThisPlatform(id))
+      id,
 ];
 
 IconData localToolIcon(String id) {
@@ -46,6 +55,16 @@ IconData localToolIcon(String id) {
       return Lucide.ListPlus;
     case LocalToolNames.remindersComplete:
       return Lucide.CheckCircle;
+    case LocalToolNames.generateImage:
+      return Lucide.Image;
+    case LocalToolNames.delegate:
+      return Lucide.Bot;
+    case LocalToolNames.awaitJob:
+      return Lucide.Hourglass;
+    case LocalToolNames.sendMessage:
+      return Lucide.MessageCircle;
+    case LocalToolNames.interrupt:
+      return Lucide.CircleStop;
     default:
       return Lucide.Wrench;
   }
@@ -85,6 +104,12 @@ String localToolTitle(AppLocalizations l10n, String id) {
       return l10n.assistantEditLocalToolRemindersCreateTitle;
     case LocalToolNames.remindersComplete:
       return l10n.assistantEditLocalToolRemindersCompleteTitle;
+    case LocalToolNames.generateImage:
+      return l10n.assistantEditLocalToolImageTitle;
+    case LocalToolNames.delegate:
+      return l10n.assistantEditLocalToolDelegateTitle;
+    case LocalToolNames.awaitJob:
+      return l10n.assistantEditLocalToolAwaitJobTitle;
     default:
       return id;
   }

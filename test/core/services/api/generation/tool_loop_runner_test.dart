@@ -1,9 +1,10 @@
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_handler.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_ids.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_handler.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_ids.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -343,4 +344,117 @@ void main() {
       ]);
     },
   );
+
+  group('a message that arrives at a step boundary', () {
+    RequestHistoryContext history({required bool Function()? takeHandoff}) =>
+        RequestHistoryContext(
+          currentUserId: 'user-1',
+          targetMessageId: 'assistant-1',
+          isCancelled: () => false,
+          beforeRequest: (body, project, overflow) async => null,
+          takeHandoff: takeHandoff,
+        );
+
+    test('ends the turn instead of sending the next request', () async {
+      final context = history(takeHandoff: () => true);
+      var followUps = 0;
+      var finished = 0;
+
+      await context
+          .run(
+            () => runClientToolFollowUps(
+              initialCalls: [
+                emitToolCall(
+                  id: 'call_1',
+                  name: 'lookup',
+                  arguments: const <String, dynamic>{'q': '1'},
+                ),
+              ],
+              onToolCall: (name, args, {toolCallId}) async => 'ok',
+              append: (_) {},
+              sendFollowUp: () async* {
+                followUps += 1;
+                yield const TextDelta(id: 't', text: 'next');
+              },
+              takeCallsAfterRound: () => const <EmitToolCall>[],
+              finish: () {
+                finished += 1;
+                return emitFinish(ids: StreamChunkIds('finish'));
+              },
+            ),
+          )
+          .toList();
+
+      expect(followUps, 0);
+      expect(finished, 1);
+      expect(context.handoffRequested, isTrue);
+    });
+
+    test('the provider loop takes the same boundary', () async {
+      final context = history(takeHandoff: () => true);
+      var sends = 0;
+      var finished = 0;
+
+      await context
+          .run(
+            () => runProviderToolRounds(
+              sendRound: () async* {
+                sends += 1;
+                yield TextDelta(id: 't', text: 'round-$sends');
+              },
+              takeCalls: () => sends == 1
+                  ? [
+                      emitToolCall(
+                        id: 'call_1',
+                        name: 'lookup',
+                        arguments: const <String, dynamic>{'q': '1'},
+                      ),
+                    ]
+                  : const <EmitToolCall>[],
+              onToolCall: (name, args, {toolCallId}) async => 'ok',
+              append: (_) {},
+              continueWithoutCalls: () => false,
+              finish: () {
+                finished += 1;
+                return emitFinish(ids: StreamChunkIds('finish'));
+              },
+            ),
+          )
+          .toList();
+
+      expect(sends, 1);
+      expect(finished, 1);
+      expect(context.handoffRequested, isTrue);
+    });
+
+    test('nothing waiting means the turn continues as before', () async {
+      final context = history(takeHandoff: null);
+      var followUps = 0;
+
+      await context
+          .run(
+            () => runClientToolFollowUps(
+              initialCalls: [
+                emitToolCall(
+                  id: 'call_1',
+                  name: 'lookup',
+                  arguments: const <String, dynamic>{'q': '1'},
+                ),
+              ],
+              onToolCall: (name, args, {toolCallId}) async => 'ok',
+              append: (_) {},
+              sendFollowUp: () async* {
+                followUps += 1;
+                yield const TextDelta(id: 't', text: 'next');
+              },
+              takeCallsAfterRound: () => const <EmitToolCall>[],
+              finish: () => emitFinish(ids: StreamChunkIds('finish')),
+            ),
+          )
+          .toList();
+
+      expect(followUps, 1);
+      expect(context.handoffRequested, isFalse);
+    });
+  });
 }

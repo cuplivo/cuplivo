@@ -3,31 +3,37 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/conversation_mcp_settings.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/conversation_mcp_settings.dart';
 import '../utils/ensure_conversation.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/haptics.dart';
-import 'package:Kelivo/features/home/services/local_tool_labels.dart';
-import 'package:Kelivo/features/home/services/local_tool_toggle.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
-import 'package:Kelivo/features/workspace/widgets/workspace_section.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/ios_text_button.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/home/utils/model_display_helper.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
+import 'package:Cuplivo/features/home/services/local_tool_labels.dart';
+import 'package:Cuplivo/features/home/services/local_tool_toggle.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/features/workspace/widgets/workspace_section.dart';
+import '../utils/tools_summary.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 import 'tools_sheet_row.dart';
 import 'image_recall_control.dart';
+import '../../image_job/widgets/image_model_subrow.dart';
+import '../../group_chat/widgets/group_member_strip.dart';
+import '../../subagent/widgets/subagent_config_sheet.dart';
 import '../../mcp/widgets/mcp_server_avatar.dart';
 import '../../mcp/widgets/mcp_tool_connection_status.dart';
 import '../../mcp/utils/mcp_tool_groups.dart';
@@ -39,6 +45,8 @@ Future<void> showChatToolsSheet(
   BuildContext context, {
   required String assistantId,
   String? conversationId,
+  bool Function(String providerKey, String modelId)? modelSupportsTools,
+  List<Assistant>? members,
 }) async {
   if (context
           .read<AssistantProvider>()
@@ -62,6 +70,8 @@ Future<void> showChatToolsSheet(
     builder: (sheetContext) => ChatToolsSheet(
       assistantId: assistantId,
       conversationId: conversationId,
+      members: members,
+      modelSupportsTools: modelSupportsTools,
       onClose: () => Navigator.of(sheetContext).maybePop(),
     ),
   );
@@ -73,11 +83,24 @@ class ChatToolsSheet extends StatefulWidget {
     required this.assistantId,
     this.conversationId,
     this.onClose,
+    this.members,
+    this.modelSupportsTools,
   });
 
   final String assistantId;
   final String? conversationId;
   final VoidCallback? onClose;
+
+  /// Non-null in a group chat: the roster whose member the strip selects. The
+  /// three groups below then edit that member's tools, not the composer's
+  /// current assistant.
+  final List<Assistant>? members;
+
+  /// The composer's capability check. A group reaches this sheet for the whole
+  /// roster, so it has to ask about the member the strip shows: a model that
+  /// cannot call tools is offered none. Null in a 1:1 chat, where the composer
+  /// only opens this sheet for a model that can.
+  final bool Function(String providerKey, String modelId)? modelSupportsTools;
 
   static const Key localGroupKey = ValueKey<String>('chat-tools-group-local');
   static const Key mcpGroupKey = ValueKey<String>('chat-tools-group-mcp');
@@ -111,6 +134,43 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
       .read<BusinessPreferences>();
   late final Set<_ToolsGroupId> _expanded = _readExpanded();
 
+  String? _selectedId;
+
+  /// The member these groups write to: the strip's selection in a group, and
+  /// the assistant the composer is on otherwise.
+  String get _targetId {
+    final members = widget.members;
+    if (members == null || members.isEmpty) return widget.assistantId;
+    final id = _selectedId ?? widget.assistantId;
+    return members.any((member) => member.id == id) ? id : members.first.id;
+  }
+
+  /// The conversation whose MCP override counts for [member], when that member
+  /// allows one.
+  Conversation? _conversationFor(Assistant member) {
+    final id = widget.conversationId;
+    if (id == null || !member.allowConversationMcp) return null;
+    return context.read<ChatService>().getConversation(id);
+  }
+
+  /// Whether the member on show can call tools at all. A 1:1 chat only opens
+  /// this sheet for such a model; a group opens it for the roster, so it asks
+  /// per selected member — the same gate the desktop popover applies.
+  bool _toolsAllowed() {
+    final supportsTools = widget.modelSupportsTools;
+    if (supportsTools == null) return true;
+    final settings = context.watch<SettingsProvider>();
+    final member = context.select<AssistantProvider, Assistant?>(
+      (provider) => provider.getById(_targetId),
+    );
+    if (member == null) return false;
+    final model = resolveChatModel(settings, assistant: member);
+    final providerKey = model.providerKey;
+    final modelId = model.modelId;
+    if (providerKey == null || (modelId ?? '').isEmpty) return false;
+    return supportsTools(providerKey, modelId!);
+  }
+
   Set<_ToolsGroupId> _readExpanded() {
     final stored = _preferences.getStringList(_expandedGroupsKey);
     if (stored == null) return <_ToolsGroupId>{..._defaultExpandedGroups};
@@ -138,6 +198,10 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
     final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.8;
+    final toolsAllowed = _toolsAllowed();
+    final hasToolRows =
+        availableLocalToolIds().isNotEmpty ||
+        context.watch<McpProvider>().connectedServers.isNotEmpty;
 
     return SafeArea(
       top: false,
@@ -169,6 +233,31 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
               ),
             ),
             const SizedBox(height: 4),
+            if (widget.members case final members? when members.length > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: GroupMemberStrip(
+                  members: members,
+                  selectedId: _targetId,
+                  onSelect: (member) => setState(() => _selectedId = member.id),
+                  // What this panel is about, per member: how many of the tools
+                  // they could switch on they have on.
+                  valueBuilder: (member) {
+                    final summary = memberToolSummary(
+                      member,
+                      conversation: _conversationFor(member),
+                      connectedServerIds: [
+                        for (final server
+                            in context.watch<McpProvider>().connectedServers)
+                          server.id,
+                      ],
+                    );
+                    return summary.enabled == 0
+                        ? null
+                        : Text('${summary.enabled}/${summary.total}');
+                  },
+                ),
+              ),
             Flexible(
               child: AnimatedSize(
                 duration: const Duration(milliseconds: 200),
@@ -182,23 +271,44 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       sliver: SliverMainAxisGroup(
                         slivers: [
-                          SliverToBoxAdapter(
-                            child: _LocalToolsGroup(
-                              assistantId: widget.assistantId,
-                              conversationId: widget.conversationId,
-                              expanded: _expanded.contains(_ToolsGroupId.local),
-                              onToggle: () => _toggleGroup(_ToolsGroupId.local),
+                          // A model that cannot call tools offers none — the
+                          // same gate the desktop popover applies to the member
+                          // it shows. The workspace group below is the
+                          // conversation's, not the member's.
+                          if (!toolsAllowed)
+                            SliverToBoxAdapter(
+                              child: _EmptyToolsNote(
+                                text: l10n.chatToolsEmptyModelCannotUseTools,
+                              ),
+                            )
+                          else if (!hasToolRows)
+                            SliverToBoxAdapter(
+                              child: _EmptyToolsNote(
+                                text: l10n.chatToolsEmptyNoToolsEnabled,
+                              ),
+                            )
+                          else ...[
+                            SliverToBoxAdapter(
+                              child: _LocalToolsGroup(
+                                assistantId: _targetId,
+                                conversationId: widget.conversationId,
+                                expanded: _expanded.contains(
+                                  _ToolsGroupId.local,
+                                ),
+                                onToggle: () =>
+                                    _toggleGroup(_ToolsGroupId.local),
+                              ),
                             ),
-                          ),
-                          _McpGroup(
-                            assistantId: widget.assistantId,
-                            conversationId: widget.conversationId,
-                            expanded: _expanded.contains(_ToolsGroupId.mcp),
-                            onToggle: () => _toggleGroup(_ToolsGroupId.mcp),
-                          ),
+                            _McpGroup(
+                              assistantId: _targetId,
+                              conversationId: widget.conversationId,
+                              expanded: _expanded.contains(_ToolsGroupId.mcp),
+                              onToggle: () => _toggleGroup(_ToolsGroupId.mcp),
+                            ),
+                          ],
                           SliverToBoxAdapter(
                             child: _WorkspaceGroup(
-                              assistantId: widget.assistantId,
+                              assistantId: _targetId,
                               conversationId: widget.conversationId,
                               expanded: _expanded.contains(
                                 _ToolsGroupId.workspace,
@@ -216,6 +326,31 @@ class _ChatToolsSheetState extends State<ChatToolsSheet> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One line where a group of rows would be: the member on show has nothing to
+/// switch on, and an empty panel would not say whether that is the model or the
+/// configuration.
+class _EmptyToolsNote extends StatelessWidget {
+  const _EmptyToolsNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          height: 1.35,
+          color: cs.onSurface.withValues(alpha: 0.6),
         ),
       ),
     );
@@ -398,22 +533,12 @@ class _LocalToolsGroup extends StatelessWidget {
         onToggle: onToggle,
         children: [
           for (final id in ids)
-            ToolsSheetRow(
-              key: ChatToolsSheet.localToolKey(id),
-              icon: localToolIcon(id),
-              label: localToolTitle(l10n, id),
-              selected: enabled.contains(id),
-              onTap: () => unawaited(
-                setLocalToolEnabled(
-                  context,
-                  assistant: assistant,
-                  toolId: id,
-                  value: !enabled.contains(id),
-                ),
-              ),
-              trailing: IosSwitch(
-                value: enabled.contains(id),
-                semanticLabel: localToolTitle(l10n, id),
+            if (id == LocalToolNames.generateImage)
+              // 绘图 is the one entry with a next level: on/off on the row, and
+              // *what it draws with* on the row that grows underneath.
+              _ImageToolRow(
+                assistant: assistant,
+                enabled: enabled.contains(id),
                 onChanged: (value) => unawaited(
                   setLocalToolEnabled(
                     context,
@@ -422,8 +547,90 @@ class _LocalToolsGroup extends StatelessWidget {
                     value: value,
                   ),
                 ),
+              )
+            else if (id == LocalToolNames.delegate)
+              // 子代理 is the same two lines as 绘图, with the same grammar: the
+              // row is a switch, and the summary underneath is the way into the
+              // dialog while it is on. With it off the second line folds away,
+              // exactly as the drawing row's does.
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ToolsSheetRow(
+                    key: ChatToolsSheet.localToolKey(LocalToolNames.delegate),
+                    icon: localToolIcon(LocalToolNames.delegate),
+                    label: localToolTitle(l10n, LocalToolNames.delegate),
+                    selected: enabled.contains(id),
+                    trailing: IosSwitch(
+                      value: enabled.contains(id),
+                      semanticLabel: localToolTitle(l10n, id),
+                      onChanged: (value) => unawaited(
+                        setSubagentEnabled(
+                          context,
+                          assistant: assistant,
+                          value: value,
+                        ),
+                      ),
+                    ),
+                    onTap: () => unawaited(
+                      setSubagentEnabled(
+                        context,
+                        assistant: assistant,
+                        value: !enabled.contains(id),
+                      ),
+                    ),
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: enabled.contains(id)
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: ImageModelSubRow(
+                              label: subagentSummary(context, l10n, assistant),
+                              configured: true,
+                              onTap: () => unawaited(
+                                showSubagentConfig(
+                                  context,
+                                  assistantId: assistant.id,
+                                  conversationId: conversationId,
+                                ),
+                              ),
+                            ),
+                          )
+                        : const SizedBox(width: double.infinity, height: 0),
+                  ),
+                ],
+              )
+            else
+              ToolsSheetRow(
+                key: ChatToolsSheet.localToolKey(id),
+                icon: localToolIcon(id),
+                label: localToolTitle(l10n, id),
+                selected: enabled.contains(id),
+                onTap: () => unawaited(
+                  setLocalToolEnabled(
+                    context,
+                    assistant: assistant,
+                    toolId: id,
+                    value: !enabled.contains(id),
+                  ),
+                ),
+                trailing: IosSwitch(
+                  value: enabled.contains(id),
+                  semanticLabel: localToolTitle(l10n, id),
+                  onChanged: (value) => unawaited(
+                    setLocalToolEnabled(
+                      context,
+                      assistant: assistant,
+                      toolId: id,
+                      value: value,
+                    ),
+                  ),
+                ),
               ),
-            ),
           ToolsSheetRow(
             key: const ValueKey('chat-tools-view-image'),
             icon: Lucide.Image,
@@ -440,6 +647,62 @@ class _LocalToolsGroup extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 绘图: the switch row, plus the model row that grows under it when it is on.
+class _ImageToolRow extends StatelessWidget {
+  const _ImageToolRow({
+    required this.assistant,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final Assistant assistant;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsProvider>();
+    final label = localToolTitle(l10n, LocalToolNames.generateImage);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ToolsSheetRow(
+          key: ChatToolsSheet.localToolKey(LocalToolNames.generateImage),
+          icon: localToolIcon(LocalToolNames.generateImage),
+          label: label,
+          selected: enabled,
+          onTap: () => onChanged(!enabled),
+          trailing: IosSwitch(
+            value: enabled,
+            semanticLabel: label,
+            onChanged: onChanged,
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: enabled
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: ImageModelSubRow(
+                    label: imageModelSubRowLabel(l10n, settings, assistant),
+                    configured:
+                        resolveImageModel(settings, assistant).binding != null,
+                    onTap: () => unawaited(
+                      pickImageModel(context, assistant: assistant),
+                    ),
+                  ),
+                )
+              : const SizedBox(width: double.infinity, height: 0),
+        ),
+      ],
     );
   }
 }

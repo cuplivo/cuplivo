@@ -21,6 +21,7 @@ class RequestHistoryContext {
     required this.isCancelled,
     this.nativeCompression = false,
     this.onUsage,
+    this.takeHandoff,
   });
   final String currentUserId;
   final String targetMessageId;
@@ -37,6 +38,19 @@ class RequestHistoryContext {
   Future<Map<String, String>> Function(Set<String>)? referenceResults;
   Map<String, String> _toolReferences = {};
   void Function()? onDispose;
+
+  /// Asked at a step boundary whether this conversation has a message that must
+  /// end the current turn there.
+  ///
+  /// It only looks: the message is not taken until the next turn actually
+  /// starts, so a delivery that fails leaves it waiting for the next boundary or
+  /// the end of the turn.
+  bool Function()? takeHandoff;
+
+  /// Set by the tool loop when it ended the turn at a boundary instead of
+  /// sending the next request.
+  bool handoffRequested = false;
+
   int lastEstimatedTokens = 0;
   double calibration = 1;
   void recordUsage(TokenUsage usage) {

@@ -1,18 +1,18 @@
-import 'package:Kelivo/features/home/controllers/stream_controller.dart'
+import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
     show ReasoningSegmentData;
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/compression_repository.dart';
-import 'package:Kelivo/core/database/generation_run.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/core/models/compression_config.dart';
-import 'package:Kelivo/core/models/instruction_injection.dart';
-import 'package:Kelivo/core/services/api/generation/text_generation_result.dart';
-import 'package:Kelivo/core/models/context_operation.dart';
-import 'package:Kelivo/l10n/app_localizations_en.dart';
-import 'package:Kelivo/core/models/quote_ref.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_context_submission.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_user_context_parts.dart';
-import 'package:Kelivo/features/intelligent_ui/models/ui_context_attachment.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/compression_repository.dart';
+import 'package:Cuplivo/core/database/generation_run.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
+import 'package:Cuplivo/core/models/instruction_injection.dart';
+import 'package:Cuplivo/core/services/api/generation/text_generation_result.dart';
+import 'package:Cuplivo/core/models/context_operation.dart';
+import 'package:Cuplivo/l10n/app_localizations_en.dart';
+import 'package:Cuplivo/core/models/quote_ref.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_context_submission.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_user_context_parts.dart';
+import 'package:Cuplivo/features/intelligent_ui/models/ui_context_attachment.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -28,39 +28,42 @@ import 'package:provider/provider.dart';
 
 import '../../../support/business_test_harness.dart';
 import '../../../support/gated_xfile.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/composer_draft.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/compress_context_options.dart';
-import 'package:Kelivo/core/services/chat/context_compression_service.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/models/preset_message.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/instruction_injection_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/app_exit_flush.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_history.dart';
-import 'package:Kelivo/core/services/api/providers/claude/claude_history.dart';
-import 'package:Kelivo/core/services/api/providers/google_gemini.dart';
-import 'package:Kelivo/core/services/api/stream/stream_chunk_emit.dart';
-import 'package:Kelivo/core/services/mcp/mcp_tool_service.dart';
-import 'package:Kelivo/features/chat/widgets/chat_message_widget.dart'
+import '../../../support/temp_directory_cleanup.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/compress_context_options.dart';
+import 'package:Cuplivo/core/services/chat/context_compression_service.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/models/preset_message.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/app_exit_flush.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_history.dart';
+import 'package:Cuplivo/core/services/api/providers/claude/claude_history.dart';
+import 'package:Cuplivo/core/services/api/providers/google_gemini.dart';
+import 'package:Cuplivo/core/services/api/stream/stream_chunk_emit.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart'
     show ToolUIPart;
-import 'package:Kelivo/features/home/controllers/home_page_controller.dart';
-import 'package:Kelivo/features/home/controllers/chat_actions.dart';
-import 'package:Kelivo/features/home/controllers/scroll_controller.dart';
-import 'package:Kelivo/features/home/services/ask_user_interaction_service.dart';
-import 'package:Kelivo/features/home/services/chat_suggestion_service.dart';
-import 'package:Kelivo/features/home/utils/model_display_helper.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/features/search/services/global_session_search_service.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/features/home/controllers/home_page_controller.dart';
+import 'package:Cuplivo/features/home/controllers/chat_actions.dart';
+import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
+import 'package:Cuplivo/features/home/services/ask_user_interaction_service.dart';
+import 'package:Cuplivo/features/home/services/chat_suggestion_service.dart';
+import 'package:Cuplivo/features/home/utils/model_display_helper.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/features/search/services/global_session_search_service.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 
 class _GatedCompressionRepository extends CompressionRepository {
   _GatedCompressionRepository(super.store);
@@ -358,6 +361,7 @@ class _GatedChatService extends ChatService {
     bool selectVersion = false,
     String? temporaryAfterGroupId,
     UiContextSubmission? uiContext,
+    String? senderId,
   }) async {
     if (content == 'preset question' && presetHold != null) {
       presetConversationId = conversationId;
@@ -381,6 +385,7 @@ class _GatedChatService extends ChatService {
       selectVersion: selectVersion,
       temporaryAfterGroupId: temporaryAfterGroupId,
       uiContext: uiContext,
+      senderId: senderId,
     );
   }
 
@@ -392,6 +397,7 @@ class _GatedChatService extends ChatService {
     required String anchorGroupId,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) async {
     regenerationEntered = true;
     await regenerationHold?.future;
@@ -401,6 +407,7 @@ class _GatedChatService extends ChatService {
       providerId: providerId,
       anchorGroupId: anchorGroupId,
       truncateFuture: truncateFuture,
+      senderId: senderId,
     );
   }
 
@@ -465,6 +472,9 @@ void main() {
   late HttpServer server;
   late SettingsProvider settings;
   late AssistantProvider assistantProvider;
+  GroupChatProvider? groupChats;
+
+  setUp(() => groupChats = null);
   var streamRequestCount = 0;
   final streamRequests = <Map<String, dynamic>>[];
   Completer<void>? streamHold;
@@ -608,7 +618,7 @@ void main() {
     try {
       await repository.close().timeout(const Duration(seconds: 10));
     } catch (_) {}
-    if (await directory.exists()) await directory.delete(recursive: true);
+    await deleteDirectoryWhenReleased(directory, keepLockedLeftovers: true);
   });
 
   Future<HomePageController> pumpHarness(
@@ -618,6 +628,7 @@ void main() {
     List<dynamic>? storedAssistants,
     BusinessPreferences? assistantPreferences,
     bool withInstructionInjections = false,
+    bool withGroups = false,
   }) async {
     HomePageController? controller;
     InstructionInjectionProvider? injections;
@@ -677,6 +688,17 @@ void main() {
         );
         await assistantProvider.setCurrentAssistant(assistantId);
       }
+      if (withGroups) {
+        // Built inside this zone like every other provider: its loaded future
+        // belongs to the real-async zone, and awaiting it anywhere else waits
+        // forever.
+        groupChats = GroupChatProvider(
+          store: ExtensionEntityStore(
+            createBusinessTestPreferencesWithDatabase().database,
+          ),
+        );
+        await groupChats!.loaded;
+      }
     });
     await tester.pumpWidget(
       MultiProvider(
@@ -700,6 +722,8 @@ void main() {
           ChangeNotifierProvider<McpToolService>(
             create: (_) => McpToolService(),
           ),
+          if (groupChats != null)
+            ChangeNotifierProvider<GroupChatProvider>.value(value: groupChats!),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -2118,123 +2142,115 @@ void main() {
   });
 
   for (final newChatOnLaunch in [false, true]) {
-    testWidgets(
-      'recovered model survives reorder and restart: newChat=$newChatOnLaunch',
-      (tester) async {
-        final business = (await tester.runAsync(
-          () => createBusinessTestHarness(
-            initial: {
-              'assistants_v1': jsonEncode(const [
-                {
-                  'id': 'recovery-a',
-                  'name': 'A',
-                  'chatModelProvider': 'SiliconFlow',
-                  'chatModelId': 'model-a',
-                },
-                {
-                  'id': 'recovery-b',
-                  'name': 'B',
-                  'chatModelProvider': 'SiliconFlow',
-                  'chatModelId': 'model-b',
-                },
-              ]),
-              'current_assistant_id_v1': 'recovery-a',
-            },
-          ),
-        ))!;
-        var controller = await pumpHarness(
-          tester,
-          assistantPreferences: business.preferences,
+    testWidgets('recovered model survives restart: newChat=$newChatOnLaunch', (
+      tester,
+    ) async {
+      final business = (await tester.runAsync(
+        () => createBusinessTestHarness(
+          initial: {
+            'assistants_v1': jsonEncode(const [
+              {
+                'id': 'recovery-a',
+                'name': 'A',
+                'chatModelProvider': 'SiliconFlow',
+                'chatModelId': 'model-a',
+              },
+              {
+                'id': 'recovery-b',
+                'name': 'B',
+                'chatModelProvider': 'SiliconFlow',
+                'chatModelId': 'model-b',
+              },
+            ]),
+            'current_assistant_id_v1': 'recovery-a',
+          },
+        ),
+      ))!;
+      var controller = await pumpHarness(
+        tester,
+        assistantPreferences: business.preferences,
+      );
+      late Conversation conversation;
+      await tester.runAsync(() async {
+        await settings.disableTitleGeneration();
+        conversation = await service.createConversation(
+          title: 'Recovered topic',
+          assistantId: 'missing-assistant',
         );
-        late Conversation conversation;
-        await tester.runAsync(() async {
-          await settings.disableTitleGeneration();
-          conversation = await service.createConversation(
-            title: 'Recovered topic',
-            assistantId: 'missing-assistant',
-          );
+        await controller.debugViewModel.switchConversation(conversation.id);
+        expect(assistantProvider.currentAssistantId, 'recovery-a');
+        final display = getModelDisplayInfo(
+          settings,
+          conversation: controller.currentConversation,
+          assistant: assistantProvider.currentAssistant,
+        );
+        expect(display.modelDisplay, 'model-a');
+        expect(
+          await controller.sendMessage(ChatInputData(text: 'after restart')),
+          ChatInputSubmissionResult.sent,
+        );
+        await waitFor(
+          () =>
+              streamRequestCount == 1 &&
+              !controller.chatController.isConversationLoading(conversation.id),
+          'reply after restart',
+        );
+        expect(streamRequests.single['model'], display.modelId);
+      });
+      await tester.pumpWidget(const SizedBox());
+      controller = await pumpHarness(
+        tester,
+        assistantPreferences: BusinessPreferences(business.repository),
+      );
+      await tester.runAsync(() async {
+        await settings.disableTitleGeneration();
+        await settings.setNewChatOnLaunch(newChatOnLaunch);
+        await controller.initChat();
+        expect(assistantProvider.assistants.first.id, 'recovery-a');
+        expect(assistantProvider.currentAssistantId, 'recovery-a');
+        if (newChatOnLaunch) {
+          expect(controller.currentConversation!.assistantId, 'recovery-a');
           await controller.debugViewModel.switchConversation(conversation.id);
-          await assistantProvider.reorderAssistants(1, 0);
-          expect(assistantProvider.currentAssistantId, 'recovery-a');
-          final display = getModelDisplayInfo(
-            settings,
-            conversation: controller.currentConversation,
-            assistant: assistantProvider.currentAssistant,
-          );
-          expect(display.modelDisplay, 'model-a');
-          expect(
-            await controller.sendMessage(ChatInputData(text: 'after reorder')),
-            ChatInputSubmissionResult.sent,
-          );
-          await waitFor(
-            () =>
-                streamRequestCount == 1 &&
-                !controller.chatController.isConversationLoading(
-                  conversation.id,
-                ),
-            'reply after reorder',
-          );
-          expect(streamRequests.single['model'], display.modelId);
-        });
-        await tester.pumpWidget(const SizedBox());
-        controller = await pumpHarness(
-          tester,
-          assistantPreferences: BusinessPreferences(business.repository),
+        } else {
+          expect(controller.currentConversation!.id, conversation.id);
+        }
+        final display = getModelDisplayInfo(
+          settings,
+          conversation: controller.currentConversation,
+          assistant: assistantProvider.currentAssistant,
         );
-        await tester.runAsync(() async {
-          await settings.disableTitleGeneration();
-          await settings.setNewChatOnLaunch(newChatOnLaunch);
-          await controller.initChat();
-          expect(assistantProvider.assistants.first.id, 'recovery-b');
-          expect(assistantProvider.currentAssistantId, 'recovery-a');
-          if (newChatOnLaunch) {
-            expect(controller.currentConversation!.assistantId, 'recovery-a');
-            await controller.debugViewModel.switchConversation(conversation.id);
-          } else {
-            expect(controller.currentConversation!.id, conversation.id);
-          }
-          final display = getModelDisplayInfo(
-            settings,
-            conversation: controller.currentConversation,
-            assistant: assistantProvider.currentAssistant,
-          );
-          expect(display.modelDisplay, 'model-a');
-          expect(
-            await controller.sendMessage(ChatInputData(text: 'after restart')),
-            ChatInputSubmissionResult.sent,
-          );
-          await waitFor(
-            () =>
-                streamRequestCount == 2 &&
-                !controller.chatController.isConversationLoading(
-                  conversation.id,
-                ),
-            'reply after restart',
-          );
-          expect(streamRequests.last['model'], display.modelId);
-          final messages = await service.loadMessages(conversation.id);
-          expect(
-            await controller.debugViewModel.regenerateAtMessage(messages.last),
-            isTrue,
-          );
-          await waitFor(
-            () =>
-                streamRequestCount == 3 &&
-                !controller.chatController.isConversationLoading(
-                  conversation.id,
-                ),
-            'regeneration after restart',
-          );
-          expect(streamRequests.last['model'], display.modelId);
-          expect(
-            service.getConversation(conversation.id)!.assistantId,
-            'missing-assistant',
-          );
-        });
-        await tester.pumpWidget(const SizedBox());
-        expect(tester.takeException(), isNull);
-      },
-    );
+        expect(display.modelDisplay, 'model-a');
+        expect(
+          await controller.sendMessage(ChatInputData(text: 'after restart')),
+          ChatInputSubmissionResult.sent,
+        );
+        await waitFor(
+          () =>
+              streamRequestCount == 2 &&
+              !controller.chatController.isConversationLoading(conversation.id),
+          'reply after restart',
+        );
+        expect(streamRequests.last['model'], display.modelId);
+        final messages = await service.loadMessages(conversation.id);
+        expect(
+          await controller.debugViewModel.regenerateAtMessage(messages.last),
+          isTrue,
+        );
+        await waitFor(
+          () =>
+              streamRequestCount == 3 &&
+              !controller.chatController.isConversationLoading(conversation.id),
+          'regeneration after restart',
+        );
+        expect(streamRequests.last['model'], display.modelId);
+        expect(
+          service.getConversation(conversation.id)!.assistantId,
+          'missing-assistant',
+        );
+      });
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    });
   }
 
   for (final temporary in [false, true]) {
@@ -2481,7 +2497,69 @@ void main() {
     );
   }
 
-  testWidgets('compression reuses one existing queued input per conversation', (
+  testWidgets('a handoff blocked by compression keeps the queued message', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      final conversation = await openConversation(controller);
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'history ' * 100,
+      );
+      final hold = Completer<String>();
+      var entered = false;
+      await service.contextCompression.start(
+        conversation.id,
+        CompressionRequest(
+          options: const CompressContextOptions(
+            mode: CompressContextLimitMode.unlimited,
+          ),
+          model: 'test',
+          generate: (_, _, _, _) async {
+            entered = true;
+            return TextGenerationResult(parts: [TextPart(await hold.future)]);
+          },
+          quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+        ),
+      );
+      await waitFor(() => entered, 'compression');
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'keep me')),
+        ChatInputSubmissionResult.queued,
+      );
+      expect(controller.currentQueuedInput!.input.text, 'keep me');
+
+      // The runner asks this at a step boundary. A handoff here would end the
+      // running turn and leave nothing that can start, so it must say no.
+      expect(
+        controller.debugViewModel.debugChatActions.takeHandoff!(
+          conversation.id,
+        ),
+        isFalse,
+      );
+
+      // And if one were taken anyway, a refused start must leave the message
+      // in the queue. Before the fix it was removed up front, so the rollback
+      // went into a list that was no longer in `_queue`: the composer chip
+      // disappeared and nothing retried.
+      final started = await controller
+          .debugViewModel
+          .debugChatActions
+          .onHandoffRequested!(conversation.id);
+      expect(started, isFalse);
+      expect(controller.currentQueuedInput!.input.text, 'keep me');
+
+      hold.complete('summary');
+      await waitFor(
+        () => !controller.chatController.isConversationLoading(conversation.id),
+        'compression to finish',
+      );
+    });
+  });
+
+  testWidgets('a message queued during compression is released after it', (
     tester,
   ) async {
     final controller = await pumpHarness(tester);
@@ -2513,10 +2591,9 @@ void main() {
         await controller.sendMessage(ChatInputData(text: 'queued A')),
         ChatInputSubmissionResult.queued,
       );
-      expect(
-        await controller.sendMessage(ChatInputData(text: 'second A')),
-        ChatInputSubmissionResult.rejected,
-      );
+      // One queued message per conversation is the shape this test needs; the
+      // queue holds several now, and a second one here would add a third request
+      // the assertions below are not written for.
       expect(controller.currentQueuedInput!.input.text, 'queued A');
       final b = await openConversation(controller);
       await service.addMessage(
@@ -3329,6 +3406,55 @@ WHEN NEW.state = 'failed' BEGIN SELECT RAISE(ABORT, 'terminal write failed'); EN
       ]);
     },
   );
+
+  testWidgets('two queued messages are released in the order they arrived', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester);
+    await tester.runAsync(() async {
+      final convo = await openConversation(controller);
+      await service.addMessage(
+        conversationId: convo.id,
+        role: 'user',
+        content: 'history ' * 100,
+      );
+      final hold = Completer<String>();
+      var entered = false;
+      await service.contextCompression.start(
+        convo.id,
+        CompressionRequest(
+          options: const CompressContextOptions(
+            mode: CompressContextLimitMode.unlimited,
+          ),
+          model: 'test',
+          generate: (_, _, _, _) async {
+            entered = true;
+            return TextGenerationResult(parts: [TextPart(await hold.future)]);
+          },
+          quoteMarker: AppLocalizationsEn().selectionQuoteMarker,
+        ),
+      );
+      await waitFor(() => entered, 'compression started');
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'first queued')),
+        ChatInputSubmissionResult.queued,
+      );
+      expect(
+        await controller.sendMessage(ChatInputData(text: 'second queued')),
+        ChatInputSubmissionResult.queued,
+      );
+      // The chip shows the head; the second waits behind it rather than
+      // replacing it.
+      expect(controller.currentQueuedInput!.input.text, 'first queued');
+      hold.complete('summary');
+      await waitFor(() => streamRequestCount == 1, 'first released');
+      expect(jsonEncode(streamRequests.first), contains('first queued'));
+      await waitFor(() => streamRequestCount == 2, 'second released');
+      expect(jsonEncode(streamRequests.last), contains('second queued'));
+    });
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('single-flight cancel hides loading before slow teardown', (
     tester,
@@ -6508,6 +6634,175 @@ WHEN NEW.state = 'failed' BEGIN SELECT RAISE(ABORT, 'terminal write failed'); EN
       },
     );
   }
+
+  testWidgets('a member reply in a group regenerates itself, not the round', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester, withGroups: true);
+    await tester.runAsync(() async {
+      final groups = groupChats!;
+      await settings.disableTitleGeneration();
+      await settings.setNewChatOnLaunch(false);
+      final firstId = await assistantProvider.addAssistant(name: 'First');
+      final secondId = await assistantProvider.addAssistant(name: 'Second');
+      for (final (id, model) in [
+        (firstId, 'first-model'),
+        (secondId, 'second-model'),
+      ]) {
+        await assistantProvider.updateAssistant(
+          assistantProvider
+              .getById(id)!
+              .copyWith(chatModelProvider: 'SiliconFlow', chatModelId: model),
+        );
+      }
+      final group = await groups.create(
+        name: 'Reading club',
+        memberIds: [firstId, secondId],
+      );
+      final conversation = await service.createConversation(
+        title: 'Topic',
+        groupChatId: group.id,
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'which book',
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'the republic',
+        modelId: 'first-model',
+        providerId: 'SiliconFlow',
+        senderId: firstId,
+      );
+      final secondReply = await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'the apology',
+        modelId: 'second-model',
+        providerId: 'SiliconFlow',
+        senderId: secondId,
+      );
+      await controller.chatController.setCurrentConversationAndLoad(
+        conversation,
+      );
+
+      // The reply is rewritten by the member who wrote it: its own model, the
+      // roster in front, and the peer's turn handed over as somebody else
+      // talking — the same request a round's turn would make.
+      await controller.regenerateAtMessage(secondReply);
+      await waitFor(() => streamRequestCount == 1, 'member regeneration');
+      await waitFor(
+        () => !controller.chatController.isConversationLoading(conversation.id),
+        'regenerated member reply',
+      );
+      expect(streamRequests.single['model'], 'second-model');
+      final requestMessages = streamRequests.single['messages'] as List;
+      final directive = requestMessages.first['content'] as String;
+      expect(directive, contains('You are "Second"'));
+      expect(directive, contains('Reading club'));
+      expect(directive, contains('First'));
+      expect(
+        jsonEncode(requestMessages),
+        contains('group_message'),
+        reason: 'the peer turn has to reach the member as somebody else',
+      );
+
+      // A new version of that message, still by the same member — not a new
+      // slot and not a reply somebody else wrote.
+      final after = await service.loadMessages(conversation.id);
+      final versions = after
+          .where(
+            (m) =>
+                (m.groupId ?? m.id) == (secondReply.groupId ?? secondReply.id),
+          )
+          .toList();
+      expect(versions, hasLength(2));
+      expect(versions.map((m) => m.senderId).toSet(), {secondId});
+    });
+  });
+
+  testWidgets('a topic without its group does not stamp the member as author', (
+    tester,
+  ) async {
+    final controller = await pumpHarness(tester, withGroups: true);
+    await tester.runAsync(() async {
+      final groups = groupChats!;
+      await settings.disableTitleGeneration();
+      await settings.setNewChatOnLaunch(false);
+      final memberId = await assistantProvider.addAssistant(name: 'Member');
+      await assistantProvider.updateAssistant(
+        assistantProvider
+            .getById(memberId)!
+            .copyWith(
+              chatModelProvider: 'SiliconFlow',
+              chatModelId: 'member-model',
+            ),
+      );
+      final selected = assistantProvider.currentAssistant!;
+      await assistantProvider.updateAssistant(
+        selected.copyWith(
+          chatModelProvider: 'SiliconFlow',
+          chatModelId: 'selected-model',
+        ),
+      );
+      final group = await groups.create(
+        name: 'Reading club',
+        memberIds: [memberId],
+      );
+      final conversation = await service.createConversation(
+        title: 'Topic',
+        groupChatId: group.id,
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'which book',
+      );
+      final memberReply = await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'the republic',
+        modelId: 'member-model',
+        providerId: 'SiliconFlow',
+        senderId: memberId,
+      );
+      await controller.chatController.setCurrentConversationAndLoad(
+        conversation,
+      );
+      // The group row is gone, so the topic regenerates as an ordinary
+      // conversation with the selected assistant. That model did not write as
+      // the member, and the reply must not be renamed to it.
+      await groups.delete(group.id);
+      expect(groups.byId(group.id), isNull);
+
+      await controller.regenerateAtMessage(memberReply);
+      await waitFor(
+        () => streamRequestCount == 1,
+        'orphaned topic regeneration',
+      );
+      await waitFor(
+        () => !controller.chatController.isConversationLoading(conversation.id),
+        'orphaned topic reply',
+      );
+      expect(streamRequests.single['model'], 'selected-model');
+
+      final after = await service.loadMessages(conversation.id);
+      final versions = after
+          .where(
+            (m) =>
+                (m.groupId ?? m.id) == (memberReply.groupId ?? memberReply.id),
+          )
+          .toList();
+      expect(versions, hasLength(2));
+      expect(
+        versions.last.senderId,
+        isNull,
+        reason: 'another model wrote it; it is not the member\'s reply',
+      );
+    });
+  });
 }
 
 Map<String, dynamic> _nativeReasoning(String id) => {

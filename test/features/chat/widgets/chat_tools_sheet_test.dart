@@ -1,32 +1,33 @@
-import 'package:Kelivo/core/models/conversation_mcp_settings.dart';
+import 'package:Cuplivo/core/models/conversation_mcp_settings.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show Tristate;
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/sandbox/environment_manager.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/features/chat/widgets/chat_tools_sheet.dart';
-import 'package:Kelivo/desktop/tools_popover.dart';
-import 'package:Kelivo/features/home/services/local_tool_labels.dart';
-import 'package:Kelivo/features/home/services/local_tools_service.dart';
-import 'package:Kelivo/features/workspace/widgets/workspace_section.dart';
-import 'package:Kelivo/features/workspace/pages/workspace_settings_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/sandbox/environment_manager.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/features/chat/widgets/chat_tools_sheet.dart';
+import 'package:Cuplivo/desktop/tools_popover.dart';
+import 'package:Cuplivo/features/home/services/local_tool_labels.dart';
+import 'package:Cuplivo/features/home/services/local_tools_service.dart';
+import 'package:Cuplivo/features/workspace/widgets/workspace_section.dart';
+import 'package:Cuplivo/features/workspace/pages/workspace_settings_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -184,6 +185,20 @@ void main() {
     assistants = AssistantProvider(preferences: assistantPreferences);
     await assistants.loaded;
     await settings.loaded;
+    // The sub-row resolves against the configured providers: a stored pair whose
+    // provider is not configured is exactly the dead-binding case that must fall
+    // through to the global default, so a realistic fixture has to register it.
+    await settings.setProviderConfig(
+      'openai',
+      ProviderConfig(
+        id: 'openai',
+        enabled: true,
+        name: 'OpenAI',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-test',
+        models: const ['gpt-image-1'],
+      ),
+    );
   });
 
   tearDown(() async {
@@ -200,6 +215,7 @@ void main() {
     Conversation? conversation,
     _FakeChatService? chat,
     bool desktop = false,
+    bool Function(String providerKey, String modelId)? modelSupportsTools,
   }) async {
     mcp.fakeServers = servers;
     tester.view.physicalSize = const Size(800, 1600);
@@ -244,6 +260,7 @@ void main() {
                               assistantId: assistantId,
                               conversationId: conversation?.id,
                               supportsModelTools: true,
+                              modelSupportsTools: modelSupportsTools,
                             ),
                             child: const Text('Open tools'),
                           ),
@@ -253,6 +270,7 @@ void main() {
                   : ChatToolsSheet(
                       assistantId: assistantId,
                       conversationId: conversation?.id,
+                      modelSupportsTools: modelSupportsTools,
                     ),
             ),
           ),
@@ -311,6 +329,10 @@ void main() {
           );
         }
         expect(row, findsOneWidget);
+        // The local group grew: `scrollUntilVisible` stops as soon as the row is
+        // built, which can leave its centre under the fold.
+        await tester.ensureVisible(row);
+        await tester.pumpAndSettle();
         await tester.tap(row);
         await tester.pumpAndSettle();
         expect((await chat.imageContextSettings('images')).allowRecall, isTrue);
@@ -318,6 +340,8 @@ void main() {
           'images',
           const ImageContextSettings(automatic: false, pinned: {'pinned'}),
         );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(row);
         await tester.pumpAndSettle();
         await tester.tap(row);
         await tester.pumpAndSettle();
@@ -549,6 +573,55 @@ void main() {
     expect(find.byKey(ChatToolsSheet.mcpGroupKey), findsNothing);
   });
 
+  testWidgets('a member whose model cannot call tools gets no tool rows', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => assistants.updateAssistant(
+        assistants
+            .getById(assistantId)!
+            .copyWith(chatModelProvider: 'p', chatModelId: 'm'),
+      ),
+    );
+    await pumpSheet(
+      tester,
+      servers: [_server('s1', 'Alpha')],
+      modelSupportsTools: (_, _) => false,
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+    // A group opens this sheet for the whole roster, so the gate has to be the
+    // member on show: a model that cannot call tools is offered none.
+    expect(find.byKey(ChatToolsSheet.localGroupKey), findsNothing);
+    expect(find.byKey(ChatToolsSheet.mcpGroupKey), findsNothing);
+    // ...and the panel says why instead of showing an empty body.
+    expect(find.text(l10n.chatToolsEmptyModelCannotUseTools), findsOneWidget);
+    // The workspace binding is the conversation's, not the model's.
+    expect(find.byKey(ChatToolsSheet.workspaceGroupKey), findsOneWidget);
+  });
+
+  testWidgets('the same roster keeps its tool rows for a capable model', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => assistants.updateAssistant(
+        assistants
+            .getById(assistantId)!
+            .copyWith(chatModelProvider: 'p', chatModelId: 'm'),
+      ),
+    );
+    await pumpSheet(
+      tester,
+      servers: [_server('s1', 'Alpha')],
+      modelSupportsTools: (_, _) => true,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(ChatToolsSheet.localGroupKey), findsOneWidget);
+    expect(find.byKey(ChatToolsSheet.mcpGroupKey), findsOneWidget);
+  });
+
   testWidgets('MCP servers toggle the assistant selection', (tester) async {
     final l10n = await pumpSheet(tester, servers: [_server('s1', 'Alpha')]);
 
@@ -772,4 +845,337 @@ void main() {
     expect(find.byType(WorkspaceSection), findsOneWidget);
     expect(find.text(workspace.name), findsOneWidget);
   });
+
+  // The subagent sub-row and the config behind it call the model what its
+  // provider calls it — the name the picker listed — not by the id stored on
+  // the assistant.
+  for (final desktop in [false, true]) {
+    testWidgets('the subagent row names its model, desktop=$desktop', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        await settings.setProviderConfig(
+          'openai',
+          ProviderConfig(
+            id: 'openai',
+            enabled: true,
+            name: 'OpenAI',
+            baseUrl: 'https://api.openai.com/v1',
+            apiKey: 'sk-test',
+            models: const ['gpt-image-1'],
+            modelOverrides: {
+              'gpt-image-1': {'name': 'Painter'},
+            },
+          ),
+        );
+        final current = assistants.getById(assistantId)!;
+        await assistants.updateAssistant(
+          current.copyWith(
+            localToolIds: const [
+              LocalToolNames.delegate,
+              LocalToolNames.awaitJob,
+            ],
+            subagentModelProvider: 'openai',
+            subagentModelId: 'gpt-image-1',
+          ),
+        );
+      });
+      final l10n = await pumpSheet(tester, desktop: desktop);
+      await tester.pumpAndSettle();
+      // The local tools group starts folded on a phone.
+      if (!desktop) {
+        await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+        await tester.pumpAndSettle();
+      }
+
+      final byName = find.text(l10n.subagentConfigSummary('Painter', 1));
+      if (byName.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          byName,
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
+      expect(byName, findsOneWidget);
+      expect(
+        find.text(l10n.subagentConfigSummary('gpt-image-1', 1)),
+        findsNothing,
+      );
+
+      // The config's 模型 row shows the same name.
+      await tester.tap(byName);
+      await tester.pumpAndSettle();
+      expect(find.text('Painter'), findsOneWidget);
+      expect(find.text('gpt-image-1'), findsNothing);
+    });
+  }
+
+  // 子代理 is the same two lines as 绘图: the row is the switch, and the summary
+  // under it is the only way into the dialog — and it only exists while on.
+  for (final desktop in [false, true]) {
+    testWidgets('the subagent row is the switch, desktop=$desktop', (
+      tester,
+    ) async {
+      final l10n = await pumpSheet(tester, desktop: desktop);
+      await tester.pumpAndSettle();
+      if (!desktop) {
+        await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> reveal(Finder finder) async {
+        if (finder.evaluate().isNotEmpty) return;
+        await tester.scrollUntilVisible(
+          finder,
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
+
+      final row = find.text(localToolTitle(l10n, LocalToolNames.delegate));
+      final summary = find.text(
+        l10n.subagentConfigSummary(l10n.subagentConfigModelInherit, 1),
+      );
+      await reveal(row);
+
+      // Off: no second line, and nothing to configure.
+      expect(summary, findsNothing);
+      expect(find.text(l10n.subagentConfigDepth), findsNothing);
+
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(
+        assistants.getById(assistantId)!.localToolIds,
+        containsAll(<String>[LocalToolNames.delegate, LocalToolNames.awaitJob]),
+        reason: 'the switch writes the pair, so the count and the tools agree',
+      );
+      // The row toggled; it did not open a dialog.
+      expect(find.text(l10n.subagentConfigDepth), findsNothing);
+
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pumpAndSettle();
+      await reveal(summary);
+      expect(summary, findsOneWidget);
+
+      // The summary is the way in, and the dialog adds no switch of its own:
+      // the only switch in the tree is 绘图's, out on the sheet behind it.
+      final switchesBefore = find.byType(IosSwitch).evaluate().length;
+      await tester.tap(summary);
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.subagentConfigDepth), findsOneWidget);
+      expect(find.byType(IosSwitch).evaluate().length, switchesBefore);
+    });
+  }
+
+  // The other direction: with the pair already on, the same row turns it off
+  // and the summary folds away with it.
+  for (final desktop in [false, true]) {
+    testWidgets('the switch turns the subagent back off, desktop=$desktop', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        final current = assistants.getById(assistantId)!;
+        await assistants.updateAssistant(
+          current.copyWith(
+            localToolIds: const [
+              LocalToolNames.delegate,
+              LocalToolNames.awaitJob,
+            ],
+          ),
+        );
+      });
+      final l10n = await pumpSheet(tester, desktop: desktop);
+      await tester.pumpAndSettle();
+      if (!desktop) {
+        await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+        await tester.pumpAndSettle();
+      }
+
+      final row = find.text(localToolTitle(l10n, LocalToolNames.delegate));
+      final summary = find.text(
+        l10n.subagentConfigSummary(l10n.subagentConfigModelInherit, 1),
+      );
+      if (summary.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          summary,
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
+      expect(summary, findsOneWidget);
+
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(
+        assistants.getById(assistantId)!.localToolIds,
+        isNot(contains(LocalToolNames.delegate)),
+      );
+      expect(
+        assistants.getById(assistantId)!.localToolIds,
+        isNot(contains(LocalToolNames.awaitJob)),
+      );
+
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pumpAndSettle();
+      expect(summary, findsNothing);
+      expect(find.text(l10n.subagentConfigDepth), findsNothing);
+    });
+  }
+
+  // 深度 was a read-only number while nesting past one level was open; it is a
+  // choice of 1–3 now, and the pick is stored on the assistant.
+  for (final desktop in [false, true]) {
+    testWidgets(
+      'the depth row offers 1–3 and keeps the pick, desktop=$desktop',
+      (tester) async {
+        await tester.runAsync(() async {
+          final current = assistants.getById(assistantId)!;
+          await assistants.updateAssistant(
+            current.copyWith(
+              localToolIds: const [
+                LocalToolNames.delegate,
+                LocalToolNames.awaitJob,
+              ],
+            ),
+          );
+        });
+        final l10n = await pumpSheet(tester, desktop: desktop);
+        await tester.pumpAndSettle();
+        if (!desktop) {
+          await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+          await tester.pumpAndSettle();
+        }
+
+        final summary = find.text(
+          l10n.subagentConfigSummary(l10n.subagentConfigModelInherit, 1),
+        );
+        if (summary.evaluate().isEmpty) {
+          await tester.scrollUntilVisible(
+            summary,
+            250,
+            scrollable: find.byType(Scrollable).first,
+          );
+        }
+        await tester.tap(summary);
+        await tester.pumpAndSettle();
+
+        // The row states the current value, and its description says what the
+        // number counts.
+        expect(find.text(l10n.subagentConfigDepth), findsOneWidget);
+        expect(find.text(l10n.subagentConfigDepthDescription), findsOneWidget);
+
+        await tester.tap(find.text(l10n.subagentConfigDepth));
+        await tester.pumpAndSettle();
+        // Every choice carries the sentence that says what it means.
+        expect(find.text(l10n.subagentConfigDepthOne), findsOneWidget);
+        expect(find.text(l10n.subagentConfigDepthTwo), findsOneWidget);
+        expect(find.text(l10n.subagentConfigDepthThree), findsOneWidget);
+
+        await tester.tap(find.text(l10n.subagentConfigDepthTwo));
+        await tester.pumpAndSettle();
+        expect(assistants.getById(assistantId)!.subagentDepth, 2);
+
+        // AssistantProvider notifies after persisting, which needs real time.
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 100)),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.subagentConfigDepthTwo), findsNothing);
+        expect(find.text('2'), findsWidgets);
+      },
+    );
+  }
+
+  // 绘图 is the one local tool with a second level: the row only turns it on or
+  // off, and what it draws with grows underneath. Three states, two shells.
+  for (final desktop in [false, true]) {
+    testWidgets('drawing shows its model below the switch, desktop=$desktop', (
+      tester,
+    ) async {
+      // Provider writes go through the real preferences store, so they run
+      // outside the fake-async zone (as every other provider write here does).
+      Future<void> setDrawing({
+        bool enabled = true,
+        String? providerId,
+        String? modelId,
+      }) async {
+        await tester.runAsync(() async {
+          final current = assistants.getById(assistantId)!;
+          final ids = current.localToolIds.toSet();
+          if (enabled) {
+            ids.add(LocalToolNames.generateImage);
+          } else {
+            ids.remove(LocalToolNames.generateImage);
+          }
+          await assistants.updateAssistant(
+            current.copyWith(
+              localToolIds: ids.toList(growable: false),
+              imageModelProvider: providerId,
+              clearImageModelProvider: providerId == null,
+              imageModelId: modelId,
+              clearImageModelId: modelId == null,
+            ),
+          );
+        });
+        if (tester.binding.rootElement != null) {
+          await tester.pumpAndSettle();
+        }
+      }
+
+      // The sheet's list is one scrollable; the popover's is another. Both
+      // are the first Scrollable in their own tree, so one helper serves both.
+      Future<void> reveal(Finder finder) async {
+        if (finder.evaluate().isNotEmpty) return;
+        await tester.scrollUntilVisible(
+          finder,
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
+
+      await setDrawing(enabled: false);
+      final l10n = await pumpSheet(tester, desktop: desktop);
+      await tester.pumpAndSettle();
+      // The local tools group starts folded on a phone.
+      if (!desktop) {
+        await tester.tap(find.text(l10n.assistantEditPageLocalToolsTab));
+        await tester.pumpAndSettle();
+      }
+
+      final drawingRow = find.text(
+        localToolTitle(l10n, LocalToolNames.generateImage),
+      );
+      final drawPictures = '${l10n.imageJobPanelModelLabel} · gpt-image-1';
+
+      // 开 · 未配: the sub-row says so, and points at the picker.
+      await setDrawing(enabled: true);
+      await tester.pumpAndSettle();
+      await reveal(drawingRow);
+      expect(drawingRow, findsOneWidget);
+      await reveal(find.text(l10n.imageJobNotConfigured));
+      expect(find.text(l10n.imageJobNotConfigured), findsOneWidget);
+
+      // 开 · 已配: the same row now names the model.
+      await setDrawing(
+        enabled: true,
+        providerId: 'openai',
+        modelId: 'gpt-image-1',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.imageJobNotConfigured), findsNothing);
+      await reveal(find.text(drawPictures));
+      expect(find.text(drawPictures), findsOneWidget);
+
+      // 关: the row stays, the next level folds away.
+      await setDrawing(enabled: false, providerId: null, modelId: null);
+      await tester.pumpAndSettle();
+      expect(drawingRow, findsOneWidget);
+      expect(find.text(l10n.imageJobNotConfigured), findsNothing);
+      expect(find.text(drawPictures), findsNothing);
+    });
+  }
 }

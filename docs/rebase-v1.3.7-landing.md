@@ -547,16 +547,23 @@ next census:
 
 So of the 40, **7 are the two proven machine classes** and **33 are the tree's**, in five clusters.
 
-**The first two clusters are fixed; the census is now 18 failures, 9 of them the tree's.**
+**The first two clusters are fixed; the census is now 9 failures, only 2 of them the tree's.**
 
 | cluster | before | now | what it was |
 | --- | --- | --- | --- |
 | world books | 18 | 2 | **one missing registry row.** `WorldBookGrouping.preferenceKey` (`world_books_grouping_v1`) was absent from `BusinessKeyRegistry`'s table, and the registry is fail-closed: every group write the fork's provider made was rejected, so nothing rendered, an import that should have produced two books produced one, and the selection read "0 selected". Registered as `synced` / `newDeviceConfiguration`. The 2 left are the proven font-metric pair. |
 | `home_selection_back_test` | 6 | 0 | the test asserted three shell mechanisms v1.3.7 had and unit 15 retired — lazily mounted `DesktopSettingsPage`/`DesktopTranslatePage`, and `TickerMode` disabled on a hidden chat. It now asks the shell's own question (`DesktopTabVisibility.visible`), and the two ticker assertions are gone with the replacement named. |
-| `world_book_popover_group_test` | 2 | 2 | open: the strip renders, but a row tap does not write the active list for the composer's assistant. |
-| `translate_page_test` | 2 | 2 | open. |
-| singles | 5 | 5 | open: `image_recall_tools`, `display_pane_full_width_chat`, `desktop_provider_detail_pane`, `sync_engine_integration`, `context_memory_usage`. |
+| `world_book_popover_group_test` | 2 | 0 | the popover was correct; the **test's wait** was not. The write is serialized behind the provider's operation tail and lands in the business store, so one 50 ms real-async window no longer covers it. Probed rather than assumed: the strip rendered, the tap was delivered, and the provider's list stayed empty until the helper pumped five short real-async turns. |
+| `display_pane_full_width_chat_test` | 1 | 0 | **the second missing registry row** — `display_desktop_full_width_chat_v1`, absent from the same fail-closed table, so the switch could not save. Registered `backupOnly` / `deviceViewState` beside the other display rows. |
+| `translate_page_test` | 2 | 0 | the fixture asked for a language the picker does not offer: the target list is the user's visible set, the fork's Bengali sits behind "Manage Languages", and this tree's label for upstream's own entry is `Bengali`, not `Bangla`. The case uses Italian, which is what it is not about anyway. |
+| `image_recall_tools_test` | 1 | 0 | `ImageContextSettings.allowRecall` defaults to false now, so the fixture — whose subject is a picture that is *not* replayed still being listable — has to opt in. |
+| `context_memory_usage_test` | 1 | 1 | open: a frozen prompt's OCR block is not rewritten when one of its images is excluded, so the excluded picture's text survives into the request. |
+| `desktop_provider_detail_pane_test` | 1 | 1 | open: keyboard traversal does not reach the balance scope's "This provider" row within 64 tabs. |
 | `view_image_test` + `storage_space_images_test` | 7 | 7 | the two machine classes, unchanged and proven. |
+
+The pattern worth carrying to the next re-base: **two of the five tree clusters were a single
+unregistered preference key**, and both failed as "the UI does not work" rather than as a sync
+complaint, because the registry is fail-closed and the write path swallows its own errors.
 
 **The world-book cluster is behavioural, not a missing file.** Measured before touching it: the group
 UI exists in this tree (`world_book_group_actions.dart`, `world_book_library.dart`,

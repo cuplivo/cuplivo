@@ -448,6 +448,29 @@ removed, and the tree is back at the 79 the stack measured before it. Next pass 
 seven files taken from `:3:` (the unit's own text) instead of trusting the auto-merge, and re-applies
 v1.3.7's hunks in them by hand.
 
+**That pass was run, and it measured the trade-off.** Taking `:3:` for the seven files and keeping
+both sides in the three test conflicts (two adjacent insertions, one "both added a test here") brings
+the tree to **156**, and two repairs bring it to **144**:
+
+- `compress_context_options.dart` is the instruction sheet for the rest. The unit changes exactly one
+  function — a group summary's line now carries the speaker id, because "to the compressor every
+  roster member is an assistant, and a summary of a group that flattened them into one voice is a
+  summary of a different conversation" — and it *drops* two v1.3.7 symbols
+  (`compressionSummarySourcePrefix`, `isCompressionCapacityError`). Its own version is 455 lines, the
+  same as HEAD's, which is why neither brace balance nor a line count flags it. The merge is v1.3.7's
+  file with that one body replaced (460 lines).
+- `data_sync.dart` needed the `backup_target.dart` import, and `prepareBackupFile` gained the
+  `BackupTarget target = BackupTarget.cuplivo` parameter its own call site already passes.
+
+So `:3:` is the wrong default too: it **discards every v1.3.7 hunk in those seven files**, and each
+lost upstream change surfaces as an error — 144 is the size of that loss, not of the unit. The method
+for the next pass is therefore per file: **start from HEAD's version and apply the unit's functional
+diff**, which for `compress_context_options.dart` was one function body out of 455 lines. The seven
+files are named above, and the two repairs are already known.
+
+That tree was reverted too, so the branch still sits at the measured 79 while the method is decided
+rather than guessed at.
+
 **The gate moved to the tip.** Units 1–3 ended at analyze 0; unit 4 cannot, because the compressed
 series moves four definitions into later units (see "Unit 4 is not self-contained" above). From unit
 5 on the units are **stacked**: conflicts resolved faithfully, `dart format` on the touched files,

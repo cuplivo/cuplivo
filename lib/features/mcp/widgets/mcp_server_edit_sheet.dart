@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/mcp/stdio_arguments.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
 import 'mcp_environment_picker.dart';
+import 'mcp_local_only_form.dart';
 import 'mcp_oauth_settings.dart';
 import 'mcp_workspace_binding_field.dart';
 import 'package:provider/provider.dart';
@@ -17,8 +18,8 @@ import '../../../shared/widgets/snackbar.dart';
 import '../../../shared/widgets/ios_switch.dart';
 import '../../../shared/widgets/ios_tile_button.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class _HeaderEntry {
   final TextEditingController key;
@@ -55,7 +56,7 @@ class _McpServerEditSheet extends StatefulWidget {
 }
 
 class _McpServerEditSheetState extends State<_McpServerEditSheet>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, McpLocalOnlyForm {
   late final bool isEdit = widget.serverId != null;
   TabController? _tab;
 
@@ -77,6 +78,7 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
   @override
   void initState() {
     super.initState();
+    attachLocalOnly(widget.serverId);
     _oauth = McpOAuthFormController(
       widget.serverId == null
           ? null
@@ -219,6 +221,15 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
               value: _enabled,
               onChanged: (v) => setState(() => _enabled = v),
             ),
+            // Not on the built-in server: it is not a synced row. Not without a
+            // sync provider either: the sheet would be drawing an answer nobody
+            // can keep.
+            if (!isBuiltin && canHoldLocalOnly)
+              _switchRow(
+                label: l10n.mcpServerEditSheetLocalOnlyLabel,
+                value: localOnlyHeld,
+                onChanged: setLocalOnlyHeld,
+              ),
           ],
         ),
         const SizedBox(height: 10),
@@ -541,7 +552,11 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
           workspaceId: _workspaceId,
         );
       }
-      await _savePresentation(mcp, savedId!);
+      // Before the presentation writes, not after: once the row exists the
+      // hold is what keeps it off the wire, and two more database writes are a
+      // window a session can plan in.
+      await saveLocalOnly(savedId!);
+      await _savePresentation(mcp, savedId);
       if (mounted) Navigator.of(context).pop();
       return;
     }
@@ -601,7 +616,8 @@ class _McpServerEditSheetState extends State<_McpServerEditSheet>
         oauthRedirectUri: _oauth.redirectUri,
       );
     }
-    await _savePresentation(mcp, savedId!);
+    await saveLocalOnly(savedId!);
+    await _savePresentation(mcp, savedId);
     if (mounted) Navigator.of(context).pop();
   }
 

@@ -1,8 +1,9 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/sync/sync_merge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
@@ -129,8 +130,20 @@ void main() {
 
       expect(fork, isNotNull);
       expect(fork!.id, isNot('source'));
-      expect(fork.extras, {'workspace.id': 'workspace', 'custom': 42});
-      expect((await repository.getConversation(fork.id))!.extras, fork.extras);
+      // The fork carries the workspace keys and gets a mutation clock of its
+      // own (it is a different row, written now).
+      expect({...fork.extras}..remove(syncClockExtrasKey), {
+        'workspace.id': 'workspace',
+        'custom': 42,
+      });
+      expect(fork.extras[syncClockExtrasKey], isA<int>());
+      // The copy's bag matches; each row carries its own mutation clock, so the
+      // clock itself is not part of "the extras were copied".
+      expect(
+        {...(await repository.getConversation(fork.id))!.extras}
+          ..remove(syncClockExtrasKey),
+        {...fork.extras}..remove(syncClockExtrasKey),
+      );
       expect(
         (await repository.getConversation(
           'source',

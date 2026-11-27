@@ -3,16 +3,27 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 
+import 'skill_body_policy.dart';
+
 const int kSkillImportMaxBytes = 200 * 1024 * 1024;
 const int kSkillImportMaxExtractedBytes = 500 * 1024 * 1024;
 
 /// Extract only the selected skill to disk. Run in an isolate so large archives
 /// do not block the UI or keep the whole download and extracted tree in memory.
+///
+/// [installsName] decides which names are installed, one path segment at a time,
+/// and is the caller's answer rather than this function's: the sync apply passes
+/// [carriesSkillEntry] — the rule its hash and its served zip read — so the tree
+/// a peer's body becomes holds exactly what its hash counted. An **import** passes
+/// nothing, because that archive is the user's: a file called
+/// `notes.sync-old-v2.md`, or the `.DS_Store` their Mac zipped along with it, is
+/// theirs to keep and not this plane's to drop silently.
 void extractSkillArchive(
   String archivePath,
   String outputDirectory, {
   String? subdir,
   bool stripSingleRoot = false,
+  bool Function(String name)? installsName,
 }) {
   if (File(archivePath).lengthSync() > kSkillImportMaxBytes) {
     throw const FormatException('zip exceeds 200 MB');
@@ -24,7 +35,11 @@ void extractSkillArchive(
     for (final file in archive) {
       if (!file.isFile || file.isSymbolicLink) continue;
       final name = safeZipEntryName(file.name);
-      if (name != null) entries[name] = file;
+      if (name == null) continue;
+      if (installsName != null && !name.split('/').every(installsName)) {
+        continue;
+      }
+      entries[name] = file;
     }
     if (entries.isEmpty) {
       throw const FormatException('zip contains no files');

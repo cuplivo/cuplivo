@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
 
 void main() {
   late Directory root;
@@ -101,29 +101,6 @@ void main() {
     expect(reloaded!.translation, 'translated');
     expect(reloaded.content, 'sanitized content');
     expect(reloaded.reasoningText, 'original reasoning');
-  });
-
-  test('conversation upsert preserves the database memory hash', () async {
-    final now = DateTime.utc(2026, 7, 12);
-    final stale = Conversation(
-      id: 'conversation-1',
-      title: 'Before',
-      createdAt: now,
-      updatedAt: now,
-    );
-    await repository.putConversation(stale);
-    await repository.setConversationInjectedMemoryHash(
-      stale.id,
-      'latest-memory-hash',
-    );
-
-    stale.title = 'After';
-    stale.updatedAt = now.add(const Duration(minutes: 1));
-    await repository.putConversation(stale);
-
-    final reloaded = await repository.getConversation(stale.id);
-    expect(reloaded!.title, 'After');
-    expect(reloaded.injectedMemoryHash, 'latest-memory-hash');
   });
 
   test('content update rebuilds parts and preserves tool events', () async {

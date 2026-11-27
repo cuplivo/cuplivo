@@ -1,7 +1,7 @@
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
 
 void main() {
   group('WorkspaceBinding', () {
@@ -73,6 +73,34 @@ void main() {
       );
       expect(WorkspaceBinding.extrasHaveWorkspace(const {}, exists), isFalse);
       expect(WorkspaceBinding.extrasHaveWorkspace(null, exists), isFalse);
+    });
+  });
+
+  group('grants', () {
+    test('withoutGrant removes exactly the grant keys', () {
+      // The set is the one spelling of "this device approved": a copy, a fork and
+      // the legacy import all read it, so it must not quietly grow (the local
+      // directory path is not a grant) or shrink.
+      final extras = <String, dynamic>{
+        'other.flag': true,
+        'workspace.id': 'ws-1',
+        WorkspaceBinding.keyCwd: 'src',
+        ...{
+          for (final key in ToolPermissionMode.grantExtrasKeys) key: 'marker',
+        },
+      };
+
+      final next = ToolPermissionMode.withoutGrant(extras);
+
+      expect(
+        next.keys,
+        isNot(anyElement(isIn(ToolPermissionMode.grantExtrasKeys))),
+      );
+      expect(next['other.flag'], isTrue);
+      expect(next['workspace.id'], 'ws-1');
+      expect(next[WorkspaceBinding.keyCwd], 'src');
+      // The source is not mutated.
+      expect(extras.keys, containsAll(ToolPermissionMode.grantExtrasKeys));
     });
   });
 }

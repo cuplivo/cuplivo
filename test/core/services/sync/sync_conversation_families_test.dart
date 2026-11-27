@@ -1,0 +1,615 @@
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/sync/sync_family_registry.dart';
+import 'package:Cuplivo/core/services/sync/sync_models.dart';
+import 'package:drift/drift.dart' show Variable;
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/sync_payload.dart';
+
+/// The conversation's own families, and the rule that applies them (D-7).
+///
+/// These four families — the compression history, the image-context switches,
+/// the compression configuration and the provider artifacts — were device-local
+/// until this protocol version. Each is stored as **one row per conversation**,
+/// so a divergence between the two devices cannot be merged row by row: the newer
+/// copy replaces the older whole. What matters here is that the replacement
+/// happens and is *counted*, and that a row claiming to belong elsewhere is
+/// refused.
+void main() {
+  late AppDatabase database;
+  late ChatDatabaseRepository repository;
+  const conversationId = 'conv';
+
+  SyncFamily documentFamily(String kind) => kSyncFamilies.singleWhere(
+    (family) => family.table == 'extension_entity_rows' && family.kind == kind,
+  );
+
+  final contextFamily = documentFamily('conversationContext');
+  final imageContextFamily = documentFamily('conversationImageContext');
+  final artifactsFamily = syncFamilyOfTable('provider_artifact_rows');
+
+  setUp(() async {
+    database = AppDatabase(NativeDatabase.memory());
+    repository = ChatDatabaseRepository(database);
+    await repository.ensureReady();
+    // A subtree applies onto a conversation this device already has (or one it
+    // deleted and is being handed back), so the fixture seeds it through the
+    // repository's own path: the conversation row's NOT NULL columns are the
+    // app's business, not the wire's.
+    await repository.putMigrationBatch(
+      conversations: [Conversation(id: conversationId, title: conversationId)],
+      messages: const [],
+      toolEventsByMessageId: const {},
+      geminiSignaturesByMessageId: const {},
+    );
+  });
+
+  tearDown(() => database.close());
+
+  Map<String, dynamic> conversationRow() => {
+    'id': conversationId,
+    'title': conversationId,
+    'created_at': 1,
+    'updated_at': 1,
+    'is_pinned': 0,
+    'assistant_id': null,
+    'truncate_index': 0,
+    'version_selections_json': null,
+    'summary': null,
+    'last_summarized_message_count': 0,
+    'chat_suggestions_json': null,
+    'injected_memory_hash': null,
+    'last_memory_extracted_order': 0,
+    'chat_model_provider': null,
+    'chat_model_id': null,
+    'extras_json': null,
+  };
+
+  /// An `extension_entity_rows` document as the sender's `SELECT *` produces it.
+  Map<String, dynamic> documentRow({
+    required String kind,
+    required String payload,
+    required int updatedAt,
+    String id = conversationId,
+    String? ownerId,
+  }) => {
+    'kind': kind,
+    'id': id,
+    'sort_order': 0,
+    'owner_id': ownerId ?? id,
+    'payload': payload,
+    'updated_at': updatedAt,
+  };
+
+  /// Wire rows carry every column, and an artifact hangs off a revision: the
+  /// schema cascades `provider_artifact_rows.revision_id`, so a fixture without
+  /// its message would fail for a reason the protocol cannot produce.
+  Map<String, dynamic> messageRow(
+    String id,
+    int timestampUs, {
+    int order = 0,
+    String? groupId,
+    int version = 0,
+  }) => {
+    'id': id,
+    'conversation_id': conversationId,
+    'role': 'assistant',
+    'timestamp': timestampUs,
+    'model_id': null,
+    'provider_id': null,
+    'total_tokens': null,
+    'is_streaming': 0,
+    'reasoning_start_at': null,
+    'reasoning_finished_at': null,
+    'translation': null,
+    'reasoning_segments_json': null,
+    'group_id': groupId,
+    'version': version,
+    'prompt_tokens': null,
+    'completion_tokens': null,
+    'cached_tokens': null,
+    'duration_ms': null,
+    'message_order': order,
+    'updated_at': timestampUs,
+    'sender_id': null,
+    'extras_json': '{}',
+  };
+
+  /// A provider artifact as the sender's `SELECT *` produces it: it hangs off a
+  /// revision, and the schema cascades it from `message_rows`.
+  Map<String, dynamic> artifactRow({
+    required String revisionId,
+    required String payload,
+    required int updatedAt,
+    String conversation = conversationId,
+  }) => {
+    'conversation_id': conversation,
+    'revision_id': revisionId,
+    'kind': 'signature',
+    'payload': payload,
+    'created_at': 1,
+    'updated_at': updatedAt,
+  };
+
+  SyncSubtreePayload payloadWith(
+    Map<String, List<Map<String, dynamic>>> families,
+  ) => subtreePayload(
+    conversation: conversationRow(),
+    // Built over the registry's own family names, so a rename cannot leave this
+    // test asserting against a key nothing writes.
+    families: families,
+  );
+
+  Future<SyncSubtreeApplyOutcome> apply(SyncSubtreePayload payload) =>
+      repository.syncApplySubtree(
+        payload: payload,
+        myDeviceId: 'me',
+        peerDeviceId: 'peer',
+        checkpointRows: const {},
+      );
+
+  Future<List<Map<String, dynamic>>> documents(SyncFamily family) =>
+      repository.syncReadFamilyRows(family, conversationId);
+
+  test('a conversation document arrives with the subtree', () async {
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":[{"id":"op1"}]}',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    final read = await documents(contextFamily);
+    expect(read, hasLength(1));
+    expect(read.single['payload'], '{"ops":[{"id":"op1"}]}');
+  });
+
+  test(
+    'the newer document replaces the older, and the report counts it',
+    () async {
+      await apply(
+        payloadWith({
+          contextFamily.name: [
+            documentRow(
+              kind: contextFamily.kind!,
+              payload: '{"ops":["mine"]}',
+              updatedAt: 100,
+            ),
+          ],
+        }),
+      );
+
+      final outcome = await apply(
+        payloadWith({
+          contextFamily.name: [
+            documentRow(
+              kind: contextFamily.kind!,
+              payload: '{"ops":["theirs"]}',
+              updatedAt: 200,
+            ),
+          ],
+        }),
+      );
+
+      final read = await documents(contextFamily);
+      expect(read.single['payload'], '{"ops":["theirs"]}');
+      expect(
+        outcome.documentReplaced,
+        isTrue,
+        reason:
+            'this device had a compression history of its own and lost it; the '
+            'report is the only place that can say so',
+      );
+    },
+  );
+
+  test('two documents replaced in one conversation are one line', () async {
+    // The card says "N conversations", so the unit is the conversation: a
+    // compression history and an image context replaced together are one loss
+    // of this device's work, not two.
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["mine"]}',
+            updatedAt: 100,
+          ),
+        ],
+        imageContextFamily.name: [
+          documentRow(
+            kind: imageContextFamily.kind!,
+            payload: '{"auto":false}',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    final outcome = await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["theirs"]}',
+            updatedAt: 200,
+          ),
+        ],
+        imageContextFamily.name: [
+          documentRow(
+            kind: imageContextFamily.kind!,
+            payload: '{"auto":true}',
+            updatedAt: 200,
+          ),
+        ],
+      }),
+    );
+
+    expect(
+      (await documents(contextFamily)).single['payload'],
+      '{"ops":["theirs"]}',
+    );
+    expect(
+      (await documents(imageContextFamily)).single['payload'],
+      '{"auto":true}',
+    );
+    expect(outcome.documentReplaced, isTrue);
+  });
+
+  test('a document payload SQLite cannot parse is refused, not thrown', () async {
+    // The context index parses every `conversationContext` payload inside an
+    // AFTER trigger, so a payload that is not JSON makes SQLite refuse the write
+    // — and a refusal there rolls back the whole apply and the checkpoint with
+    // it, so the peer would re-send forever.
+    final outcome = await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: 'not json at all',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    expect(outcome.documentReplaced, isFalse);
+    expect(await documents(contextFamily), isEmpty);
+  });
+
+  test('an artifact whose clocks invert is refused, not thrown', () async {
+    // `provider_artifact_rows` carries `CHECK (updated_at >= created_at)`.
+    await apply(
+      subtreePayload(
+        conversation: conversationRow(),
+        messages: [messageRow('m1', 100)],
+      ),
+    );
+
+    final outcome = await apply(
+      subtreePayload(
+        conversation: conversationRow(),
+        messages: [messageRow('m1', 100)],
+        families: {
+          artifactsFamily.name: [
+            artifactRow(revisionId: 'm1', payload: '{}', updatedAt: 1)
+              ..['created_at'] = 5,
+          ],
+        },
+      ),
+    );
+
+    expect(outcome.documentReplaced, isFalse);
+    expect(await documents(artifactsFamily), isEmpty);
+  });
+
+  test('an older document is refused', () async {
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["mine"]}',
+            updatedAt: 200,
+          ),
+        ],
+      }),
+    );
+
+    final outcome = await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["stale"]}',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    expect(
+      (await documents(contextFamily)).single['payload'],
+      '{"ops":["mine"]}',
+    );
+    expect(outcome.documentReplaced, isFalse);
+  });
+
+  test('an echo of the same document at a newer clock is not a loss', () async {
+    const document = '{"ops":["same"]}';
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: document,
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    final outcome = await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: document,
+            updatedAt: 200,
+          ),
+        ],
+      }),
+    );
+
+    expect(
+      outcome.documentReplaced,
+      isFalse,
+      reason:
+          'a bothSend echoes our own row back; nothing of ours was replaced',
+    );
+  });
+
+  test('the same document in another key order is not a loss', () async {
+    // The writers build these payloads by spreading different sources, so the
+    // same values can reach the wire in another order. Every value survived, so
+    // nothing was replaced — and the counter is the one place a replaced history
+    // is ever surfaced, where a false positive spends the sentence.
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"history":[{"from":"a","to":"b"}],"mode":"off"}',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    final outcome = await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"mode":"off","history":[{"to":"b","from":"a"}]}',
+            updatedAt: 200,
+          ),
+        ],
+      }),
+    );
+
+    expect(
+      outcome.documentReplaced,
+      isFalse,
+      reason: 'the same document, serialized in another key order',
+    );
+    expect(
+      (await documents(contextFamily)).single['payload'],
+      '{"mode":"off","history":[{"to":"b","from":"a"}]}',
+      reason: 'the peer still wins the row; only the report is order-free',
+    );
+  });
+
+  test('a document claiming another owner is dropped', () async {
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          // The conversation column names this conversation while the owner
+          // names someone else. The delete that removes a conversation's
+          // documents finds them by `owner_id`, so this row would outlive its
+          // conversation with no delete left that could reach it.
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["orphan"]}',
+            updatedAt: 100,
+            ownerId: 'someone-else',
+          ),
+        ],
+      }),
+    );
+
+    expect(await documents(contextFamily), isEmpty);
+  });
+
+  test('a document claiming another conversation is dropped', () async {
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          documentRow(
+            kind: contextFamily.kind!,
+            payload: '{"ops":["smuggled"]}',
+            updatedAt: 100,
+            id: 'someone-else',
+          ),
+        ],
+      }),
+    );
+
+    expect(await documents(contextFamily), isEmpty);
+  });
+
+  test('a document claiming another kind is dropped', () async {
+    await apply(
+      payloadWith({
+        contextFamily.name: [
+          // The row travels under the compression-history key while claiming to
+          // be the image context: a crafted cross-reference no honest peer can
+          // produce, since its own reader filters by kind.
+          documentRow(
+            kind: imageContextFamily.kind!,
+            payload: '{"auto":true}',
+            updatedAt: 100,
+          ),
+        ],
+      }),
+    );
+
+    expect(await documents(contextFamily), isEmpty);
+    expect(await documents(imageContextFamily), isEmpty);
+  });
+
+  test('provider artifacts ride the subtree and merge per row', () async {
+    Map<String, dynamic> artifact(String payload, int updatedAt) => {
+      'conversation_id': conversationId,
+      'revision_id': 'm1',
+      'kind': 'signature',
+      'payload': payload,
+      'created_at': 1,
+      'updated_at': updatedAt,
+    };
+
+    SyncSubtreePayload payload(Map<String, dynamic> row) => subtreePayload(
+      conversation: conversationRow(),
+      messages: [messageRow('m1', 1)],
+      families: {
+        artifactsFamily.name: [row],
+      },
+    );
+
+    await apply(payload(artifact('first', 100)));
+    final outcome = await apply(payload(artifact('second', 200)));
+
+    final read = await documents(artifactsFamily);
+    expect(read.single['payload'], 'second');
+    expect(
+      outcome.documentReplaced,
+      isFalse,
+      reason:
+          'an artifact is continuation state, not a document: the card names '
+          'compression history and settings, and this is neither',
+    );
+  });
+
+  test('an artifact whose revision loses the version slot is not written', () async {
+    // Two devices regenerated the same version slot: this one produced mB (the
+    // newer revision), the peer produced mA. The peer's subtree carries mA and
+    // the provider artifact it recorded for it.
+    await apply(
+      subtreePayload(
+        conversation: conversationRow(),
+        messages: [messageRow('mB', 200, groupId: 'g')],
+      ),
+    );
+
+    final payload = subtreePayload(
+      conversation: conversationRow(),
+      messages: [messageRow('mA', 100, groupId: 'g')],
+      families: {
+        artifactsFamily.name: [
+          artifactRow(revisionId: 'mA', payload: 'sig-mA', updatedAt: 100),
+        ],
+      },
+    );
+
+    // mA loses the slot and is never inserted. Writing its artifact anyway left
+    // the deferred `revision_id -> message_rows.id` foreign key pointing at a
+    // row that does not exist: the insert succeeded and COMMIT failed with 787,
+    // which aborted the session before the checkpoint advanced — so every later
+    // session re-planned the same apply and failed the same way.
+    final outcome = await apply(payload);
+    expect(outcome.deferred, isFalse);
+    expect(await documents(artifactsFamily), isEmpty);
+    expect(
+      [
+        for (final row in await repository.syncReadMessageRows(conversationId))
+          row['id'],
+      ],
+      ['mB'],
+      reason: 'the newer rival owns the slot, and the loser brings no rows',
+    );
+
+    // The proof that the checkpoint can move: the same subtree applies again as
+    // a no-op instead of failing a second time.
+    await apply(payload);
+    expect(await documents(artifactsFamily), isEmpty);
+  });
+
+  test(
+    "an artifact naming another conversation's revision is dropped",
+    () async {
+      await repository.putMigrationBatch(
+        conversations: [Conversation(id: 'other', title: 'other')],
+        messages: [
+          (
+            message: ChatMessage(
+              id: 'm2',
+              conversationId: 'other',
+              role: 'assistant',
+              content: 'other',
+              timestamp: DateTime.fromMicrosecondsSinceEpoch(10),
+            ),
+            messageOrder: 0,
+          ),
+        ],
+        toolEventsByMessageId: const {},
+        geminiSignaturesByMessageId: const {},
+      );
+      await repository.setProviderArtifact('m2', 'signature', 'sig-other');
+
+      // The row claims the conversation being applied while its revision is
+      // another conversation's. The family is keyed by (revision_id, kind), so
+      // the upsert found that row and overwrote its conversation column — and no
+      // peer holds its payload, so the artifact was gone for good.
+      await apply(
+        subtreePayload(
+          conversation: conversationRow(),
+          families: {
+            artifactsFamily.name: [
+              artifactRow(
+                revisionId: 'm2',
+                payload: 'sig-smuggled',
+                updatedAt: 2000000000000000,
+              ),
+            ],
+          },
+        ),
+      );
+
+      final read = await database
+          .customSelect(
+            'SELECT conversation_id, payload FROM provider_artifact_rows '
+            'WHERE revision_id = ? AND kind = ?;',
+            variables: const [
+              Variable<String>('m2'),
+              Variable<String>('signature'),
+            ],
+          )
+          .getSingle();
+      expect(
+        read.data['conversation_id'],
+        'other',
+        reason: 'a revision id belongs to one conversation',
+      );
+      expect(read.data['payload'], 'sig-other');
+    },
+  );
+}

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import '../services/recycle/recycle_service.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
 import 'business_settings_router.dart';
@@ -35,6 +36,19 @@ final class BusinessPreferences {
 
   bool get isLoaded => _isLoaded;
 
+  /// True while a restore holds the write fence: nothing may be written through
+  /// this view until the process restarts, which also means LAN sync must defer
+  /// rather than write (ADR-0003 apply path).
+  bool get writesBlockedForRestore => _writesBlockedForRestore;
+
+  /// Runs [operation] on the same queue as local writes. Used by LAN sync so an
+  /// apply cannot interleave with a provider's read-modify-write of a whole
+  /// entity list: either the apply lands first (and the provider's next read
+  /// sees it) or the provider's write lands first (and the apply's LWW decides
+  /// against the newer row).
+  Future<T> serializeExternalWrite<T>(Future<T> Function() operation) =>
+      _serialize(operation);
+
   Future<void> load() {
     if (_isLoaded) return Future<void>.value();
     final inFlight = _loadFuture;
@@ -53,6 +67,19 @@ final class BusinessPreferences {
     } finally {
       _loadFuture = null;
     }
+  }
+
+  /// Re-reads the database into the in-memory view after a writer outside this
+  /// process's own preference calls changed it — the recycle bin's restore, and
+  /// (later) a LAN sync apply.
+  ///
+  /// Distinct from [load]: that one is idempotent and returns immediately once
+  /// the first read succeeded, which is exactly what a caller needs *not* to
+  /// happen here. Accepted writes are drained first so the reload cannot
+  /// overwrite a value this process has already queued.
+  Future<void> reload() async {
+    await flushPendingWrites();
+    await _loadFromRepository();
   }
 
   /// Drains accepted writes, runs one live restore, and keeps this process
@@ -137,7 +164,19 @@ final class BusinessPreferences {
 
   Future<bool> setDouble(String key, double value) => _setValue(key, value);
 
-  Future<bool> setString(String key, String value) => _setValue(key, value);
+  /// Writes one list-shaped kind, and stamps [removalGroup] on whatever rows the
+  /// write removes.
+  ///
+  /// Only the assistant list needs it. Deleting an assistant drops its row by
+  /// rewriting this list — the write is what performs the delete, through
+  /// `synchronizeEntities` — and the caller that decided on the deletion already
+  /// holds the group the rest of that act carries. Every other key leaves it
+  /// null, which is the same write as before.
+  Future<bool> setString(
+    String key,
+    String value, {
+    RecycleGroup? removalGroup,
+  }) => _setValue(key, value, removalGroup: removalGroup);
 
   Future<bool> setStringList(String key, List<String> value) =>
       _setValue(key, List<String>.unmodifiable(value));
@@ -160,10 +199,17 @@ final class BusinessPreferences {
     });
   }
 
-  Future<bool> _setValue(String key, Object value) => setMany({key: value});
+  Future<bool> _setValue(
+    String key,
+    Object value, {
+    RecycleGroup? removalGroup,
+  }) => setMany({key: value}, removalGroup: removalGroup);
 
   /// Publishes the cache only after every write has committed successfully.
-  Future<bool> setMany(Map<String, Object> values) async {
+  Future<bool> setMany(
+    Map<String, Object> values, {
+    RecycleGroup? removalGroup,
+  }) async {
     final updates = values.map(
       (key, value) => MapEntry(key, _copyForStorage(value)),
     );
@@ -175,6 +221,18 @@ final class BusinessPreferences {
         final kind = _entityKindForKey(entry.key);
         if (kind == null) {
           _validatePreferenceKey(entry.key);
+          // The registry table is the authority for what a preference key is. A
+          // key written without a row is stored and backed up but silently
+          // never synced — the defect class that produced #1018, #1054 and
+          // #1062. CI's writer scan catches it in review; this catches it in the
+          // build that introduces it. Scoped to the app's own `_vN` convention,
+          // so a key from outside the app (a plugin, a restored artifact) is
+          // stored and fail-closed instead of crashing a debug build.
+          assert(
+            BusinessKeyRegistry.ruleFor(entry.key) != null ||
+                !BusinessKeyRegistry.appKeyPattern.hasMatch(entry.key),
+            'Unregistered preference key: ${entry.key}',
+          );
           preferenceUpdates[entry.key] = entry.value;
         } else {
           kinds.add(kind);
@@ -197,6 +255,7 @@ final class BusinessPreferences {
       await _repository.writeBatch(
         entities: entities,
         preferences: preferenceUpdates,
+        removalGroup: removalGroup,
       );
       if (normalized != null) {
         final routed = BusinessSnapshot(
@@ -333,9 +392,8 @@ final class BusinessPreferences {
   }
 
   static void _validatePreferenceKey(String key) {
-    final disposition = BusinessKeyRegistry.classify(key);
-    if (disposition == BusinessKeyDisposition.localOnly ||
-        disposition == BusinessKeyDisposition.discarded) {
+    if (BusinessKeyRegistry.isPlatformOnly(key) ||
+        BusinessKeyRegistry.isDiscarded(key)) {
       throw ArgumentError.value(key, 'key', 'Not a business preference');
     }
   }

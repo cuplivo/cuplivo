@@ -313,6 +313,38 @@ unit's rename), and `main.dart`.
 No ARB in the diff, so this unit costs no l10n pass: `dart analyze` 0, `dart format` 0 changed, its
 own eight test files 65 passed.
 
+### Unit 4 in flight: where the pause actually is
+
+`sync-lan` is applied but not committed, and it earned its "22 pauses" line the hard way: **6
+conflicted paths of 206**, five now resolved and one open.
+
+- `sandbox_path_resolver.dart` is a both-sides-rewrote-the-file case: unit 4's copy carries
+  `canonicalStorage`, and v1.3.7's query/fragment handling in `tryDecodeLocalFileUri` has to be put
+  back on top of it.
+- `business_settings_router.dart` is the structural one. v1.3.7 still keys the registry as
+  `preferenceKeys` + `localOnlyKeys` sets; unit 4 replaces both with a 300-row `rules` table
+  (`KeyRule(policy, reason)`) and the `isSynced`/`isDeviceLocal`/`isRegisteredInBusinessStore`
+  predicates. The table wins — the sets have no other reader — and v1.3.7's four constants stay
+  beside it, with five rows added for the keys the table never learned: `balance_refresh_interval_v1`,
+  `balance_refresh_on_reply_v1`, `chat_bubble_style_thinking_tool_card_v1` (synced /
+  newDeviceConfiguration) and the two caches `codex_client_version_v1`, `model_list_metadata_v1`
+  (platformOnly / runtimeDiagnostics).
+- `desktop_home_page.dart` is a tab model collision: v1.3.7 tracks `_tabIndex` + `_visitedTabs` (21
+  uses), unit 4 introduces `DesktopTab` and a `_pageFor` shim written against a `DesktopTab`-typed
+  shell that arrives later in the series. The int model stays, the shim goes, and unit 4's real entry
+  point for the pane — `desktop_settings_page`'s sync section — merged on its own.
+- two mechanical ones: `restore_bundle_mover`'s two imports, and the migration test's
+  `rules.keys` loop keeping v1.3.7's typed values for the balance keys.
+
+**Open: `message_builder_service.dart`, 6 hunks.** Hunks 1 and 4–6 are mechanical; hunks 2, 3 and 6
+are the collision the plan predicted — v1.3.7 folds memory injection into `MemoryInjectionPass`
+built inside the assembly, unit 4 decides it earlier as `memoryPlan = resolveMemoryPlan(...)`
+because "the memory decision belongs to the request, not to the message being assembled" (its own
+words: the ordering that put the snapshot on the oldest message of a freshly synced conversation).
+Both are live implementations of one feature and neither is a version of the other, so it needs the
+two flows read side by side rather than a side picked. The ~1800 analyzer issues the tree reports
+right now are that file's parse fallout, not 1800 defects.
+
 ## Procedure for this attempt
 
 ```bash

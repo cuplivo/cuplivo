@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>结果入队 · 第二版</title>
+<style>
+  :root{--bg:#0b0c0f;--card:#15171c;--card2:#1b1e25;--line:rgba(255,255,255,.08);
+    --fg:#e8eaee;--muted:rgba(255,255,255,.52);--dim:rgba(255,255,255,.34);--primary:#7aa2ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+    padding:26px 20px 46px}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:17px;font-weight:600;margin:0 0 6px}
+  .lede{color:var(--muted);font-size:12.5px;margin:0 0 20px}
+  h2{font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--dim);
+    text-transform:uppercase;margin:24px 0 10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .phone{background:var(--card2);border-radius:10px;padding:12px}
+  .divider{display:flex;align-items:center;gap:8px;margin:9px 0;color:var(--muted);font-size:12px}
+  .divider .ln{flex:1;height:.5px;background:rgba(255,255,255,.12)}
+  .queue{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
+    border:1px solid var(--line);border-radius:10px;padding:7px 10px;margin-top:10px}
+  .queue + .queue{margin-top:6px}
+  .queue .x{margin-left:auto;color:var(--dim)}
+  .cap{color:var(--muted);font-size:12px;margin:10px 0 0}
+  .cap b{color:var(--fg);font-weight:600}
+  ul{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted)}
+  li{margin:5px 0}
+  li b{color:var(--fg);font-weight:600}
+  code{background:rgba(255,255,255,.07);border-radius:4px;padding:1px 5px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>结果入队 · 第二版</h1>
+<p class="lede">整条结果排队，落地时一起出现。不做任何阻拦，队列改成真正的 FIFO。</p>
+
+<h2>现在的队列只有一格</h2>
+<div class="card">
+  <p class="cap" style="margin:0"><code>_queuedInputs</code> 是 <code>Map&lt;String, QueuedChatInput&gt;</code>：一个会话<b>只有一格</b>，第二条到达时会把第一条顶掉；<code>sendMessage</code> 甚至直接拒绝第二条。两个子代理先后完成时，一条会被另一条吃掉——这正是你看到「其中一个没反应」的机制之一。</p>
+</div>
+
+<h2>排队时</h2>
+<div class="card">
+  <div class="phone">
+    <div class="ai" style="color:var(--dim)">（时间线上暂时没有新行）</div>
+    <div class="queue"><span>排队 2 条 · 子代理结果</span><span class="x">✕</span></div>
+  </div>
+  <p class="cap">分隔线随排队的整条结果一起来，不会留一条没有下文的横线。</p>
+</div>
+
+<h2>空出来之后</h2>
+<div class="card">
+  <div class="phone">
+    <div class="divider"><span class="ln"></span>子代理完成 · 改测试<span class="ln"></span></div>
+    <div class="ai">三个用例都过了。</div>
+    <div class="divider"><span class="ln"></span>子代理完成 · 查登录页<span class="ln"></span></div>
+    <div class="ai">登录页那边没有问题。</div>
+  </div>
+</div>
+
+<h2>规则</h2>
+<div class="card">
+  <ul>
+    <li><b>完成即入队</b>，队列里是整条结果（分隔线 + 续写），按完成时间 FIFO。</li>
+    <li><b>不阻拦</b>：应用在后台、你在打字，都照样入队并调度。<b>唯一不许动的是你的草稿</b>——入队、发送、清空都不碰它。</li>
+    <li><b>一条一条落</b>：上一轮结束才落下一轮，不合并。</li>
+    <li><b>取消丢掉整条</b>：结果行也不会出现，只能在子会话里看到。</li>
+    <li>队列从「一格」扩成列表，用户手动排入的消息和子代理结果共用同一条队列、同一个顺序。</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>

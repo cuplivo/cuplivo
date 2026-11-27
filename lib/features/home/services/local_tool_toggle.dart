@@ -6,12 +6,38 @@ import 'package:provider/provider.dart';
 
 import 'package:Cuplivo/core/models/assistant.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/services/haptics.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import 'health_data_selection.dart';
 import 'local_tools_service.dart';
 import '../../settings/pages/phone_control_settings_page.dart';
+
+/// Turns 子代理 on or off for [assistant].
+///
+/// The pair is one capability: `delegate` and `await_job` are written together
+/// wherever the row is a switch, so the count the tool group shows and the tools
+/// a request actually carries cannot disagree. One rule, two callers — the
+/// desktop popover and the phone sheet, which is where the switch lives now.
+Future<void> setSubagentEnabled(
+  BuildContext context, {
+  required Assistant assistant,
+  required bool value,
+}) async {
+  final provider = context.read<AssistantProvider>();
+  final latest = provider.getById(assistant.id) ?? assistant;
+  final ids = latest.localToolIds.toList()
+    ..remove(LocalToolNames.delegate)
+    ..remove(LocalToolNames.awaitJob);
+  if (value) {
+    ids
+      ..add(LocalToolNames.delegate)
+      ..add(LocalToolNames.awaitJob);
+  }
+  Haptics.light();
+  await provider.updateAssistant(latest.copyWith(localToolIds: ids));
+}
 
 /// Flips one entry of [Assistant.localToolIds], asking for the OS permission
 /// the tool needs first.

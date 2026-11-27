@@ -127,6 +127,7 @@ class MessageListView extends StatefulWidget {
     this.topContentPadding = 8,
     this.bottomContentPadding = 16,
     this.footer,
+    this.subagentParentLink,
     this.pinnedStreamingMessageId,
     this.isPinnedIndicatorActive = false,
     required this.processingFilesMessageId,
@@ -265,6 +266,10 @@ class MessageListView extends StatefulWidget {
   /// A compact action that scrolls after the last message, outside its content.
   /// Kept in the final row so indexed navigation still counts only messages.
   final Widget? footer;
+
+  /// The way back to the conversation that delegated this one. Rendered above
+  /// the first message and below the last, and null everywhere else.
+  final Widget? subagentParentLink;
   final OnSuggestionTap? onSuggestionTap;
   final OnRecoveredAskUserAnswer? onRecoveredAskUserAnswer;
   final void Function(String messageId, bool selected)? onToggleSelection;
@@ -1901,10 +1906,25 @@ class _MessageListViewState extends State<MessageListView> {
                   if (index < 0 || index >= _effectiveRenderModels.length) {
                     return const SizedBox.shrink();
                   }
-                  return _buildMessageItem(
+                  final item = _buildMessageItem(
                     context,
                     index: index,
                     presentation: presentation,
+                  );
+                  final link = widget.subagentParentLink;
+                  if (link == null) return item;
+                  // Wrapped here rather than as extra list slots: the list's
+                  // extent cache and scroll anchors are indexed by message, and
+                  // two inserted rows would shift every one of them.
+                  final first = index == 0;
+                  final last = index == _effectiveRenderModels.length - 1;
+                  if (!first && !last) return item;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    // Stretch, because a vertical list hands each item a tight
+                    // cross-axis width and a Column would otherwise loosen it.
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [if (first) link, item, if (last) link],
                   );
                 },
               );

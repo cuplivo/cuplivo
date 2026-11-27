@@ -98,6 +98,12 @@ import '../../../shared/widgets/emoji_text.dart';
 import '../../../utils/platform_utils.dart';
 import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
+import '../../subagent/services/subagent_rules.dart'
+    show childTitle, assistantName;
+import '../../subagent/services/subagent_target.dart';
+import '../../subagent/widgets/subagent_mail_notice.dart';
+import '../../subagent/widgets/subagent_panel.dart' show showSubagentPanel;
+import '../../subagent/widgets/subagent_result_divider.dart';
 import '../../home/services/tool_approval_service.dart';
 import '../utils/assistant_paragraph_splitter.dart';
 import '../utils/thinking_tag_parser.dart';
@@ -593,11 +599,16 @@ IconData? _localToolIconFor(String name, Map<String, dynamic> args) {
     LocalToolNames.remindersQuery => Lucide.ListTodo,
     LocalToolNames.remindersCreate => Lucide.ListPlus,
     LocalToolNames.remindersComplete => Lucide.CheckCircle,
+    LocalToolNames.delegate => Lucide.Bot,
+    LocalToolNames.awaitJob => Lucide.Hourglass,
+    LocalToolNames.sendMessage => Lucide.MessageCircle,
+    LocalToolNames.interrupt => Lucide.CircleStop,
     _ => null,
   };
 }
 
 String? _localToolTitleFor(
+  BuildContext context,
   AppLocalizations l10n,
   String name,
   Map<String, dynamic> args,
@@ -633,6 +644,14 @@ String? _localToolTitleFor(
       l10n.assistantEditLocalToolRemindersCreateTitle,
     LocalToolNames.remindersComplete =>
       l10n.assistantEditLocalToolRemindersCompleteTitle,
+    // The card and the child conversation title must agree, so both come from
+    // the same bound and the same fallback. When the task was handed to a named
+    // assistant the card says so: two delegations with the same job name are
+    // otherwise indistinguishable.
+    LocalToolNames.delegate => _delegateCardTitle(context, l10n, args),
+    LocalToolNames.awaitJob => l10n.assistantEditLocalToolAwaitJobTitle,
+    LocalToolNames.sendMessage => l10n.assistantEditLocalToolSendMessageTitle,
+    LocalToolNames.interrupt => l10n.assistantEditLocalToolInterruptTitle,
     _ => null,
   };
 }
@@ -716,6 +735,32 @@ String _askUserToolTitleFor(AppLocalizations l10n, Map<String, dynamic> args) {
   return l10n.assistantEditLocalToolAskUserTitle;
 }
 
+/// The delegation card's title: `派遣子代理：<label>` for a copy of this
+/// assistant, `派遣<助手名>：<label>` when the task was named to somebody.
+///
+/// The name is resolved at render time, which is also what makes a deleted
+/// target fall back to the plain title instead of a dangling id.
+String _delegateCardTitle(
+  BuildContext context,
+  AppLocalizations l10n,
+  Map<String, dynamic> args,
+) {
+  final label = childTitle(
+    label: args['label']?.toString(),
+    task: (args['task'] ?? '').toString(),
+  );
+  final targetId = parseSubagentTarget(args['target'])?.assistantId;
+  if (targetId == null) return l10n.chatMessageWidgetDelegate(label);
+  Assistant? assistant;
+  try {
+    assistant = context.read<AssistantProvider>().getById(targetId);
+  } catch (_) {
+    assistant = null;
+  }
+  if (assistant == null) return l10n.chatMessageWidgetDelegate(label);
+  return l10n.chatMessageWidgetDelegateTo(assistantName(assistant), label);
+}
+
 String _toolTitleFor(
   BuildContext context,
   String name,
@@ -726,7 +771,7 @@ String _toolTitleFor(
   if (name == LocalToolNames.askUser) {
     return UnicodeSanitizer.sanitize(_askUserToolTitleFor(l10n, args));
   }
-  final localToolTitle = _localToolTitleFor(l10n, name, args);
+  final localToolTitle = _localToolTitleFor(context, l10n, name, args);
   if (localToolTitle != null) return UnicodeSanitizer.sanitize(localToolTitle);
   if (isWorkspaceToolName(name)) {
     return workspaceToolTitle(l10n, name);
@@ -4689,6 +4734,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       context,
       target: target,
     );
+<<<<<<< HEAD
     final child = switch (target) {
       ChatBubbleStyleTarget.user => _buildUserMessage(),
       ChatBubbleStyleTarget.thinkingToolCard => _buildToolMessage(),
@@ -4697,6 +4743,47 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
         child: _buildAssistantMessage(),
       ),
     };
+||||||| parent of 400543932 (feat(subagent): 把一件事交给子会话，做完再回报 (#1108))
+    final child = isUser
+        ? _buildUserMessage()
+        : widget.message.role == 'tool'
+        ? _buildToolMessage()
+        : PageStorage(
+            bucket: widget.timelineStorage ?? _localTimelineStorage,
+            child: _buildAssistantMessage(),
+          );
+=======
+    SubagentResultPart? subagentResult;
+    SubagentMailPart? subagentMail;
+    if (isUser) {
+      for (final part in widget.message.parts) {
+        if (part is SubagentResultPart) {
+          subagentResult = part;
+        } else if (part is SubagentMailPart) {
+          subagentMail = part;
+        }
+        if (subagentResult != null && subagentMail != null) break;
+      }
+    }
+    final child = subagentResult != null
+        ? SubagentResultDivider(
+            part: subagentResult,
+            onTap: () => showSubagentPanel(
+              context,
+              conversationId: widget.message.conversationId,
+            ),
+          )
+        : subagentMail != null
+        ? SubagentMailNotice(part: subagentMail, message: widget.message)
+        : isUser
+        ? _buildUserMessage()
+        : widget.message.role == 'tool'
+        ? _buildToolMessage()
+        : PageStorage(
+            bucket: widget.timelineStorage ?? _localTimelineStorage,
+            child: _buildAssistantMessage(),
+          );
+>>>>>>> 400543932 (feat(subagent): 把一件事交给子会话，做完再回报 (#1108))
     return ChatSurfaceTheme(palette: palette, child: child);
   }
 }

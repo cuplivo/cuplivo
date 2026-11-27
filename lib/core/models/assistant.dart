@@ -16,6 +16,22 @@ enum MemoryWriteScope {
   toolDefaultAssistant,
 }
 
+/// How far a delegated task may spend the user's permission.
+///
+/// The question only comes up where a tool call would ask the user to approve
+/// something inside a child conversation — a card the user may not be looking at.
+/// `allow` is capped by the conversation that delegated: it can only reach what
+/// that conversation already has, and falls back to asking when it cannot.
+enum SubagentEscalation { ask, deny, allow }
+
+/// The shallowest and deepest chain a delegation from one assistant may build.
+///
+/// 1 is "a subagent may not delegate again", which is what every assistant had
+/// before this setting existed; 3 is two further levels. The ceiling is small on
+/// purpose: each level is a whole extra context billed to the same request.
+const int kSubagentDepthMin = 1;
+const int kSubagentDepthMax = 3;
+
 class Assistant {
   static const int defaultRecentChatsSummaryMessageCount = 5;
   static const int defaultMemoryOrganizeEveryNTurns = 1;
@@ -68,6 +84,42 @@ class Assistant {
   /// chooses the brush, and a conversation has no say in it either.
   final String? imageModelProvider;
   final String? imageModelId;
+
+  /// Which model a delegated task runs on. `null` follows the conversation that
+  /// delegated, which is what the user is already paying for; an assistant that
+  /// delegates a lot may point it at something cheaper or stronger.
+  final String? subagentModelProvider;
+  final String? subagentModelId;
+
+  /// How far a delegated task may spend the user's permission.
+  final SubagentEscalation subagentEscalation;
+
+  /// Which of the user's other assistants this one may hand a task to, by id.
+  ///
+  /// Empty is the default and means none: a delegation then offers the model no
+  /// `target` parameter at all, so the tool schema a conversation sends is
+  /// byte-for-byte the one it sent before this field existed.
+  final List<String> subagentTargetIds;
+
+  /// How many levels of subagent this assistant's delegations may build,
+  /// counting the first child as level 1. 1 is "the subagent does not get the
+  /// tool", which is what every assistant did before the setting existed.
+  ///
+  /// It is a ceiling, not a promise: a delegation into an assistant whose own
+  /// depth is shallower stops at that assistant's number, because that
+  /// assistant's conversation is the one spending the tokens.
+  final int subagentDepth;
+
+  /// What this assistant is for, in one or two sentences.
+  ///
+  /// Read by the two places that ask a model to pick an assistant: the
+  /// delegation target list and the group chat director's roster. Empty means
+  /// the roster shows the name alone, which is what it did before the field.
+  final String description;
+
+  /// A description is a sentence for a model to read, not an essay; the bound
+  /// is what the editor enforces and what the roster can afford.
+  static const int maxDescriptionLength = 300;
 
   /// Default workspace for new conversations started with this assistant.
   final String? defaultWorkspaceId;
@@ -151,6 +203,12 @@ class Assistant {
     this.localToolIds = const <String>[],
     this.imageModelProvider,
     this.imageModelId,
+    this.subagentModelProvider,
+    this.subagentModelId,
+    this.subagentEscalation = SubagentEscalation.ask,
+    this.subagentTargetIds = const <String>[],
+    this.subagentDepth = kSubagentDepthMin,
+    this.description = '',
     this.defaultWorkspaceId,
     this.defaultWorkspaceSetup = DefaultWorkspaceSetup.automatic,
     this.defaultWorkspaceChangeToken,
@@ -211,6 +269,14 @@ class Assistant {
     bool clearImageModelProvider = false,
     String? imageModelId,
     bool clearImageModelId = false,
+    String? subagentModelProvider,
+    bool clearSubagentModelProvider = false,
+    String? subagentModelId,
+    bool clearSubagentModelId = false,
+    SubagentEscalation? subagentEscalation,
+    List<String>? subagentTargetIds,
+    int? subagentDepth,
+    String? description,
     String? defaultWorkspaceId,
     DefaultWorkspaceSetup? defaultWorkspaceSetup,
     List<String>? skillIds,
@@ -286,6 +352,19 @@ class Assistant {
       imageModelId: clearImageModelId
           ? null
           : (imageModelId ?? this.imageModelId),
+      subagentModelProvider: clearSubagentModelProvider
+          ? null
+          : (subagentModelProvider ?? this.subagentModelProvider),
+      subagentModelId: clearSubagentModelId
+          ? null
+          : (subagentModelId ?? this.subagentModelId),
+      subagentEscalation: subagentEscalation ?? this.subagentEscalation,
+      subagentTargetIds: subagentTargetIds ?? this.subagentTargetIds,
+      subagentDepth: (subagentDepth ?? this.subagentDepth).clamp(
+        kSubagentDepthMin,
+        kSubagentDepthMax,
+      ),
+      description: description ?? this.description,
       defaultWorkspaceId: clearDefaultWorkspaceId
           ? null
           : (defaultWorkspaceId ?? this.defaultWorkspaceId),
@@ -375,6 +454,12 @@ class Assistant {
     'localToolIds': localToolIds,
     'imageModelProvider': imageModelProvider,
     'imageModelId': imageModelId,
+    'subagentModelProvider': subagentModelProvider,
+    'subagentModelId': subagentModelId,
+    'subagentEscalation': subagentEscalation.name,
+    'subagentTargetIds': subagentTargetIds,
+    'subagentDepth': subagentDepth,
+    'description': description,
     'defaultWorkspaceId': defaultWorkspaceId,
     'defaultWorkspaceSetup': defaultWorkspaceSetup.name,
     'skillIds': skillIds,
@@ -450,6 +535,21 @@ class Assistant {
         (json['localToolIds'] as List?)?.cast<String>() ?? const <String>[],
     imageModelProvider: json['imageModelProvider'] as String?,
     imageModelId: json['imageModelId'] as String?,
+    subagentModelProvider: json['subagentModelProvider'] as String?,
+    subagentModelId: json['subagentModelId'] as String?,
+    subagentEscalation:
+        SubagentEscalation.values
+            .where((value) => value.name == json['subagentEscalation'])
+            .firstOrNull ??
+        SubagentEscalation.ask,
+    subagentTargetIds:
+        (json['subagentTargetIds'] as List?)?.cast<String>() ??
+        const <String>[],
+    subagentDepth: (json['subagentDepth'] as int? ?? kSubagentDepthMin).clamp(
+      kSubagentDepthMin,
+      kSubagentDepthMax,
+    ),
+    description: (json['description'] as String?) ?? '',
     defaultWorkspaceId: json['defaultWorkspaceId'] as String?,
     defaultWorkspaceSetup:
         DefaultWorkspaceSetup.values

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
 /// Structured message part — single source of truth for attachments and text.
 ///
 /// Payload contract:
@@ -8,6 +10,15 @@ import 'dart:convert';
 /// - `assistant_round_end`: JSON reasoning-details array or `null`
 /// - `image`: `{"uri","mime"?,"assetId"?,"unavailable"?}`
 /// - `file`: `{"uri","name","mime"?,"assetId"?,"unavailable"?}`
+/// - `subagent_result`: `{"childConversationId","elapsedMs"?,"label"?,
+///   "outcome"?}` — the marker on the one message a finished subagent writes
+///   into its parent conversation; `label` and `outcome` are what the divider and
+///   the panel read, so an import or a sync must carry them too; the brief itself
+///   is the message's `text` part
+/// - `subagent_mail`: `{"fromRole","senderConversationId"}` — the marker on a
+///   message one conversation in a delegation sends to the other while the work
+///   is still going. It travels as `user` because that is what the receiving
+///   model should read, but nobody in that conversation typed it
 /// - unknown kinds: stored in [UnknownPart] and written back unchanged
 /// - malformed known kinds: created only while hydrating database rows and
 ///   stored in [MalformedPart] for lossless write-back
@@ -32,6 +43,10 @@ sealed class MessagePart {
         return ProviderAuthErrorPart.fromPayload(payload);
       case 'response_truncation':
         return ResponseTruncationPart.fromPayload(payload);
+      case 'subagent_result':
+        return SubagentResultPart.fromPayload(payload);
+      case 'subagent_mail':
+        return SubagentMailPart.fromPayload(payload);
       default:
         return UnknownPart(rawKind: kind, payload: payload);
     }
@@ -118,6 +133,204 @@ final class ProviderAuthErrorPart extends MessagePart {
       other is ProviderAuthErrorPart && other.providerId == providerId;
   @override
   int get hashCode => providerId.hashCode;
+}
+
+/// The marker on the one message a finished subagent writes into its parent.
+///
+/// The brief travels as that message's [TextPart], so the parent model reads an
+/// ordinary user turn. Identity lives here rather than in the message id: an
+/// import, a restore or a sync may rewrite ids, and the part travels with the
+/// row — a rewritten id must not turn a subagent's conclusion into a user
+/// utterance nobody wrote.
+final class SubagentResultPart extends MessagePart {
+  const SubagentResultPart({
+    required this.childConversationId,
+    this.elapsedMs,
+    this.label,
+    this.outcome,
+  });
+
+  factory SubagentResultPart.fromPayload(String payload) {
+    final data = _decodeObjectPayload(payload);
+    final child = data['childConversationId'];
+    if (child is! String || child.isEmpty) {
+      throw const _MessagePartFormatException('missing_child_conversation_id');
+    }
+    final elapsed = data['elapsedMs'];
+    if (elapsed != null && (elapsed is! int || elapsed < 0)) {
+      throw const _MessagePartFormatException('invalid_elapsed');
+    }
+    final label = data['label'];
+    if (label != null && label is! String) {
+      throw const _MessagePartFormatException('invalid_label');
+    }
+    final outcome = data['outcome'];
+    if (outcome != null && outcome is! String) {
+      throw const _MessagePartFormatException('invalid_outcome');
+    }
+    return SubagentResultPart(
+      childConversationId: child,
+      elapsedMs: elapsed as int?,
+      label: label as String?,
+      outcome: outcome as String?,
+    );
+  }
+
+  final String childConversationId;
+
+  /// How long the child ran. Null when the caller had no start time.
+  final int? elapsedMs;
+
+  /// What the child was called, as the model named it. The divider, the panel
+  /// and the sidebar all show this same word.
+  final String? label;
+
+  /// One of `completed`, `failed`, `cancelled`, `interrupted`.
+  ///
+  /// Kept apart from the brief on purpose: the brief is prose for the model, so
+  /// a renderer that parsed it would break the day the wording changes. A value
+  /// this class does not know renders as a neutral finished state.
+  final String? outcome;
+
+  /// The result message one segment of [childConversationId] writes.
+  ///
+  /// A plain UUID, so nothing has to parse it; deterministic, so a second
+  /// delivery of the same segment collides with the first instead of adding a
+  /// row. [runId] names the segment: a delegation that was continued writes one
+  /// result per turn, and the old seed (no run id) is kept only so rows written
+  /// before this shape still answer.
+  static String messageIdFor(String childConversationId, {String? runId}) {
+    final seed = runId == null
+        ? 'cuplivo/subagent-result/$childConversationId'
+        : 'cuplivo/subagent-result/$childConversationId/$runId';
+    return const Uuid().v5(Namespace.url.value, seed);
+  }
+
+  @override
+  String get kind => 'subagent_result';
+
+  @override
+  String encodePayload() => jsonEncode({
+    'childConversationId': childConversationId,
+    if (elapsedMs != null) 'elapsedMs': elapsedMs,
+    if (label != null) 'label': label,
+    if (outcome != null) 'outcome': outcome,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is SubagentResultPart &&
+      other.childConversationId == childConversationId &&
+      other.elapsedMs == elapsedMs &&
+      other.label == label &&
+      other.outcome == outcome;
+
+  @override
+  int get hashCode =>
+      Object.hash(childConversationId, elapsedMs, label, outcome);
+}
+
+/// Whether [parts] carry the notice a finished subagent wrote into its parent.
+///
+/// Identity is the part, never the message id: an import, a restore or a sync may
+/// rewrite ids, and the part travels with the row. Everything that has to know
+/// "this `user` message is not something the user typed" asks here, so the answer
+/// cannot drift between the request builder, the image selector and the renderer.
+bool hasSubagentResultPart(Iterable<MessagePart> parts) =>
+    subagentResultPartOf(parts) != null;
+
+/// The notice in [parts], or null when this is an ordinary message.
+SubagentResultPart? subagentResultPartOf(Iterable<MessagePart> parts) {
+  for (final part in parts) {
+    if (part is SubagentResultPart) return part;
+  }
+  return null;
+}
+
+/// Who wrote a mail row, seen from the conversation holding it.
+enum SubagentMailSender {
+  /// The conversation that delegated the work.
+  delegator,
+
+  /// The subagent doing it.
+  subagent,
+}
+
+/// The marker on a message one side of a delegation sends the other mid-work.
+///
+/// It travels as a `user` message because that is the role the receiving model
+/// should read, but no person in that conversation typed it: the row keeps its
+/// identity here for the same reason [SubagentResultPart] does — an import, a
+/// restore or a sync may rewrite ids, and the part travels with the row.
+final class SubagentMailPart extends MessagePart {
+  const SubagentMailPart({
+    required this.from,
+    required this.senderConversationId,
+  });
+
+  factory SubagentMailPart.fromPayload(String payload) {
+    final data = _decodeObjectPayload(payload);
+    final from = switch (data['fromRole']) {
+      'delegator' => SubagentMailSender.delegator,
+      'subagent' => SubagentMailSender.subagent,
+      _ => throw const _MessagePartFormatException('invalid_mail_sender'),
+    };
+    final sender = data['senderConversationId'];
+    if (sender is! String || sender.isEmpty) {
+      throw const _MessagePartFormatException('missing_sender_conversation_id');
+    }
+    return SubagentMailPart(from: from, senderConversationId: sender);
+  }
+
+  final SubagentMailSender from;
+
+  /// The conversation the message came from.
+  final String senderConversationId;
+
+  /// The row one mail delivery writes.
+  ///
+  /// Deterministic on the sender and the tool call that carried it, so a retried
+  /// tool call collides with its own row instead of adding a second copy. A call
+  /// without an id falls back to a random one: there is nothing to be idempotent
+  /// about, and two sends must not collapse into one.
+  static String messageIdFor(String senderConversationId, String toolCallId) {
+    final call = toolCallId.trim();
+    if (call.isEmpty) return const Uuid().v4();
+    return const Uuid().v5(
+      Namespace.url.value,
+      'cuplivo/subagent-mail/$senderConversationId/$call',
+    );
+  }
+
+  @override
+  String get kind => 'subagent_mail';
+
+  @override
+  String encodePayload() => jsonEncode({
+    'fromRole': from.name,
+    'senderConversationId': senderConversationId,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is SubagentMailPart &&
+      other.from == from &&
+      other.senderConversationId == senderConversationId;
+
+  @override
+  int get hashCode => Object.hash(from, senderConversationId);
+}
+
+/// Whether [parts] carry a message one side of a delegation sent the other.
+bool hasSubagentMailPart(Iterable<MessagePart> parts) =>
+    subagentMailPartOf(parts) != null;
+
+/// The mail marker in [parts], or null when this is an ordinary message.
+SubagentMailPart? subagentMailPartOf(Iterable<MessagePart> parts) {
+  for (final part in parts) {
+    if (part is SubagentMailPart) return part;
+  }
+  return null;
 }
 
 final class TextPart extends MessagePart {

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理 · 第二片 · 委派目标为助手 · A 任何助手（v2）</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:60em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;line-height:1.6;
+    background:rgba(20,20,25,.04);border:1px solid var(--line-soft);border-radius:12px;
+    padding:12px 14px;margin:0 0 18px;overflow:auto;white-space:pre}
+  pre .c{color:var(--muted)}
+  .row2{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:52px;display:flex;align-items:center;padding:0 8px 0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .av{width:28px;height:28px;border-radius:50%;background:rgba(77,92,146,.12);
+              color:var(--primary);display:flex;align-items:center;justify-content:center;
+              font-size:12px;font-weight:700;flex:none}
+  .appbar .tt{flex:1;min-width:0}
+  .appbar .tt .t{font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .tt .s{font-size:11px;color:rgba(32,32,32,.6);font-weight:500;margin-top:2px;
+                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .appbar .act svg{width:20px;height:20px;color:rgba(32,32,32,.72);margin:0 8px}
+  .chat{background:var(--bg);padding:12px 0 6px;min-height:80px}
+  .msg{padding:0 16px}
+  .body{font-size:15px;line-height:1.6;margin:0 0 10px}
+  .card{margin:0 16px 10px;padding:9px 12px;border:1px solid var(--line-soft);border-radius:12px;
+        background:var(--card);display:flex;align-items:center;gap:8px;font-size:13px;
+        color:rgba(32,32,32,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card svg{width:15px;height:15px;flex:none;color:rgba(32,32,32,.55)}
+  .card .tgt{color:var(--primary);font-weight:600}
+  .panel{background:var(--card);padding:0 0 8px}
+  .phead{font-size:12px;color:var(--muted);padding:10px 14px 6px}
+  .prow{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line-soft)}
+  .prow .ic{width:18px;height:18px;flex:none;color:var(--primary);opacity:.85}
+  .prow .txt{flex:1;min-width:0}
+  .prow .txt .n{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .txt .s{font-size:11.5px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .txt .s b{color:var(--ink);font-weight:600}
+  .prow .st{display:flex;align-items:center;gap:5px;font-size:11.5px;flex:none}
+  .prow .st svg{width:13px;height:13px}
+  .st.run{color:rgba(32,32,32,.62)}
+  .editor{padding:6px 0 10px}
+  .erow{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line-soft)}
+  .erow .l{font-size:14.5px;width:44px;flex:none}
+  .erow .v{flex:1;min-width:0;font-size:14.5px;color:rgba(32,32,32,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .erow .v.ph{color:rgba(32,32,32,.38)}
+  .erow.new{outline:1.5px dashed rgba(77,92,146,.55);outline-offset:-4px}
+  .notes{flex:1 1 300px;min-width:260px;max-width:520px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.6;margin:0 0 10px}
+  th{text-align:left;font-size:12px;letter-spacing:.04em;color:var(--muted);font-weight:600;
+     padding:6px 10px;border-bottom:1px solid var(--line)}
+  td{padding:7px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:#33333a}
+  td:first-child{white-space:nowrap;color:var(--ink);font-weight:600}
+  .diff{border-left:3px solid var(--primary);padding:2px 0 2px 12px;margin:0 0 18px}
+  .diff .h{font-size:12px;letter-spacing:.04em;color:var(--primary);font-weight:600;margin:0 0 6px}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第二片 · 委派目标为助手 · 方案 A · v2（按四条意见改）</p>
+  <h1>目标是一个显式的 id：<code>general</code> 或 <code>assistant:&lt;id&gt;</code></h1>
+  <p class="lede"><code>delegate</code> 多一个参数 <code>target</code>，模型<b>每次都说清楚谁去跑</b>：<code>general</code> 是本助手的分身，<code>assistant:&lt;id&gt;</code> 以那个助手的身份跑——系统提示、模型、工具集都是它的。这个值<b>原样</b>写进子会话的 <code>subagent.target</code>，不翻译、不加第二个键。工作区、授权、深度仍然只来自调用方。模型凭「名字 + 描述」认人，所以给助手一个通用的 <code>description</code>。</p>
+
+  <div class="diff">
+    <p class="h">相对 v1 改了什么</p>
+    <ul>
+      <li><b>目标不再是「省略 = general」</b>，而是枚举里显式的一项。只有一个助手时参数整个不出现，和今天一模一样。</li>
+      <li><b>枚举值是 id 不是名字。</b>名字会重、会改；id 不会。于是「两个助手同名」这个失败态整个消失，也不需要新的按名查找。</li>
+      <li><b>extras 只写一个键</b>：<code>subagent.target = 'general' | 'assistant:&lt;id&gt;'</code>。上一片留的占位终于有了第二个值。</li>
+      <li><b>模型解析留了接缝</b>：函数签名已经带上 target，今天两种目标同一答案。</li>
+      <li><b>新增 <code>Assistant.description</code></b>：通用、可选、默认空，委派名单和群聊导演两处读。</li>
+    </ul>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;opacity:.7"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="av">登</span>
+        <div class="tt"><div class="t">登录页重构</div><div class="s">GPT-5 (OpenAI)</div></div>
+        <div class="act"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></div>
+      </div>
+      <div class="chat">
+        <div class="msg"><p class="body">查询语句我不熟，交给 SQL 专家去查这三个用例为什么慢。</p></div>
+        <div class="card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          派遣子代理：查慢用例 <span class="tgt">· SQL 专家</span>
+        </div>
+        <div class="msg"><p class="body" style="color:rgba(32,32,32,.68);font-size:14.5px">派出去了，它跑完会在这里回报。</p></div>
+      </div>
+      <div class="panel">
+        <div class="phead">按开始时间，新的在上面</div>
+        <div class="prow">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">查慢用例</div><div class="s"><b>SQL 专家</b> · 13 秒</div></div>
+          <span class="st run"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M21 12a9 9 0 11-6.2-8.6"/></svg>正在运行</span>
+        </div>
+        <div class="prow" style="border-bottom:none">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <div class="txt"><div class="n">修掉 test/auth 的三个用例</div><div class="s">1 分 52 秒</div></div>
+          <span class="st run" style="color:var(--muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>已完成</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>时间线：和 v1 一样，只多一个名字</h2>
+      <p class="note"><b>工具卡</b>：<code>派遣子代理：&lt;label&gt; · &lt;助手名&gt;</code>。名字在渲染时按 id 查（<code>getById</code>）；助手被删了查不到，就回到今天的卡片。</p>
+      <p class="note"><b>面板第二行</b>：<code>&lt;助手名&gt; · &lt;时长&gt;</code>。<code>general</code> 的还是只有时长。</p>
+      <p class="note"><b>不动的</b>：条、分隔线、侧边栏标签、子会话标题栏（它的 <code>assistantId</code> 就是目标）、配置弹窗（这一片不加设置）。</p>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;opacity:.7"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="tt"><div class="t">编辑助手</div></div>
+      </div>
+      <div class="editor">
+        <div class="erow"><div class="l">名称</div><div class="v">SQL 专家</div></div>
+        <div class="erow new"><div class="l">描述</div><div class="v">把需求写成 SQL 并解释执行计划</div></div>
+        <div class="erow"><div class="l">模型</div><div class="v">Claude Sonnet (Anthropic)</div></div>
+      </div>
+    </div>
+    <div class="notes">
+      <h2>编辑页：一个普通的「描述」框</h2>
+      <p class="note"><b>位置</b>：基本设置里，紧跟名称。占位文案「例如：把需求写成 SQL 并解释执行计划」——教的是写<b>能做什么</b>，不是写<b>是谁</b>。</p>
+      <p class="note"><b>没有开关</b>。空着就是这个字段不存在；不空就哪里需要模型认人哪里读。这一片只有两处读它，下面细说。界面上不显示它。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>工具契约：id 给机器，名字和描述给模型</h2>
+<pre><span class="c">// 每个请求现算，不再是 static const</span>
+{ "name": "delegate",
+  "parameters": {
+    "task":  "…（不变）",
+    "label": "…（不变）",
+    "target": {
+      "type": "string",
+      "enum": ["general", "assistant:&lt;id₁&gt;", "assistant:&lt;id₂&gt;"],  <span class="c">// 除自己以外的每个助手</span>
+      "description":
+        "Who runs the task, in this same workspace:\n" +
+        "general — a copy of yourself.\n" +
+        "assistant:&lt;id₁&gt; — SQL 专家：把需求写成 SQL 并解释执行计划\n" +
+        "assistant:&lt;id₂&gt; — 翻译官" } },          <span class="c">// 描述空着就只有名字</span>
+  "required": ["task", "label", "target"] }
+
+<span class="c">// 只有自己一个助手 → target 参数整个不出现；handler 把缺省读成 general。schema 与今天逐字节相同。</span>
+<span class="c">// 回执原样带回：{ "status": "started", "job_id": "…", "target": "assistant:&lt;id₁&gt;" }</span>
+<span class="c">// 名单外：{ "status": "rejected", "reason": "unknown_target" }   ← 删在请求与调用之间，或模型写错了 id</span>
+
+<span class="c">// 这和群聊导演是同一套词表：options = { member.id: "名字 — …" }，模型按 id 选、按名字认。</span></pre>
+  </section>
+
+  <section>
+    <h2>谁贡献什么 —— 这一片真正要钉死的那张表</h2>
+    <table>
+      <tr><th>东西</th><th>来自</th><th>怎么落实</th></tr>
+      <tr><td>系统提示、模型、工具集、MCP、技能、记忆、温度/推理</td><td>目标助手</td><td>子会话的 <code>assistantId</code> 就是目标；整条既有管线从它解析，一样都不挑。</td></tr>
+      <tr><td>工作区 <code>workspace.id</code> / <code>cwd</code></td><td>调用方会话</td><td>和今天一样从父会话 extras 复制。<code>assistant.defaultWorkspaceId</code> <b>永远不参与</b>。</td></tr>
+      <tr><td>提权策略 + 上限</td><td>调用方助手</td><td>委派那一刻复制，不变。目标不能给自己扩权。</td></tr>
+      <tr><td>深度</td><td>父会话 + 1</td><td>不变。目标自己的子代理设置不参与。</td></tr>
+      <tr><td>模型优先级</td><td>先调用方，再目标</td><td><b>接缝在这里</b>：解析是一个纯函数 <code>resolveSubagentModel(delegator, target)</code>，签名已经带上 target。今天两种目标同一答案——调用方「子代理模型」设了就用它；没设 → 目标自己的模型 → 全局默认。测试按 kind 各钉一格（<code>general</code> / <code>assistant</code>）。以后要让它们独立（general 跟调用方的便宜模型、指名的跟目标走），只改这个函数和它的测试，调用方一处不动。</td></tr>
+      <tr><td>父会话的续写</td><td>调用方助手</td><td><code>SubagentEntry.assistant</code> 仍然是调用方——回报回来的是父的助手在说话。</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>数据：一个词表，一处解析</h2>
+    <ul>
+      <li><b><code>subagent.target</code> 终于有了第二个值</b>：<code>'general'</code> | <code>'assistant:&lt;id&gt;'</code>。模型发什么就落什么，读的人永远不用把两个键拼起来。<b>schema 仍是 5</b>。</li>
+      <li><b>一个 choke point</b>：这个词表只有一个 <code>parse</code> / <code>encode</code>，工具参数和 extras 共用——两个写者、一个读者，不许各写一份 <code>startsWith('assistant:')</code>。</li>
+      <li><b><code>Assistant.description</code></b>：<code>String</code>，默认空，JSON 同级字段，走 copyWith / update 的既有管线。</li>
+      <li><b><code>SubagentEntry</code></b>：<code>assistant</code> 不动（调用方），多一个 <code>targetName</code> 给面板——<code>begin</code> 时按 id 解析一次。</li>
+      <li>幂等键、结果消息、分隔线、队列：一个都不变。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>description 为什么比名字好、又为什么不是方案 B</h2>
+    <ul>
+      <li><b>为什么需要</b>：枚举是 id 之后，「名字：描述」是模型唯一的判断依据。没有描述，id 选择就只剩名字——「助手 2」派不出有意义的目标。</li>
+      <li><b>为什么不是 B</b>：B 是为一个功能配「开关 + 一句话」，没开就不存在。这是通用的「这个助手能做什么」，写一次，哪里需要模型认人就哪里读；没有「可被委派」这个概念，任何助手照样能被指名。</li>
+      <li><b>第二个读者（已核实）</b>：群聊导演今天给模型的每个成员只有 <code>id</code> + <code>name</code>——chat 导演的 roster（<code>group_director.dart:205-212</code>）和决策模型的 state（<code>:359-362</code>）。各加一行 <code>'description'</code>，非空才加：老用户的请求字节不变。</li>
+      <li><b>边界</b>：这一片只这两处读它。侧边栏、助手选择器、子会话标题栏都不显示。</li>
+      <li><b>落地</b>：字段 + 委派名单一个提交；导演读它一个提交（<code>group_director_decision_test.dart</code> 加一格「有描述的成员带描述、没有的不带键」），可单独撤。</li>
+      <li><b>隐私</b>：描述和名字一样是写给模型看的；系统提示永远不进名单。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>失败模式</h2>
+    <table>
+      <tr><th>什么坏了</th><th>系统做什么</th></tr>
+      <tr><td>写了名单外的 target</td><td><code>rejected: unknown_target</code>。名单是请求时算的，删除发生在请求与调用之间，或模型写错了 id——模型改派 <code>general</code> 或告诉用户，不留空子会话。</td></tr>
+      <tr><td>写了调用方自己的 id</td><td>当作 <code>general</code>。它就是默认值，拒绝没有意义。</td></tr>
+      <tr><td>目标在子代理跑的时候被删</td><td>子会话按既有规则解析助手（<code>resolveConversationAssistant</code> 的回落），不中断；卡片上的名字查不到就回到今天的卡片。</td></tr>
+      <tr><td>目标的模型 / provider 没了</td><td>既有的 <code>turn_not_started</code>：子会话留空、条不出现、模型拿到拒绝。</td></tr>
+      <tr><td>目标一个工具都没开</td><td>子代理就是没工具，和直接跟它聊一样。</td></tr>
+      <tr><td>描述空着</td><td>名单里只有名字——和没有这个字段一样。</td></tr>
+    </table>
+    <p class="note"><b>删掉的一行</b>：「两个助手同名」。id 唯一，这个失败态不存在了。</p>
+  </section>
+
+  <section>
+    <h2>代价</h2>
+    <ul class="cost">
+      <li><b>id 比名字贵。</b>一个 UUID 约 15 个 token，名单里出现两次（枚举 + 列表）：5 个助手约 250 token，40 个约 2000。要收窄，以后在来源侧加一个「可指名」筛选——不是现在。</li>
+      <li><b>模型要照抄 id。</b>抄错 → <code>unknown_target</code> → 重派。导演按 id 选人已经跑通（OpenRouter 端到端），这是同一种用法。</li>
+      <li><b><code>Assistant</code> 多一个字段</b>的 copyWith / JSON / update 管线，编辑页多一个输入框。</li>
+      <li><b>助手一多，模型可能选错人。</b>选错的代价是一次失败的委派，不是数据损坏。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>这一轮只确认一件事：</b>按四条意见改后的 A——显式 <code>target</code>（<code>general</code> | <code>assistant:&lt;id&gt;</code>，原样落库）、模型解析的接缝、通用的 <code>Assistant.description</code> 两处读。过了就动工，界面上的改动在实现完一并过目。</p>
+
+</main>
+</body>
+</html>

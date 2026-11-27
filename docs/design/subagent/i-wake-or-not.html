@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>子代理结束在父回合之后：要不要唤醒主代理作答</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:58em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .row2{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .appbar{height:48px;display:flex;align-items:center;padding:0 12px;gap:8px;
+          border-bottom:1px solid var(--line-soft);background:var(--card)}
+  .appbar .title{flex:1;text-align:center;font-size:15px;font-weight:600}
+  .icon{width:20px;height:20px;display:block;color:var(--ink);opacity:.7}
+  .chat{background:var(--bg);padding:10px 0 8px}
+  .row{display:flex;justify-content:flex-end;padding:18px 16px 6px}
+  .bubble{max-width:80%;background:rgba(77,92,146,.09);border-radius:16px;padding:10px 12px;
+          font-size:15px;line-height:1.55}
+  .msg{padding:12px 16px 4px}
+  .msg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:rgba(77,92,146,.12);
+          color:var(--primary);display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:700;flex:none}
+  .name{font-size:13px;font-weight:500;color:rgba(32,32,32,.72);line-height:1.2}
+  .time{font-size:11px;color:rgba(32,32,32,.45);line-height:1.4}
+  .body{font-size:15.5px;line-height:1.6;margin:0 0 2px}
+  .toolcard{margin:10px 0 6px;border-radius:16px;padding:12px 16px;background:rgba(77,92,146,.10);
+            display:flex;align-items:center;gap:10px}
+  .toolcard .ic{width:18px;height:18px;color:var(--primary);flex:none;opacity:.85}
+  .toolcard .ttl{font-size:14px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;
+                 text-overflow:ellipsis}
+  .divider{height:28px;display:flex;align-items:center;gap:8px;margin:10px 16px}
+  .divider .ln{flex:1;height:1px;background:rgba(20,20,25,.10)}
+  .divider .lbl{display:flex;align-items:center;gap:6px;font-size:12.5px;
+                color:rgba(32,32,32,.6);white-space:nowrap;max-width:78%;
+                overflow:hidden;text-overflow:ellipsis}
+  .divider .lbl .ic{width:14px;height:14px;flex:none}
+  .divider .chev{width:14px;height:14px;color:rgba(32,32,32,.45);flex:none}
+  /* ---- real composer: frosted capsule, r20 ---- */
+  .composerwrap{background:var(--bg);padding:0 10px 10px}
+  .capsule{background:rgba(252,252,253,.92);border-radius:20px;
+           border:1px solid rgba(20,20,25,.14);padding:10px 10px 6px;
+           box-shadow:0 6px 18px rgba(20,20,25,.06)}
+  .field{font-size:15px;color:rgba(32,32,32,.45);padding:1px 2px 12px;min-height:34px}
+  .bar{display:flex;align-items:center;gap:8px}
+  .bar .left{display:flex;align-items:center;gap:8px;flex:1}
+  .bar .right{display:flex;align-items:center;gap:8px;flex:none}
+  .btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+       border-radius:8px;color:rgba(32,32,32,.62)}
+  .btn svg{width:20px;height:20px}
+  .sendbtn{width:32px;height:32px;border-radius:50%;background:var(--primary);
+           display:flex;align-items:center;justify-content:center;flex:none}
+  .sendbtn svg{width:18px;height:18px}
+  /* ---- strip ---- */
+  .stripwrap{background:var(--bg);padding:2px 10px 0}
+  .strip{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 6px;border-radius:8px;
+         color:rgba(32,32,32,.6)}
+  .strip .ic{width:14px;height:14px;flex:none}
+  .strip .txt{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;
+              overflow:hidden;text-overflow:ellipsis}
+  .strip .txt.sheen{background:linear-gradient(100deg,rgba(32,32,32,.5) 30%,rgba(32,32,32,.92) 50%,rgba(32,32,32,.5) 70%);
+              background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+              animation:sheen 2.6s linear infinite}
+  @keyframes sheen{0%{background-position:120% 0}100%{background-position:-40% 0}}
+  .strip .chev{width:14px;height:14px;flex:none;opacity:.7}
+  .strip .dot{width:6px;height:6px;border-radius:50%;background:#C9822A;flex:none}
+  .wake{font-size:12.5px;color:var(--muted);padding:0 12px 8px;text-align:center}
+  .notes{flex:1 1 300px;min-width:260px;max-width:520px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  .quiet{border:1px dashed rgba(20,20,25,.22);border-radius:14px;padding:14px 16px;margin:0 0 22px;
+         background:rgba(20,20,25,.015)}
+  .quiet .h{font-size:12px;letter-spacing:.04em;color:var(--muted);margin:0 0 8px;font-weight:600}
+  .quiet .body{font-size:14px;color:rgba(32,32,32,.62)}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){
+    .page{padding:18px 10px 44px}
+    .phone{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第 5 轮 · 父回合已经结束的那一半</p>
+  <h1>子代理跑完了，主代理要不要自己说一句</h1>
+  <p class="lede">你说主流是「一路传播到主对话、由主代理作答」。这事<b>可行</b>，而且一半已经不需要新机制：父回合还在跑时，结果在下一个 step 的边界进上下文，主代理顺手就答了。真正要定的是另一半——<b>父回合已经结束</b>的时候。</p>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="appbar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="title">登录页重构</div>
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </div>
+
+      <div class="chat">
+        <div class="row">
+          <div class="bubble">test 里有三个红的，能修就修；另外看看这次发布能不能上。</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">21:07</div>
+            </div>
+          </div>
+          <p class="body">派了一个人去修 <code>test/auth</code>，我先把发布清单看完。</p>
+          <div class="toolcard">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+            <span class="ttl">派遣子代理：修掉 test/auth 的三个用例</span>
+          </div>
+          <p class="body">发布清单里只剩一个阻塞项：<code>pubspec.lock</code> 没跟 <code>pubspec.yaml</code> 一起提交。</p>
+        </div>
+
+        <div class="msg" style="padding-top:0">
+          <p class="wake">21:09 · 这一轮已经结束，下面是唤醒来的一轮</p>
+        </div>
+
+        <div class="msg" style="padding-top:0">
+          <div class="msg-head">
+            <span class="avatar">C</span>
+            <div>
+              <div class="name">Cuplivo · GPT-5</div>
+              <div class="time">21:09</div>
+            </div>
+          </div>
+          <p class="body">子代理那边回来了：三个用例都过了，根因是 token 过期后本地缓存没清。要我把改动和 lock 一起提交吗？</p>
+        </div>
+      </div>
+
+      <div class="composerwrap">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>可行：一半已经有机制，一半有先例</h2>
+      <p class="note"><b>父回合还在跑（零新机制）：</b><code>RequestHistoryContext.prepare()</code> 每次发请求都跑 <code>beforeRequest</code>（<code>request_history_context.dart:307-342</code>），结果在那一次请求里就进了上下文，主代理顺手作答——这就是你说的「一路传播」。</p>
+      <p class="note"><b>父回合已经结束（有先例）：</b>「没人按发送键也跑一轮生成」这件事，<code>ProactiveCareMessageFlow</code> 已经在做——它按计划跑完一轮，把回复直接持久化进会话（<code>proactive_care_message_flow.dart:94-97</code>），claim 走 <code>updateConversationExtras</code> 原子化，所以「前台跑过一次、闹钟又跑一次」不会重复投递。子代理的唤醒可以照抄这条。</p>
+      <p class="note"><b>所以两半合成一条规则：</b>结果到达时父会话在跑 → 下一个 step 的请求带上；空闲 → 唤醒一轮；两种情况用户都会在主对话里得到一句回答。</p>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="chat" style="padding-top:14px">
+        <div class="msg" style="padding-bottom:0">
+          <p class="body" style="font-size:14.5px;color:rgba(32,32,32,.7)">…发布清单我先看，那边我派了三个。</p>
+        </div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <span class="txt">3 个子代理（2 个正在运行）</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composerwrap" style="padding-top:2px">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="chat" style="padding-top:14px">
+        <div class="msg" style="padding-bottom:0">
+          <p class="body" style="font-size:14.5px;color:rgba(32,32,32,.7)">…我先读一眼 CHANGELOG。</p>
+        </div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <span class="txt sheen">正在跑 test/auth</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composerwrap" style="padding-top:2px">
+        <div class="capsule">
+          <div class="field">输入消息与AI聊天</div>
+          <div class="bar">
+            <div class="left">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+            </div>
+            <div class="right">
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+              <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4"/></svg></div>
+              <div class="sendbtn"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>输入框这次按真的画</h2>
+      <p class="note"><b>是毛玻璃胶囊，不是白框：</b><code>ClipRRect(20)</code> + <code>BackdropFilter(blur 14)</code> + 半透明填充 + 1px 描边（浅色 <code>outline@0.20</code>、深色 <code>onSurface@0.10</code>，<code>chat_input_bar.dart:4713-4733</code>）。</p>
+      <p class="note"><b>里面两段：</b>上面是输入区，占位文案 <code>输入消息与AI聊天</code>（<code>chatInputBarHint</code>），15px、<code>onSurface@0.45</code>；下面一行按钮——左边从<b>模型选择</b>开始（<code>Lucide.Boxes</code> 或模型图标，<code>:3341-3358</code>），右边 <code>+</code> / 麦克风 / 发送（32px 圆、主色、<code>Lucide.ArrowUp</code>，<code>:5201-5220</code>）。</p>
+      <p class="note"><b>条在胶囊外面</b>，和 <code>_QueuedInputBanner</code> 同一个位置（<code>:4691-4705</code>），所以它不会把胶囊顶变形，只是垫高一点。</p>
+    </div>
+  </div>
+
+  <div class="quiet">
+    <p class="h">如果选「不唤醒」，就到这里为止</p>
+    <div class="divider" style="margin:0 0 8px">
+      <span class="ln"></span>
+      <span class="lbl">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+        子代理完成 · 修掉 test/auth 的三个用例
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </span>
+      <span class="ln"></span>
+    </div>
+    <p class="body">这条线就在那儿，没有下一句<p style="margin:6px 0 0;font-size:13px;color:rgba(32,32,32,.45)">用户下次说话时，主代理才知道结果；用户不说话，它就一直是这行字。</p></p>
+  </div>
+
+  <section>
+    <h2>标题由主代理给，工具描述写死「短」</h2>
+    <ul>
+      <li><code>delegate</code> 加一个 <code>label</code> 参数（必填或强烈建议），<b>8 个字以内</b>，作为工具卡标题和条上那句话。</li>
+      <li>工具描述里写清：<code>label</code> 是一个 3–8 字的名词短语（「跑测试」「改登录页」），不是句子、不是任务全文——任务全文在 <code>task</code> 里，只有子代理看。</li>
+      <li>没给 <code>label</code> 时截断 <code>task</code> 的第一句，最多 12 字，末尾省略号。这条兜底必须有：模型不听话是常态。</li>
+      <li>条的文案照你说的收短：<code>3 个子代理（2 个正在运行）</code>；一个时直接用 <code>label</code>：<code>正在跑 test/auth</code>。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>唤醒前必须挡住的一种情况</h2>
+    <p class="note">结果到达时，父会话空闲、但用户<b>已经在打一行字</b>，或者刚刚发出下一条：这时候唤醒会和用户自己的话抢同一轮。规则：<b>父会话有未发送的草稿、或已有一条新的用户消息在跑 → 不唤醒</b>，结果只落分隔线 + 留着简报给下一轮。判据都是现成的（<code>composerDrafts?.hasDraft</code>、<code>_isConversationBusy</code>）。</p>
+  </section>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li>结果到达：父在跑 → 下一个 step 的请求带上；父空闲 → 唤醒一轮作答。两种情况用户都在主对话里得到一句回答。</li>
+      <li>唤醒持「没有用户输入的新消息、没有草稿」这两个前提；否则只落分隔线。</li>
+      <li>条永远只有一条，文案 <code>N 个子代理（M 个正在运行）</code>，一个时直接写 <code>label</code>。</li>
+      <li>工具卡标题 <code>派遣子代理：&lt;label&gt;</code>，不加时间；配置弹窗只剩 深度 / 模型；模型 v1 不持久化。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li><b>每个子代理都多一轮父生成。</b>一次 delegate 等于两次计费——子代理一轮、唤醒一轮；用户看不见第二笔。</li>
+      <li><b>无人按键的回复可能打在不合时宜的时候。</b>用户已经走开、或者正在读别的东西，一条新回答自己冒出来。</li>
+      <li><b>「N 个子代理（M 个在跑）」省掉了「几个在等你回答」。</b>用户到面板里才会发现有个子代理卡在提问上。</li>
+      <li>唤醒与压缩、备份、LAN sync 同时发生时要有一套「此刻能不能写」的判断；<code>ProactiveCareMessageFlow</code> 踩过，抄它的做法而不是重想。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>动工前按你说的办：</b>把所有涉及到的 UI 放一页里给你过目——输入框与条（手机 / 桌面）、时间线的工具卡与分隔线、侧边栏一行、配置弹窗、子会话自身的标题与「来自父对话」入口，以及面板。<b>这一轮只定一件事：</b>父回合已经结束时，要不要唤醒主代理作答。</p>
+
+</main>
+</body>
+</html>

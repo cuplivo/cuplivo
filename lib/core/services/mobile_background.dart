@@ -97,8 +97,14 @@ class MobileBackgroundCoordinator extends ChangeNotifier
   Future<void> initialize() async {
     if (!supported || _initialized) return;
     _initialized = true;
-    _foreground =
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    // A binding with no lifecycle state yet (a widget test, or a process that has
+    // not received its first event) is not evidence of being in the background:
+    // only an explicit non-resumed state is. Reading `null` as "backgrounded"
+    // stopped every queue drain that ran before the first lifecycle event.
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (lifecycle != null) {
+      _foreground = lifecycle == AppLifecycleState.resumed;
+    }
     WidgetsBinding.instance.addObserver(this);
     _channel.setMethodCallHandler(_handleNativeCall);
     await _enqueue(() async {

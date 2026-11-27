@@ -40,6 +40,10 @@ void main() {
       LocalToolNames.remindersCreate,
       LocalToolNames.remindersComplete,
       LocalToolNames.generateImage,
+      LocalToolNames.delegate,
+      LocalToolNames.awaitJob,
+      LocalToolNames.sendMessage,
+      LocalToolNames.interrupt,
     ]);
   });
 }

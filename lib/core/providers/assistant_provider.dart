@@ -516,6 +516,16 @@ class AssistantProvider extends ChangeNotifier {
           clearImageModelId: true,
         );
       }
+      // The delegation model follows the same rule: left behind, it would point a
+      // child at a provider that no longer exists, and the delegation would fail
+      // instead of falling back to the conversation's own model.
+      if (assistant.subagentModelProvider == providerKey &&
+          (modelId == null || assistant.subagentModelId == modelId)) {
+        next = next.copyWith(
+          clearSubagentModelProvider: true,
+          clearSubagentModelId: true,
+        );
+      }
       if (!identical(next, assistant)) await updateAssistant(next);
     }
     await chatService?.clearConversationModelOverrides(
@@ -661,6 +671,19 @@ class AssistantProvider extends ChangeNotifier {
 
     final removingCurrent = _assistants[idx].id == _currentAssistantId;
     _assistants.removeAt(idx);
+    // A deleted assistant cannot be a delegation target any more, and a dead id
+    // in somebody's selection would travel into every backup and sync forever.
+    // The rule lives here, at the one place an assistant stops existing.
+    for (var i = 0; i < _assistants.length; i++) {
+      final other = _assistants[i];
+      if (!other.subagentTargetIds.contains(id)) continue;
+      _assistants[i] = other.copyWith(
+        subagentTargetIds: <String>[
+          for (final targetId in other.subagentTargetIds)
+            if (targetId != id) targetId,
+        ],
+      );
+    }
     if (removingCurrent) {
       _currentAssistantId = _assistants.isNotEmpty
           ? _assistants.first.id

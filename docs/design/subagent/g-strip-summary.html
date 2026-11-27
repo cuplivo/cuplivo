@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>变体 G — 一条汇总条</title>
+<style>
+  :root{
+    --bg:#F7F7F7; --card:#FFFFFF; --ink:#202020; --muted:#6B6B73;
+    --line:rgba(20,20,25,.08); --line-soft:rgba(20,20,25,.05);
+    --primary:#4D5C92;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .page{max-width:1080px;margin:0 auto;padding:28px 20px 56px}
+  .kicker{font-size:12px;letter-spacing:.08em;color:var(--muted);margin:0 0 10px}
+  h1{font-size:20px;line-height:1.35;margin:0 0 8px;font-weight:650}
+  .lede{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 22px;max-width:58em}
+  .lede b{color:var(--ink);font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;
+    background:rgba(20,20,25,.05);border-radius:4px;padding:1px 4px}
+  .row2{display:flex;flex-wrap:wrap;align-items:flex-start;gap:24px;margin:0 0 26px}
+  .phone{width:360px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+         border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .desk{width:620px;max-width:100%;flex:none;background:var(--card);border:1px solid var(--line);
+        border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(20,20,25,.07)}
+  .chat{background:var(--bg);padding:14px 0 6px;min-height:120px}
+  .msg{padding:0 16px}
+  .body{font-size:15.5px;line-height:1.6;margin:0}
+  .body.small{font-size:14.5px;color:rgba(32,32,32,.7)}
+  .stripwrap{background:var(--bg);padding:2px 8px 0}
+  .strip{display:flex;align-items:center;gap:8px;min-height:36px;padding:4px 8px;border-radius:8px;
+         color:rgba(32,32,32,.6)}
+  .strip .ic{width:14px;height:14px;flex:none}
+  .strip .txt{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;
+              overflow:hidden;text-overflow:ellipsis}
+  .strip .txt.sheen{background:linear-gradient(100deg,rgba(32,32,32,.5) 30%,rgba(32,32,32,.92) 50%,rgba(32,32,32,.5) 70%);
+              background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+              animation:sheen 2.6s linear infinite}
+  @keyframes sheen{0%{background-position:120% 0}100%{background-position:-40% 0}}
+  .strip .chev{width:14px;height:14px;flex:none;opacity:.7}
+  .strip .dot{width:6px;height:6px;border-radius:50%;background:#C9822A;flex:none}
+  .composer{padding:8px 12px 12px;background:var(--card);border-top:1px solid var(--line-soft);
+            display:flex;align-items:center;gap:8px}
+  .input{flex:1;height:36px;border-radius:18px;border:1px solid var(--line);display:flex;
+         align-items:center;padding:0 12px;font-size:14px;color:rgba(32,32,32,.4);background:var(--card)}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;
+        align-items:center;justify-content:center;flex:none}
+  .deskbar{display:flex;align-items:center;gap:10px;padding:10px 0 0}
+  .desk .composer{padding:10px 16px 14px}
+  .desk .strip{min-height:24px;padding:2px 6px}
+  .desk .strip .txt{font-size:13px}
+  .desk .input{height:40px;border-radius:20px}
+  .desk .send{width:34px;height:34px}
+  .caption{font-size:11.5px;color:var(--muted);padding:8px 12px 0}
+  .notes{flex:1 1 300px;min-width:260px;max-width:520px}
+  .note{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  h2{font-size:14px;font-weight:650;margin:0 0 8px}
+  section{margin:0 0 22px}
+  ul{margin:0;padding-left:18px}
+  li{font-size:14px;line-height:1.7;margin-bottom:6px;color:#33333a}
+  li b{color:var(--ink);font-weight:600}
+  .cost li{color:#4A4A52}
+  .cost li::marker{color:#B08968}
+  .closing{font-size:13px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);
+           padding-top:14px;margin-top:4px}
+  .closing b{color:var(--ink)}
+  @media (max-width:620px){
+    .page{padding:18px 10px 44px}
+    .phone,.desk{width:100%}
+    .notes{min-width:0;max-width:none;flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <p class="kicker">子代理 · 第 4 轮 · 变体 G · 一条汇总条</p>
+  <h1>输入框上方永远只有一条</h1>
+  <p class="lede">不管派出去几个，输入框上方只占一行：一个时直接写它在干什么，两个以上写一句汇总，点开是面板。高度恒定 36（桌面 24），所以它永远不会把消息区往上推。</p>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="chat">
+        <div class="msg">
+          <p class="body small">…发布清单我先看，那边三件事我各派了一个人。</p>
+        </div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <span class="dot"></span>
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <span class="txt">3 个子代理 · 2 个在跑 · 1 个等你回答</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="input">发消息…</div>
+        <div class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>多个、且状态不一样</h2>
+      <p class="note"><b>优先级写死在文案里：</b>有「等你回答」就先说它（橙点，<code>cs.tertiary</code>），否则说在跑，全结束就整条消失。数目在前、状态在后，一眼知道「还有几件事」。</p>
+      <p class="note"><b>只有一条时换成具体内容：</b>下面那个只有一个的截图——<code>正在跑 test/auth</code>，而不是「1 个子代理 · 1 个在跑」。一个的时候数字是废话。</p>
+      <p class="note"><b>跑完不占位：</b>它不从这条上「变成已完成」，而是消失；结果在那条分隔线里，不在这儿重复一遍。</p>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="phone">
+      <div class="chat">
+        <div class="msg">
+          <p class="body small">…我先读一眼 CHANGELOG。</p>
+        </div>
+      </div>
+      <div class="stripwrap">
+        <div class="strip">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+          <span class="txt sheen">正在跑 test/auth</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="input">发消息…</div>
+        <div class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      </div>
+    </div>
+
+    <div class="desk">
+      <div class="chat">
+        <div class="msg">
+          <p class="body small">…发布清单我先看，你那边修好了说一声。</p>
+        </div>
+      </div>
+      <div class="composer" style="border-top:1px solid var(--line-soft)">
+        <div class="stripwrap" style="padding:0;flex:1">
+          <div class="strip">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+            <span class="txt sheen">正在跑 test/auth</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="composer" style="border-top:none;padding-top:0">
+        <div class="input">发消息…</div>
+        <div class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      </div>
+      <p class="caption">桌面：同一条、同一位置，最小高 24、鼠标悬停有底色，宽度跟着输入框那一列走。</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>其它四处按你说的改了</h2>
+    <ul>
+      <li><b>工具卡标题：</b>只有一句 <code>派遣子代理：修掉 test/auth 的三个用例</code>，不追加时间——<code>_localToolTitleFor</code>（<code>chat_message_widget.dart:585-623</code>）本来就是「一个 l10n key、参数塞进句子」，和 <code>chatMessageWidgetWebSearch(q)</code> 同一写法。</li>
+      <li><b>侧边栏：</b>不缩进、不画时间（<code>_ChatTile</code> 本来就只有标题 + 小标签，<code>side_drawer.dart:4987-5022</code>）；「子代理」三个字放在 <code>composerDraftLabel</code> 的位置。跳转不塞进侧边栏——放在分隔线点开的面板里（「打开子代理会话」旁边就是「查看父对话」）。</li>
+      <li><b>配置弹窗：</b>只剩 深度 / 模型两项。「完成后」删掉——它就是「落一条消息」，没有第二种选择，写出来只是多一个要读的词。</li>
+      <li><b>两项的说明改成说明选项：</b><code>深度</code> →「允许子代理再派子代理的层数」；<code>模型</code> →「用哪个模型跑子代理」。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>子代理的模型存在哪</h2>
+    <p class="note">v1 不存：继承父助手，什么都不写。要预留「以后能选子代理模型」的空间，落点不用新表新列——<code>Assistant</code> 本身就是一段 JSON（<code>assistant.dart:376</code> 的 <code>toJson</code>），绘图模型已经这么存了（<code>imageModelProvider/imageModelId</code>）。到时候加两个同级字段 + 一条全局默认，复用 <code>ImageModelResolver</code> 那套「助手 → 全局、配对被删就回落」的两层解析，schema 仍是 5。</p>
+    <p class="note">唯一的成本是：一旦有了子模型，<b>子会话的记录要记住它用的是哪个</b>，否则重看旧对话会发现「当时是另一个模型答的」。<code>Conversation</code> 或子会话 extras 里记一个 model id 就够，v1 不做。</p>
+  </section>
+
+  <section>
+    <h2>这一版定下的</h2>
+    <ul>
+      <li>输入框上方恒定一行：一个显内容、多个显汇总，状态优先级「等你回答 &gt; 在跑」。</li>
+      <li>完成即消失，不在条上重复结果；结果只在那条分隔线里。</li>
+      <li>手机 36 / 桌面 24 最小高，数值照 <code>ContextTaskBar</code>；宽度继承输入框那一列，桌面和手机都不用另立布局。</li>
+      <li>点开是面板：逐个列出，进去是子会话。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>必须接受的代价</h2>
+    <ul class="cost">
+      <li><b>多个时看不见是谁。</b>「2 个在跑」不说是哪两件，用户要点一下才知道——这是恒定高度的直接代价。</li>
+      <li><b>「等你回答」只能给一个数字。</b>三个都在等你回答时，条上只写 3，先答哪一个得进面板看。</li>
+      <li>状态优先级是写死的：橙点抢眼只是因为它是唯一需要用户动手的状态，没有第二层信息。</li>
+    </ul>
+  </section>
+
+  <p class="closing"><b>两个变体共用：</b>工具卡只写 <code>派遣子代理：…</code>、侧边栏单行标签、配置弹窗只剩深度与模型、模型 v1 不持久化、分隔线承载结论、ask_user 不禁用。<b>这个变体唯一要你定的：</b>条是一条汇总（G），还是每个子代理一行（H）。</p>
+
+</main>
+</body>
+</html>

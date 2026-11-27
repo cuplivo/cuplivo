@@ -44,10 +44,3 @@ class ChatInputData {
 }
 
 enum ChatInputSubmissionResult { sent, queued, rejected }
-
-class QueuedChatInput {
-  final String conversationId;
-  final ChatInputData input;
-
-  const QueuedChatInput({required this.conversationId, required this.input});
-}

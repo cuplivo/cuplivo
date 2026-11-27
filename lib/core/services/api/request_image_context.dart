@@ -48,6 +48,12 @@ bool isUserInputMessage(
   // A group peer's turn travels as `user` but is not the user's own words; its
   // images and attachments belong to the member that sent it.
   if (message[groupPeerSenderKey] != null) return false;
+  // A subagent's conclusion is the app's notice, so the human's own turn keeps
+  // the attachments even when the notice is the most recent user-role turn.
+  if (message[subagentResultKey] != null) return false;
+  // A message one side of a delegation sends the other is not the human's turn
+  // either, so it must not take over carried images or the search query.
+  if (message[subagentMailKey] != null) return false;
   if (!hasOwners) return true;
   final owner = message[imageContextOwnerKey];
   return owner is String &&
@@ -440,7 +446,16 @@ class RequestImageContext {
     final turns = <String, String?>{};
     String? user;
     for (final message in messages) {
-      if (message.role == 'user') user = message.id;
+      // A subagent's notice is a `user` row, but it owns no images: keeping the
+      // previous turn as the owner is what makes an attached picture stay with
+      // the message a person actually sent. Mail between the two sides of a
+      // delegation is the same kind of row, so it must not become the owner
+      // either — otherwise every picture the human attached retires.
+      if (message.role == 'user' &&
+          !hasSubagentResultPart(message.parts) &&
+          !hasSubagentMailPart(message.parts)) {
+        user = message.id;
+      }
       turns[message.id] = user;
     }
     return turns;

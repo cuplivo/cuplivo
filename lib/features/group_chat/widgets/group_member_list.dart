@@ -166,6 +166,11 @@ class _CircleIcon extends StatelessWidget {
 
 /// Picks the members a new group starts with, or the assistants to invite into
 /// an existing one.
+///
+/// It is also the picker behind the subagent targets row, which is why [header]
+/// and [footer] exist: that caller has one fixed row above the candidates
+/// ("a copy of yourself is always available") and one sentence below them. A
+/// caller that passes neither gets exactly the list it always got.
 class GroupMemberPicker extends StatefulWidget {
   const GroupMemberPicker({
     super.key,
@@ -173,12 +178,20 @@ class GroupMemberPicker extends StatefulWidget {
     required this.candidates,
     this.initialSelection = const <String>[],
     this.requireSelection = false,
+    this.header,
+    this.footer,
   });
 
   final String title;
   final List<Assistant> candidates;
   final List<String> initialSelection;
   final bool requireSelection;
+
+  /// Shown above the rows, unselectable.
+  final Widget? header;
+
+  /// Shown beside the title and save button, at the bottom of the sheet.
+  final Widget? footer;
 
   @override
   State<GroupMemberPicker> createState() => _GroupMemberPickerState();
@@ -196,6 +209,7 @@ class _GroupMemberPickerState extends State<GroupMemberPicker> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.header != null) widget.header!,
         if (widget.candidates.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
@@ -243,15 +257,20 @@ class _GroupMemberPickerState extends State<GroupMemberPicker> {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  widget.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: cs.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
+                child: widget.footer == null
+                    ? Text(
+                        widget.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.6),
+                        ),
+                      )
+                    // A caller with something more useful to say at the bottom
+                    // replaces the title there: the sheet header already shows
+                    // the title.
+                    : widget.footer!,
               ),
               FilledButton(
                 onPressed: canConfirm
@@ -276,6 +295,8 @@ Future<List<String>?> showGroupMemberPickerDialog(
   required String title,
   required List<Assistant> candidates,
   List<String> initialSelection = const <String>[],
+  Widget? header,
+  Widget? footer,
 }) {
   if (_isDesktopPlatform) {
     return showDialog<List<String>>(
@@ -290,6 +311,8 @@ Future<List<String>?> showGroupMemberPickerDialog(
             title: title,
             candidates: candidates,
             initialSelection: initialSelection,
+            header: header,
+            footer: footer,
           ),
         ),
       ),
@@ -304,6 +327,8 @@ Future<List<String>?> showGroupMemberPickerDialog(
         title: title,
         candidates: candidates,
         initialSelection: initialSelection,
+        header: header,
+        footer: footer,
       ),
     ),
   );

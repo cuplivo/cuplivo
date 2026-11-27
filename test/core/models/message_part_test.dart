@@ -156,6 +156,72 @@ void main() {
       expect(fileEncoded['name'], 'notes.txt');
     });
 
+    test('SubagentResultPart roundtrips and keeps a deterministic id', () {
+      const part = SubagentResultPart(childConversationId: 'child-1');
+      expect(
+        MessagePart.fromRow('subagent_result', part.encodePayload()),
+        part,
+      );
+
+      const timed = SubagentResultPart(
+        childConversationId: 'child-1',
+        elapsedMs: 112000,
+        label: '跑测试',
+        outcome: 'failed',
+      );
+      final decoded = MessagePart.fromRow(
+        'subagent_result',
+        timed.encodePayload(),
+      );
+      expect(decoded, timed);
+      expect((decoded as SubagentResultPart).label, '跑测试');
+      expect(decoded.outcome, 'failed');
+      expect(decoded.elapsedMs, 112000);
+
+      // The id is a plain UUID — nothing has to parse it — but it is the same
+      // id for the same child, so a second delivery collides instead of adding
+      // a row.
+      final first = SubagentResultPart.messageIdFor('child-1');
+      expect(SubagentResultPart.messageIdFor('child-1'), first);
+      expect(SubagentResultPart.messageIdFor('child-2'), isNot(first));
+      expect(
+        first,
+        matches(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          ),
+        ),
+      );
+    });
+
+    test('a subagent result without a child id fails explicitly', () {
+      expect(
+        () => MessagePart.fromRow('subagent_result', '{}'),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => MessagePart.fromRow(
+          'subagent_result',
+          '{"childConversationId":"c","elapsedMs":-1}',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => MessagePart.fromRow(
+          'subagent_result',
+          '{"childConversationId":"c","label":7}',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => MessagePart.fromRow(
+          'subagent_result',
+          '{"childConversationId":"c","outcome":[]}',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
     test('UnknownPart preserves raw kind and payload bytes', () {
       const kind = 'future_kind';
       const payload = '{"x":1,"y":[2,3]}';

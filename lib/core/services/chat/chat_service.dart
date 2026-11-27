@@ -2253,11 +2253,20 @@ class ChatService extends ChangeNotifier {
     return len;
   }
 
+  /// Creates a conversation and returns it.
+  ///
+  /// [extras] replaces the default bag when provided. A caller that inherits a
+  /// parent conversation's binding has to be able to say "no workspace" as well
+  /// as "this workspace", and merging over the default could only ever add
+  /// keys. Whichever bag wins, a tool grant is stripped here: this is the one
+  /// place a new conversation's extras are built, so a new conversation can
+  /// never start with a grant nobody gave it.
   Future<Conversation> createConversation({
     String? title,
     String? assistantId,
     String? groupChatId,
     bool activate = true,
+    Map<String, dynamic>? extras,
   }) async {
     if (!_initialized) await init();
     if (activate) _discardTemporaryConversation(_currentConversationId);
@@ -2266,10 +2275,16 @@ class ChatService extends ChangeNotifier {
     // message, so the owner column stays empty exactly as it does for a global
     // conversation, and only `extras` links it to its group.
     final ownerId = groupChatId == null ? assistantId : null;
+    final base = extras == null
+        ? _extrasForNewConversation(ownerId, groupChatId: groupChatId)
+        : <String, dynamic>{
+            ...extras,
+            if (groupChatId != null) Conversation.groupChatIdKey: groupChatId,
+          };
     final conversation = Conversation(
       title: title ?? _defaultConversationTitle,
       assistantId: ownerId,
-      extras: _extrasForNewConversation(ownerId, groupChatId: groupChatId),
+      extras: ToolPermissionMode.withoutGrant(base),
     );
 
     await _saveConversation(conversation);

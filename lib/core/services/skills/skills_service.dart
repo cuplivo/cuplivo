@@ -61,8 +61,18 @@ class SkillsService extends ChangeNotifier {
 
   List<Skill> get skills => List.unmodifiable(_skills);
 
+  /// Whether [resolvedHostPath] is the file a linked entrypoint points at.
+  ///
+  /// Compared with `p.equals`, because the two spellings come from different
+  /// tools: the map stores `p.canonicalize(target)`, which lower-cases the whole
+  /// path on Windows, while the caller passes `WorkspacePaths.canonicalHostPath`,
+  /// which deliberately keeps the case. A byte comparison therefore fails on
+  /// Windows only — the edit lands, the rescan never runs, and the skill keeps
+  /// showing its old name.
   bool isLinkedEntrypointTarget(String resolvedHostPath) =>
-      _linkedEntrypointTargets.containsValue(resolvedHostPath);
+      _linkedEntrypointTargets.values.any(
+        (target) => p.equals(target, resolvedHostPath),
+      );
 
   Directory get skillsDirectory {
     final dir = _skillsDirectory ?? _injectedSkillsDirectory;

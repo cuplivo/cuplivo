@@ -894,7 +894,11 @@ void main() {
         final preserved = root
             .listSync(recursive: true, followLinks: false)
             .whereType<File>()
-            .where((f) => f.path.endsWith('/previous/preserved.txt'))
+            .where(
+              (f) =>
+                  p.basename(f.path) == 'preserved.txt' &&
+                  p.basename(f.parent.path) == 'previous',
+            )
             .single;
         expect(await preserved.readAsString(), 'previous data evidence');
         expect(

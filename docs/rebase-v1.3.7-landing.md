@@ -261,6 +261,33 @@ they name, and the tip's gate is where they close.
 visible list gains the new name without dropping the old). None of them is identity or l10n; all
 three are behaviour the new baseline moved, and each is worth its own look rather than a guess.
 
+### The third pass: 13 → 9, and one of them was a fork-vs-baseline spelling mismatch
+
+Two causes, both found by reading the chain instead of the assertion:
+
+- **`tool_handler_skills_refresh`, 3 cases.** The test edits the *target* of a symlinked `SKILL.md`
+  and expects the visible name to change. Upstream's v1.3.7 refresh (`refreshSkills` +
+  `isLinkedSkillEntrypoint` in `workspace_tools_service.dart`, which this tree took verbatim) asks
+  `SkillsService.isLinkedEntrypointTarget(hostPath)`, and that was
+  `_linkedEntrypointTargets.containsValue(hostPath)` — a byte comparison between two spellings
+  produced by two different tools. The map stores `p.canonicalize(resolveSymbolicLinks())`, which
+  **lower-cases the whole path on Windows**; the caller passes the fork's
+  `WorkspacePaths.canonicalHostPath`, which deliberately keeps the case. So on Windows the predicate
+  was false, the rescan never ran, and the pane kept the old name — while the line above it, editing
+  `SKILL.md` itself, worked. `p.equals` at the boundary fixes it; the comment says why, because the
+  next reader will otherwise "simplify" it back.
+- **`data_sync_backup_file`, 1 case.** `.where((f) => f.path.endsWith('/previous/preserved.txt'))`
+  — the `/`-literal-frozen-into-a-path-filter class the runbook already names, in a file the earlier
+  census had only counted. It matches by basename now.
+
+**9 remain, and 7 of them are not the tree's**: the five proxy cases and the two font-metric cases
+above. **2 are real** — `storage_space_images`' "image filters, counts and protected selection", in
+both desktop variants: the page's delete dialog is confirmed, the row counts and the selection all
+match, and the success snackbar never appears, so the wait for `已删除 1 个项目` times out. The
+service returns a count and the page picks `partial` versus `done` on `deleted < count`, so either
+the delete reports 0 or the flow never reaches it; that question is where the next pass starts, and
+it is the last one in the census that is the tree's to answer.
+
 ## Procedure for this attempt
 
 ```bash
@@ -293,6 +320,7 @@ Rules that apply at every stop:
 | attempt two branch | `landing-137`, cut from `v1.3.7` |
 | unit 1 identity | **committed**: analyze 0, format 0 changed, l10n pass ×4, its own 3 suite failures fixed |
 | unit 2 baseline-repair | **committed**: 181 → 23 suite failures, analyze 0, l10n pass ×4 at 5752 messages, native digests back to the released line's values |
+| baseline census | 23 → 13 → **9**: 7 are this machine's (5 proxy, 2 font metrics), 2 are real and open |
 | units 3–18 | not started |
 | gates | analyze per unit; tests on units 1 and 2; l10n at the tip |
 

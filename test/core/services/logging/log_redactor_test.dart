@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/logging/log_redactor.dart';
+import 'package:Cuplivo/core/services/logging/log_redactor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -233,6 +233,30 @@ void main() {
       const text =
           'failed GET https://api.example.com?to=alice@example.com&n=1';
       expect(LogRedactor.redactText(text), text);
+    });
+
+    test('masks a tailcat endpoint address in free text', () {
+      // Sync code keeps the address out of the lines it writes; this catches a
+      // print that bypassed that scrub before the line lands in the log file a
+      // user sends with a bug report.
+      const address = 'AbCdEf0123456789AbCdEf0123456789';
+      final endpoint = LogRedactor.redactText('dialled tcat:$address:9527');
+      expect(endpoint, isNot(contains(address)));
+      expect(endpoint, contains('tcat:<redacted>'));
+
+      final uri = LogRedactor.redactText(
+        'HttpException: closed, uri = https://$address:9527/sync/hello',
+      );
+      expect(uri, isNot(contains(address)));
+      expect(uri, contains('https://<redacted>:9527'));
+    });
+
+    test('leaves a LAN URL and an already-redacted endpoint unchanged', () {
+      const lan = 'GET https://192.168.1.5:9527/sync/hello';
+      expect(LogRedactor.redactText(lan), lan);
+
+      const redacted = 'tcat:<redacted>';
+      expect(LogRedactor.redactText(redacted), redacted);
     });
 
     test('is idempotent and leaves safe text unchanged', () {

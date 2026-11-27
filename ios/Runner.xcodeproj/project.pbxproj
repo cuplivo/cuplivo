@@ -21,6 +21,7 @@
 		8DCAD2D7AB85164F01BA9CA9 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 0495245F03CA1F742DAD1950 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
+		D0C5107B0000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D0C5107A0000000000000001 /* PrivacyInfo.xcprivacy */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A10000000000000000000001 /* KelivoGenerationActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000010 /* KelivoGenerationActivityAttributes.swift */; };
 		A10000000000000000000002 /* KelivoGenerationActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000010 /* KelivoGenerationActivityAttributes.swift */; };
@@ -54,7 +55,6 @@
 		W5A0000000000000000F001 /* KelivoISHFilesystem.m in Sources */ = {isa = PBXBuildFile; fileRef = W5A0000000000000000F003 /* KelivoISHFilesystem.m */; };
 		W5D0000000000000000000A1 /* WorkspaceDirectoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = W5D0000000000000000000B1 /* WorkspaceDirectoryAccess.swift */; };
 		W5D0000000000000000F001 /* KelivoISHMountTarget.m in Sources */ = {isa = PBXBuildFile; fileRef = W5D0000000000000000F003 /* KelivoISHMountTarget.m */; };
-		86D62B0E68B9579C81AA43DE /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 723B0BAE986F5114BEC4E56C /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -139,6 +139,7 @@
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		97C146FB1CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D0C5107A0000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A0FC04191A5EC777C16F7895 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
@@ -310,6 +311,7 @@
 			children = (
 				97C146FA1CF9000F007C117D /* Main.storyboard */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
+				D0C5107A0000000000000001 /* PrivacyInfo.xcprivacy */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
 				723B0BAE986F5114BEC4E56C /* InfoPlist.strings */,
@@ -569,6 +571,7 @@
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
+				D0C5107B0000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				86D62B0E68B9579C81AA43DE /* InfoPlist.strings in Resources */,
 				W5A0000000000000000000A6 /* alpine-rootfs.zip in Resources */,
@@ -720,7 +723,7 @@
 				"$(SRCROOT)/sandbox/patches/0006-kernel-uname-hostname-bounds.patch",
 				"$(SRCROOT)/sandbox/patches/0008-kernel-memory-refresh-hook.patch",
 				"$(SRCROOT)/sandbox/prepare_alpine_rootfs.sh",
-				"$(SRCROOT)/sandbox/overlay/usr/local/bin/kelivo-repair-rootfs",
+				"$(SRCROOT)/sandbox/overlay/usr/local/bin/cuplivo-repair-rootfs",
 				"$(SRCROOT)/sandbox/resources/VERSION",
 			);
 			name = "Ensure Workspace Sandbox Artifacts";
@@ -728,7 +731,7 @@
 				"$(SRCROOT)/sandbox/build/$(PLATFORM_NAME)/libish.a",
 				"$(SRCROOT)/sandbox/build/$(PLATFORM_NAME)/libish_emu.a",
 				"$(SRCROOT)/sandbox/build/$(PLATFORM_NAME)/libfakefs.a",
-				"$(SRCROOT)/sandbox/build/$(PLATFORM_NAME)/.kelivo-ish-build",
+				"$(SRCROOT)/sandbox/build/$(PLATFORM_NAME)/.cuplivo-ish-build",
 				"$(SRCROOT)/sandbox/build/fakefsify",
 				"$(SRCROOT)/sandbox/build/ish",
 				"$(SRCROOT)/sandbox/build/include/ish/cpu-offsets.h",
@@ -896,7 +899,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -1002,7 +1005,7 @@
 					"-lfakefs",
 					"-lsqlite3",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -1022,7 +1025,7 @@
 				DEVELOPMENT_TEAM = CQD34Y5L42;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -1042,7 +1045,7 @@
 				DEVELOPMENT_TEAM = CQD34Y5L42;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -1060,7 +1063,7 @@
 				DEVELOPMENT_TEAM = CQD34Y5L42;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.RunnerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -1087,7 +1090,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -1253,7 +1256,7 @@
 					"-lfakefs",
 					"-lsqlite3",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -1306,7 +1309,7 @@
 					"-lfakefs",
 					"-lsqlite3",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -1334,7 +1337,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.GenerationActivityExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.GenerationActivityExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -1363,7 +1366,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.GenerationActivityExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.GenerationActivityExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -1392,7 +1395,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.GenerationActivityExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.GenerationActivityExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -1422,7 +1425,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = psyche.kelivo.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = psyche.cuplivo.ShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;

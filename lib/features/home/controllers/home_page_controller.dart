@@ -5,19 +5,23 @@ import '../../chat/widgets/context_compression_status.dart';
 import '../../../core/models/compression_config.dart';
 import '../../chat/controllers/quote_editing_controller.dart';
 import '../../side_panel/desktop_side_panel_controller.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_search_navigation.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_search_navigation.dart';
 import '../../intelligent_ui/host/ui_copy_actions.dart';
 import '../../intelligent_ui/host/ui_draft_staging.dart';
 import '../../intelligent_ui/host/ui_draft_request.dart';
 import '../../intelligent_ui/widgets/genui_draft_dialog.dart';
 import '../../intelligent_ui/host/ui_context_submission.dart';
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import '../../../core/database/composer_draft_store.dart';
 import '../../../core/models/composer_draft.dart';
 import '../../../core/services/app_exit_flush.dart';
 import '../../scheduled_tasks/scheduled_task_preparation_binding.dart';
 import '../../../core/services/scheduled_tasks_service.dart';
 import '../../scheduled_tasks/scheduled_task_runner.dart';
+import '../services/tool_approval_service.dart';
+import '../../subagent/services/subagent_coordinator.dart';
+import '../../subagent/services/subagent_model.dart' show resolveSubagentModel;
+import '../../subagent/services/subagent_target.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show listEquals, defaultTargetPlatform;
 import 'package:flutter/material.dart';
@@ -25,9 +29,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/models/chat_input_data.dart';
+import '../../../core/models/assistant.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/group_chat.dart';
 import '../../../core/models/message_part.dart';
+import '../../../core/models/chat_owner.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/models/queued_turn.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/models/workspace_binding.dart';
 import '../../../core/providers/workspace_provider.dart';
@@ -41,10 +49,12 @@ import '../../../core/providers/quick_phrase_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/memory_provider.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../subagent/services/subagent_rules.dart';
 import '../../../core/utils/scheduler_idle.dart';
 import '../../../core/services/tts/tts_text_selection.dart';
 import '../../../core/services/haptics.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/services/proactive_care_alarm_service.dart';
 import '../../../core/services/mobile_background.dart';
 import '../../../core/services/screen_wakelock.dart';
 import '../../../l10n/app_localizations.dart';
@@ -73,6 +83,7 @@ import '../services/message_generation_service.dart';
 import '../services/local_tools_service.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/ocr_service.dart';
+import '../../../core/providers/group_chat_provider.dart';
 import '../services/translation_service.dart';
 import '../services/file_upload_service.dart';
 import '../services/composer_document_route.dart';
@@ -749,13 +760,124 @@ class HomePageController extends ChangeNotifier {
   bool get isCurrentConversationLoading =>
       _viewModel.isCurrentConversationLoading;
 
-  QueuedChatInput? get currentQueuedInput => _viewModel.currentQueuedInput;
+  /// What the subagent coordinator needs from this page.
+  ///
+  /// The coordinator is provided above the page (the tool handler reads it from
+  /// its own context) while a turn can only be started here, so the page hands
+  /// over the three capabilities once and takes them back when it goes away.
+  SubagentHost buildSubagentHost() => SubagentHost(
+    turnStarter:
+        ({
+          required conversationId,
+          required assistant,
+          required task,
+          delegator,
+          target,
+        }) => startSubagentTurn(
+          conversationId: conversationId,
+          assistant: assistant,
+          task: task,
+          delegator: delegator,
+          target: target,
+        ),
+    enqueueResult:
+        ({
+          required parentConversationId,
+          required notice,
+          required assistant,
+          required followUp,
+        }) => _viewModel.enqueueQueuedTurn(
+          QueuedSubagentResult(
+            parentConversationId,
+            notice: notice,
+            assistant: assistant,
+            followUp: followUp,
+          ),
+        ),
+    waitReasonFor: _waitReasonForChild,
+    enqueueMail: ({required conversationId, required message}) => _viewModel
+        .enqueueMail(conversationId: conversationId, message: message),
+    isTurnRunning: (conversationId) =>
+        _viewModel.isConversationBusy(conversationId),
+    hasPendingMail: (conversationId) =>
+        _viewModel.hasPendingMail(conversationId),
+    openConversation: (conversationId) {
+      unawaited(switchConversationAnimated(conversationId));
+    },
+    cancelTurn: (conversationId) =>
+        _viewModel.cancelGenerationOf(conversationId),
+  );
+
+  /// Why a child conversation is parked, if it is: `ask_user` first because it
+  /// is the answer the user has to type, then an approval.
+  SubagentWaitReason? _waitReasonForChild(String childConversationId) {
+    if (!_context.mounted) return null;
+    try {
+      final askUser = _context.read<AskUserInteractionService>();
+      if (askUser.pendingRequests.values.any(
+        (request) => request.conversationId == childConversationId,
+      )) {
+        return SubagentWaitReason.answer;
+      }
+    } catch (_) {}
+    try {
+      final approval = _context.read<ToolApprovalService>();
+      if (approval.pendingRequests.any(
+        (request) => request.conversationId == childConversationId,
+      )) {
+        return SubagentWaitReason.approval;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Runs one whole turn in [conversationId] on behalf of a subagent.
+  ///
+  /// [assistant] is the target — who the child runs as — and [delegator] is who
+  /// handed the task over. They differ when the task was named to another
+  /// assistant, and the pair is what the model override is resolved from.
+  Future<SubagentTurnStart> startSubagentTurn({
+    required String conversationId,
+    required Assistant assistant,
+    required String task,
+    Assistant? delegator,
+    SubagentTarget? target,
+  }) async {
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) {
+      return const SubagentTurnStart.refused('conversation_missing');
+    }
+    final model = resolveSubagentModel(delegator ?? assistant, target: target);
+    final result = await _viewModel.sendScheduledMessage(
+      input: ChatInputData(text: task),
+      conversation: conversation,
+      assistant: assistant,
+      modelOverride: model == null
+          ? null
+          : (providerKey: model.providerId, modelId: model.modelId),
+      scheduledNotify: false,
+      scheduledPreview: false,
+    );
+    if (!result.success) {
+      return SubagentTurnStart.refused(result.errorMessage ?? 'turn_failed');
+    }
+    final runId = result.generationRunId;
+    if (runId == null) {
+      return const SubagentTurnStart.refused('run_missing');
+    }
+    return SubagentTurnStart.started(runId: runId);
+  }
+
+  QueuedUserInput? get currentQueuedInput => _viewModel.currentQueuedInput;
   bool get currentQueuedInputPaused => _viewModel.currentQueuedInputPaused;
   bool get isCurrentConversationCompressing =>
       _viewModel.currentCompressionTask?.active ?? false;
 
   ValueNotifier<String?> get processingFilesMessageId =>
       _viewModel.processingFilesMessageId;
+
+  /// Delivers every due proactive care letter (start/resume catch-up).
+  Future<int> deliverDueProactiveCare() => _viewModel.deliverDueProactiveCare();
 
   bool get isTemporaryConversation =>
       _chatService.isTemporaryConversation(currentConversation?.id);
@@ -996,6 +1118,18 @@ class HomePageController extends ChangeNotifier {
           message: l10n.homePagePleaseSelectModel,
           type: NotificationType.warning,
         );
+      } else if (warning == 'group_unavailable') {
+        showAppSnackBar(
+          _context,
+          message: l10n.groupChatUnavailableWarning,
+          type: NotificationType.warning,
+        );
+      } else if (warning == 'group_director_fallback') {
+        showAppSnackBar(
+          _context,
+          message: l10n.groupChatDirectorFallbackWarning,
+          type: NotificationType.warning,
+        );
       }
     };
     _viewModel.onScrollToBottom = () {
@@ -1216,6 +1350,21 @@ class HomePageController extends ChangeNotifier {
         final conversationId = _pendingNotificationConversationId!;
         _pendingNotificationConversationId = null;
         if (_chatService.getConversation(conversationId) == null) {
+          // A tap on a notification whose run was deleted, or a link whose
+          // conversation is not on this device (it never synced here): say so
+          // rather than swallowing the tap.
+          if (_context.mounted) {
+            showAppSnackBar(
+              _context,
+              message: AppLocalizations.of(_context)!.conversationLinkMissing,
+              type: NotificationType.info,
+            );
+          }
+          // Nothing may survive for an id that is gone. The anchor that arrived
+          // with it would scroll a later, anchor-less open of this id to a
+          // message of this dead request, and the pending composer text would be
+          // pasted into whatever conversation opens next.
+          NotificationService.takePendingMessageId(conversationId);
           NotificationService.takePendingComposerText(conversationId);
           continue;
         }
@@ -1380,9 +1529,23 @@ class HomePageController extends ChangeNotifier {
   Future<void> initChat() async {
     final prefs = _context.read<SettingsProvider>();
     final assistantProvider = _context.read<AssistantProvider>();
+    // Absent only in harnesses that mount no group store; the app always has one.
+    GroupChatProvider? groups;
     try {
-      // The two startups are independent of each other.
-      await Future.wait([assistantProvider.loaded, _chatService.init()]);
+      groups = _context.read<GroupChatProvider>();
+    } catch (_) {}
+    try {
+      // The startups are independent of each other, except for the group list:
+      // a topic inside a group is not owned by the selected assistant, so it
+      // paints no wallpaper and no gradient — restoring one before that list is
+      // read puts the previous assistant's artwork behind it for a frame. It is
+      // one table read, and it is what makes "whose chat is open" answerable
+      // from the first frame.
+      await Future.wait([
+        assistantProvider.loaded,
+        _chatService.init(),
+        if (groups != null) groups.loaded,
+      ]);
       if (prefs.newChatOnLaunch) {
         await _createNewConversation();
       } else {
@@ -1442,6 +1605,48 @@ class HomePageController extends ChangeNotifier {
               onConversation,
             );
         await ScheduledTasksService.instance.attach(executor);
+      }
+      if (ProactiveCareAlarmService.isSupported) {
+        // Letter alarms: native fires hand off to the provider stack here;
+        // then re-arm everything still pending in the database.
+        await ProactiveCareAlarmService.attach(
+          (conversationId, expectedAt) =>
+              _viewModel.deliverProactiveCareSchedule(
+                conversationId: conversationId,
+                expectedAt: expectedAt,
+              ),
+        );
+        if (!_context.mounted) return;
+        final assistants = _context.read<AssistantProvider>();
+        await ProactiveCareAlarmService.rescheduleAll(
+          conversations: _chatService.getAllConversations(),
+          assistants: assistants.chatAssistants,
+          assistantStoreLoaded: assistants.isLoaded,
+        );
+        // iOS: the arrival notification is the only carrier a suspended app
+        // has, and the adapter refuses to register one without a notification
+        // grant. This is the first moment the re-arm above has spoken, so it is
+        // the first moment "an arm was refused" is knowable — ask once, then
+        // arm the letters again with the grant in hand. Not awaited: the dialog
+        // belongs to the system and must not hold up the first frame.
+        unawaited(
+          ProactiveCareAlarmService.ensureIosArrivalPermission(
+            rearm: () => ProactiveCareAlarmService.rescheduleAll(
+              conversations: _chatService.getAllConversations(),
+              assistants: assistantProvider.chatAssistants,
+              assistantStoreLoaded: assistantProvider.isLoaded,
+            ),
+          ),
+        );
+        // A notification-tap cold start resumed before this point and its
+        // catch-up could only see an empty conversation cache. This is the
+        // first moment it can see a schedule, and the re-arm just ran above,
+        // so kick off the overdue catch-up here. Deliberately not awaited: the
+        // `finally` below has to stay free to open the tapped conversation, and
+        // the letter reloads the window itself the moment it is stored
+        // (`onLetterPersisted`), so waiting here would only freeze the very
+        // screen the user just opened.
+        unawaited(_viewModel.deliverDueProactiveCare());
       }
     } finally {
       _startupConversationPending = false;
@@ -1807,6 +2012,43 @@ class HomePageController extends ChangeNotifier {
     bool omitImages = false,
   }) async {
     if (currentConversation == null) return;
+    final target = _chatService.getConversation(message.conversationId);
+    if (target == null) return;
+    // A group regenerates per message. The user turn re-asks the whole round —
+    // who answers is the director's decision, so "say that again" belongs to
+    // the message that opened it. A member's reply re-asks that member alone:
+    // same author, same model, a new version. That is the single-owner path
+    // with two group facts added, so it keeps the preflight, the confirmations
+    // and the context guards instead of growing a second way to write a reply —
+    // including "delete the messages below", which stays the user's setting.
+    final group = _groupChatFor(target);
+    Assistant? groupSpeaker;
+    var groupMembers = const <Assistant>[];
+    if (group != null) {
+      if (message.role == 'user') {
+        final success = await _viewModel.restartGroupRound(
+          conversation: target,
+          userMessage: message,
+        );
+        if (success) notifyListeners();
+        return;
+      }
+      final assistants = _context.read<AssistantProvider>();
+      final senderId = message.senderId;
+      groupSpeaker = senderId == null ? null : assistants.getById(senderId);
+      groupMembers = [
+        for (final id in group.memberIds)
+          if (assistants.getById(id) case final member?) member,
+      ];
+      // The group is there but nobody is in it: say so. A reply with no author
+      // left is a different state — the timeline does not offer the action for
+      // it — and there is nothing to ask, so it stays quiet.
+      if (groupMembers.isEmpty) {
+        _viewModel.onWarning?.call('group_unavailable');
+        return;
+      }
+      if (groupSpeaker == null) return;
+    }
     final deletingTail = _context
         .read<SettingsProvider>()
         .regenerateDeleteTrailingMessages;
@@ -1857,11 +2099,50 @@ class HomePageController extends ChangeNotifier {
       omitImages: omitImages,
       assistantAsNewReply: assistantAsNewReply,
       expectedContextState: approved,
+      assistantOverride: groupSpeaker,
+      group: group,
+      members: groupMembers,
       allowImagesApiRouting:
           allowImagesApiRouting ?? _mediaController.allowImagesApiRouting,
     );
     if (success) {
       notifyListeners();
+    }
+  }
+
+  /// Whether a group row exists for [groupChatId].
+  ///
+  /// Guarded: the controller is also exercised in trees that do not provide the
+  /// group list, and there nothing can be a live group.
+  bool _hasGroupChat(String? groupChatId) =>
+      _groupChatExists(groupChatId) == true;
+
+  /// The group a conversation is a topic of, or null when it is not one.
+  ///
+  /// Guarded like [_groupChatExists]: a reduced tree has no group list, and
+  /// there nothing can be a live group.
+  GroupChat? _groupChatFor(Conversation conversation) {
+    final groupChatId = conversation.groupChatId;
+    if (groupChatId == null) return null;
+    try {
+      return _context.read<GroupChatProvider>().byId(groupChatId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether [groupChatId] names a live group, or null when this tree has no
+  /// group list at all and the answer cannot be known.
+  ///
+  /// The difference matters where the claim is *carried* rather than acted on: a
+  /// reduced host must keep the topic where it is, while a real host has to stop
+  /// a topic from following a group that is gone.
+  bool? _groupChatExists(String? groupChatId) {
+    if (groupChatId == null) return false;
+    try {
+      return _context.read<GroupChatProvider>().byId(groupChatId) != null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -1873,6 +2154,10 @@ class HomePageController extends ChangeNotifier {
     final conversation = currentConversation;
     if (conversation == null ||
         _viewModel.isConversationSendInFlight(conversation.id) ||
+        // A round writing into this topic already owns its send path; answering
+        // a card from an earlier turn would start a second writer and abandon
+        // the turn the round is in the middle of.
+        _viewModel.isGroupRoundLoading(conversation.id) ||
         _chatService.contextCompression.blocksSending(conversation.id)) {
       return;
     }
@@ -1925,6 +2210,105 @@ class HomePageController extends ChangeNotifier {
   // ============================================================================
   // Public Methods - Conversation Management
   // ============================================================================
+
+  /// Opens the chat an owner stands for: one tap, one intent.
+  ///
+  /// [ChatOwner] is the only parameter shape — an assistant and a group differ
+  /// in what the tap *resolves to*, never in the steps taken. Each step has
+  /// exactly one implementation, so a new entry point (share sheet, deep link,
+  /// hotkey) calls this instead of reassembling the three decisions:
+  ///
+  /// 1. **the conversation**: an assistant opens a new 1:1 (when the switch asks
+  ///    for one) or its most recent one; a group opens a new topic under the same
+  ///    switch, or its most recent topic.
+  /// 2. **whose it is**: the committed chat's owner is remembered as the
+  ///    *fallback* assistant ([_syncDefaultAssistant]); selection is derived from
+  ///    the open chat, never written before it.
+  /// 3. **the view**: [revealTopics] shows the list the chat now belongs to.
+  ///
+  /// Version 4.6.0 threaded an `assistantId` through six widgets to fix the same
+  /// accident; that parameter chain is deliberately not reintroduced.
+  Future<void> openOwner(ChatOwner owner) async {
+    final assistants = _context.read<AssistantProvider>();
+    // A group row that is already gone owns nothing, and must never mint another
+    // topic tagged with its id. The same for an assistant deleted in another
+    // window: there is nothing to open.
+    if (owner.isGroup && !_hasGroupChat(owner.id)) return;
+    if (!owner.isGroup && assistants.getById(owner.id) == null) return;
+    // A narrow desktop window shows the sidebar as a modal overlay over the chat,
+    // not as a route: the drawer's own dismissal is a PopScope a phone wraps
+    // itself in, and it cannot reach this panel (the page is the first route, so
+    // `maybePop` bubbles). Left open, it hides the chat the tap just opened. The
+    // guard inside makes this inert on a phone, a tablet and a wide window.
+    closeCompactSidebar();
+    // The switch is about the tap on an owner, not about one kind: a group's
+    // topic is a conversation too, so "start a new one when I switch" answers
+    // the same way for both. Its title still says 助手 — the row was written for
+    // the assistant case and the wording is deliberately left alone.
+    final wantsNewChat = _context
+        .read<SettingsProvider>()
+        .newChatOnAssistantSwitch;
+    final existing = wantsNewChat
+        ? null
+        : _mostRecentConversationOf(owner, assistants);
+    if (existing != null) {
+      await switchConversationAnimated(existing.id);
+    } else {
+      await createNewConversationAnimated(owner: owner);
+    }
+    if (!_context.mounted) return;
+    _syncDefaultAssistant();
+    // Reveal after the frame that paints the committed chat. The sidebar derives
+    // its list from the open chat and rebuilds on that frame; flipping to the
+    // topics tab in the same microtask shows the *previous* owner's rows for the
+    // first frames of the tab animation. An assistant switch happened to be
+    // immune because its own provider notification lands earlier.
+    //
+    // A callback rather than an awaited frame: [openOwner] stays awaitable by
+    // callers (and by tests) instead of blocking until something pumps.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_context.mounted) _revealAfterOwnerTap();
+    });
+  }
+
+  /// The conversation a tap on [owner] should land on, or null when it has none.
+  ///
+  /// [ChatService.getAllConversations] is already ordered by `updatedAt`
+  /// descending, so the first match is the most recent one.
+  Conversation? _mostRecentConversationOf(
+    ChatOwner owner,
+    AssistantProvider assistants,
+  ) {
+    for (final conversation in _chatService.getAllConversations()) {
+      if (_ownerOf(conversation, assistants) == owner) return conversation;
+    }
+    return null;
+  }
+
+  /// [ownerOfConversation] with this tree's liveness rules bound.
+  ChatOwner? _ownerOf(
+    Conversation? conversation,
+    AssistantProvider assistants,
+  ) => ownerOfConversation(
+    conversation,
+    isLiveGroup: _hasGroupChat,
+    resolveAssistantId: (id) => assistants.resolveConversationAssistant(id)?.id,
+  );
+
+  /// Remembers which assistant the next 1:1 belongs to.
+  ///
+  /// Nothing here writes a "selected assistant": selection is read back from the
+  /// open chat ([_ownerOf]) by the owner list, the topic scope and the backdrop.
+  /// What this persists is the *fallback* — the assistant an unbound
+  /// conversation, a temporary chat or the next new conversation belongs to. A
+  /// group topic is never that fallback, so it writes nothing and the previous
+  /// assistant stays.
+  void _syncDefaultAssistant() {
+    final assistants = _context.read<AssistantProvider>();
+    final owner = _ownerOf(currentConversation, assistants);
+    if (owner == null || owner.isGroup) return;
+    unawaited(assistants.setCurrentAssistant(owner.id));
+  }
 
   Future<void> switchConversationAnimated(String id) async {
     final serial = ++_switchSerial;
@@ -2030,13 +2414,36 @@ class HomePageController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Starts a chat.
+  ///
+  /// [owner] names who the new chat belongs to. Without it, "+" keeps the
+  /// context it was pressed in: inside a group topic that means another topic of
+  /// that group, and the fallback assistant must not take over.
+  ///
+  /// A *named* owner never inherits the group on screen. Switching to an
+  /// assistant while a group topic was open used to answer with another topic of
+  /// the same group, so the page never left it.
   Future<Conversation?> createNewConversationAnimated({
     bool preserveDraft = false,
+    ChatOwner? owner,
   }) async {
     // Cancel any in-flight conversation switch fetch.
     final serial = ++_switchSerial;
     _cancelMessageJump();
-    final assistantId = _context.read<AssistantProvider>().currentAssistantId;
+    // Inherit the group only while its row still exists: a topic whose group is
+    // gone is an ordinary conversation, and "+" must not mint another topic
+    // tagged with the dead group.
+    final inheritedGroupChatId = currentConversation?.groupChatId;
+    final inheritedGroupIsLive =
+        _groupChatExists(inheritedGroupChatId) != false;
+    final resolvedGroupChatId = owner == null
+        ? (inheritedGroupIsLive ? inheritedGroupChatId : null)
+        : (owner.isGroup ? owner.id : null);
+    // Null keeps the fallback assistant: the view model resolves an unbound
+    // owner to the assistant the next 1:1 belongs to.
+    final resolvedAssistantId = resolvedGroupChatId == null && owner != null
+        ? owner.id
+        : null;
     _warmupSerial++;
     _selectionEpoch++;
     try {
@@ -2054,7 +2461,8 @@ class HomePageController extends ChangeNotifier {
     if (!_context.mounted || serial != _switchSerial) return null;
     final conversation = await _createNewConversation(
       preserveDraft: preserveDraft,
-      assistantId: assistantId,
+      assistantId: resolvedAssistantId,
+      groupChatId: resolvedGroupChatId,
     );
     if (conversation == null ||
         !_context.mounted ||
@@ -2082,6 +2490,7 @@ class HomePageController extends ChangeNotifier {
   Future<Conversation?> _createNewConversation({
     bool preserveDraft = false,
     String? assistantId,
+    String? groupChatId,
   }) async {
     if (_composerDrafts == null) {
       _exitUserMessageEdit(clearDraft: !preserveDraft);
@@ -2090,6 +2499,7 @@ class HomePageController extends ChangeNotifier {
     final previousId = currentConversation?.id;
     final conversation = await _viewModel.createNewConversation(
       assistantId: assistantId,
+      groupChatId: groupChatId,
     );
     if (conversation == null || currentConversation?.id != conversation.id) {
       return conversation;
@@ -2863,6 +3273,18 @@ class HomePageController extends ChangeNotifier {
 
   Future<void> _handleAssistantMessageFinished(ChatMessage message) async {
     if (!_context.mounted || message.role != 'assistant') return;
+    // A subagent finishes in its own conversation. Reading its conclusion aloud
+    // while the user is looking at something else is the page-level callback
+    // answering for a turn nobody is watching; the notice is enough. The test is
+    // "is this a delegated child", not "is this the open conversation" — a reply
+    // in some other chat the user left open is still theirs to hear.
+    final extras =
+        _context
+            .read<ChatService>()
+            .getConversation(message.conversationId)
+            ?.extras ??
+        const <String, dynamic>{};
+    if (extras[SubagentExtrasKeys.parent] != null) return;
     final settings = _context.read<SettingsProvider>();
     if (settings.ttsAutoPlayAssistantReplies) {
       await _speakAssistantMessage(message, autoPlay: true);
@@ -3386,6 +3808,46 @@ class HomePageController extends ChangeNotifier {
         _tabletSidebarOpen,
       );
     } catch (_) {}
+  }
+
+  /// Shows the list the open chat belongs to, where the layout can show one.
+  ///
+  /// One implementation for the three callers — an owner tap ([openOwner]), the
+  /// header avatar and the hotkey — so a layout decides *where* the topics live,
+  /// never *whether* the step runs. That distinction is what broke the
+  /// topics-on-the-right layout: the only reveal lived inside a branch that
+  /// layout never takes.
+  ///
+  /// This is the mechanism, not the policy: *auto switch to topics* belongs to
+  /// the owner tap (`_revealAfterOwnerTap`), because the avatar and the hotkey
+  /// mean "show me the list" whether or not that setting is on.
+  ///
+  /// A phone has no topics tab (the drawer is the list), so this does nothing
+  /// there.
+  void revealTopics() {
+    if (!isDesktopPlatform) return;
+    final settings = _context.read<SettingsProvider>();
+    if (settings.desktopTopicPosition == DesktopTopicPosition.right) {
+      DesktopSidePanelController.instance.open(kind: SidePanelTabKind.topics);
+      return;
+    }
+    if (!tabletSidebarOpen) toggleTabletSidebar();
+    DesktopSidebarTabBus.instance.switchToTopics();
+  }
+
+  /// What an owner tap does about the list — and that is a setting: with *auto
+  /// switch to topics* off, a tap leaves the list exactly as it was.
+  void _revealAfterOwnerTap() {
+    if (!_context.read<SettingsProvider>().desktopAutoSwitchTopics) return;
+    if (!isDesktopPlatform) return;
+    // A compact window's sidebar is an overlay: opening it to show the list
+    // would cover the chat the tap just opened. The tab still switches, so the
+    // next time the overlay is opened it already sits on topics.
+    if (_compactDesktop) {
+      DesktopSidebarTabBus.instance.switchToTopics();
+      return;
+    }
+    revealTopics();
   }
 
   void updateSidebarWidth(double dx) {
@@ -4205,7 +4667,44 @@ class HomePageController extends ChangeNotifier {
     if (state == AppLifecycleState.resumed) {
       if (_startupWarmupDeferred) _scheduleStartupWarmup();
       ScreenWakelock.reassert();
+      // Unconditional recovery: the re-arm is guarded inside the view model
+      // (an unloaded snapshot must not clear alarms it cannot see), while the
+      // catch-up is idempotent through the atomic claim. Gating the whole call
+      // on `_chatInitialized` used to drop the one delivery a notification-tap
+      // cold start needs: `resumed` arrives before `initChat` filled the
+      // conversation cache, the catch-up found no candidates, and nothing
+      // retried afterwards because the chat was never resumed again.
+      unawaited(_recoverProactiveCareOnResume());
+      // A queue that could not drain while the app was in the background gets its
+      // turn now: the drain refuses to start a generation while the OS may hold
+      // the isolate frozen, and nothing else re-asks on return.
+      _viewModel.drainAllQueuedTurns();
     }
+  }
+
+  /// Proactive care recovery on the way back to the foreground: re-arm what is
+  /// still pending (an alarm lost while the app was away must not wait for the
+  /// next process start), *then* deliver anything the alarms missed while the
+  /// process was dead or frozen (the claim contract prevents doubles).
+  ///
+  /// The order is load-bearing: the re-arm replaces the whole schedule set from
+  /// a snapshot taken now, so a delivery that armed its freshly decided next
+  /// occurrence first would have it cancelled again. Sequenced, everything due
+  /// is claimed by the catch-up and everything later stays armed — no moment is
+  /// left both unarmed and undelivered. No lock is needed beyond that
+  /// sequencing: from the snapshot read to the native `rescheduleAll` call the
+  /// path contains no `await`, so no concurrent delivery can slip an arm in
+  /// between (see ADR-0006).
+  ///
+  /// Called from `resumed` unconditionally; [initChat] runs the same
+  /// `rescheduleAll` → `deliverDueProactiveCare` sequence at the end of
+  /// startup once the conversation cache is loaded, because a cold start
+  /// triggered by tapping the arrival notification resumes before that load
+  /// finishes — the earlier `resumed` call's catch-up can only see an empty
+  /// cache.
+  Future<void> _recoverProactiveCareOnResume() async {
+    await _viewModel.reschedulePendingProactiveCare();
+    await _viewModel.deliverDueProactiveCare();
   }
 
   void onDidPopNext() {

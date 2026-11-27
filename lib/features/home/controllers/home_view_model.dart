@@ -18,19 +18,33 @@ import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/group_chat.dart';
+import '../../../core/models/queued_turn.dart';
 import '../../../core/models/compress_context_options.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/services/chat/context_compression_service.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/group_chat_provider.dart';
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/providers/user_provider.dart';
+import '../../../core/database/business_preferences.dart';
 import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../core/services/instruction_injection_store.dart';
+import '../../../core/services/memory_store.dart';
 import '../../../core/services/logging/flutter_logger.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/services/memory/memory_pipeline.dart';
 import '../../../core/services/memory/memory_trace.dart';
+import '../../../core/services/mobile_background.dart';
+import '../../../core/services/proactive_care_alarm_service.dart';
+import '../../../core/services/proactive_care_conversation_policy.dart';
+import '../../../core/services/proactive_care_message_flow.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/world_book_store.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../chat/widgets/chat_message_widget.dart' show ToolUIPart;
+import '../../group_chat/services/group_transcript.dart';
 import '../services/context_usage_service.dart';
 import '../services/context_assembly.dart';
 import '../services/message_builder_service.dart';
@@ -137,6 +151,10 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onMessagesChanged = _onMessagesChanged;
     _chatActions.onSendPairAppended = () => onScrollToBottom?.call();
     _chatActions.onLoadingChanged = _onLoadingChanged;
+    // Steer: a message that arrives while the turn runs ends it at the next step
+    // boundary and starts the next one, instead of waiting for the reply to end.
+    _chatActions.takeHandoff = _hasHandoffReady;
+    _chatActions.onHandoffRequested = _startHandoffSegment;
     _chatActions.onContentUpdated = _onContentUpdated;
     _chatActions.onStreamError = _onStreamError;
     _chatActions.onContextOverflow = (message, error, originalParts) {
@@ -149,10 +167,23 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onMaybeGenerateTitle = _onMaybeGenerateTitle;
     _chatActions.onMaybeGenerateSummary = _onMaybeGenerateSummary;
     _chatActions.onMaybeGenerateSuggestions = _onMaybeGenerateSuggestions;
+    _chatActions.onMaybeUpdateProactiveCare = _onMaybeUpdateProactiveCare;
     _chatActions.onStreamFinished = _onStreamFinished;
     _chatActions.onAssistantMessageFinished = _onAssistantMessageFinished;
     _chatActions.onFileProcessingStarted = _onFileProcessingStarted;
     _chatActions.onFileProcessingFinished = _onFileProcessingFinished;
+    _chatActions.onGroupRoundFinished = (conversationId) {
+      // The round released the loading guard; whatever the user sent while it
+      // ran is no longer blocked by it.
+      notifyListeners();
+      unawaited(_drainQueuedInputIfReady(conversationId));
+      // A topic is named once, from what the round actually said. Every later
+      // round finds a real title and costs nothing.
+      _onMaybeGenerateTitle(conversationId);
+    };
+    _chatActions.onGroupDirectorFallback = (conversationId) {
+      onWarning?.call('group_director_fallback');
+    };
     _chatService.contextCompression.isConversationBusy = _isConversationBusy;
     _chatService.contextCompression.isInputPaused =
         _pausedQueuedInputs.contains;
@@ -160,7 +191,7 @@ class HomeViewModel extends ChangeNotifier {
         _estimateCompressedContext;
     _chatService.contextCompression.addListener(_onCompressionChanged);
     _chatService.contextCompression.onContextChangeFinished = (id, applied) {
-      if (!applied && _queuedInputs.containsKey(id)) {
+      if (!applied && _hasQueued(id)) {
         if (_pausedQueuedInputs.add(id)) {
           _chatService.contextCompression.refreshInputStatus();
         }
@@ -193,10 +224,61 @@ class HomeViewModel extends ChangeNotifier {
 
   @visibleForTesting
   ChatActions get debugChatActions => _chatActions;
-  final Map<String, QueuedChatInput> _queuedInputs = {};
+
+  /// One FIFO per conversation: a message the user queued and a finished
+  /// delegation's result wait in the same line, in arrival order.
+  final Map<String, List<QueuedTurn>> _queue = {};
+
+  bool _hasQueued(String conversationId) =>
+      _queue[conversationId]?.isNotEmpty ?? false;
   final Set<String> _drainingQueuedInputs = {};
   final Set<String> _pausedQueuedInputs = {};
+
+  /// Mail rows a delegation wrote that no turn has read yet, oldest first.
+  ///
+  /// The row is already persisted when it lands here (the coordinator writes it),
+  /// so this is only the delivery side: a turn starts from the row as soon as the
+  /// conversation can generate, at a step boundary or at the end of the turn.
+  final Map<String, List<ChatMessage>> _mailInbox = {};
+
+  bool _hasPendingMail(String conversationId) =>
+      _mailInbox[conversationId]?.isNotEmpty ?? false;
+
+  bool hasPendingMail(String conversationId) => _hasPendingMail(conversationId);
+
+  bool isConversationBusy(String conversationId) =>
+      _isConversationBusy(conversationId);
+
+  ChatMessage? _takeMail(String conversationId) {
+    final list = _mailInbox[conversationId];
+    if (list == null || list.isEmpty) return null;
+    final first = list.removeAt(0);
+    if (list.isEmpty) _mailInbox.remove(conversationId);
+    return first;
+  }
+
+  void _putMailBack(String conversationId, ChatMessage message) {
+    final list = _mailInbox.putIfAbsent(conversationId, () => []);
+    list.insert(0, message);
+  }
+
+  /// One mail row from a delegation. The row is already persisted; this only
+  /// queues the turn that reads it.
+  void enqueueMail({
+    required String conversationId,
+    required ChatMessage message,
+  }) {
+    _mailInbox.putIfAbsent(conversationId, () => []).add(message);
+    notifyListeners();
+    unawaited(refreshTimelineAfterExternalWrite(conversationId));
+    unawaited(_drainQueuedInputIfReady(conversationId));
+  }
+
   final Map<String, String> _compressionStates = {};
+
+  /// Conversations whose title request is in flight, so two finishes in a row
+  /// produce one rename instead of two.
+  final Set<String> _titlesInFlight = {};
 
   ContextCompressionTask? get currentCompressionTask =>
       currentConversation == null
@@ -232,7 +314,7 @@ class HomeViewModel extends ChangeNotifier {
     }
     final config = settings.getProviderConfig(model.providerKey!);
     final messages = List<ChatMessage>.of(history);
-    final queued = _queuedInputs[id];
+    final queued = _queue[id]?.whereType<QueuedUserInput>().firstOrNull;
     if (queued != null) {
       messages.add(
         ChatMessage(
@@ -283,7 +365,7 @@ class HomeViewModel extends ChangeNotifier {
             _pausedQueuedInputs.remove(task.conversationId) || queueChanged;
         unawaited(_drainQueuedInputIfReady(task.conversationId));
       } else if ((task.phase == CompressionPhase.review || !task.active) &&
-          _queuedInputs.containsKey(task.conversationId)) {
+          _hasQueued(task.conversationId)) {
         queueChanged =
             _pausedQueuedInputs.add(task.conversationId) || queueChanged;
       }
@@ -359,6 +441,10 @@ class HomeViewModel extends ChangeNotifier {
   /// Whether send/regenerate or cancellation teardown owns [conversationId].
   bool isConversationSendInFlight(String conversationId) =>
       _chatActions.isSendInFlight(conversationId);
+
+  /// Whether a whole round owns [conversationId]'s loading flag.
+  bool isGroupRoundLoading(String conversationId) =>
+      _chatActions.isGroupRoundLoading(conversationId);
   Map<String, StreamSubscription<dynamic>> get conversationStreams =>
       _chatController.conversationStreams;
 
@@ -379,8 +465,13 @@ class HomeViewModel extends ChangeNotifier {
         !_chatActions.isStopping(cid);
   }
 
-  QueuedChatInput? get currentQueuedInput =>
-      _queuedInputs[currentConversation?.id];
+  /// The head of the queue, when it is the user's own message: the composer
+  /// shows that one and can cancel it. A delegation's result is never shown in
+  /// the composer — it says so on the strip instead.
+  QueuedUserInput? get currentQueuedInput {
+    final head = _queue[currentConversation?.id]?.firstOrNull;
+    return head is QueuedUserInput ? head : null;
+  }
 
   final FileProcessingIndicatorController _fileProcessingIndicator =
       FileProcessingIndicatorController();
@@ -490,6 +581,10 @@ class HomeViewModel extends ChangeNotifier {
       if (settings.legacyMemoryMode) return;
       final convo = _chatService.getConversation(conversationId);
       if (convo == null) return;
+      // A group topic has no owner: filing a round's messages as one
+      // assistant's memory would replay a whole group in that assistant's 1:1
+      // prompts.
+      if (convo.isGroupConversation) return;
       final assistantProvider = _contextProvider.read<AssistantProvider>();
       final assistant = assistantProvider.resolveConversationAssistant(
         convo.assistantId,
@@ -514,6 +609,356 @@ class HomeViewModel extends ChangeNotifier {
   /// Drops the indicator immediately, ignoring the minimum-visible hold. Used
   /// when the conversation the indicator belonged to is no longer on screen.
   void resetFileProcessingIndicator() => _fileProcessingIndicator.reset();
+
+  // ============================================================================
+  // Proactive care ("Ta的来信")
+  // ============================================================================
+
+  /// After a settled reply, silently ask the decision model whether the
+  /// conversation's next care time should move. Android-only feature.
+  void _onMaybeUpdateProactiveCare(String conversationId) {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    unawaited(
+      _decideProactiveCareFor(conversationId).catchError((Object e, st) {
+        FlutterLogger.log(
+          '[ProactiveCare] decision failed: $e\n$st',
+          tag: 'HomeViewModel',
+        );
+      }),
+    );
+  }
+
+  ProactiveCareMessageFlow _proactiveCareFlow() => ProactiveCareMessageFlow(
+    chatService: _chatService,
+    settings: _contextProvider.read<SettingsProvider>(),
+    memoryStore: MemoryStore(_contextProvider.read<BusinessPreferences>()),
+    instructionInjectionStore: InstructionInjectionStore(
+      _contextProvider.read<BusinessPreferences>(),
+    ),
+    worldBookStore: WorldBookStore(
+      _contextProvider.read<BusinessPreferences>(),
+    ),
+    // A letter is inserted silently, outside the streaming path: reload the
+    // timeline as soon as it is durable, before the next-time decision call.
+    // The same moment ends the background task that stood for the letter.
+    onLetterPersisted: (conversationId) async {
+      await _refreshCurrentConversationAfterCare({conversationId});
+      await _finishCareLetterTask(
+        conversationId,
+        BackgroundTaskOutcome.completed,
+      );
+    },
+  );
+
+  String? _proactiveCareL10n(String? Function(AppLocalizations) pick) {
+    final l10n = AppLocalizations.of(_contextProvider);
+    if (l10n == null) return null;
+    return pick(l10n);
+  }
+
+  String get _proactiveCarePromptFallback =>
+      _proactiveCareL10n(
+        (l10n) => l10n.assistantEditProactiveCarePromptDefault,
+      ) ??
+      '';
+
+  String get _proactiveCareDecisionPromptFallback =>
+      _proactiveCareL10n(
+        (l10n) => l10n.assistantEditProactiveCareDecisionPromptDefault,
+      ) ??
+      '';
+
+  String? get _proactiveCareFailureBody =>
+      _proactiveCareL10n((l10n) => l10n.proactiveCareFailedNotificationBody);
+
+  Future<void> _decideProactiveCareFor(String conversationId) async {
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) return;
+    final assistantId = conversation.assistantId;
+    if (assistantId == null) return;
+    final assistant = _contextProvider.read<AssistantProvider>().getById(
+      assistantId,
+    );
+    if (assistant == null) return;
+    if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
+      debugPrint(
+        '[ProactiveCare] decision skipped: not eligible $conversationId',
+      );
+      return;
+    }
+
+    final flow = _proactiveCareFlow();
+    final model = flow.resolveDecisionModelConfig(
+      assistant,
+      conversation: conversation,
+    );
+    if (model == null) {
+      debugPrint('[ProactiveCare] decision skipped: no decision model');
+      return;
+    }
+    final userNickname = _contextProvider.read<UserProvider>().name;
+    final history = ProactiveCareMessageFlow.historyFromMessages(
+      await _chatService.loadMessages(conversationId),
+    );
+    if (history.isEmpty) return;
+    final nextAt = await flow.decideNextCareTime(
+      config: model.config,
+      modelId: model.modelId,
+      assistant: assistant,
+      userNickname: userNickname,
+      history: history,
+      decisionPrompt: assistant.proactiveCareDecisionPrompt.trim().isNotEmpty
+          ? assistant.proactiveCareDecisionPrompt
+          : _proactiveCareDecisionPromptFallback,
+      conversationId: conversationId,
+      currentNextCareTime: conversation.proactiveCareNextMessageAt,
+    );
+    if (nextAt == null) {
+      // decideNextCareTime returns null for keep / declined / failed / invalid
+      // alike, so this line must not claim the model decided anything.
+      debugPrint(
+        '[ProactiveCare] decision left the next time unchanged '
+        '(kept/declined/failed)',
+      );
+      return;
+    }
+    debugPrint('[ProactiveCare] decision set next time $nextAt');
+    // The extras write re-arms the Android alarm (see ChatService's
+    // proactive-care hook).
+    await _chatService.updateConversationExtras(conversationId, (extras) {
+      extras[Conversation.proactiveCareNextMessageAtKey] = nextAt
+          .toIso8601String();
+      return extras;
+    });
+  }
+
+  /// Re-arms every pending letter after the app came back to the foreground:
+  /// an alarm the system (or our own handoff) lost must not depend on the next
+  /// process start to come back. Mirrors the native `ready` re-arm Kelivo's
+  /// scheduled tasks do.
+  ///
+  /// The re-arm is a replace-all, so an unloaded store has to skip instead of
+  /// arming: an empty snapshot would cancel every alarm it cannot see. A store
+  /// that is genuinely empty has no letter to preserve, and the startup /
+  /// restore / sync paths still own cleaning up stale registry entries.
+  Future<void> reschedulePendingProactiveCare() async {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    final conversations = _chatService.getAllConversations();
+    final assistantProvider = _contextProvider.read<AssistantProvider>();
+    // Care letters are generated by a chat assistant's model; a remote harness
+    // never owns a conversation and has no care configuration.
+    final assistants = assistantProvider.chatAssistants;
+    if (conversations.isEmpty || assistants.isEmpty) {
+      debugPrint('[ProactiveCare] re-arm skipped: stores not ready');
+      return;
+    }
+    try {
+      await ProactiveCareAlarmService.rescheduleAll(
+        conversations: conversations,
+        assistants: assistants,
+        assistantStoreLoaded: assistantProvider.isLoaded,
+      );
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] resume re-arm failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+    }
+  }
+
+  /// Delivers every due care letter for all eligible conversations (app
+  /// start / resume catch-up; the alarm channel covers on-time delivery).
+  /// Returns the number of letters delivered, excluding failed attempts.
+  Future<int> deliverDueProactiveCare() async {
+    if (!ProactiveCareAlarmService.isSupported) return 0;
+    try {
+      final flow = _proactiveCareFlow();
+      final delivered = await flow.runDueSchedules(
+        assistants: _contextProvider.read<AssistantProvider>().chatAssistants,
+        userNickname: _contextProvider.read<UserProvider>().name,
+        carePromptFallback: _proactiveCarePromptFallback,
+        decisionPromptFallback: _proactiveCareDecisionPromptFallback,
+        failureNotificationBody: _proactiveCareFailureBody,
+      );
+      final succeeded = delivered.where((d) => d.successful).length;
+      if (delivered.isNotEmpty) {
+        debugPrint(
+          '[ProactiveCare] catch-up delivered $succeeded/${delivered.length}',
+        );
+      }
+      // Each letter already reloaded the timeline through onLetterPersisted.
+      return succeeded;
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] due delivery failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+      return 0;
+    }
+  }
+
+  /// Delivers the one schedule an Android alarm selected. Returns true when
+  /// a letter was generated and persisted.
+  Future<bool> deliverProactiveCareSchedule({
+    required String conversationId,
+    required DateTime expectedAt,
+  }) async {
+    if (!ProactiveCareAlarmService.isSupported) return false;
+    debugPrint('[ProactiveCare] deliver $conversationId @ $expectedAt');
+    // Everything the delivery needs from its context is read before the task
+    // start crosses an async gap.
+    final flow = _proactiveCareFlow();
+    final assistants = _contextProvider
+        .read<AssistantProvider>()
+        .chatAssistants;
+    final userNickname = _contextProvider.read<UserProvider>().name;
+    final carePromptFallback = _proactiveCarePromptFallback;
+    final decisionPromptFallback = _proactiveCareDecisionPromptFallback;
+    final failureNotificationBody = _proactiveCareFailureBody;
+    final notificationId = NotificationService.proactiveCareIdFor(
+      conversationId,
+    );
+    await _startCareLetterTask(conversationId);
+    try {
+      final outcome = await flow.runSchedule(
+        conversationId: conversationId,
+        expectedAt: expectedAt,
+        assistants: assistants,
+        userNickname: userNickname,
+        carePromptFallback: carePromptFallback,
+        decisionPromptFallback: decisionPromptFallback,
+        failureNotificationBody: failureNotificationBody,
+        notificationId: notificationId,
+      );
+      if (outcome == null) {
+        debugPrint('[ProactiveCare] nothing to deliver for $conversationId');
+        await _finishCareLetterTask(
+          conversationId,
+          BackgroundTaskOutcome.cancelled,
+        );
+        return false;
+      }
+      // A successful letter already ended its background task, and the failure
+      // path raises only the failure notification.
+      await _finishCareLetterTask(
+        conversationId,
+        outcome.successful
+            ? BackgroundTaskOutcome.completed
+            : BackgroundTaskOutcome.failed,
+      );
+      // A successful letter already reloaded the timeline in the flow.
+      return outcome.successful;
+    } catch (e, st) {
+      await _finishCareLetterTask(conversationId, BackgroundTaskOutcome.failed);
+      FlutterLogger.log(
+        '[ProactiveCare] alarm delivery failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+      return false;
+    }
+  }
+
+  /// Background tasks standing for letters an alarm is delivering right now,
+  /// keyed by conversation. A letter written while the app is backgrounded is
+  /// one of the app's background tasks: the foreground-service notification
+  /// names the assistant instead of a generic "working", the task counts on
+  /// the background page, and it ends when the letter is durable. A foreground
+  /// letter takes none: it is visible as it runs and is not background work.
+  final Map<String, String> _careLetterTasks = {};
+
+  Future<void> _startCareLetterTask(String conversationId) async {
+    final background = MobileBackgroundCoordinator.instance;
+    if (background.platform != TargetPlatform.android) return;
+    // Everything the task needs from the context is read before the coordinator
+    // await: the caller is the delivery itself, and a task that cannot be
+    // started must never keep the letter from being written.
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) return;
+    final assistantId = conversation.assistantId;
+    final assistant = assistantId == null
+        ? null
+        : _contextProvider.read<AssistantProvider>().getById(assistantId);
+    if (assistant == null) return;
+    if (!ProactiveCareConversationPolicy.isEligible(conversation, assistant)) {
+      return;
+    }
+    final fallbackTitle =
+        _proactiveCareL10n((l10n) => l10n.backgroundTaskTitle) ?? 'Cuplivo';
+    final detail = _proactiveCareL10n((l10n) => l10n.backgroundCareLetter);
+    final name = assistant.name.trim();
+    final title = name.isNotEmpty
+        ? name
+        : (conversation.title.trim().isNotEmpty
+              ? conversation.title.trim()
+              : fallbackTitle);
+    try {
+      // The coordinator only learns the process's lifecycle state when it
+      // initializes, and its `foreground` flag defaults to true so a pre-init
+      // read claims the app is in front. A killed process boots a headless
+      // engine whose lifecycle is `detached`, and the letter that woke it is
+      // exactly the one that must take a task, so ask before deciding.
+      await background.initialize();
+      if (background.isForeground) return;
+      if (_careLetterTasks.containsKey(conversationId)) return;
+      final id =
+          'care:$conversationId:${DateTime.now().millisecondsSinceEpoch}';
+      _careLetterTasks[conversationId] = id;
+      await background.start(
+        id: id,
+        conversationId: conversationId,
+        title: title,
+        detail: detail,
+        // The stop action already stops the delivery's foreground service and
+        // the letter request has no abort handle, so it can only drop the task
+        // record; the outcome of the request itself is left to the flow.
+        cancel: () => _finishCareLetterTask(
+          conversationId,
+          BackgroundTaskOutcome.cancelled,
+        ),
+      );
+    } catch (e, st) {
+      _careLetterTasks.remove(conversationId);
+      FlutterLogger.log(
+        '[ProactiveCare] care task skipped: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+    }
+  }
+
+  Future<void> _finishCareLetterTask(
+    String conversationId,
+    BackgroundTaskOutcome outcome,
+  ) async {
+    final id = _careLetterTasks.remove(conversationId);
+    if (id == null) return;
+    try {
+      // The flow posts the letter (or failure) notification itself; a
+      // chat-completion notification here would announce the same event twice.
+      await MobileBackgroundCoordinator.instance.finish(
+        id,
+        outcome,
+        resultPersisted: false,
+      );
+    } catch (e, st) {
+      FlutterLogger.log(
+        '[ProactiveCare] care task finish failed: $e\n$st',
+        tag: 'HomeViewModel',
+      );
+    }
+  }
+
+  Future<void> _refreshCurrentConversationAfterCare(
+    Set<String> conversationIds,
+  ) async {
+    if (conversationIds.isEmpty) return;
+    final currentId = _chatService.currentConversationId;
+    if (currentId == null || !conversationIds.contains(currentId)) return;
+    try {
+      await _chatController.refreshTimelineAfterMutation();
+    } catch (_) {
+      // The next manual navigation re-reads the window anyway.
+    }
+  }
 
   void _onFileProcessingStarted(String messageId) =>
       _fileProcessingIndicator.start(messageId);
@@ -603,19 +1048,15 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     final activeConversation = sourceConversation ?? currentConversation!;
-    _queuedInputs.removeWhere(
-      (id, _) => _chatService.getConversation(id) == null,
-    );
-    if (_queuedInputs.containsKey(activeConversation.id)) {
-      return ChatInputSubmissionResult.rejected;
-    }
+    _queue.removeWhere((id, _) => _chatService.getConversation(id) == null);
     if (_isConversationBusy(activeConversation.id) ||
         _chatService.contextCompression.blocksSending(activeConversation.id)) {
-      _queuedInputs[activeConversation.id] = QueuedChatInput(
-        conversationId: activeConversation.id,
-        input: _cloneInput(input),
+      // Queue it behind whatever is already waiting: a second message while the
+      // conversation is busy is an ordinary thing to do, and it takes its turn
+      // after the first rather than replacing it.
+      enqueueQueuedTurn(
+        QueuedUserInput(activeConversation.id, _cloneInput(input)),
       );
-      notifyListeners();
       return ChatInputSubmissionResult.queued;
     }
 
@@ -625,13 +1066,148 @@ class HomeViewModel extends ChangeNotifier {
         : ChatInputSubmissionResult.rejected;
   }
 
+  /// Puts [turn] at the end of its conversation's queue and tries to drain it.
+  ///
+  /// The only entry point: the user's messages and a delegation's result go
+  /// through the same line, so there is one order and one place that decides
+  /// when a turn may land.
+  void enqueueQueuedTurn(QueuedTurn turn) {
+    (_queue[turn.conversationId] ??= <QueuedTurn>[]).add(turn);
+    notifyListeners();
+    unawaited(_drainQueuedInputIfReady(turn.conversationId));
+  }
+
+  /// Whether the turn running in [conversationId] should end at its next step
+  /// boundary.
+  ///
+  /// Mail comes first: a delegation's message is what the turn exists to serve.
+  /// A queued user message is the same rule from the composer's side. A finished
+  /// delegation's notice is not: it is a result, and a result waits for the turn
+  /// to end rather than interrupting it.
+  bool _hasHandoffReady(String conversationId) {
+    // A handoff ends the running turn, so the next one must be able to start.
+    // A paused queue, a compression review and a group round in flight all make
+    // the follow-up refuse, and the reply would end on its tool results with
+    // nothing after it. These checks cover the mail branch too, which used to
+    // return before them.
+    if (_pausedQueuedInputs.contains(conversationId)) return false;
+    if (_chatService.contextCompression.blocksSending(conversationId)) {
+      return false;
+    }
+    if (_chatActions.isGroupRoundLoading(conversationId)) return false;
+    if (_hasPendingMail(conversationId)) return true;
+    final head = _queue[conversationId]?.firstOrNull;
+    return head is QueuedUserInput;
+  }
+
+  /// Starts the turn a handoff ended the previous one for.
+  ///
+  /// Returns false when nothing could start, in which case the caller clears the
+  /// loading flag and the waiting message is picked up by the normal drain at the
+  /// end of the turn.
+  Future<bool> _startHandoffSegment(String conversationId) async {
+    if (_drainingQueuedInputs.contains(conversationId)) return false;
+    final conversation = _chatService.getConversation(conversationId);
+    if (conversation == null) return false;
+    _drainingQueuedInputs.add(conversationId);
+    notifyListeners();
+    try {
+      final mail = _takeMail(conversationId);
+      if (mail != null) {
+        try {
+          final started = await _startMailTurn(conversation, mail);
+          if (!started) _putMailBack(conversationId, mail);
+          return started;
+        } catch (_) {
+          // The row is in the transcript either way; the inbox keeps the
+          // delivery so the next drain tries again.
+          _putMailBack(conversationId, mail);
+          return false;
+        }
+      }
+      final queue = _queue[conversationId];
+      if (queue == null || queue.isEmpty) return false;
+      final head = queue.first;
+      if (head is! QueuedUserInput) return false;
+      // The head stays in the queue until the turn actually starts. Removing it
+      // up front detaches the list from `_queue`, so a failed start has nowhere
+      // to put the message back: the composer chip disappears and the drain
+      // finds nothing. `_drainingQueuedInputs` keeps the drain off this head for
+      // the length of the await, so it cannot be delivered twice.
+      try {
+        final delivered = await _sendMessageToConversation(
+          head.input,
+          conversation,
+        );
+        if (!delivered) return false;
+        _dropQueuedHead(conversationId, head);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    } finally {
+      _drainingQueuedInputs.remove(conversationId);
+      notifyListeners();
+    }
+  }
+
+  /// Drops [head] from the queue, and only if it is still the head.
+  ///
+  /// A new message may have been appended while the previous one was starting;
+  /// this removes the one that started, not whatever is at the front now.
+  void _dropQueuedHead(String conversationId, QueuedUserInput head) {
+    final queue = _queue[conversationId];
+    if (queue == null || queue.isEmpty || !identical(queue.first, head)) {
+      return;
+    }
+    queue.removeAt(0);
+    if (queue.isEmpty) _queue.remove(conversationId);
+  }
+
+  /// Runs one turn from a mail row that is already in the transcript.
+  Future<bool> _startMailTurn(
+    Conversation conversation,
+    ChatMessage mail,
+  ) async {
+    final assistant = _contextProvider
+        .read<AssistantProvider>()
+        .resolveConversationAssistant(conversation.assistantId);
+    final outcome = await _chatActions.regenerateAtMessage(
+      message: mail,
+      conversation: conversation,
+      assistantOverride: assistant,
+      preserveFollowingMessages: true,
+      scheduled: true,
+      scheduledNotify: false,
+      scheduledPreview: false,
+      handoff: true,
+    );
+    return outcome.success;
+  }
+
+  /// Tries to deliver every conversation's queue head.
+  ///
+  /// Called when the app comes back to the front: a drain that refused while the
+  /// app was backgrounded has no other trigger to return to.
+  void drainAllQueuedTurns() {
+    for (final conversationId in {..._queue.keys, ..._mailInbox.keys}) {
+      unawaited(_drainQueuedInputIfReady(conversationId));
+    }
+  }
+
   ChatInputData? cancelCurrentQueuedInput() {
     final queued = currentQueuedInput;
     if (queued == null ||
         _drainingQueuedInputs.contains(queued.conversationId)) {
       return null;
     }
-    _queuedInputs.remove(queued.conversationId);
+    final queue = _queue[queued.conversationId];
+    if (queue == null) return null;
+    // Only the head: cancelling the chip cancels the message it shows. A second
+    // queued message keeps its place — the queue holds several now, and dropping
+    // the ones the user never saw would lose them silently.
+    queue.remove(queued);
+    if (queue.isEmpty) _queue.remove(queued.conversationId);
     _pausedQueuedInputs.remove(queued.conversationId);
     _chatService.contextCompression.refreshInputStatus();
     notifyListeners();
@@ -647,6 +1223,13 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     _chatActions.onScheduleImageSanitize = onScheduleImageSanitize;
+
+    // A topic whose group row is gone is not a group any more: it sends as an
+    // ordinary conversation instead of refusing every message.
+    if (conversation.isGroupConversation &&
+        _groupRowExists(conversation.groupChatId)) {
+      return _sendGroupMessageToConversation(input, conversation);
+    }
 
     final sourceAssistant = _contextProvider
         .read<AssistantProvider>()
@@ -688,6 +1271,123 @@ class HomeViewModel extends ChangeNotifier {
     return true;
   }
 
+  /// Send into a group conversation: one user turn, then a round of replies.
+  ///
+  /// Deliberately the same shape as the 1:1 branch above — the same draft
+  /// submission bookkeeping, the same queued-send outcome — because from the
+  /// composer's side a group send is a send, not a different feature.
+  Future<bool> _sendGroupMessageToConversation(
+    ChatInputData input,
+    Conversation conversation,
+  ) async {
+    final group = _contextProvider.read<GroupChatProvider>().byId(
+      conversation.groupChatId,
+    );
+    final assistants = _contextProvider.read<AssistantProvider>();
+    final members = <Assistant>[];
+    if (group != null) {
+      for (final id in group.memberIds) {
+        final assistant = assistants.getById(id);
+        if (assistant != null) members.add(assistant);
+      }
+    }
+    if (group == null || members.isEmpty) {
+      // The group row is missing (deleted, or restored without its group) or
+      // every member is gone: the conversation is read-only, and a send would
+      // create a user message nothing could answer.
+      onWarning?.call('group_unavailable');
+      return false;
+    }
+    await _clearSuggestionsFor(conversation.id);
+    onHapticFeedback?.call();
+
+    final result = await _chatActions.sendGroupMessage(
+      input: input,
+      conversation: conversation,
+      group: group,
+      members: members,
+    );
+
+    if (input.draftSubmission != null &&
+        _chatService.composerDrafts != null &&
+        await _chatService.composerDrafts!.wasSubmitted(
+          input.draftSubmission!.id,
+        )) {
+      await _chatService.composerDrafts!.finishSubmission(
+        input.draftSubmission!,
+      );
+      return true;
+    }
+    if (!result.success) {
+      if (result.errorMessage == 'in_flight') return false;
+      if (result.errorMessage == 'group_has_no_members') {
+        onWarning?.call('group_unavailable');
+      } else if (result.errorMessage != 'empty_input') {
+        onError?.call(result.errorMessage ?? 'unknown_error');
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /// Re-asks the question [userMessage] already asked, in a group topic.
+  ///
+  /// The user turn re-asks the round (see [ChatActions.restartGroupRound]); a
+  /// member's reply re-asks that member alone, which is
+  /// [regenerateAtMessage] with the group. A group that lost its row or its
+  /// members is read-only here, the same way it is for a send.
+  Future<bool> restartGroupRound({
+    required Conversation conversation,
+    required ChatMessage userMessage,
+  }) async {
+    final group = _contextProvider.read<GroupChatProvider>().byId(
+      conversation.groupChatId,
+    );
+    final assistants = _contextProvider.read<AssistantProvider>();
+    final members = <Assistant>[];
+    if (group != null) {
+      for (final id in group.memberIds) {
+        final assistant = assistants.getById(id);
+        if (assistant != null) members.add(assistant);
+      }
+    }
+    if (group == null || members.isEmpty) {
+      onWarning?.call('group_unavailable');
+      return false;
+    }
+    onHapticFeedback?.call();
+    final result = await _chatActions.restartGroupRound(
+      conversation: conversation,
+      group: group,
+      members: members,
+      userMessage: userMessage,
+    );
+    if (!result.success) {
+      if (result.errorMessage == 'in_flight') return false;
+      if (result.errorMessage == 'group_has_no_members') {
+        onWarning?.call('group_unavailable');
+      } else if (result.errorMessage != 'not_a_user_message') {
+        onError?.call(result.errorMessage ?? 'unknown_error');
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /// Whether the group a conversation claims still exists.
+  ///
+  /// Guarded: reduced trees in tests do not provide the group list, and there
+  /// nothing can be a live group.
+  bool _groupRowExists(String? groupChatId) {
+    if (groupChatId == null) return false;
+    try {
+      return _contextProvider.read<GroupChatProvider>().byId(groupChatId) !=
+          null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   ChatInputData _cloneInput(ChatInputData input) {
     return ChatInputData(
       text: input.text,
@@ -700,46 +1400,134 @@ class HomeViewModel extends ChangeNotifier {
     );
   }
 
+  /// Delivers the head of [conversationId]'s queue, if it may land now.
+  ///
+  /// Only the head: one turn at a time keeps the order, and a user message that
+  /// fails stays at the head (paused) instead of being skipped or lost. The
+  /// background check belongs here rather than at the delegation: a generation
+  /// that starts while the OS holds the isolate frozen is terminalised by the
+  /// startup sweep, and the user comes back to an extra interrupted reply.
   Future<void> _drainQueuedInputIfReady(String conversationId) async {
     if (_drainingQueuedInputs.contains(conversationId) ||
         _pausedQueuedInputs.contains(conversationId) ||
         _chatService.contextCompression.blocksSending(conversationId)) {
       return;
     }
-    final queued = _queuedInputs[conversationId];
+    final background = MobileBackgroundCoordinator.instance;
+    await background.initialize();
+    // Re-read after the await: the registration below is no longer synchronous
+    // with the guard, so two dispatches in one turn of the event loop would both
+    // take the same head.
+    if (_drainingQueuedInputs.contains(conversationId) ||
+        _pausedQueuedInputs.contains(conversationId)) {
+      return;
+    }
+    if (!background.isForeground) return;
     final conversation = _chatService.getConversation(conversationId);
-    if (queued == null || conversation == null) return;
+    if (conversation == null) return;
     if (_isConversationBusy(conversationId)) return;
+    // A delegation's mail goes before the user's queue: it is the message the
+    // finished step was waiting on, and the queue head behind it keeps its turn.
+    final mail = _takeMail(conversationId);
+    if (mail != null) {
+      _drainingQueuedInputs.add(conversationId);
+      notifyListeners();
+      try {
+        final started = await _startMailTurn(conversation, mail);
+        if (!started) _putMailBack(conversationId, mail);
+      } catch (_) {
+        _putMailBack(conversationId, mail);
+      } finally {
+        _drainingQueuedInputs.remove(conversationId);
+        notifyListeners();
+      }
+      return;
+    }
+    final queue = _queue[conversationId];
+    if (queue == null || queue.isEmpty) return;
 
+    final turn = queue.first;
     _drainingQueuedInputs.add(conversationId);
-    _queuedInputs.remove(conversationId);
     notifyListeners();
 
-    final input = queued.input;
     final drafts = _chatService.composerDrafts;
-    drafts?.submitting.add(conversationId);
+    // A queued message submits its own draft snapshot; anything else must leave
+    // the composer exactly as the user left it.
+    if (turn is QueuedUserInput) drafts?.submitting.add(conversationId);
     try {
-      final success = await _sendMessageToConversation(input, conversation);
-      if (!success && _chatService.getConversation(conversationId) != null) {
-        _queuedInputs[conversationId] = queued;
+      final delivered = switch (turn) {
+        QueuedUserInput() => await _sendMessageToConversation(
+          turn.input,
+          conversation,
+        ),
+        QueuedSubagentResult() => await _deliverSubagentResult(turn),
+      };
+      // A delegation's result is dequeued even when its follow-up could not
+      // start: the row is already written, so keeping it at the head would block
+      // every later turn behind something the user cannot see or cancel.
+      if (delivered || turn is QueuedSubagentResult) {
+        queue.removeAt(0);
+        if (queue.isEmpty) _queue.remove(conversationId);
+      } else if (turn is QueuedUserInput &&
+          _chatService.getConversation(conversationId) != null) {
+        // Only the user's own message pauses the queue: it is the one the
+        // composer can show and cancel, so a person can unstick it.
         _pausedQueuedInputs.add(conversationId);
       }
     } catch (_) {
-      final submission = input.draftSubmission;
+      final submission = turn is QueuedUserInput
+          ? turn.input.draftSubmission
+          : null;
       if (drafts != null &&
           submission != null &&
           await drafts.wasSubmitted(submission.id)) {
+        queue.removeAt(0);
         await drafts.finishSubmission(submission);
+      } else if (turn is QueuedSubagentResult) {
+        // A thrown delivery cannot be resumed by a person: its row is already
+        // written and the composer can neither show nor cancel it. Leaving it at
+        // the head would strand every message queued behind it, so it leaves and
+        // the next turn reads the divider from the context.
+        queue.removeAt(0);
+        if (queue.isEmpty) _queue.remove(conversationId);
       } else if (_chatService.getConversation(conversationId) != null) {
-        _queuedInputs[conversationId] = queued;
         _pausedQueuedInputs.add(conversationId);
       }
     } finally {
-      drafts?.submissionIdle(conversationId);
+      if (turn is QueuedUserInput) drafts?.submissionIdle(conversationId);
       _drainingQueuedInputs.remove(conversationId);
       _chatService.contextCompression.refreshInputStatus();
       notifyListeners();
     }
+  }
+
+  /// A finished delegation lands as one unit: its notice row, then the turn that
+  /// reads it. Half of it would be a divider with no answer, or an answer with no
+  /// divider.
+  Future<bool> _deliverSubagentResult(QueuedSubagentResult turn) async {
+    final notice = turn.notice;
+    // Idempotent: the coordinator already wrote it when the child finished, so
+    // the row survives a process killed while the app was in the background.
+    await _chatService.addMessageDirectly(notice.conversationId, notice);
+    // Only the conversation that received the row: reloading whichever one is on
+    // screen rebuilds a window that did not change.
+    await refreshTimelineAfterExternalWrite(notice.conversationId);
+    if (!turn.followUp) return true;
+    final conversation = _chatService.getConversation(notice.conversationId);
+    if (conversation == null) return true;
+    final outcome = await regenerateScheduledMessage(
+      message: notice,
+      conversation: conversation,
+      assistant: turn.assistant,
+      scheduledNotify: false,
+      scheduledPreview: false,
+    );
+    if (!outcome.success) {
+      // The row stays and the turn leaves the queue, so nothing retries — which
+      // leaves the user reading "子代理完成 · X" followed by silence. Say why.
+      onWarning?.call('subagent_follow_up_failed');
+    }
+    return outcome.success;
   }
 
   /// Regenerate response at a specific message.
@@ -749,6 +1537,9 @@ class HomeViewModel extends ChangeNotifier {
     bool allowImagesApiRouting = true,
     bool omitImages = false,
     String? expectedContextState,
+    Assistant? assistantOverride,
+    GroupChat? group,
+    List<Assistant> members = const [],
   }) async {
     final conversation = _chatService
         .getConversation(message.conversationId)
@@ -761,9 +1552,11 @@ class HomeViewModel extends ChangeNotifier {
     _chatActions.onScheduleImageSanitize = onScheduleImageSanitize;
 
     onHapticFeedback?.call();
-    final assistant = _contextProvider
-        .read<AssistantProvider>()
-        .resolveConversationAssistant(conversation.assistantId);
+    final assistant =
+        assistantOverride ??
+        _contextProvider.read<AssistantProvider>().resolveConversationAssistant(
+          conversation.assistantId,
+        );
     await _clearSuggestionsFor(conversation.id);
 
     final result = await _chatActions.regenerateAtMessage(
@@ -774,6 +1567,8 @@ class HomeViewModel extends ChangeNotifier {
       assistantOverride: assistant,
       assistantAsNewReply: assistantAsNewReply,
       allowImagesApiRouting: allowImagesApiRouting,
+      group: group,
+      members: members,
     );
 
     if (!result.success) {
@@ -821,13 +1616,47 @@ class HomeViewModel extends ChangeNotifier {
     return true;
   }
 
+  /// Stops the generation running in [conversationId], whichever conversation
+  /// that is. Used by the subagent coordinator when the parent's turn — and with
+  /// it the work it delegated — is cancelled.
+  Future<void> cancelGenerationOf(String conversationId) =>
+      _chatActions.cancelStreamingById(conversationId);
+
+  /// Reloads the visible timeline after something outside the chat flow wrote a
+  /// row into the open conversation.
+  ///
+  /// The timeline rebuilds on `externalWriteRevision`, which only the chat flow
+  /// bumps; a background writer has to ask for the reload itself. Scheduling
+  /// publishing does the same thing for the same reason.
+  ///
+  /// [conversationId] narrows it to the conversation the row belongs to: a write
+  /// to some other chat must not rebuild the window on screen.
+  Future<void> refreshTimelineAfterExternalWrite([
+    String? conversationId,
+  ]) async {
+    if (conversationId != null && currentConversation?.id != conversationId) {
+      return;
+    }
+    try {
+      await _chatController.refreshTimelineAfterMutation();
+    } catch (_) {
+      // The next navigation re-reads the window anyway.
+    }
+  }
+
   /// Cancel the active streaming.
   Future<void> cancelStreaming() async {
-    final id = currentConversation?.id;
-    await _chatActions.cancelStreaming(
-      currentConversation,
-      userRequested: true,
-    );
+    final conversation = currentConversation;
+    final id = conversation?.id;
+    if (conversation != null && conversation.isGroupConversation) {
+      // Stop the round, not just the speaker: the loop is what would otherwise
+      // start the next one.
+      await _chatActions.cancelGroupRound(conversation.id);
+      _chatService.contextCompression.resumeIfReady(conversation.id);
+      unawaited(_drainQueuedInputIfReady(conversation.id));
+      return;
+    }
+    await _chatActions.cancelStreaming(conversation, userRequested: true);
     if (id != null) {
       _chatService.contextCompression.resumeIfReady(id);
       unawaited(_drainQueuedInputIfReady(id));
@@ -1225,7 +2054,13 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Returns this request's new or reused entry even if navigation changes
   /// while its preset messages are being persisted.
-  Future<Conversation?> createNewConversation({String? assistantId}) async {
+  ///
+  /// [groupChatId] creates a topic of that group instead of a 1:1 chat; a group
+  /// topic has no owning assistant, so preset messages are not injected.
+  Future<Conversation?> createNewConversation({
+    String? assistantId,
+    String? groupChatId,
+  }) async {
     // Flush current conversation progress before creating new
     await _chatActions.flushConversationProgress(currentConversation);
     if (!_contextProvider.mounted) return null;
@@ -1241,15 +2076,20 @@ class HomeViewModel extends ChangeNotifier {
       return null;
     }
     if (!_contextProvider.mounted) return null;
-    final targetAssistantId = assistantId ?? ap.currentAssistantId;
+    final targetAssistantId = groupChatId == null
+        ? (assistantId ?? ap.currentAssistantId)
+        : null;
     final a = ap.getById(targetAssistantId ?? '');
 
     final existingEntryId = _chatService.composerDrafts
-        ?.newEntry(targetAssistantId)
+        ?.newEntry(targetAssistantId, groupChatId: groupChatId)
         ?.id;
     final conversation = await _chatService.createDraftConversation(
-      title: getTitleForLocale(_contextProvider),
+      title: groupChatId == null
+          ? getTitleForLocale(_contextProvider)
+          : AppLocalizations.of(_contextProvider)!.groupChatNewTopic,
       assistantId: targetAssistantId,
+      groupChatId: groupChatId,
       reuseNewEntry: true,
     );
 
@@ -1271,7 +2111,9 @@ class HomeViewModel extends ChangeNotifier {
 
     // Inject assistant preset messages into new conversation (ordered)
     try {
-      final presets = ap.getPresetMessagesForAssistant(a?.id);
+      final presets = groupChatId == null
+          ? ap.getPresetMessagesForAssistant(a?.id)
+          : const <Map<String, dynamic>>[];
       if (presets.isNotEmpty && currentConversation != null) {
         final injected = <ChatMessage>[];
         for (final pm in presets) {
@@ -1656,7 +2498,7 @@ class HomeViewModel extends ChangeNotifier {
         request,
       );
       if (task.phase != CompressionPhase.completed) {
-        if (_queuedInputs.containsKey(id) && _pausedQueuedInputs.add(id)) {
+        if (_hasQueued(id) && _pausedQueuedInputs.add(id)) {
           _chatService.contextCompression.refreshInputStatus();
         }
         onError?.call(task.error ?? 'compression_incomplete');
@@ -1848,67 +2690,82 @@ class HomeViewModel extends ChangeNotifier {
   }) async {
     final convo = _chatService.getConversation(conversationId);
     if (convo == null) return;
-    if (!force &&
-        convo.title.isNotEmpty &&
-        convo.title != getTitleForLocale(_contextProvider)) {
-      return;
-    }
+    // An untitled conversation and a placeholder-titled one (including a group
+    // topic's `新话题`) are both unnamed, and both get named here.
+    if (!force && !_chatService.isPlaceholderTitle(convo.title)) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
     if (!settings.isTitleGenerationEnabled) return;
-
-    final assistantProvider = _contextProvider.read<AssistantProvider>();
-
-    // Get assistant for this conversation
-    final assistant = assistantProvider.resolveConversationAssistant(
-      convo.assistantId,
-    );
-    final chatModel = resolveChatModel(
-      settings,
-      conversation: convo,
-      assistant: assistant,
-    );
-    final provKey = settings.titleModelProvider ?? chatModel.providerKey;
-    final mdlId = settings.titleModelId ?? chatModel.modelId;
-    if (provKey == null || mdlId == null) return;
-    final cfg = settings.getProviderConfig(provKey);
-    final reasoning = settings.titleGenerationReasoningFor(assistant);
-    final locale = Localizations.localeOf(_contextProvider).toLanguageTag();
-
-    // Build content from messages (shared with the side drawer title path;
-    // both cache and paging paths collect the same ~3000-char tail window)
-    final content = await _chatService.generateTitleSource(convo.id);
-
-    String prompt = settings.titlePrompt
-        .replaceAll('{locale}', locale)
-        .replaceAll('{content}', content);
+    // One title request per conversation at a time: two rounds that finish
+    // back to back must not race two renames over each other.
+    if (!_titlesInFlight.add(conversationId)) return;
 
     try {
-      final title = (await ChatApiService.generateText(
-        conversationId: convo.id,
-        config: cfg,
-        modelId: mdlId,
-        prompt: prompt,
-        reasoning: reasoning,
-        skipImageParsing: true,
-      )).trim();
-      if (title.isNotEmpty) {
-        await _chatService.renameConversation(convo.id, title);
-        if (currentConversation?.id == convo.id) {
-          _chatController.updateCurrentConversation(
-            _chatService.getConversation(convo.id),
-          );
-          notifyListeners();
-        }
-      } else {
-        onBackgroundTaskError?.call(BackgroundTaskKind.title, 'empty_response');
-      }
-    } catch (e) {
-      FlutterLogger.log(
-        '[TitleGen] Generation failed: $e',
-        tag: 'HomeViewModel',
+      final assistantProvider = _contextProvider.read<AssistantProvider>();
+      // A group topic has no conversation assistant — asking for one would
+      // resolve whichever assistant the user happens to have selected.
+      final assistant = convo.isGroupConversation
+          ? null
+          : assistantProvider.resolveConversationAssistant(convo.assistantId);
+      final model = resolveTitleModel(
+        settings,
+        conversation: convo,
+        assistant: assistant,
       );
-      onBackgroundTaskError?.call(BackgroundTaskKind.title, e);
+      final provKey = model.providerKey;
+      final mdlId = model.modelId;
+      if (provKey == null || mdlId == null) return;
+      final cfg = settings.getProviderConfig(provKey);
+      final reasoning = settings.titleGenerationReasoningFor(assistant);
+      final locale = Localizations.localeOf(_contextProvider).toLanguageTag();
+
+      // Build content from messages (shared with the side drawer title path;
+      // both cache and paging paths collect the same ~3000-char tail window)
+      final content = await _chatService.generateTitleSource(
+        convo.id,
+        line: convo.isGroupConversation
+            ? GroupTranscript.titleLine(
+                (id) => id == null ? null : assistantProvider.getById(id),
+              )
+            : null,
+      );
+
+      String prompt = settings.titlePrompt
+          .replaceAll('{locale}', locale)
+          .replaceAll('{content}', content);
+
+      try {
+        final title = (await ChatApiService.generateText(
+          conversationId: convo.id,
+          config: cfg,
+          modelId: mdlId,
+          prompt: prompt,
+          reasoning: reasoning,
+          skipImageParsing: true,
+        )).trim();
+        if (title.isNotEmpty) {
+          await _chatService.renameConversation(convo.id, title);
+          if (currentConversation?.id == convo.id) {
+            _chatController.updateCurrentConversation(
+              _chatService.getConversation(convo.id),
+            );
+            notifyListeners();
+          }
+        } else {
+          onBackgroundTaskError?.call(
+            BackgroundTaskKind.title,
+            'empty_response',
+          );
+        }
+      } catch (e) {
+        FlutterLogger.log(
+          '[TitleGen] Generation failed: $e',
+          tag: 'HomeViewModel',
+        );
+        onBackgroundTaskError?.call(BackgroundTaskKind.title, e);
+      }
+    } finally {
+      _titlesInFlight.remove(conversationId);
     }
   }
 
@@ -1931,6 +2788,9 @@ class HomeViewModel extends ChangeNotifier {
     if (convo == null) return;
     // Summaries only feed past-conversation search; temporary chats are never searchable.
     if (_chatService.isTemporaryConversation(convo.id)) return;
+    // Same reason as memory: the summary would be filed under whichever
+    // assistant happens to be selected, for a conversation it does not own.
+    if (convo.isGroupConversation) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
     if (!_chatService.isMessageCountKnown(conversationId)) return;
@@ -2078,6 +2938,25 @@ class HomeViewModel extends ChangeNotifier {
 
   final Map<String, Object> _suggestionRequests = {};
 
+  /// The suggestions the composer may show: the current conversation's list,
+  /// gated the same way generation is (global master, per-assistant opt-out).
+  List<String> get visibleChatSuggestions {
+    final conversation = currentConversation;
+    if (conversation == null) return const <String>[];
+    final settings = _contextProvider.read<SettingsProvider>();
+    final assistant = _contextProvider
+        .read<AssistantProvider>()
+        .resolveConversationAssistant(conversation.assistantId);
+    if (!settings.isSuggestionGenerationAllowedFor(assistant)) {
+      return const <String>[];
+    }
+    return conversation.chatSuggestions;
+  }
+
+  /// Test entry point: runs one suggestion pass for [conversationId].
+  Future<void> debugMaybeGenerateSuggestionsFor(String conversationId) =>
+      _maybeGenerateSuggestionsFor(conversationId);
+
   Future<void> _clearSuggestionsFor(String conversationId) async {
     _suggestionRequests.remove(conversationId);
     final convo = _chatService.getConversation(conversationId);
@@ -2094,15 +2973,20 @@ class HomeViewModel extends ChangeNotifier {
   Future<void> _maybeGenerateSuggestionsFor(String conversationId) async {
     final convo = _chatService.getConversation(conversationId);
     if (convo == null) return;
+    // A group decides who answers, not an assistant-scoped hint: the generator
+    // would resolve the selected assistant and write its suggestions into a
+    // conversation that assistant does not own.
+    if (convo.isGroupConversation) return;
 
     final settings = _contextProvider.read<SettingsProvider>();
-    if (!settings.isSuggestionGenerationEnabled) return;
 
     // Read context-dependent inputs before the async gap below.
     final assistantProvider = _contextProvider.read<AssistantProvider>();
     final assistant = assistantProvider.resolveConversationAssistant(
       convo.assistantId,
     );
+    // The global switch is the master; a per-assistant opt-out only narrows it.
+    if (!settings.isSuggestionGenerationAllowedFor(assistant)) return;
     final chatModel = resolveChatModel(
       settings,
       conversation: convo,
@@ -2120,7 +3004,12 @@ class HomeViewModel extends ChangeNotifier {
     final prompt = settings.suggestionPrompt;
     bool isCurrent() =>
         identical(_suggestionRequests[conversationId], request) &&
-        settings.isSuggestionGenerationEnabled &&
+        // Re-resolved rather than reusing the snapshot read above: an opt-out
+        // that lands while the request is in flight must discard the reply, and
+        // the snapshot still says "allowed".
+        settings.isSuggestionGenerationAllowedFor(
+          assistantProvider.resolveConversationAssistant(convo.assistantId),
+        ) &&
         settings.suggestionPrompt == prompt &&
         _chatService.getConversation(conversationId) != null &&
         _chatService.getContextStartIndex(conversationId) == truncateIndex;

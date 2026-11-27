@@ -1,4 +1,4 @@
-import 'package:Kelivo/shared/widgets/interactive_drawer.dart';
+import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,6 +32,28 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
+  });
+
+  testWidgets('the controller reports whether a drawer is mounted', (
+    tester,
+  ) async {
+    final controller = InteractiveDrawerController();
+    addTearDown(controller.dispose);
+    expect(controller.isAttached, isFalse);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InteractiveDrawer(
+          controller: controller,
+          drawer: const Text('Topics'),
+          child: const Text('Conversation'),
+        ),
+      ),
+    );
+    expect(controller.isAttached, isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(controller.isAttached, isFalse);
   });
 
   testWidgets(

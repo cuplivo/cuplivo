@@ -6,7 +6,81 @@ class _DesktopAssistantsBody extends StatelessWidget {
   const _DesktopAssistantsBody({super.key});
   @override
   Widget build(BuildContext context) {
-    final assistants = context.watch<AssistantProvider>().assistants;
+    final assistants = {
+      for (final assistant in context.watch<AssistantProvider>().assistants)
+        assistant.id: assistant,
+    };
+    // Harness rows show the live connection answer. A pane without a harness
+    // assistant never reads the provider (and can be pumped without it).
+    final hasHarness = assistants.values.any((a) => a.isDeepSeekHarness);
+    final harnessConnections = hasHarness
+        ? context.watch<HarnessConnectionProvider>()
+        : null;
+    if (hasHarness) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        final harnesses = context.read<AssistantProvider>().assistants.where(
+          (assistant) => assistant.isDeepSeekHarness,
+        );
+        context.read<HarnessConnectionProvider>().ensureChecked(harnesses);
+      });
+    }
+    final groups = {
+      for (final group in context.watch<GroupChatProvider>().groups)
+        group.id: group,
+    };
+    final owners = context.watch<ChatOwnersProvider>();
+    // One row per owner, in the same order the sidebar drags.
+    final rows = [
+      for (final owner in owners.owners)
+        if (owner.isGroup
+            ? groups.containsKey(owner.id)
+            : assistants.containsKey(owner.id))
+          owner,
+    ];
+    // The switch the mobile page carries, drawn here too: the two surfaces edit
+    // one value, so they cannot disagree about the layout. The row waits for the
+    // first group, because before that there is nothing to separate.
+    final canSeparate = groups.isNotEmpty;
+    final separated =
+        canSeparate && context.watch<SettingsProvider>().separateChatOwners;
+    // Each section is one kind read through the shared projection, so the two
+    // halves cannot disagree with the mixed list about where a row goes.
+    final assistantRows = separated
+        ? owners.inOwnerOrder(
+            assistants.values,
+            (assistant) => ChatOwner.assistant(assistant.id).key,
+          )
+        : const <Assistant>[];
+    final groupRows = separated
+        ? owners.inOwnerOrder(
+            groups.values,
+            (group) => ChatOwner.group(group.id).key,
+          )
+        : const <GroupChat>[];
+    final assistantKeys = {
+      for (final assistant in assistantRows)
+        ChatOwner.assistant(assistant.id).key,
+    };
+    final groupKeys = {
+      for (final group in groupRows) ChatOwner.group(group.id).key,
+    };
+
+    Widget cardFor(ChatOwner owner) {
+      final group = owner.isGroup ? groups[owner.id] : null;
+      if (group != null) {
+        return _DesktopGroupCard(group: group, assistants: assistants);
+      }
+      final item = assistants[owner.id]!;
+      return _DesktopAssistantCard(
+        item: item,
+        connections: harnessConnections,
+        onTap: item.isDeepSeekHarness
+            ? () => openHarnessSettings(context, owner.id)
+            : () => showAssistantDesktopDialog(context, assistantId: owner.id),
+      );
+    }
+
     final cs = Theme.of(context).colorScheme;
     return Container(
       alignment: Alignment.topCenter,
@@ -24,9 +98,7 @@ class _DesktopAssistantsBody extends StatelessWidget {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          AppLocalizations.of(
-                            context,
-                          )!.desktopAssistantsListTitle,
+                          AppLocalizations.of(context)!.settingsPageChatOwners,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: AppFontWeights.regular,
@@ -35,7 +107,7 @@ class _DesktopAssistantsBody extends StatelessWidget {
                         ),
                       ),
                     ),
-                    _AddAssistantButton(),
+                    _AddOwnerButton(),
                   ],
                 ),
               ),
@@ -45,55 +117,95 @@ class _DesktopAssistantsBody extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor.withValues(alpha: 0.0),
                   ),
-                  child: ReorderableListView.builder(
-                    buildDefaultDragHandles: false,
-                    padding: EdgeInsets.zero,
-                    itemCount: assistants.length,
-                    onReorderItem: (oldIndex, newIndex) async {
-                      await context.read<AssistantProvider>().reorderAssistants(
-                        oldIndex,
-                        newIndex,
-                      );
-                    },
-                    proxyDecorator: (child, index, animation) {
-                      return AnimatedBuilder(
-                        animation: animation,
-                        builder: (context, _) {
-                          final t = Curves.easeOutCubic.transform(
-                            animation.value,
-                          );
-                          return Transform.scale(
-                            scale: 0.98 + 0.02 * t,
-                            child: Material(
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(18),
-                              child: child,
+                  // One scrollable for the pane, one reorderable sliver per
+                  // section — see the mobile page: nested reorderables each own
+                  // the scrollable the drag looks for, and auto-scroll refuses
+                  // one whose physics reject user offsets.
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverMainAxisGroup(
+                        slivers: [
+                          if (canSeparate) ...[
+                            const SliverToBoxAdapter(
+                              child: _DesktopSeparateOwnersRow(),
                             ),
-                          );
-                        },
-                      );
-                    },
-                    itemBuilder: (context, index) {
-                      final item = assistants[index];
-                      return KeyedSubtree(
-                        key: ValueKey('desktop-assistant-${item.id}'),
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: ReorderableDragStartListener(
-                            index: index,
-                            child: _DesktopAssistantCard(
-                              item: item,
-                              onTap: () => showAssistantDesktopDialog(
-                                context,
-                                assistantId: item.id,
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 12),
+                            ),
+                          ],
+                          if (separated) ...[
+                            SliverToBoxAdapter(
+                              child: ChatOwnerSectionHeader(
+                                title: AppLocalizations.of(
+                                  context,
+                                )!.chatOwnersSectionAssistants,
                               ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
+                            _ownerSliver<Assistant>(
+                              assistantRows,
+                              keyPrefix: 'desktop-assistant',
+                              itemKeyOf: (assistant) =>
+                                  ChatOwner.assistant(assistant.id).key,
+                              itemBuilder: (assistant) => _DesktopAssistantCard(
+                                item: assistant,
+                                connections: harnessConnections,
+                                onTap: assistant.isDeepSeekHarness
+                                    ? () => openHarnessSettings(
+                                        context,
+                                        assistant.id,
+                                      )
+                                    : () => showAssistantDesktopDialog(
+                                        context,
+                                        assistantId: assistant.id,
+                                      ),
+                              ),
+                              onReorder: (oldIndex, newIndex) =>
+                                  owners.reorderWithin(
+                                    keys: assistantKeys,
+                                    oldIndex: oldIndex,
+                                    newIndex: newIndex,
+                                  ),
+                            ),
+                            if (groupRows.isNotEmpty) ...[
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 12),
+                              ),
+                              SliverToBoxAdapter(
+                                child: ChatOwnerSectionHeader(
+                                  title: AppLocalizations.of(
+                                    context,
+                                  )!.chatOwnersSectionGroups,
+                                ),
+                              ),
+                              _ownerSliver<GroupChat>(
+                                groupRows,
+                                keyPrefix: 'desktop-group',
+                                itemKeyOf: (group) =>
+                                    ChatOwner.group(group.id).key,
+                                itemBuilder: (group) => _DesktopGroupCard(
+                                  group: group,
+                                  assistants: assistants,
+                                ),
+                                onReorder: (oldIndex, newIndex) =>
+                                    owners.reorderWithin(
+                                      keys: groupKeys,
+                                      oldIndex: oldIndex,
+                                      newIndex: newIndex,
+                                    ),
+                              ),
+                            ],
+                          ] else
+                            _ownerSliver<ChatOwner>(
+                              rows,
+                              keyPrefix: 'desktop-owner',
+                              itemKeyOf: (owner) => owner.key,
+                              itemBuilder: cardFor,
+                              onReorder: (oldIndex, newIndex) =>
+                                  owners.reorder(oldIndex, newIndex),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -103,14 +215,118 @@ class _DesktopAssistantsBody extends StatelessWidget {
       ),
     );
   }
+
+  /// One run of rows that drags as a unit. A mixed list passes the whole-order
+  /// drag; a section passes [ChatOwnersProvider.reorderWithin] on the keys it
+  /// shows, so a drag inside it never moves a row the section cannot see.
+  ///
+  /// A sliver rather than a `ReorderableListView`, so the pane keeps the one
+  /// scrollable a drag can auto-scroll, and the indices handed to [onReorder]
+  /// stay local to this section.
+  Widget _ownerSliver<T>(
+    List<T> items, {
+    required String keyPrefix,
+    required String Function(T item) itemKeyOf,
+    required Widget Function(T item) itemBuilder,
+    required void Function(int oldIndex, int newIndex) onReorder,
+  }) {
+    return SliverReorderableList(
+      proxyDecorator: _desktopOwnerDragProxy,
+      itemCount: items.length,
+      onReorderItem: onReorder,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return KeyedSubtree(
+          key: ValueKey('$keyPrefix-${itemKeyOf(item)}'),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ReorderableDragStartListener(
+              index: index,
+              child: itemBuilder(item),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
-class _AddAssistantButton extends StatefulWidget {
+Widget _desktopOwnerDragProxy(
+  Widget child,
+  int index,
+  Animation<double> animation,
+) {
+  return AnimatedBuilder(
+    animation: animation,
+    builder: (context, _) {
+      final t = Curves.easeOutCubic.transform(animation.value);
+      return Transform.scale(
+        scale: 0.98 + 0.02 * t,
+        child: Material(
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+/// The desktop half of the one switch: same setting, same words.
+class _DesktopSeparateOwnersRow extends StatelessWidget {
+  const _DesktopSeparateOwnersRow();
+
   @override
-  State<_AddAssistantButton> createState() => _AddAssistantButtonState();
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final separated = context.watch<SettingsProvider>().separateChatOwners;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+      decoration: BoxDecoration(
+        color: context.appColors.surfaceCard,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.08),
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.chatOwnersSeparate,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: AppFontWeights.medium,
+                color: cs.onSurface,
+              ),
+            ),
+          ),
+          IosSwitch(
+            value: separated,
+            semanticLabel: l10n.chatOwnersSeparate,
+            onChanged: (value) =>
+                context.read<SettingsProvider>().setSeparateChatOwners(value),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _AddAssistantButtonState extends State<_AddAssistantButton> {
+class _AddOwnerButton extends StatefulWidget {
+  @override
+  State<_AddOwnerButton> createState() => _AddOwnerButtonState();
+}
+
+class _AddOwnerButtonState extends State<_AddOwnerButton> {
+  final _key = GlobalKey();
   bool _hover = false;
   @override
   Widget build(BuildContext context) {
@@ -124,14 +340,30 @@ class _AddAssistantButtonState extends State<_AddAssistantButton> {
       onExit: (_) => setState(() => _hover = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
+        key: _key,
         onTap: () async {
-          final assistantProvider = context.read<AssistantProvider>();
-          final name = await _showAddAssistantDesktopDialog(context);
-          if (name == null || name.trim().isEmpty) return;
-          if (!context.mounted) return;
-          await assistantProvider.addAssistant(
-            name: name.trim(),
-            context: context,
+          final l10n = AppLocalizations.of(context)!;
+          await showAdaptiveActionMenu(
+            context,
+            anchorKey: _key,
+            items: [
+              ActionSheetItem(
+                icon: lucide.Lucide.UserPlus,
+                label: l10n.chatOwnerCreateAssistant,
+                onTap: () => _createAssistant(context),
+              ),
+              ActionSheetItem(
+                icon: lucide.Lucide.Users,
+                label: l10n.groupChatCreate,
+                onTap: () => _createGroup(context),
+              ),
+              ActionSheetItem(
+                key: const Key('harness-create-item'),
+                svgAsset: DeepSeekHarnessIcon.asset,
+                label: l10n.assistantHarnessDefaultName,
+                onTap: () => _createHarnessAssistant(context),
+              ),
+            ],
           );
         },
         child: Container(
@@ -144,6 +376,30 @@ class _AddAssistantButtonState extends State<_AddAssistantButton> {
         ),
       ),
     );
+  }
+
+  Future<void> _createAssistant(BuildContext context) async {
+    final assistantProvider = context.read<AssistantProvider>();
+    final name = await _showAddAssistantDesktopDialog(context);
+    if (name == null || name.trim().isEmpty) return;
+    if (!context.mounted) return;
+    await assistantProvider.addAssistant(name: name.trim(), context: context);
+  }
+
+  Future<void> _createHarnessAssistant(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final assistantProvider = context.read<AssistantProvider>();
+    final id = await assistantProvider.addHarnessAssistant(
+      name: l10n.assistantHarnessDefaultName,
+    );
+    if (!context.mounted) return;
+    await openHarnessSettings(context, id);
+  }
+
+  Future<void> _createGroup(BuildContext context) async {
+    final group = await showGroupCreate(context);
+    if (group == null || !context.mounted) return;
+    await showGroupSettings(context, group.id);
   }
 }
 
@@ -528,9 +784,102 @@ class _DeskIosButtonState extends State<_DeskIosButton> {
   }
 }
 
+class _DesktopGroupCard extends StatefulWidget {
+  const _DesktopGroupCard({required this.group, required this.assistants});
+  final GroupChat group;
+  final Map<String, Assistant> assistants;
+  @override
+  State<_DesktopGroupCard> createState() => _DesktopGroupCardState();
+}
+
+class _DesktopGroupCardState extends State<_DesktopGroupCard> {
+  bool _hover = false;
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseBg = context.appColors.surfaceCard;
+    final borderColor = _hover
+        ? cs.primary.withValues(alpha: isDark ? 0.35 : 0.45)
+        : cs.outlineVariant.withValues(alpha: isDark ? 0.12 : 0.08);
+    final separator = Localizations.localeOf(context).languageCode == 'zh'
+        ? '、'
+        : ', ';
+    final names = [
+      for (final id in widget.group.memberIds)
+        (widget.assistants[id]?.name ?? '').trim().isEmpty
+            ? id
+            : widget.assistants[id]!.name.trim(),
+    ];
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      cursor: SystemMouseCursors.click,
+      child: _CardPress(
+        onTap: () => showGroupSettings(context, widget.group.id),
+        pressedScale: 1.0,
+        builder: (pressed, overlay) => Container(
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(overlay, baseBg),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor, width: 1.0),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                GroupAvatar(group: widget.group, size: 48),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.group.name.isEmpty
+                            ? l10n.groupChatTitle
+                            : widget.group.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: AppFontWeights.emphasis,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        names.join(separator),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.7),
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DesktopAssistantCard extends StatefulWidget {
-  const _DesktopAssistantCard({required this.item, required this.onTap});
+  const _DesktopAssistantCard({
+    required this.item,
+    required this.onTap,
+    this.connections,
+  });
   final Assistant item;
+
+  /// Live link state, only passed when the pane contains harness assistants.
+  final HarnessConnectionProvider? connections;
   final VoidCallback onTap;
   @override
   State<_DesktopAssistantCard> createState() => _DesktopAssistantCardState();
@@ -540,8 +889,13 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
   bool _hover = false;
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final item = widget.item;
+    final connected =
+        item.isDeepSeekHarness &&
+        (widget.connections?.isConnected(item.id) ?? false);
     final baseBg = context.appColors.surfaceCard;
     final borderColor = _hover
         ? cs.primary.withValues(alpha: isDark ? 0.35 : 0.45)
@@ -564,7 +918,7 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _AssistantAvatarDesktop(item: widget.item, size: 48),
+                _AssistantAvatarDesktop(item: item, size: 48),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -574,7 +928,7 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                         children: [
                           Expanded(
                             child: Text(
-                              widget.item.name,
+                              item.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -583,21 +937,23 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                               ),
                             ),
                           ),
-                          _CopyAssistantIcon(
-                            onCopy: () async {
-                              await copyAssistantWithScope(
-                                context,
-                                widget.item.id,
-                              );
-                            },
-                          ),
+                          // A pointer at a remote WebUI is not duplicated into a
+                          // second chat assistant, so harness rows offer no copy.
+                          if (!item.isDeepSeekHarness)
+                            _CopyAssistantIcon(
+                              onCopy: () async {
+                                await copyAssistantWithScope(context, item.id);
+                              },
+                            ),
                           _DeleteAssistantIcon(
                             onConfirm: () async {
                               final assistantProvider = context
                                   .read<AssistantProvider>();
-                              final l10n = AppLocalizations.of(context)!;
-                              final count = assistantProvider.assistants.length;
-                              if (count <= 1) {
+                              // Only a local assistant is protected as the last
+                              // chat owner; a harness delete is always allowed.
+                              if (!item.isDeepSeekHarness &&
+                                  assistantProvider.chatAssistants.length <=
+                                      1) {
                                 showAppSnackBar(
                                   context,
                                   message: l10n
@@ -610,11 +966,11 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                               if (ok == true) {
                                 if (!context.mounted) return;
                                 await ChatActions.cancelActiveGenerationsForAssistant(
-                                  widget.item.id,
+                                  item.id,
                                 );
                                 if (!context.mounted) return;
                                 final success = await assistantProvider
-                                    .deleteAssistant(widget.item.id);
+                                    .deleteAssistant(item.id);
                                 if (!context.mounted) return;
                                 if (success != true) {
                                   showAppSnackBar(
@@ -631,11 +987,11 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        (widget.item.systemPrompt.trim().isEmpty
-                            ? AppLocalizations.of(
-                                context,
-                              )!.assistantSettingsNoPromptPlaceholder
-                            : widget.item.systemPrompt),
+                        item.isDeepSeekHarness
+                            ? l10n.assistantHarnessRemoteSubtitle
+                            : (item.systemPrompt.trim().isEmpty
+                                  ? l10n.assistantSettingsNoPromptPlaceholder
+                                  : item.systemPrompt),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -647,6 +1003,17 @@ class _DesktopAssistantCardState extends State<_DesktopAssistantCard> {
                     ],
                   ),
                 ),
+                if (connected) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: context.appColors.success,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -663,6 +1030,10 @@ class _AssistantAvatarDesktop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    // The whale mark is product identity: one implementation for every surface.
+    if (item.isDeepSeekHarness) {
+      return AssistantAvatar(assistant: item, size: size);
+    }
     final av = (item.avatar ?? '').trim();
     if (av.isNotEmpty) {
       if (av.startsWith('http') || (av.startsWith('/') || av.contains(':'))) {

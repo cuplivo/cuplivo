@@ -16,7 +16,6 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +23,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'image_preview_sheet.dart';
 import 'export_image_capture.dart';
+import 'export_progress_overlay.dart';
+import 'pdf_export_dialog.dart';
 import '../utils/export_image_processor.dart';
+import '../../subagent/widgets/subagent_mail_notice.dart'
+    show subagentMailLabelText;
+import '../../subagent/widgets/subagent_result_divider.dart';
 
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/models/chat_message.dart';
@@ -42,7 +46,7 @@ import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/platform_utils.dart';
 import '../../../shared/responsive/screen_type_helper.dart';
 import '../../../shared/markdown/markdown_with_code_highlight.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
 import '../../../shared/widgets/export_capture_scope.dart';
 import '../../../shared/widgets/diagram_exporter.dart';
 import '../../../shared/widgets/snackbar.dart';
@@ -52,7 +56,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_font_weights.dart';
 import '../../home/widgets/model_icon.dart';
 import '../utils/thinking_tag_parser.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import 'chat_message_widget.dart'
     show ChatMessageWidget, ToolUIPart, ReasoningSegment;
 
@@ -85,21 +89,32 @@ String? _modelDisplayNameFromSettings(
   return modelId;
 }
 
+/// The assistant whose words a reply carries.
+///
+/// In a group every reply has its own author; on a 1:1 chat the author is the
+/// conversation's assistant, which is also the one the user has selected.
+Assistant? _authorOfMessage(AssistantProvider assistants, ChatMessage msg) {
+  final senderId = msg.senderId;
+  if (senderId == null) return assistants.currentAssistant;
+  return assistants.getById(senderId);
+}
+
 String _getRoleNameFromDependencies({
   required AppLocalizations l10n,
   required SettingsProvider settings,
   required UserProvider userProvider,
-  required Assistant? assistant,
+  required AssistantProvider assistants,
   required ChatMessage msg,
 }) {
   if (msg.role == 'user') {
     return userProvider.name;
   }
   if (msg.role == 'assistant') {
-    if (assistant != null &&
-        assistant.useAssistantName == true &&
-        assistant.name.trim().isNotEmpty) {
-      return assistant.name.trim();
+    final author = _authorOfMessage(assistants, msg);
+    if (author != null &&
+        author.useAssistantName == true &&
+        author.name.trim().isNotEmpty) {
+      return author.name.trim();
     }
     final modelName = _modelDisplayNameFromSettings(settings, msg);
     if (modelName != null && modelName.isNotEmpty) {
@@ -124,6 +139,10 @@ _Parsed _imageExportPartsFromMessage(
   final docs = <_DocRef>[];
   for (final part in message.parts) {
     if (part is ImagePart) {
+      // A promise has no bytes: exporting it would write the reserved path into
+      // the file and paint a broken-image slot in the PDF. Same rule as every
+      // outbound walk — `state != null` means there is nothing to export.
+      if (!part.hasBytes) continue;
       final uri = part.uri.trim();
       if (uri.isNotEmpty) images.add(uri);
     } else if (part is FilePart) {
@@ -205,6 +224,8 @@ Future<void> _writeExportBlocks(
         buf.writeln(body);
         buf.writeln('');
       case ImagePart(:final uri):
+        // A failed or interrupted illustration is still a part; it has no file.
+        if (!part.hasBytes) continue;
         final trimmed = uri.trim();
         if (trimmed.isEmpty) continue;
         await writeImage(trimmed);
@@ -898,7 +919,9 @@ Future<void> exportChatMessagesMarkdown(
   final settings = context.read<SettingsProvider>();
   final chat = context.read<ChatService>();
   final userProvider = context.read<UserProvider>();
-  final assistant = context.read<AssistantProvider>().currentAssistant;
+  // Read once, before the first await: the roster the author names resolve
+  // from outlives the export, and `context` must not be touched across a gap.
+  final assistants = context.read<AssistantProvider>();
   final thinkingLabel = l10n.messageExportThinkingContentLabel;
   final timeFormatter = DateFormat(
     l10n.messageExportSheetDateTimeWithSecondsPattern,
@@ -926,11 +949,30 @@ Future<void> exportChatMessagesMarkdown(
 
     for (final msg in captures.messages) {
       final time = timeFormatter.format(msg.timestamp);
+      // A delegation's result is a divider, exactly as it is in the timeline and
+      // in the PDF: an export that prints it as "Alice: Subagent finished …"
+      // tells a reader the user wrote something they never wrote.
+      final notice = subagentResultPartOf(msg.parts);
+      if (notice != null) {
+        buf.writeln('### ${SubagentResultDivider.labelOf(l10n, notice)}');
+        // The string below carries its own leading and trailing newline: a
+        // separate blank line here would put two empty lines before the rule.
+        buf.writeln('\n---\n');
+        continue;
+      }
+      final mail = subagentMailPartOf(msg.parts);
+      if (mail != null) {
+        buf.writeln(
+          '### ${subagentMailLabelText(l10n, mail, chat.getConversation(mail.senderConversationId)?.title ?? '')}',
+        );
+        buf.writeln('\n---\n');
+        continue;
+      }
       final roleName = _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
         userProvider: userProvider,
-        assistant: assistant,
+        assistants: assistants,
         msg: msg,
       );
       buf.writeln('> $time · $roleName');
@@ -1028,7 +1070,9 @@ Future<void> exportChatMessagesTxt(
   final settings = context.read<SettingsProvider>();
   final chat = context.read<ChatService>();
   final userProvider = context.read<UserProvider>();
-  final assistant = context.read<AssistantProvider>().currentAssistant;
+  // Read once, before the first await: the roster the author names resolve
+  // from outlives the export, and `context` must not be touched across a gap.
+  final assistants = context.read<AssistantProvider>();
   final thinkingLabel = l10n.messageExportThinkingContentLabel;
   final timeFormatter = DateFormat(
     l10n.messageExportSheetDateTimeWithSecondsPattern,
@@ -1056,11 +1100,26 @@ Future<void> exportChatMessagesTxt(
 
     for (final msg in captures.messages) {
       final time = timeFormatter.format(msg.timestamp);
+      // The same divider in the plain-text export, in its own dialect.
+      final notice = subagentResultPartOf(msg.parts);
+      if (notice != null) {
+        buf.writeln('[${SubagentResultDivider.labelOf(l10n, notice)}]');
+        buf.writeln('\n---\n');
+        continue;
+      }
+      final mail = subagentMailPartOf(msg.parts);
+      if (mail != null) {
+        buf.writeln(
+          '[${subagentMailLabelText(l10n, mail, chat.getConversation(mail.senderConversationId)?.title ?? '')}]',
+        );
+        buf.writeln('\n---\n');
+        continue;
+      }
       final roleName = _getRoleNameFromDependencies(
         l10n: l10n,
         settings: settings,
         userProvider: userProvider,
-        assistant: assistant,
+        assistants: assistants,
         msg: msg,
       );
       buf.writeln('$time · $roleName');
@@ -1142,7 +1201,7 @@ Future<void> exportChatMessagesImage(
     final uiCaptures = await captureUiExportMessages(context, messages);
     if (!context.mounted) return;
     _ExportedImageResult? file;
-    await _runWithExportingOverlay(context, (progress) async {
+    await runWithExportProgressOverlay(context, (progress) async {
       file = await _renderAndSaveChatImage(
         context,
         conversation,
@@ -1210,7 +1269,7 @@ Future<_ExportedImageResult?> _renderAndSaveMessageImage(
 
   final bool isDesktop =
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-  final exportConfig = _exportImageRenderConfig(isDesktop: isDesktop);
+  final exportConfig = exportRenderConfig(isDesktop: isDesktop);
 
   Widget buildContent() => UiExportSnapshotScope(
     captures: uiCaptures,
@@ -1276,7 +1335,7 @@ Future<_ExportedImageResult?> _renderAndSaveChatImage(
 
   final bool isDesktop =
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-  final exportConfig = _exportImageRenderConfig(isDesktop: isDesktop);
+  final exportConfig = exportRenderConfig(isDesktop: isDesktop);
 
   Widget buildContent() => UiExportSnapshotScope(
     captures: uiCaptures,
@@ -1309,24 +1368,11 @@ Future<_ExportedImageResult?> _renderAndSaveChatImage(
   );
 }
 
-const double _desktopExportLogicalWidth = 720.0;
-const double _mobileExportLogicalWidth = 480.0;
-const double _exportImagePixelRatio = 3.0;
-
-({double width, double pixelRatio}) _exportImageRenderConfig({
-  required bool isDesktop,
-}) {
-  return (
-    width: isDesktop ? _desktopExportLogicalWidth : _mobileExportLogicalWidth,
-    pixelRatio: _exportImagePixelRatio,
-  );
-}
-
 @visibleForTesting
 ({double width, double pixelRatio}) exportImageRenderConfigForTesting({
   required bool isDesktop,
 }) {
-  return _exportImageRenderConfig(isDesktop: isDesktop);
+  return exportRenderConfig(isDesktop: isDesktop);
 }
 
 class _ExportedImageResult {
@@ -1811,7 +1857,7 @@ class _ExportDialogState extends State<_ExportDialog>
       await Navigator.of(context).maybePop();
       if (!pctx.mounted) return;
       _ExportedImageResult? file;
-      await _runWithExportingOverlay(pctx, (progress) async {
+      await runWithExportProgressOverlay(pctx, (progress) async {
         file = await _renderAndSaveMessageImage(
           pctx,
           widget.message,
@@ -1988,6 +2034,32 @@ class _BatchExportDialogState extends State<_BatchExportDialog>
     await exporting;
   }
 
+  /// The PDF is a format of this menu, not a sibling of it.
+  ///
+  /// The configuration dialog is its own surface, and the progress card and the
+  /// result panel it raises outlive this menu — so the menu closes first and the
+  /// dialog opens on the page. Asked for from a route that is about to be
+  /// disposed, those surfaces would go with it.
+  Future<void> _onExportPdf() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    final pctx = widget.parentContext;
+    final settings = pctx.read<SettingsProvider>();
+    await Navigator.of(context).maybePop();
+    if (!pctx.mounted) return;
+    await showPdfExportDialog(
+      pctx,
+      conversation: widget.conversation,
+      messages: widget.messages,
+      showThinkingAndToolCards: _showThinkingAndToolCards,
+      expandThinkingContent: _expandThinkingContent,
+      appFontPath: settings.appFontLocalPath,
+      codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
+    );
+  }
+
   Future<void> _onExportImage() async {
     if (_exporting) return;
     setState(() => _exporting = true);
@@ -2008,7 +2080,7 @@ class _BatchExportDialogState extends State<_BatchExportDialog>
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 720, maxHeight: 460),
+      constraints: const BoxConstraints(maxWidth: 720, maxHeight: 560),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Material(
@@ -2066,6 +2138,12 @@ class _BatchExportDialogState extends State<_BatchExportDialog>
                           title: l10n.messageExportSheetPlainText,
                           subtitle: l10n.messageExportSheetBatchTxtSubtitle,
                           onTap: _exporting ? null : _onExportTxt,
+                        ),
+                        _ExportOptionTile(
+                          icon: Lucide.FileType,
+                          title: l10n.messageExportSheetPdf,
+                          subtitle: l10n.messageExportSheetBatchPdfSubtitle,
+                          onTap: _exporting ? null : _onExportPdf,
                         ),
                         _ExportOptionTile(
                           icon: Lucide.Image,
@@ -2155,6 +2233,29 @@ class _BatchExportSheetState extends State<_BatchExportSheet>
     );
   }
 
+  /// A format of this menu, not a sibling of it: the menu closes and the
+  /// configuration opens on the page, which is what the export's progress card
+  /// and result panel have to outlive.
+  Future<void> _onExportPdf() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    final pctx = widget.parentContext;
+    final settings = pctx.read<SettingsProvider>();
+    if (mounted) Navigator.of(context).maybePop();
+    if (!pctx.mounted) return;
+    await showPdfExportDialog(
+      pctx,
+      conversation: widget.conversation,
+      messages: widget.messages,
+      showThinkingAndToolCards: _showThinkingAndToolCards,
+      expandThinkingContent: _expandThinkingContent,
+      appFontPath: settings.appFontLocalPath,
+      codeFontPath: settings.codeFontLocalPath,
+      appFontFamily: settings.appFontFamily,
+      codeFontFamily: settings.codeFontFamily,
+    );
+  }
+
   Future<void> _onExportImage() async {
     if (_exporting) return;
     setState(() => _exporting = true);
@@ -2228,6 +2329,16 @@ class _BatchExportSheetState extends State<_BatchExportSheet>
                         ? null
                         : () {
                             _onExportTxt();
+                          },
+                  ),
+                  _ExportOptionTile(
+                    icon: Lucide.FileType,
+                    title: l10n.messageExportSheetPdf,
+                    subtitle: l10n.messageExportSheetBatchPdfSubtitle,
+                    onTap: _exporting
+                        ? null
+                        : () {
+                            _onExportPdf();
                           },
                   ),
                   _ExportOptionTile(
@@ -2347,7 +2458,7 @@ class _ExportSheetState extends State<_ExportSheet>
       final uiCaptures = await captureUiExportMessages(pctx, [widget.message]);
       if (!pctx.mounted) return;
       _ExportedImageResult? file;
-      await _runWithExportingOverlay(pctx, (progress) async {
+      await runWithExportProgressOverlay(pctx, (progress) async {
         file = await _renderAndSaveMessageImage(
           pctx,
           widget.message,
@@ -2525,6 +2636,46 @@ class _ExportedMessageCard extends StatelessWidget {
     final double containerMargin = isDesktop ? 12.0 : 16.0;
     final double containerPadding = isDesktop ? 12.0 : 16.0;
 
+    // A delegation's result or its mail is a divider here too: the image export
+    // draws a card per message with the speaker's name, and these rows have no
+    // speaker in this conversation.
+    Widget dividerCard(String label) => Container(
+      margin: EdgeInsets.all(containerMargin),
+      padding: EdgeInsets.symmetric(horizontal: containerPadding, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.appColors.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: isDesktop ? 11.5 : 13,
+          color: cs.onSurface.withValues(alpha: .6),
+        ),
+      ),
+    );
+    final l10n = AppLocalizations.of(context)!;
+    final notice = subagentResultPartOf(message.parts);
+    if (notice != null) {
+      return dividerCard(SubagentResultDivider.labelOf(l10n, notice));
+    }
+    final mail = subagentMailPartOf(message.parts);
+    if (mail != null) {
+      return dividerCard(
+        subagentMailLabelText(
+          l10n,
+          mail,
+          context
+                  .read<ChatService?>()
+                  ?.getConversation(mail.senderConversationId)
+                  ?.title ??
+              '',
+        ),
+      );
+    }
+
     final messageForExport = messageForThinkingExport(
       message,
       showThinkingAndToolCards: showThinkingAndToolCards,
@@ -2541,7 +2692,10 @@ class _ExportedMessageCard extends StatelessWidget {
     final toolParts = preserveTimeline
         ? _exportToolPartsForMessage(context, message)
         : const <ToolUIPart>[];
-    final assistant = context.read<AssistantProvider>().currentAssistant;
+    final assistant = _authorOfMessage(
+      context.read<AssistantProvider>(),
+      message,
+    );
     final useAssistAvatar =
         isAssistant && (assistant?.useAssistantAvatar == true);
     final useAssistName = isAssistant && (assistant?.useAssistantName == true);
@@ -2706,14 +2860,39 @@ class _ExportedChatImage extends StatelessWidget {
               ),
               SizedBox(height: isDesktop ? 10.0 : 12.0),
               for (final m in messages) ...[
-                _ExportedBubble(
-                  message: m,
-                  cs: cs,
-                  showThinkingAndToolCards: showThinkingAndToolCards,
-                  expandThinkingContent: expandThinkingContent,
-                  collapseThinkingSteps: collapseThinkingSteps,
-                  isDesktop: isDesktop,
-                ),
+                // A delegation's result is a divider here too: the bubble would
+                // print the user's name over a row they never wrote. Mail is the
+                // same kind of row.
+                if (subagentResultPartOf(m.parts) case final notice?)
+                  _ExportedDivider(
+                    label: SubagentResultDivider.labelOf(
+                      AppLocalizations.of(context)!,
+                      notice,
+                    ),
+                    isDesktop: isDesktop,
+                  )
+                else if (subagentMailPartOf(m.parts) case final mail?)
+                  _ExportedDivider(
+                    label: subagentMailLabelText(
+                      AppLocalizations.of(context)!,
+                      mail,
+                      context
+                              .read<ChatService?>()
+                              ?.getConversation(mail.senderConversationId)
+                              ?.title ??
+                          '',
+                    ),
+                    isDesktop: isDesktop,
+                  )
+                else
+                  _ExportedBubble(
+                    message: m,
+                    cs: cs,
+                    showThinkingAndToolCards: showThinkingAndToolCards,
+                    expandThinkingContent: expandThinkingContent,
+                    collapseThinkingSteps: collapseThinkingSteps,
+                    isDesktop: isDesktop,
+                  ),
                 SizedBox(height: isDesktop ? 6.0 : 8.0),
               ],
               SizedBox(height: isDesktop ? 10.0 : 12.0),
@@ -2722,6 +2901,45 @@ class _ExportedChatImage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The divider an exported conversation uses where a delegation's result sits.
+///
+/// A hairline with a bold small label rather than the timeline's 28px row: a PNG
+/// is a fixed width that gets scaled down and a PDF prints at 300dpi, and in both
+/// a 1px line alone either disappears or outweighs the body text. The word is
+/// what has to survive.
+class _ExportedDivider extends StatelessWidget {
+  const _ExportedDivider({required this.label, required this.isDesktop});
+
+  final String label;
+  final bool isDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final lineColor = cs.onSurface.withValues(alpha: .16);
+    return Row(
+      children: [
+        Expanded(child: Divider(height: 1, thickness: .5, color: lineColor)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: isDesktop ? 9.5 : 10.5,
+              fontWeight: AppFontWeights.emphasis,
+              letterSpacing: .3,
+              color: cs.onSurface.withValues(alpha: .62),
+            ),
+          ),
+        ),
+        Expanded(child: Divider(height: 1, thickness: .5, color: lineColor)),
+      ],
     );
   }
 }
@@ -2767,7 +2985,10 @@ class _ExportedBubble extends StatelessWidget {
     final toolParts = preserveTimeline
         ? _exportToolPartsForMessage(context, message)
         : const <ToolUIPart>[];
-    final assistant = context.read<AssistantProvider>().currentAssistant;
+    final assistant = _authorOfMessage(
+      context.read<AssistantProvider>(),
+      message,
+    );
     final useAssistAvatar =
         isAssistant && (assistant?.useAssistantAvatar == true);
     final useAssistName = isAssistant && (assistant?.useAssistantName == true);
@@ -2893,95 +3114,7 @@ class _ExportDisclaimer extends StatelessWidget {
 
 @visibleForTesting
 Widget buildImageExportProgressForTesting(ExportImageProgress progress) =>
-    _ExportProgressContent(progress: progress);
-
-class _ExportProgressContent extends StatelessWidget {
-  const _ExportProgressContent({required this.progress});
-  final ExportImageProgress progress;
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final label = switch (progress.stage) {
-      ExportImageStage.preparing => l10n.imageExportPreparing,
-      ExportImageStage.diagrams => l10n.imageExportDiagrams(
-        progress.completed,
-        progress.total,
-      ),
-      ExportImageStage.capturing => l10n.imageExportCapturing(
-        progress.completed,
-        progress.total,
-      ),
-      ExportImageStage.processing => l10n.imageExportProcessing,
-      ExportImageStage.saving => l10n.imageExportSaving,
-    };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      child: SizedBox(
-        width: 240,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CupertinoActivityIndicator(radius: 16),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: .8),
-              ),
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(value: progress.fraction),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _runWithExportingOverlay(
-  BuildContext context,
-  Future<void> Function(ValueNotifier<ExportImageProgress> progress) task,
-) async {
-  final navigator = Navigator.of(context, rootNavigator: true);
-  final progress = ValueNotifier(
-    const ExportImageProgress(ExportImageStage.preparing),
-  );
-  final route = DialogRoute<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => PopScope(
-      canPop: false,
-      child: Center(
-        child: Material(
-          color: context.appColors.surfaceCard,
-          elevation: 6,
-          shadowColor: Theme.of(
-            context,
-          ).colorScheme.shadow.withValues(alpha: .2),
-          borderRadius: BorderRadius.circular(14),
-          child: ValueListenableBuilder<ExportImageProgress>(
-            valueListenable: progress,
-            builder: (context, value, _) =>
-                _ExportProgressContent(progress: value),
-          ),
-        ),
-      ),
-    ),
-  );
-  unawaited(navigator.push(route));
-  try {
-    await WidgetsBinding.instance.endOfFrame;
-    await task(progress);
-  } finally {
-    // Remove only this operation's dialog, even when another route was opened.
-    if (route.isActive) navigator.removeRoute(route);
-    progress.dispose();
-  }
-}
+    ExportProgressContent(progress: progress);
 
 class _Parsed {
   final String text;

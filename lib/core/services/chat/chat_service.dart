@@ -11,7 +11,7 @@ import '../../utils/conversation_fork_title.dart';
 import '../../models/quote_ref.dart';
 import '../../../features/intelligent_ui/host/ui_context_submission.dart';
 import '../../../features/intelligent_ui/models/ui_context_attachment.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
 import '../../models/composer_draft.dart';
 import '../../../features/intelligent_ui/storage/ui_state_transfer.dart';
 import '../../../features/intelligent_ui/runtime/ui_surface_state.dart';
@@ -33,6 +33,7 @@ import '../../database/business_repository.dart';
 import '../../database/chat_database_gateway.dart';
 import '../../database/chat_database_repository.dart';
 import '../backup/backup_cancel_token.dart';
+import '../recycle/recycle_service.dart';
 import '../backup/backup_isolate_runner.dart';
 import '../backup/backup_task_progress.dart';
 import '../../database/generation_run.dart';
@@ -48,11 +49,13 @@ import '../api/providers/claude/claude_container.dart';
 import '../api/providers/claude/claude_history.dart';
 import '../api/providers/claude/claude_thinking_recovery.dart';
 import '../api/providers/google_gemini.dart';
+import '../../models/assistant.dart';
 import '../api/providers/openai/responses_history.dart';
 import '../../models/message_part.dart';
 import '../../models/conversation.dart';
 import '../../models/conversation_mcp_settings.dart';
 import '../../models/workspace_binding.dart';
+import '../proactive_care_alarm_service.dart';
 import '../../../utils/sandbox_path_resolver.dart';
 import '../../../utils/app_directories.dart';
 import '../mcp/mcp_image_snapshot.dart';
@@ -319,18 +322,71 @@ class ChatService extends ChangeNotifier {
     }
   }
 
-  // Localized default title for new conversations; set by UI on startup.
+  /// The placeholder a conversation gets when the service creates one outside
+  /// the UI (a temporary chat, a scheduled run). The UI refreshes it with the
+  /// current language on startup.
   String _defaultConversationTitle = 'New Chat';
+
+  /// Titles that mean "nothing has named this yet", in every language the app
+  /// ships; see [setPlaceholderTitles].
+  Set<String> _placeholderTitles = const <String>{'New Chat', 'New topic'};
+
+  /// The placeholder a new conversation carries until something names it.
+  String get defaultConversationTitle => _defaultConversationTitle;
+
+  /// [titles] holds every localized placeholder — the conversation one and the
+  /// group-topic one, for every language the app can run in.
+  ///
+  /// A conversation keeps the title it was created with and the user can switch
+  /// language without restarting, so matching the current locale alone would
+  /// stop naming a chat created before the switch. "The title is some known
+  /// placeholder" is the property that actually holds.
+  void setPlaceholderTitles({
+    required String conversation,
+    required Set<String> titles,
+  }) {
+    if (conversation.trim().isNotEmpty) {
+      _defaultConversationTitle = conversation.trim();
+    }
+    if (titles.isNotEmpty) {
+      _placeholderTitles = <String>{
+        for (final title in titles)
+          if (title.trim().isNotEmpty) title.trim(),
+        _defaultConversationTitle,
+      };
+    }
+  }
+
+  /// Whether [title] is still a placeholder, i.e. nothing has named this
+  /// conversation yet.
+  bool isPlaceholderTitle(String title) {
+    final trimmed = title.trim();
+    return trimmed.isEmpty || _placeholderTitles.contains(trimmed);
+  }
 
   /// Optional extras merged into brand-new conversations (not restores).
   Map<String, dynamic> Function(String? assistantId)? newConversationExtras;
 
-  Map<String, dynamic> _extrasForNewConversation(String? assistantId) {
+  /// Names the speaker of each line in the context-compression source.
+  ///
+  /// A group topic sets it so a summary keeps its voices apart instead of
+  /// merging every member into one "Assistant"; a 1:1 conversation leaves it
+  /// null and the plain role words are used.
+  String Function(ChatMessage message)? compressionLabelOf;
+
+  Map<String, dynamic> _extrasForNewConversation(
+    String? assistantId, {
+    String? groupChatId,
+  }) {
     final extras = newConversationExtras?.call(assistantId);
-    if (extras == null || extras.isEmpty) {
+    final merged = <String, dynamic>{
+      ...?extras,
+      if (groupChatId != null) Conversation.groupChatIdKey: groupChatId,
+    };
+    if (merged.isEmpty) {
       return const <String, dynamic>{};
     }
-    return ToolPermissionMode.withoutGrant(extras);
+    return ToolPermissionMode.withoutGrant(merged);
   }
 
   Future<void> _copyConversationSettingsFrom(
@@ -350,11 +406,6 @@ class ChatService extends ChangeNotifier {
         }),
       );
     });
-  }
-
-  void setDefaultConversationTitle(String title) {
-    if (title.trim().isEmpty) return;
-    _defaultConversationTitle = title.trim();
   }
 
   bool _initialized = false;
@@ -1619,7 +1670,16 @@ class ChatService extends ChangeNotifier {
   /// honoring the conversation's logical truncateIndex) identically on both
   /// paths: served from the cache when the conversation is fully cached,
   /// otherwise paged from the selected logical timeline.
-  Future<String> generateTitleSource(String conversationId) async {
+  ///
+  /// [line] renders one message for the model. A 1:1 chat leaves it out and
+  /// gets the `User:`/`Assistant:` lines it always had; a group topic passes
+  /// its own renderer, because which member said what is part of the content
+  /// (and because that renderer lives in the feature layer, which this service
+  /// must not depend on).
+  Future<String> generateTitleSource(
+    String conversationId, {
+    String Function(ChatMessage message)? line,
+  }) async {
     if (!_initialized) return '';
     if (_conversationForMessages(conversationId) == null) return '';
     final truncateIndex = getContextStartIndex(conversationId);
@@ -1648,13 +1708,14 @@ class ChatService extends ChangeNotifier {
       );
     }
 
+    final render =
+        line ??
+        (ChatMessage message) =>
+            '${message.role == 'assistant' ? 'Assistant' : 'User'}: '
+            '${message.content}';
     final joined = source
         .where((message) => message.content.isNotEmpty)
-        .map(
-          (message) =>
-              '${message.role == 'assistant' ? 'Assistant' : 'User'}: '
-              '${message.content}',
-        )
+        .map(render)
         .join('\n\n');
     return joined.length > _titleSourceMaxChars
         ? joined.substring(0, _titleSourceMaxChars)
@@ -2192,18 +2253,38 @@ class ChatService extends ChangeNotifier {
     return len;
   }
 
+  /// Creates a conversation and returns it.
+  ///
+  /// [extras] replaces the default bag when provided. A caller that inherits a
+  /// parent conversation's binding has to be able to say "no workspace" as well
+  /// as "this workspace", and merging over the default could only ever add
+  /// keys. Whichever bag wins, a tool grant is stripped here: this is the one
+  /// place a new conversation's extras are built, so a new conversation can
+  /// never start with a grant nobody gave it.
   Future<Conversation> createConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool activate = true,
+    Map<String, dynamic>? extras,
   }) async {
     if (!_initialized) await init();
     if (activate) _discardTemporaryConversation(_currentConversationId);
 
+    // A group conversation has no owning assistant: the speaker is chosen per
+    // message, so the owner column stays empty exactly as it does for a global
+    // conversation, and only `extras` links it to its group.
+    final ownerId = groupChatId == null ? assistantId : null;
+    final base = extras == null
+        ? _extrasForNewConversation(ownerId, groupChatId: groupChatId)
+        : <String, dynamic>{
+            ...extras,
+            if (groupChatId != null) Conversation.groupChatIdKey: groupChatId,
+          };
     final conversation = Conversation(
       title: title ?? _defaultConversationTitle,
-      assistantId: assistantId,
-      extras: _extrasForNewConversation(assistantId),
+      assistantId: ownerId,
+      extras: ToolPermissionMode.withoutGrant(base),
     );
 
     await _saveConversation(conversation);
@@ -2239,14 +2320,16 @@ class ChatService extends ChangeNotifier {
   Future<Conversation> createDraftConversation({
     String? title,
     String? assistantId,
+    String? groupChatId,
     bool temporary = false,
     bool reuseNewEntry = false,
   }) async {
     if (!_initialized) await init();
     _discardTemporaryConversation(_currentConversationId);
+    final ownerId = groupChatId == null ? assistantId : null;
     final existing = temporary || !reuseNewEntry
         ? null
-        : _repo.composerDrafts.newEntry(assistantId);
+        : _repo.composerDrafts.newEntry(ownerId, groupChatId: groupChatId);
     if (existing != null) {
       final restored = _conversationsCache[existing.id] ?? existing;
       if (!_conversationsCache.containsKey(restored.id)) {
@@ -2258,8 +2341,8 @@ class ChatService extends ChangeNotifier {
     }
     final conversation = Conversation(
       title: title ?? _defaultConversationTitle,
-      assistantId: assistantId,
-      extras: _extrasForNewConversation(assistantId),
+      assistantId: ownerId,
+      extras: _extrasForNewConversation(ownerId, groupChatId: groupChatId),
     );
     _draftConversations[conversation.id] = conversation;
     if (!temporary && reuseNewEntry) {
@@ -2357,11 +2440,13 @@ class ChatService extends ChangeNotifier {
   Future<bool> _deletePersistedConversation(
     String id, {
     bool bump = true,
+    RecycleOrigin origin = RecycleOrigin.local,
+    RecycleGroup? group,
   }) async {
     final conversation = _conversationsCache[id];
     if (conversation == null) return false;
 
-    await _repo.deleteConversation(id);
+    await _repo.deleteConversation(id, origin: origin, group: group);
     _conversationsCache.remove(id);
     // Stop any deferred/in-flight order backfill before clearing caches so a
     // late getMessageIds cannot resurrect order/count for a deleted id.
@@ -2382,13 +2467,24 @@ class ChatService extends ChangeNotifier {
       _currentConversationId = null;
     }
     _forgetContextRevision(id);
+    // A deleted conversation must leave no orphaned letter alarm behind.
+    if (ProactiveCareAlarmService.isSupported) {
+      unawaited(
+        ProactiveCareAlarmService.cancelFor(id).catchError((Object e) {
+          debugPrint('[ProactiveCare] cancel on delete failed: $e');
+        }),
+      );
+    }
     if (bump) {
       _bumpConversationListRevision();
     }
     return true;
   }
 
-  Future<void> deleteConversationsForAssistant(String assistantId) async {
+  Future<void> deleteConversationsForAssistant(
+    String assistantId, {
+    RecycleGroup? group,
+  }) async {
     if (!_initialized) await init();
 
     final targetId = assistantId.trim();
@@ -2416,7 +2512,11 @@ class ChatService extends ChangeNotifier {
     }
     for (final conversationId in persistedConversationIds) {
       deleted =
-          await _deletePersistedConversation(conversationId, bump: false) ||
+          await _deletePersistedConversation(
+            conversationId,
+            bump: false,
+            group: group,
+          ) ||
           deleted;
     }
 
@@ -2426,9 +2526,64 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deletes every conversation a group chat owns, as part of deleting that
+  /// group. Mirrors [deleteConversationsForAssistant], including the [group]
+  /// stamped on each staged conversation so the bin shows the group row and its
+  /// topics as the one act they were.
+  Future<void> deleteConversationsForGroup(
+    String groupChatId, {
+    RecycleGroup? group,
+  }) async {
+    if (!_initialized) await init();
+
+    final targetId = groupChatId.trim();
+    if (targetId.isEmpty) return;
+
+    final persistedConversationIds = _conversationsCache.values
+        .where((conversation) => conversation.groupChatId == targetId)
+        .map((conversation) => conversation.id)
+        .toList(growable: false);
+    final draftConversationIds = _draftConversations.values
+        .where((conversation) => conversation.groupChatId == targetId)
+        .map((conversation) => conversation.id)
+        .toList(growable: false);
+
+    var deleted = false;
+    for (final id in _repo.composerDrafts.newEntriesForGroup(targetId)) {
+      if (!draftConversationIds.contains(id) &&
+          !persistedConversationIds.contains(id)) {
+        await _repo.composerDrafts.delete(id);
+        deleted = true;
+      }
+    }
+    for (final conversationId in draftConversationIds) {
+      deleted = await _deleteDraftConversation(conversationId) || deleted;
+    }
+    for (final conversationId in persistedConversationIds) {
+      deleted =
+          await _deletePersistedConversation(
+            conversationId,
+            bump: false,
+            group: group,
+          ) ||
+          deleted;
+    }
+
+    if (!deleted) return;
+    _bumpConversationListRevision();
+    notifyListeners();
+  }
+
   /// Deletes each id once. Returns the number of conversations actually
   /// removed. Notifies and bumps the list revision at most once.
-  Future<int> deleteConversations(Iterable<String> ids) async {
+  ///
+  /// [group] is the recycle bin's label for one deletion event: a bulk delete
+  /// that is one act to the user stages its conversations as one entry in the
+  /// bin rather than N unrelated ones.
+  Future<int> deleteConversations(
+    Iterable<String> ids, {
+    RecycleGroup? group,
+  }) async {
     if (!_initialized) await init();
 
     var count = 0;
@@ -2436,7 +2591,7 @@ class ChatService extends ChangeNotifier {
     for (final id in ids) {
       if (id.isEmpty || !seen.add(id)) continue;
       if (await _deleteDraftConversation(id) ||
-          await _deletePersistedConversation(id, bump: false)) {
+          await _deletePersistedConversation(id, bump: false, group: group)) {
         count++;
       }
     }
@@ -2454,8 +2609,11 @@ class ChatService extends ChangeNotifier {
     for (final part in message.parts) {
       if (part is ImagePart) {
         // Unavailable placeholders stay in history for UI but must not enter
-        // asset sync — missing files would otherwise dirty/throw forever.
-        if (part.unavailable) continue;
+        // asset sync — missing files would otherwise dirty/throw forever. A
+        // promise is the same case one level earlier: `state != null` means no
+        // bytes exist yet, and this walk must not be the one place that asks the
+        // filesystem about a file nobody wrote.
+        if (part.unavailable || !part.hasBytes) continue;
         final uri = part.uri.trim();
         if (uri.isEmpty || uri.startsWith('http') || uri.startsWith('data:')) {
           continue;
@@ -2928,7 +3086,7 @@ class ChatService extends ChangeNotifier {
           try {
             for (final file in regularFiles) {
               final quarantine = File(
-                '${file.path}.kelivo-gc-${candidate.assetId}-'
+                '${file.path}.cuplivo-gc-${candidate.assetId}-'
                 '${candidate.generation}',
               );
               if (await quarantine.exists()) {
@@ -3042,6 +3200,33 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-reads persisted chat state after a writer outside this service changed
+  /// the database — the recycle bin's restore and a LAN sync apply both write
+  /// rows through the repository and then need the in-memory caches to catch
+  /// up. Mirrors the post-merge tail of [mergeDatabaseSnapshot]; no restart is
+  /// involved.
+  ///
+  /// [touchedConversations] names what the external writer changed, so the open
+  /// window knows to rebuild itself instead of leaving the user on the content
+  /// that was there before the write: each one moves its
+  /// [externalWriteRevision] as well as its context revision.
+  Future<void> reloadAfterExternalChange({
+    Set<String>? touchedConversations,
+  }) async {
+    if (touchedConversations != null) {
+      for (final conversationId in touchedConversations) {
+        _externalWriteRevisions[conversationId] =
+            (_externalWriteRevisions[conversationId] ?? 0) + 1;
+        _bumpContextRevision(conversationId);
+      }
+    }
+    _clearPersistedMessageCache();
+    await _backfillAssetReferencesForCurrentRoot();
+    await _loadConversationsCache();
+    _bumpConversationListRevision();
+    notifyListeners();
+  }
+
   /// Publishes a fully parsed external import. Chat rows and the associated
   /// business patch commit in one transaction; caches and files change only
   /// after that transaction succeeds.
@@ -3070,6 +3255,7 @@ class ChatService extends ChangeNotifier {
         await _resetAfterOverwriteRestore();
       });
       if (deleteUploads) await _deleteUploadDirectory();
+      _rescheduleProactiveCareAlarms();
       return;
     }
     await commit();
@@ -3077,6 +3263,7 @@ class ChatService extends ChangeNotifier {
     await _backfillAssetReferencesForCurrentRoot();
     await _loadConversationsCache();
     notifyListeners();
+    _rescheduleProactiveCareAlarms();
   }
 
   Future<void> replaceAllDataFromBackup({
@@ -3109,6 +3296,33 @@ class ChatService extends ChangeNotifier {
 
       await _resetAfterOverwriteRestore();
     });
+    _rescheduleProactiveCareAlarms();
+  }
+
+  /// Re-arms every pending letter alarm after a bulk restore/import replaced
+  /// conversation rows (the extras hook does not run for repo-level writes).
+  void _rescheduleProactiveCareAlarms() {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    final resolver = proactiveCareAssistantResolver;
+    if (resolver == null) return;
+    final conversations = getAllConversations()
+        .where((c) => c.proactiveCareNextMessageAt != null)
+        .toList(growable: false);
+    if (conversations.isEmpty) return;
+    final assistants = <Assistant?>[
+      for (final id in conversations.map((c) => c.assistantId).toSet())
+        id == null ? null : resolver(id),
+    ].whereType<Assistant>().toList(growable: false);
+    unawaited(
+      ProactiveCareAlarmService.rescheduleAll(
+        conversations: conversations,
+        assistants: assistants,
+        assistantStoreLoaded:
+            proactiveCareAssistantStoreLoaded?.call() ?? false,
+      ).catchError((Object e) {
+        debugPrint('[ProactiveCare] post-restore reschedule failed: $e');
+      }),
+    );
   }
 
   /// Snapshot scheduling can inspect change fingerprints before it builds an
@@ -3164,6 +3378,17 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
     return report;
   }
+
+  /// Bumped for each conversation an *external* writer (LAN sync's apply)
+  /// changed. A window that has already rendered the row set holds the counter
+  /// it rendered with, so a notification for any other reason never rebuilds
+  /// it, and a rebuild that had to be skipped — a local generation owned the
+  /// window — still happens on the next notification.
+  final Map<String, int> _externalWriteRevisions = <String, int>{};
+
+  /// How many external writes have landed in [conversationId] since launch.
+  int externalWriteRevision(String conversationId) =>
+      _externalWriteRevisions[conversationId] ?? 0;
 
   /// Chats-only merge/restore follow-up for imported conversations.
   Future<int> recomputeImportedAttachmentAvailability({
@@ -3331,15 +3556,16 @@ class ChatService extends ChangeNotifier {
     if (_draftConversations.containsKey(id)) {
       final draft = _draftConversations[id]!;
       draft.title = newTitle;
-      draft.updatedAt = DateTime.now();
       notifyListeners();
       return;
     }
     final conversation = _conversationsCache[id];
     if (conversation == null) return;
 
+    // A rename is tidying, not activity: it travels on the conversation's sync
+    // clock and leaves `updated_at` where it was, so renaming a three-day-old
+    // conversation does not put it at the top of the list.
     conversation.title = newTitle;
-    conversation.updatedAt = DateTime.now();
     await _saveConversation(conversation);
     _bumpConversationListRevision();
     notifyListeners();
@@ -3411,11 +3637,29 @@ class ChatService extends ChangeNotifier {
   }
 
   /// Reads extras, applies [update], writes the result, and refreshes the cache.
+  ///
+  /// When the update touches a proactive-care key, the Android alarm for
+  /// the conversation is re-armed (or cancelled) — one central sync point
+  /// for every schedule write (decision flow, letter tab, conversation
+  /// sheet, restore imports).
   Future<void> updateConversationExtras(
     String conversationId,
     Map<String, dynamic> Function(Map<String, dynamic> current) update, {
     Conversation? expectedOwner,
   }) async {
+    var touchedProactiveCare = false;
+    const careKeys = [
+      Conversation.proactiveCareEnabledOverrideKey,
+      Conversation.proactiveCareNextMessageAtKey,
+    ];
+    Map<String, dynamic> applyTracked(Map<String, dynamic> current) {
+      final before = {for (final key in careKeys) key: current[key]};
+      final next = update(Map<String, dynamic>.from(current));
+      final after = {for (final key in careKeys) key: next[key]};
+      touchedProactiveCare = !mapEquals(before, after);
+      return next;
+    }
+
     final draft = _draftConversations[conversationId];
     if (draft != null) {
       if (expectedOwner != null &&
@@ -3428,26 +3672,61 @@ class ChatService extends ChangeNotifier {
               _repo.composerDrafts.isNewEntry(conversationId)
           ? await _repo.composerDrafts.updateNewEntryExtras(
               conversationId,
-              update,
+              applyTracked,
               expectedOwner: expectedOwner,
             )
-          : update(Map<String, dynamic>.from(draft.extras));
+          : applyTracked(draft.extras);
       final current = _draftConversations[conversationId];
       if (current == null) throw StateError('conversation_not_found');
       _draftConversations[conversationId] = current.copyWith(extras: extras);
       _bumpContextRevision(conversationId);
       notifyListeners();
+      // Drafts have no alarm yet; the schedule arms when the draft is
+      // promoted and the extras survive the first message.
       return;
     }
     if (!_initialized) return;
     await _repo.updateConversationExtras(
       conversationId,
-      update,
+      applyTracked,
       expectedOwner: expectedOwner,
     );
     await _refreshConversation(conversationId);
     _bumpContextRevision(conversationId);
     notifyListeners();
+    if (touchedProactiveCare) _syncProactiveCareAlarm(conversationId);
+  }
+
+  /// Resolves the owner assistant for proactive-care alarm syncing. Wired at
+  /// startup (main.dart) because ChatService has no AssistantProvider.
+  Assistant? Function(String assistantId)? proactiveCareAssistantResolver;
+
+  /// Whether the assistant store this service resolves owners from has finished
+  /// its first read. A re-arm is a replace-all, so a half-loaded store would
+  /// cancel letters it cannot see; the post-restore re-arm therefore asks this
+  /// instead of assuming. Null (no provider wired) reads as "not loaded", which
+  /// skips the re-arm — the startup path arms them anyway.
+  bool Function()? proactiveCareAssistantStoreLoaded;
+
+  void _syncProactiveCareAlarm(String conversationId) {
+    if (!ProactiveCareAlarmService.isSupported) return;
+    final conversation = getConversation(conversationId);
+    if (conversation == null) return;
+    final resolver = proactiveCareAssistantResolver;
+    final assistantId = conversation.assistantId;
+    final Assistant? assistant = assistantId == null
+        ? null
+        : resolver?.call(assistantId);
+    // Fire-and-forget: extras writes must not wait on alarm I/O. A missing
+    // assistant (deleted owner, resolver unwired) cancels the alarm.
+    unawaited(
+      ProactiveCareAlarmService.sync(
+        conversation: conversation,
+        assistant: assistant,
+      ).catchError((Object e) {
+        debugPrint('[ProactiveCare] alarm sync failed: $e');
+      }),
+    );
   }
 
   Future<void> updateConversationSuggestions(
@@ -3603,6 +3882,7 @@ class ChatService extends ChangeNotifier {
     bool selectVersion = false,
     String? temporaryAfterGroupId,
     UiContextSubmission? uiContext,
+    String? senderId,
   }) => _serializeConversationPublication(conversationId, () async {
     if (!_initialized) await init();
 
@@ -3631,6 +3911,7 @@ class ChatService extends ChangeNotifier {
       content: parts == null ? content : null,
       parts: parts,
       quotes: quotes,
+      senderId: senderId,
       conversationId: conversationId,
       modelId: modelId,
       providerId: providerId,
@@ -3763,6 +4044,62 @@ class ChatService extends ChangeNotifier {
     return result;
   });
 
+  /// A group conversation's user turn, persisted on its own.
+  ///
+  /// The reply is chosen after the round starts (the director asks who speaks
+  /// next), so the turn cannot use [beginSendGeneration]: that method's
+  /// contract is "one user turn plus the reply it is already waiting for".
+  Future<ChatMessage> beginUserMessage({
+    required String conversationId,
+    required List<MessagePart> userParts,
+    DraftSubmission? draftSubmission,
+    UiContextSubmission? uiContext,
+    List<QuoteRef> quotes = const [],
+  }) => _serializeConversationPublication(conversationId, () async {
+    if (!_initialized) await init();
+    if (isTemporaryConversation(conversationId)) {
+      throw StateError('temporary_generation_is_not_persisted');
+    }
+    if (draftSubmission != null && getConversation(conversationId) == null) {
+      throw StateError('conversation_missing');
+    }
+    final conversation =
+        _conversationsCache[conversationId] ??
+        _draftConversations[conversationId] ??
+        Conversation(id: conversationId, title: _defaultConversationTitle);
+    final userMessage = ChatMessage(
+      id: draftSubmission?.id,
+      role: 'user',
+      parts: userParts,
+      conversationId: conversationId,
+      quotes: quotes,
+    );
+    final result = await _repo.beginUserMessage(
+      conversation: conversation,
+      userMessage: userMessage,
+      draftSubmission: draftSubmission,
+      uiContext: uiContext,
+    );
+    final published = result.userMessage;
+    _draftConversations.remove(conversationId);
+    _conversationsCache[conversationId] = result.conversation;
+    if (_messageCanOwnAssets(published)) {
+      await _synchronizeMessageAssetsBestEffort(published);
+    }
+    _messageCounts[conversationId] = await _repo.getMessageCount(
+      conversationId,
+    );
+    final order = _messageOrderIds[conversationId];
+    if (order != null && !order.contains(published.id)) order.add(published.id);
+    _messagesCache.putIfAbsent(conversationId, () => []).add(published);
+    _touchMessageCache(conversationId);
+    _bumpConversationListRevision();
+    _bumpContextRevision(conversationId);
+    await loadContextOperations(conversationId, refresh: true);
+    notifyListeners();
+    return published;
+  });
+
   Future<GenerationBeginResult> beginRegeneration({
     required String conversationId,
     required String modelId,
@@ -3771,6 +4108,7 @@ class ChatService extends ChangeNotifier {
     required int version,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) => _serializeConversationPublication(conversationId, () async {
     if (!_initialized) await init();
     if (isTemporaryConversation(conversationId)) {
@@ -3787,6 +4125,7 @@ class ChatService extends ChangeNotifier {
       isStreaming: true,
       groupId: groupId,
       version: version,
+      senderId: senderId,
     );
     final result = await _repo.beginRegeneration(
       expectedContextState: expectedContextState,
@@ -3811,6 +4150,7 @@ class ChatService extends ChangeNotifier {
     required String anchorGroupId,
     required bool truncateFuture,
     String? expectedContextState,
+    String? senderId,
   }) => _serializeConversationPublication(conversationId, () async {
     if (!_initialized) await init();
     if (isTemporaryConversation(conversationId)) {
@@ -3825,6 +4165,7 @@ class ChatService extends ChangeNotifier {
       modelId: modelId,
       providerId: providerId,
       isStreaming: true,
+      senderId: senderId,
     );
     final result = await _repo.beginAssistantGeneration(
       expectedContextState: expectedContextState,
@@ -3904,6 +4245,21 @@ class ChatService extends ChangeNotifier {
     }
     _touchMessageCache(updatedMessage.conversationId);
     return index >= 0;
+  }
+
+  /// One message by id, from the in-memory cache when it is still there and from
+  /// storage otherwise.
+  ///
+  /// The message cache is bounded (720 entries / 8 MB) and drops finished
+  /// replies. A writer that runs *later* — an image job finishing tens of seconds
+  /// after its reply was finalized — therefore cannot assume its message is still
+  /// cached, and a cache-only read turns that write into a silent no-op.
+  Future<ChatMessage?> getMessageById(String messageId) async {
+    final temporary = _cachedTemporaryMessage(messageId);
+    if (temporary != null) return temporary;
+    final cached = _cachedMessage(messageId);
+    if (cached != null) return cached;
+    return _repo.getMessage(messageId);
   }
 
   Future<void> updateMessage(
@@ -5413,6 +5769,7 @@ class ChatService extends ChangeNotifier {
     for (final id in _temporaryConversationIds) {
       _rememberDiscardedTemporaryConversation(id);
     }
+    final clearedConversationIds = _conversationsCache.keys.toSet();
     _messagesCache.clear();
     _conversationsCache.clear();
     _draftConversations.clear();
@@ -5436,6 +5793,16 @@ class ChatService extends ChangeNotifier {
     _contextRevisions.clear();
     _compressionHistoryRevisions.clear();
     _resetContextPreviewCaches();
+    // Clearing all data must also clear every letter alarm.
+    if (ProactiveCareAlarmService.isSupported) {
+      for (final id in clearedConversationIds) {
+        unawaited(
+          ProactiveCareAlarmService.cancelFor(id).catchError((Object e) {
+            debugPrint('[ProactiveCare] cancel on clear failed: $e');
+          }),
+        );
+      }
+    }
     if (deleteUploads) await _deleteUploadDirectory();
     _bumpConversationListRevision();
     notifyListeners();
@@ -5491,6 +5858,12 @@ class ChatService extends ChangeNotifier {
     bool notify = true,
   }) async {
     if (!_initialized) await init();
+    // A group topic belongs to its group, not to an assistant: writing an
+    // assistantId onto it would leave it in the group while claiming an owner.
+    final existing =
+        _draftConversations[conversationId] ??
+        _conversationsCache[conversationId];
+    if (existing != null && existing.isGroupConversation) return false;
     if (_draftConversations.containsKey(conversationId)) {
       final draft = _draftConversations[conversationId]!;
       if (draft.assistantId == assistantId) {

@@ -6,7 +6,7 @@ import '../../chat/widgets/conversation_find_bar.dart';
 import '../../../shared/widgets/app_selection_area.dart';
 import '../../../shared/widgets/source_rect_scroll.dart';
 import '../../../shared/markdown/kelivo_markdown_extensions.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_search_navigation.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_search_navigation.dart';
 import '../../intelligent_ui/host/ui_host_scope.dart';
 import '../../chat/widgets/context_dialog.dart';
 import '../../chat/widgets/image_context_panel.dart';
@@ -17,7 +17,7 @@ import '../../chat/widgets/compress_context_options_dialog.dart';
 import '../../chat/widgets/context_operation_actions.dart';
 import '../../chat/widgets/context_compression_status.dart';
 import '../../browser/browser_navigation.dart';
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import '../../chat/controllers/quote_editing_controller.dart';
 import '../../chat/widgets/quote_interaction_scope.dart';
 import '../../../core/models/quote_ref.dart';
@@ -32,6 +32,7 @@ import 'package:flutter/services.dart'
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../desktop/desktop_tab.dart';
 import '../../../main.dart';
 import '../../../shared/widgets/interactive_drawer.dart';
 import '../../../shared/widgets/visible_route_theme.dart';
@@ -44,6 +45,8 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/services/api/response_speed.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/group_chat_provider.dart';
+import '../../group_chat/group_navigation.dart';
 import '../../../core/providers/quick_phrase_provider.dart';
 import '../../../core/providers/instruction_injection_provider.dart';
 import '../../../core/providers/world_book_provider.dart';
@@ -70,6 +73,9 @@ import '../../chat/utils/ensure_conversation.dart';
 import '../../chat/widgets/context_management_sheet.dart';
 import '../../chat/widgets/reasoning_level_sheet.dart';
 import '../../search/widgets/search_settings_sheet.dart';
+import '../../group_chat/widgets/group_reasoning_sheet.dart';
+import '../../../core/models/assistant.dart';
+import '../../../core/models/group_chat.dart';
 import '../../chat/widgets/frosted/chat_frosted_backdrop.dart';
 import '../../chat/widgets/chat_assistant_background.dart';
 import '../../model/widgets/model_select_sheet.dart';
@@ -94,11 +100,17 @@ import '../widgets/chat_selection_action_bar.dart';
 import '../widgets/user_message_edit_overlay.dart';
 import '../utils/model_display_helper.dart';
 import '../utils/chat_layout_constants.dart';
+import '../../../core/models/chat_owner.dart';
+import '../../harness/harness_navigation.dart';
 import '../controllers/home_page_controller.dart';
 import '../controllers/scroll_controller.dart' as scroll_ctrl;
+import '../../subagent/services/subagent_coordinator.dart';
+import '../../../core/models/conversation.dart';
+import '../../subagent/services/subagent_rules.dart' show SubagentExtrasKeys;
+import '../../subagent/widgets/subagent_parent_link.dart';
 import 'home_mobile_layout.dart';
 import 'home_desktop_layout.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -197,6 +209,11 @@ class _HomePageState extends State<HomePage>
   // ============================================================================
 
   late HomePageController _controller;
+
+  /// Read once in `initState`: the page attaches itself as the coordinator's
+  /// host and detaches again in `dispose`.
+  SubagentCoordinator? _subagentCoordinator;
+  SubagentHost? _subagentHost;
   late final QuoteInteractionController _quoteInteractions;
   bool _quoteSyncScheduled = false;
   (String?, int)? _quoteSourceVersion;
@@ -527,6 +544,13 @@ class _HomePageState extends State<HomePage>
       mediaController: _mediaController,
       scrollController: _scrollController,
     );
+    // The coordinator is provided above this page so the tool handler can read
+    // it from its own context; only the page can start a turn, so it attaches
+    // itself here and detaches in `dispose`. A page mounted without one (a
+    // widget test, an embedding) simply has no delegation.
+    _subagentCoordinator = subagentCoordinatorOf(context);
+    _subagentHost = _controller.buildSubagentHost();
+    _subagentCoordinator?.attachHost(_subagentHost!);
 
     _find = ConversationFindController(
       search: _searchConversation,
@@ -560,6 +584,9 @@ class _HomePageState extends State<HomePage>
       _controller.measureInputBar();
       if (!mounted) return;
       context.read<WorldBookProvider>().initialize();
+      // Proactive care catch-up: providers are up post-frame; alarms trigger
+      // on-time delivery, this covers anything they missed.
+      unawaited(_controller.deliverDueProactiveCare());
     });
   }
 
@@ -616,6 +643,10 @@ class _HomePageState extends State<HomePage>
     _findField.dispose();
     _chatFocus.dispose();
     _controller.removeListener(_onControllerChanged);
+    // Only the host this page attached: another page may be stacked on top of
+    // this one, and taking its host away would leave it unable to delegate.
+    final host = _subagentHost;
+    if (host != null) _subagentCoordinator?.detachHost(host);
     _drawerController.removeListener(_onDrawerValueChanged);
     _controller.dispose();
     _inputController.removeListener(_syncQuoteHighlights);
@@ -991,6 +1022,28 @@ class _HomePageState extends State<HomePage>
         ),
       );
 
+  /// A sidebar row tap. A local assistant or a group opens its conversation; a
+  /// DeepSeek Harness is a remote application, so it opens its own page instead
+  /// — its connection settings first when no link was saved yet.
+  Future<void> _handleOpenOwner(ChatOwner owner) async {
+    if (!owner.isGroup) {
+      final assistant = context.read<AssistantProvider>().getById(owner.id);
+      if (assistant != null && assistant.isDeepSeekHarness) {
+        // The remote page is an opaque route, and the sidebar below it stops
+        // animating the moment the page covers it. Let the sidebar finish
+        // closing first: otherwise it is left half-open under the page and
+        // slides away again the moment the user comes back.
+        if (_drawerController.isAttached && !_drawerController.isClosed) {
+          await _drawerController.close();
+          if (!mounted) return;
+        }
+        await openHarnessForAssistant(context, assistant);
+        return;
+      }
+    }
+    await _controller.openOwner(owner);
+  }
+
   Widget _buildPage(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final desktop = !kIsWeb && _controller.isDesktopPlatform;
@@ -1019,25 +1072,36 @@ class _HomePageState extends State<HomePage>
     _controller.setCompactDesktopLayout(
       desktop && width < AppBreakpoints.tablet,
     );
+    // A group topic has no single model to name, so the header carries only the
+    // topic title — on every layout. The capsule is the desktop/tablet model
+    // picker, and picking one there would pin a topic whose replies come from
+    // the roster.
+    final group = context.watch<GroupChatProvider>().forConversation(
+      _controller.currentConversation,
+    );
+    final isGroup = group != null;
     if (desktop || width >= AppBreakpoints.tablet) {
       return _buildTabletLayout(
         context,
-        providerName: modelInfo.providerName,
-        modelDisplay: modelInfo.modelDisplay,
+        title: group?.name,
+        providerName: isGroup ? null : modelInfo.providerName,
+        modelDisplay: isGroup ? null : modelInfo.modelDisplay,
         cs: cs,
       );
     }
 
     return _buildMobileLayout(
       context,
-      providerName: modelInfo.providerName,
-      modelDisplay: modelInfo.modelDisplay,
+      title: group?.name,
+      providerName: isGroup ? null : modelInfo.providerName,
+      modelDisplay: isGroup ? null : modelInfo.modelDisplay,
       cs: cs,
     );
   }
 
   Widget _buildMobileLayout(
     BuildContext context, {
+    String? title,
     required String? providerName,
     required String? modelDisplay,
     required ColorScheme cs,
@@ -1060,6 +1124,7 @@ class _HomePageState extends State<HomePage>
       onNewConversation: () async {
         await _controller.createNewConversationAnimated();
       },
+      onOpenOwner: _handleOpenOwner,
       onOpenMiniMap: _openMiniMap,
       onCreateNewConversation: () async {
         await _controller.createNewConversationAnimated();
@@ -1170,6 +1235,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildTabletLayout(
     BuildContext context, {
+    String? title,
     required String? providerName,
     required String? modelDisplay,
     required ColorScheme cs,
@@ -1203,6 +1269,8 @@ class _HomePageState extends State<HomePage>
         _controller.closeCompactSidebar();
         await _controller.createNewConversationAnimated();
       },
+      onOpenOwner: _handleOpenOwner,
+      onRevealTopics: _controller.revealTopics,
       onCreateNewConversation: () async {
         await _controller.createNewConversationAnimated();
         if (mounted) _controller.forceScrollToBottomSoon(animate: false);
@@ -1403,6 +1471,29 @@ class _HomePageState extends State<HomePage>
     return kToolbarHeight + MediaQuery.paddingOf(context).top;
   }
 
+  /// The two `查看主对话` links a delegated conversation carries, top and bottom.
+  ///
+  /// Only a child has a parent, so every other conversation gets null and its
+  /// timeline is untouched. The label names the parent instead of saying "back",
+  /// because a nested delegation has exactly one parent and the user may have
+  /// three of these open.
+  Widget? _buildSubagentParentLink(
+    BuildContext context,
+    Conversation? conversation,
+  ) {
+    final parentId = conversation?.extras[SubagentExtrasKeys.parent] as String?;
+    if (parentId == null || parentId.isEmpty) return null;
+    final parent = context.select<ChatService, Conversation?>(
+      (chat) => chat.getConversation(parentId),
+    );
+    if (parent == null) return null;
+    final l10n = AppLocalizations.of(context)!;
+    return SubagentParentLink(
+      label: l10n.subagentViewParent(parent.title),
+      onTap: () => _controller.switchConversationAnimated(parent.id),
+    );
+  }
+
   Widget _buildMessageListView(
     BuildContext context, {
     bool fullWidth = false,
@@ -1452,13 +1543,25 @@ class _HomePageState extends State<HomePage>
     }
 
     final settings = context.watch<SettingsProvider>();
-    final suggestionsEnabled = settings.isSuggestionGenerationEnabled;
+    final suggestionConversation = conversationId == null
+        ? null
+        : chat.getConversation(conversationId);
+    final suggestionAssistant = context
+        .watch<AssistantProvider>()
+        .resolveConversationAssistant(suggestionConversation?.assistantId);
+    final suggestionsEnabled = settings.isSuggestionGenerationAllowedFor(
+      suggestionAssistant,
+    );
     final suggestions = context.select<ChatService, List<String>>(
       (chat) => suggestionsEnabled && conversationId != null
           ? (chat.getConversation(conversationId)?.chatSuggestions ?? const [])
           : const [],
     );
     return MessageListView(
+      subagentParentLink: _buildSubagentParentLink(
+        context,
+        suggestionConversation,
+      ),
       contextTask: compression,
       contextTaskRevision: compression == null
           ? null
@@ -1566,11 +1669,25 @@ class _HomePageState extends State<HomePage>
       showUserAvatar: settings.showUserAvatar,
       showTokenStats: settings.showTokenStats,
       assistant: assistant,
+      // Who wrote each reply: a group topic names its speaker on every message,
+      // and without the roster the list resolves no author and labels every
+      // member reply "deleted assistant".
+      assistants: context.watch<AssistantProvider>(),
       onVersionChange: (groupId, version) async {
         await _controller.setSelectedVersion(groupId, version);
       },
+      // A member's reply regenerates itself; the user turn above it regenerates
+      // its round. One call, and the controller decides which of the two it is.
       onRegenerateMessage: (message) =>
           _controller.regenerateAtMessage(message),
+      // A reply whose author is gone has nobody to ask again. The row hides the
+      // action rather than offering one that cannot run.
+      canRegenerateMessage: (message) {
+        if (message.role != 'assistant' || _currentGroup() == null) return true;
+        final senderId = message.senderId;
+        return senderId != null &&
+            context.read<AssistantProvider>().getById(senderId) != null;
+      },
       onRetryWithoutImages: (message) =>
           _controller.regenerateAtMessage(message, omitImages: true),
       onSetContextStart: (message) async {
@@ -1635,6 +1752,9 @@ class _HomePageState extends State<HomePage>
     final owner = assistants.resolveConversationAssistant(
       conversation?.assistantId,
     );
+    final group = context.watch<GroupChatProvider>().forConversation(
+      conversation,
+    );
     return ChatInputSection(
       documentRoute: resolveComposerDocumentRoute(
         context,
@@ -1648,6 +1768,10 @@ class _HomePageState extends State<HomePage>
         ),
         listen: true,
       ),
+      group: group,
+      onOpenGroupMembers: group == null
+          ? null
+          : () => showGroupMembers(context, group.id),
       inputBarKey: _inputBarKey,
       chatModelProviderKey: chatModel.providerKey,
       chatModelId: chatModel.modelId,
@@ -1702,6 +1826,7 @@ class _HomePageState extends State<HomePage>
             anchorKey: _inputBarKey,
             conversationId: id,
             assistant: assistant,
+            members: _panelMembers(),
           );
         } else {
           _controller.dismissKeyboard();
@@ -1709,12 +1834,17 @@ class _HomePageState extends State<HomePage>
             context,
             conversationId: id,
             assistant: assistant,
+            members: _panelMembers(),
           );
         }
       },
       onOpenTools: () {
         final a = context.read<AssistantProvider>().currentAssistant;
         if (a == null) return;
+        final toolsGroup = _currentGroup();
+        final toolsMembers = toolsGroup == null
+            ? null
+            : _membersOfGroup(toolsGroup);
         if (PlatformUtils.isDesktop) {
           showDesktopToolsPopover(
             context,
@@ -1728,6 +1858,12 @@ class _HomePageState extends State<HomePage>
                   chatModel.providerKey!,
                   chatModel.modelId!,
                 ),
+            // A group judges capability per member, through the same check the
+            // composer uses; a 1:1 chat has only the model above.
+            modelSupportsTools: toolsMembers == null
+                ? null
+                : _controller.isToolModel,
+            members: toolsMembers,
           );
         } else {
           _controller.dismissKeyboard();
@@ -1735,6 +1871,10 @@ class _HomePageState extends State<HomePage>
             context,
             assistantId: a.id,
             conversationId: _controller.currentConversation?.id,
+            modelSupportsTools: toolsMembers == null
+                ? null
+                : _controller.isToolModel,
+            members: toolsMembers,
           );
         }
       },
@@ -1975,15 +2115,21 @@ class _HomePageState extends State<HomePage>
 
   Widget _wrapWithDropTarget(Widget child) {
     if (!_controller.isDesktopPlatform) return child;
+    // The target stays mounted while another desktop tab is on screen: taking
+    // it out of the tree would rebuild this page around it, and desktop_drop
+    // hands every drop to every registered target anyway. What it must not do
+    // is act — the flag is read per event, never as a build dependency.
+    bool onScreen() => DesktopTabVisibility.read(context);
     return DropTarget(
       onDragEntered: (_) {
-        _controller.setDragHovering(true);
+        if (onScreen()) _controller.setDragHovering(true);
       },
       onDragExited: (_) {
         _controller.setDragHovering(false);
       },
       onDragDone: (details) async {
         _controller.setDragHovering(false);
+        if (!onScreen()) return;
         try {
           final files = details.files;
           await _controller.onFilesDroppedDesktop(files);
@@ -2046,7 +2192,56 @@ class _HomePageState extends State<HomePage>
         assistant: context.read<AssistantProvider>().currentAssistant,
       );
 
+  /// The roster of [group], resolved to live assistants. Members whose
+  /// assistant was deleted are skipped, exactly as the composer skips them.
+  List<Assistant> _membersOfGroup(GroupChat group) {
+    final ap = context.read<AssistantProvider>();
+    return [
+      for (final id in group.memberIds)
+        if (ap.getById(id) case final assistant?) assistant,
+    ];
+  }
+
+  GroupChat? _currentGroup() => context
+      .read<GroupChatProvider>()
+      .forConversation(_controller.currentConversation);
+
+  /// The roster for a panel that edits one member at a time, or null in a 1:1
+  /// chat, where the panel keeps its single-assistant shape.
+  List<Assistant>? _panelMembers() {
+    final group = _currentGroup();
+    if (group == null) return null;
+    final members = _membersOfGroup(group);
+    return members.isEmpty ? null : members;
+  }
+
   void _openSearchSettings() {
+    final group = _currentGroup();
+    if (group != null) {
+      final members = _membersOfGroup(group);
+      if (members.isEmpty) return;
+      if (PlatformUtils.isDesktop) {
+        // The popover resolves each member's own model once it has the roster;
+        // the composer's model keys are deliberately left out for a group.
+        showDesktopSearchProviderPopover(
+          context,
+          anchorKey: _inputBarKey,
+          members: members,
+          initialAssistantId: context
+              .read<AssistantProvider>()
+              .currentAssistantId,
+        );
+      } else {
+        showSearchSettingsSheet(
+          context,
+          members: members,
+          initialAssistantId: context
+              .read<AssistantProvider>()
+              .currentAssistantId,
+        );
+      }
+      return;
+    }
     final model = _resolvedChatModel();
     if (PlatformUtils.isDesktop) {
       showDesktopSearchProviderPopover(
@@ -2086,6 +2281,32 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _openReasoningSettings() async {
+    final group = _currentGroup();
+    if (group != null) {
+      final members = _membersOfGroup(group);
+      if (members.isEmpty) return;
+      final current = context.read<AssistantProvider>().currentAssistant;
+      if (PlatformUtils.isDesktop) {
+        // No model check here: the popover names no model of its own, it reads
+        // each member's once the strip selects one. A group whose members all
+        // have models therefore opens even when the composer's own assistant
+        // has none — the mobile sheet has always behaved that way.
+        await showDesktopGroupReasoningPopover(
+          context,
+          anchorKey: _inputBarKey,
+          members: members,
+          initialAssistantId: current?.id,
+        );
+      } else {
+        await showGroupReasoningSheet(
+          context,
+          members: members,
+          supportsReasoning: _controller.isReasoningModel,
+          initialAssistantId: current?.id,
+        );
+      }
+      return;
+    }
     final model = _resolvedChatModel();
     final providerKey = model.providerKey;
     final modelId = model.modelId;
@@ -2132,12 +2353,16 @@ class _HomePageState extends State<HomePage>
     final items = provider.items;
     if (items.isEmpty) return;
 
+    final members = _panelMembers();
+    // A group decides the scope per member inside the panel, so the conversation
+    // has to exist either way.
     final scoped =
-        context
-            .read<AssistantProvider>()
-            .currentAssistant
-            ?.allowConversationPromptInjection ??
-        false;
+        members != null ||
+        (context
+                .read<AssistantProvider>()
+                .currentAssistant
+                ?.allowConversationPromptInjection ??
+            false);
     final scopeId = scoped
         ? await ensureConversationId(
             context,
@@ -2153,6 +2378,7 @@ class _HomePageState extends State<HomePage>
         items: items,
         assistantId: assistantId,
         conversationId: scopeId,
+        members: members,
       );
     } else {
       await showInstructionInjectionSheet(
@@ -2172,12 +2398,14 @@ class _HomePageState extends State<HomePage>
     final books = provider.books;
     if (books.isEmpty) return;
 
+    final members = _panelMembers();
     final scoped =
-        context
-            .read<AssistantProvider>()
-            .currentAssistant
-            ?.allowConversationPromptInjection ??
-        false;
+        members != null ||
+        (context
+                .read<AssistantProvider>()
+                .currentAssistant
+                ?.allowConversationPromptInjection ??
+            false);
     final scopeId = scoped
         ? await ensureConversationId(
             context,
@@ -2193,6 +2421,7 @@ class _HomePageState extends State<HomePage>
         books: books,
         assistantId: assistantId,
         conversationId: scopeId,
+        members: members,
       );
     } else {
       await showWorldBookSheet(
@@ -2210,6 +2439,8 @@ class _HomePageState extends State<HomePage>
   void _toggleTools() async {
     _controller.dismissKeyboard();
     final assistantId = context.read<AssistantProvider>().currentAssistantId;
+    final group = _currentGroup();
+    final members = group == null ? null : _membersOfGroup(group);
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2242,6 +2473,7 @@ class _HomePageState extends State<HomePage>
                 },
                 assistantId: assistantId,
                 conversationId: _controller.currentConversation?.id,
+                members: members,
                 onClose: () => Navigator.of(ctx).maybePop(),
               ),
             );
@@ -2461,12 +2693,26 @@ class _HomePageState extends State<HomePage>
   Future<void> _showQuickPhraseMenu() async {
     final assistant = context.read<AssistantProvider>().currentAssistant;
     final quickPhraseProvider = context.read<QuickPhraseProvider>();
-    final globalPhrases = quickPhraseProvider.globalPhrases;
-    final assistantPhrases = assistant != null
-        ? quickPhraseProvider.getForAssistant(assistant.id)
-        : <QuickPhrase>[];
+    // In a group the entry exists because any member has a phrase, so the menu
+    // must be built from that same union: the composer's "current assistant" is
+    // not necessarily a member, and it is not who the button speaks for.
+    final group = _currentGroup();
+    final owners = <Assistant>[
+      if (group != null)
+        ..._membersOfGroup(group)
+      else if (assistant != null)
+        assistant,
+    ];
 
-    final allAvailable = [...globalPhrases, ...assistantPhrases];
+    final seen = <String>{};
+    final allAvailable = <QuickPhrase>[
+      for (final phrase in [
+        ...quickPhraseProvider.globalPhrases,
+        for (final owner in owners)
+          ...quickPhraseProvider.getForAssistant(owner.id),
+      ])
+        if (seen.add(phrase.content)) phrase,
+    ];
     if (allAvailable.isEmpty) return;
 
     final RenderBox? inputBox =

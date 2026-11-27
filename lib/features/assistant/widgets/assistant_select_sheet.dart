@@ -5,13 +5,15 @@ import 'package:provider/provider.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../core/providers/assistant_provider.dart';
+import '../../../core/providers/chat_owners_provider.dart';
 import '../../../core/models/assistant.dart';
+import '../../../core/models/chat_owner.dart';
 import '../../../shared/widgets/ios_tactile.dart';
 import '../../../core/services/haptics.dart';
 import '../../../shared/widgets/emoji_text.dart';
 import '../../../shared/widgets/avatar_image.dart';
 import '../../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../shared/widgets/section_card.dart';
 
 // Show an assistant picker for moving a topic.
@@ -27,9 +29,21 @@ Future<String?> showAssistantMoveSelector(
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.linux;
   final ap = context.read<AssistantProvider>();
+  // A conversation moves between chat assistants only: a remote DeepSeek
+  // Harness has no chat model to hand it to.
+  // The order the user dragged into place, not the creation order the assistant
+  // list happens to hold. The order is a nicety: a host that does not provide
+  // one (an embedded picker, a widget test) still gets a usable list.
+  var owned = List<Assistant>.of(ap.chatAssistants);
+  try {
+    owned = context.read<ChatOwnersProvider>().inOwnerOrder(
+      ap.chatAssistants,
+      (assistant) => ChatOwner.assistant(assistant.id).key,
+    );
+  } catch (_) {}
   final List<Assistant> assistants = excludeAssistantId == null
-      ? List.of(ap.assistants)
-      : ap.assistants.where((a) => a.id != excludeAssistantId).toList();
+      ? owned
+      : owned.where((a) => a.id != excludeAssistantId).toList();
 
   if (!isDesktop) {
     final cs = Theme.of(context).colorScheme;

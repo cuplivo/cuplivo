@@ -1,13 +1,13 @@
 import '../services/conversation_find_service.dart';
 import 'conversation_find_highlights.dart';
-import 'package:Kelivo/desktop/desktop_overlay_backdrop.dart';
+import 'package:Cuplivo/desktop/desktop_overlay_backdrop.dart';
 import '../utils/message_reasoning_source.dart';
 import '../../intelligent_ui/host/ui_copy_actions.dart';
 import '../../intelligent_ui/host/ui_user_message_content.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_runtime_registry.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_source_map.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_host_scope.dart';
-import 'package:Kelivo/features/intelligent_ui/host/ui_generation_state.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_runtime_registry.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_source_map.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_host_scope.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_generation_state.dart';
 import 'package:markstream/markstream_core.dart' show SourceSpan;
 import 'package:markstream/markstream.dart' show SelectableSpanAdapter;
 import 'tool_permission_widgets.dart';
@@ -44,6 +44,11 @@ import '../../browser/models/browser_tool_presentation.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/message_part.dart';
+import '../../image_job/models/image_job.dart';
+import '../../image_job/services/image_backends.dart' show aspectOfRatio;
+import '../../image_job/services/image_job_coordinator.dart';
+import '../../image_job/widgets/image_job_card.dart';
+import '../../image_job/widgets/image_job_panel.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../icons/reasoning_icons.dart';
 // import '../../../theme/design_tokens.dart';
@@ -61,6 +66,7 @@ import '../../../utils/protected_text.dart';
 import '../../../utils/source_text_map.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/providers/tts_provider.dart';
+import '../../../shared/markdown/image_destinations.dart';
 import '../../../shared/markdown/markdown_with_code_highlight.dart';
 import '../../../shared/markdown/quote_syntax.dart';
 import '../controllers/quote_editing_controller.dart' show buildQuoteTextSpan;
@@ -69,7 +75,7 @@ import 'quote_source_highlight.dart';
 import 'plain_message_text.dart';
 import 'quote_source_anchor.dart';
 import 'quote_interaction_scope.dart';
-import 'package:Kelivo/shared/widgets/app_selection_area.dart';
+import 'package:Cuplivo/shared/widgets/app_selection_area.dart';
 import '../../../shared/widgets/snackbar.dart';
 import '../../../shared/widgets/scroll_layout_anchor.dart';
 import '../../../shared/widgets/audio_clip_player.dart';
@@ -78,7 +84,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../theme/chat_bubble_style.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 import '../../../core/services/model_spec/model_spec_resolver.dart';
 import '../../../core/models/assistant_regex.dart';
 import '../../../shared/widgets/custom_bottom_sheet.dart';
@@ -92,6 +98,12 @@ import '../../../shared/widgets/emoji_text.dart';
 import '../../../utils/platform_utils.dart';
 import '../../home/services/ask_user_interaction_service.dart';
 import '../../home/services/local_tools_service.dart';
+import '../../subagent/services/subagent_rules.dart'
+    show childTitle, assistantName;
+import '../../subagent/services/subagent_target.dart';
+import '../../subagent/widgets/subagent_mail_notice.dart';
+import '../../subagent/widgets/subagent_panel.dart' show showSubagentPanel;
+import '../../subagent/widgets/subagent_result_divider.dart';
 import '../../home/services/tool_approval_service.dart';
 import '../utils/assistant_paragraph_splitter.dart';
 import '../utils/thinking_tag_parser.dart';
@@ -587,11 +599,16 @@ IconData? _localToolIconFor(String name, Map<String, dynamic> args) {
     LocalToolNames.remindersQuery => Lucide.ListTodo,
     LocalToolNames.remindersCreate => Lucide.ListPlus,
     LocalToolNames.remindersComplete => Lucide.CheckCircle,
+    LocalToolNames.delegate => Lucide.Bot,
+    LocalToolNames.awaitJob => Lucide.Hourglass,
+    LocalToolNames.sendMessage => Lucide.MessageCircle,
+    LocalToolNames.interrupt => Lucide.CircleStop,
     _ => null,
   };
 }
 
 String? _localToolTitleFor(
+  BuildContext context,
   AppLocalizations l10n,
   String name,
   Map<String, dynamic> args,
@@ -627,6 +644,14 @@ String? _localToolTitleFor(
       l10n.assistantEditLocalToolRemindersCreateTitle,
     LocalToolNames.remindersComplete =>
       l10n.assistantEditLocalToolRemindersCompleteTitle,
+    // The card and the child conversation title must agree, so both come from
+    // the same bound and the same fallback. When the task was handed to a named
+    // assistant the card says so: two delegations with the same job name are
+    // otherwise indistinguishable.
+    LocalToolNames.delegate => _delegateCardTitle(context, l10n, args),
+    LocalToolNames.awaitJob => l10n.assistantEditLocalToolAwaitJobTitle,
+    LocalToolNames.sendMessage => l10n.assistantEditLocalToolSendMessageTitle,
+    LocalToolNames.interrupt => l10n.assistantEditLocalToolInterruptTitle,
     _ => null,
   };
 }
@@ -710,6 +735,32 @@ String _askUserToolTitleFor(AppLocalizations l10n, Map<String, dynamic> args) {
   return l10n.assistantEditLocalToolAskUserTitle;
 }
 
+/// The delegation card's title: `派遣子代理：<label>` for a copy of this
+/// assistant, `派遣<助手名>：<label>` when the task was named to somebody.
+///
+/// The name is resolved at render time, which is also what makes a deleted
+/// target fall back to the plain title instead of a dangling id.
+String _delegateCardTitle(
+  BuildContext context,
+  AppLocalizations l10n,
+  Map<String, dynamic> args,
+) {
+  final label = childTitle(
+    label: args['label']?.toString(),
+    task: (args['task'] ?? '').toString(),
+  );
+  final targetId = parseSubagentTarget(args['target'])?.assistantId;
+  if (targetId == null) return l10n.chatMessageWidgetDelegate(label);
+  Assistant? assistant;
+  try {
+    assistant = context.read<AssistantProvider>().getById(targetId);
+  } catch (_) {
+    assistant = null;
+  }
+  if (assistant == null) return l10n.chatMessageWidgetDelegate(label);
+  return l10n.chatMessageWidgetDelegateTo(assistantName(assistant), label);
+}
+
 String _toolTitleFor(
   BuildContext context,
   String name,
@@ -720,7 +771,7 @@ String _toolTitleFor(
   if (name == LocalToolNames.askUser) {
     return UnicodeSanitizer.sanitize(_askUserToolTitleFor(l10n, args));
   }
-  final localToolTitle = _localToolTitleFor(l10n, name, args);
+  final localToolTitle = _localToolTitleFor(context, l10n, name, args);
   if (localToolTitle != null) return UnicodeSanitizer.sanitize(localToolTitle);
   if (isWorkspaceToolName(name)) {
     return workspaceToolTitle(l10n, name);
@@ -1293,6 +1344,12 @@ class ChatMessageWidget extends StatefulWidget {
   final bool useAssistantName;
   final String? assistantName;
   final String? assistantAvatar; // path/url/emoji; null => use initial
+
+  /// The assistant this message belongs to when several share one conversation.
+  ///
+  /// A group topic has no conversation assistant, and each reply has its own
+  /// author; the visual regex pass reads this one, not the conversation's.
+  final Assistant? author;
   final bool showUserAvatar;
   final bool showTokenStats;
   final VoidCallback? onRegenerate;
@@ -1365,6 +1422,7 @@ class ChatMessageWidget extends StatefulWidget {
     this.useAssistantName = false,
     this.assistantName,
     this.assistantAvatar,
+    this.author,
     this.showUserAvatar = true,
     this.showTokenStats = true,
     this.onRegenerate,
@@ -1447,6 +1505,14 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   final _localTimelineStorage = PageStorageBucket();
   final _thinkingWidgets = Expando<(Object, Widget)>();
   List<ReasoningSegment>? _currentReasoningSegments;
+
+  /// Uris of this reply's job-backed pictures: the card draws them, so the
+  /// reply's own Markdown placeholder for the same uri must not.
+  final Set<String> _jobImageSources = <String>{};
+
+  /// The subset of [_jobImageSources] the reply's text actually places, and
+  /// which is therefore drawn where the model put it — not at the end.
+  final Set<String> _inlineJobUris = <String>{};
   Future<void> _submitRecoveredAnswer(
     ToolUIPart part,
     AskUserResult result,
@@ -1668,6 +1734,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
   }
 
   Assistant? _assistantForMessage() {
+    // One member's regexes must not run over another member's words.
+    final author = widget.author;
+    if (author != null) return author;
     try {
       final chat = context.read<ChatService>();
       final convo = chat.getConversation(widget.message.conversationId);
@@ -2209,22 +2278,23 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: Center(
-                          child: IosIconButton(
-                            size: 16,
-                            padding: EdgeInsets.all(4),
-                            icon: Lucide.RefreshCw,
-                            color: cs.onSurface.withValues(alpha: 0.9),
-                            onTap: widget.onResend == null
-                                ? null
-                                : () => _confirmRegeneration(widget.onResend!),
+                      if (widget.onResend != null) ...[
+                        const SizedBox(width: 6),
+                        SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Center(
+                            child: IosIconButton(
+                              size: 16,
+                              padding: EdgeInsets.all(4),
+                              icon: Lucide.RefreshCw,
+                              color: cs.onSurface.withValues(alpha: 0.9),
+                              onTap: () =>
+                                  _confirmRegeneration(widget.onResend!),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                       const SizedBox(width: 6),
                       if (widget.onEdit != null) ...[
                         SizedBox(
@@ -2903,6 +2973,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     Object? detailsStateKey,
     UiTextSlice? uiSource,
     SourceTextMap? sourceMap,
+    int documentStart = -1,
   }) {
     final bool isDesktop =
         defaultTargetPlatform == TargetPlatform.macOS ||
@@ -2930,6 +3001,8 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       assistantContent = MarkdownWithCodeHighlight(
         text: visualContent,
         detailsStateKey: detailsStateKey,
+        jobImageBuilder: _buildInlineJobImage,
+        documentStart: documentStart,
         highlightRanges: highlights,
         highlightColor: highlightColor,
         uiHost: widget.message.role != 'assistant' || uiSource == null
@@ -3066,6 +3139,10 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final detailsBlockKey = sourceMap == null
         ? blockKey
         : ('source', sourceMap.sourceRange(0, 0).start);
+    // Where this block sits in the reply. A node's offset is relative to its own
+    // document, so ownership needs both halves; -1 means "cannot be
+    // established", and the caller then draws the card rather than hiding it.
+    final blockStart = _ownershipContent?.indexOf(visualContent) ?? -1;
     return <Widget>[
       for (var i = 0; i < parts.length; i++)
         _buildAssistantTextBlock(
@@ -3076,6 +3153,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
           citationIndexResolver,
           findBlock: findBlock,
           findParagraph: parts[i].blockMap,
+          documentStart: blockStart < 0
+              ? -1
+              : blockStart + (parts[i].blockMap?.sourceRange(0, 0).start ?? 0),
           contentKey: parts.length == 1 ? '' : '$blockKey.$i',
           detailsStateKey: (widget.message.id, detailsBlockKey, i),
           sourceMap: sourceMap == null
@@ -3096,6 +3176,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     Object? detailsStateKey,
     UiTextSlice? uiSource,
     SourceTextMap? sourceMap,
+    int documentStart = -1,
   }) {
     return _assistantBlockWidth(
       context,
@@ -3112,12 +3193,233 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
           detailsStateKey: detailsStateKey,
           uiSource: uiSource,
           sourceMap: sourceMap,
+          documentStart: documentStart,
         ),
       ),
     );
   }
 
+  /// The image part behind [imageKey], when an image job created it.
+  ///
+  /// The projection keys an image by its stream id or asset id. A job-backed
+  /// part always carries the asset id it was promised, so the key resolves back
+  /// to the part without threading job state through the timeline blocks. A
+  /// finished job keeps its part (and therefore its header), which is why this
+  /// matches on [ImagePart.jobId] as well as on a live state.
+  ImagePart? _imageJobPartFor(String imageKey) {
+    const prefix = 'image-id:';
+    if (!imageKey.startsWith(prefix)) return null;
+    final id = imageKey.substring(prefix.length).trim();
+    if (id.isEmpty) return null;
+    for (final part in widget.message.parts) {
+      if (part is! ImagePart) continue;
+      if (part.state == null && part.jobId == null) continue;
+      if (part.id == id || part.assetId == id) return part;
+    }
+    return null;
+  }
+
+  /// The job-backed part that promised [destination], if any.
+  ImagePart? _imageJobPartForUri(String destination) {
+    if (destination.isEmpty) return null;
+    for (final part in widget.message.parts) {
+      if (part is! ImagePart || part.jobId == null) continue;
+      if (part.uri == destination) return part;
+    }
+    return null;
+  }
+
+  /// The picture block for a part, drawn wherever it belongs.
+  ///
+  /// Subscribes to the job so the skeleton turns into the picture the moment the
+  /// bytes land, instead of waiting for whatever rebuilt this message last.
+  ///
+  /// The card is built from a context that is *currently* building (the
+  /// `Builder` / `ListenableBuilder` one), never from the one handed to the
+  /// Markdown image callback: that context belongs to the renderer, and provider
+  /// forbids `select`/`watch` on it.
+  Widget _imageJobBlock(
+    ImagePart part, {
+    required String uri,
+    required String imageKey,
+    required List<String> group,
+  }) {
+    final coordinator = imageJobCoordinatorOf(context);
+    Widget card(BuildContext ctx) {
+      final job = coordinator?.jobForAsset(part.assetId);
+      // A promise with no live job was interrupted by the app going away: the
+      // process cannot have kept painting, and a spinner that never ends is a
+      // lie. The persisted state stays `pending` — the file really is absent.
+      var resolved =
+          part.state == ImagePartState.pending &&
+              job == null &&
+              !widget.message.isStreaming
+          ? part.withState(ImagePartState.interrupted)
+          : part;
+      // The live job is authoritative while it exists: this part is a snapshot
+      // from when the reply was laid out, and nothing rebuilds the message when
+      // the bytes land. Without this the skeleton spins until the conversation
+      // is reloaded from the database — which is why switching away and back
+      // was the only way to see the picture.
+      if (job != null && job.state == ImageJobState.completed) {
+        resolved = resolved.withState(null, uri: job.resultUri ?? resolved.uri);
+      }
+      // Same reasoning one state over: a failed job is terminal, but the part is
+      // a snapshot, so the card would keep spinning if the mirror's write never
+      // landed. The job's own sentence goes on it too — that is what the header
+      // shows.
+      if (job != null && job.state == ImageJobState.failed) {
+        resolved = resolved.withState(
+          ImagePartState.failed,
+          failureReason: job.error,
+        );
+      }
+      return ImageJobCard(
+        part: resolved,
+        startedAt: job?.startedAt ?? job?.createdAt,
+        requestedAspect: aspectOfRatio(job?.aspectRatio),
+        elapsed: job == null ? resolved.duration : jobDuration(job),
+        onOpen: () => showImageJobPanel(
+          ctx,
+          ImageJobPanelData(
+            part: resolved,
+            job: job,
+            binding: job == null ? null : coordinator?.bindingFor(job.id),
+          ),
+        ),
+        child: resolved.state == null
+            ? _plainImageBlock(ctx, uri, imageKey: imageKey, group: group)
+            : null,
+      );
+    }
+
+    if (coordinator == null) return Builder(builder: card);
+    return ListenableBuilder(
+      listenable: coordinator,
+      builder: (ctx, _) => card(ctx),
+    );
+  }
+
+  /// Draws a promised picture where its Markdown placeholder stands.
+  ///
+  /// This is the whole point of the round-13 decision: the model writes
+  /// `![](uri)` at the position it means, and the application's block appears
+  /// exactly there — header, skeleton, picture and ⋯ together — instead of being
+  /// appended after the last paragraph. Returning null leaves an ordinary
+  /// Markdown image alone.
+  ///
+  /// The callback stays a method tear-off: markstream's host compares it by
+  /// identity to decide whether to rebuild its tree, and a fresh closure every
+  /// frame throws away the subtree identity streaming relies on.
+  Widget? _buildInlineJobImage(
+    BuildContext context,
+    String destination,
+    int offset,
+    String document,
+    int documentStart,
+  ) {
+    final part = _imageJobPartForUri(destination);
+    if (part == null) return null;
+    // One picture, one card — decided in *reply* coordinates, because a reply
+    // renders as several documents (one per text block, one per paragraph when
+    // the split option is on) and a node's offset only means something inside
+    // its own document. The document's start is where its text sits in the
+    // reply; adding the node's offset puts both systems in one.
+    //
+    // When that start cannot be established (a trimmed slice, a transformed
+    // document), the card is drawn: a duplicate is a blemish, a missing picture
+    // is the bug this whole path exists to avoid.
+    final firstInReply = _replyImageOffsets()[destination];
+    final owns =
+        firstInReply == null ||
+        documentStart < 0 ||
+        documentStart + offset == firstInReply;
+    if (!owns) {
+      final job = imageJobCoordinatorOf(context)?.jobForAsset(part.assetId);
+      final complete = part.hasBytes || job?.state == ImageJobState.completed;
+      // `null` means "an ordinary Markdown image", which is the renderer's own
+      // picture widget — exactly what a repeated mention should show.
+      return complete ? null : const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: _imageJobBlock(
+        part,
+        uri: destination,
+        imageKey: timelineImageBlockKey(
+          imageId: part.id,
+          assetId: part.assetId,
+          sourceOrdinal: 0,
+        ),
+        group: [destination],
+      ),
+    );
+  }
+
+  /// The reply's own image offsets, by the renderer's parse — one answer per
+  /// reply text, not per document and not per build.
+  ///
+  /// Two guards, because this runs on every build of a reply that is drawing: a
+  /// substring test is a *necessary* condition (a rendered image must spell its
+  /// destination in the source), so a reply that has not written the placeholder
+  /// yet — the whole painting window — pays one scan instead of a parse; and the
+  /// answer is memoised on the text, so a rebuild that changed nothing pays
+  /// nothing.
+  Map<String, int> _replyImageOffsets() {
+    final content = _ownershipContent;
+    if (content == null || _jobImageSources.isEmpty) {
+      return const <String, int>{};
+    }
+    if (_offsetsForContent == content) return _replyOffsets;
+    final candidates = _jobImageSources.where(content.contains).toSet();
+    final offsets = candidates.isEmpty
+        ? const <String, int>{}
+        : markdownImageFirstOffsets(content).entries
+              .where((entry) => candidates.contains(entry.key))
+              .fold(
+                <String, int>{},
+                (out, entry) => out..[entry.key] = entry.value,
+              );
+    _offsetsForContent = content;
+    _replyOffsets = offsets;
+    return offsets;
+  }
+
+  /// The reply text the Markdown renderer is laying out, for coordinate
+  /// arithmetic. Set once per build, before the bubbles are built.
+  String? _ownershipContent;
+
+  String? _offsetsForContent;
+  Map<String, int> _replyOffsets = const <String, int>{};
+
   Widget _buildAssistantImageBlock(
+    BuildContext context,
+    String uri, {
+    required String imageKey,
+    required List<String> group,
+  }) {
+    final jobPart = _imageJobPartFor(imageKey);
+    if (jobPart != null) {
+      // The Markdown placeholder already drew this one in place; a second block
+      // here would be the same picture twice.
+      if (_inlineJobUris.contains(jobPart.uri)) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: SizedBox(
+          width: double.infinity,
+          child: _imageJobBlock(
+            jobPart,
+            uri: uri,
+            imageKey: imageKey,
+            group: group,
+          ),
+        ),
+      );
+    }
+    return _plainImageBlock(context, uri, imageKey: imageKey, group: group);
+  }
+
+  Widget _plainImageBlock(
     BuildContext context,
     String uri, {
     required String imageKey,
@@ -3321,6 +3623,10 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     final showModelName = context.select<SettingsProvider, bool>(
       (s) => s.showModelName,
     );
+    // "Use assistant name" is an explicit per-assistant opt-in and stands on
+    // its own: the global "show model name" switch only governs the model name
+    // line, never whether the assistant name replaces it.
+    final showHeaderName = showModelName || widget.useAssistantName;
     final showModelTimestamp = context.select<SettingsProvider, bool>(
       (s) => s.showModelTimestamp,
     );
@@ -3361,6 +3667,24 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       target: AssistantRegexTransformTarget.visual,
     );
     final visualContent = mappedVisual.text;
+    // A generated picture belongs where the model put its Markdown placeholder:
+    // that placeholder is the call position, and drawing the card there beats
+    // appending it after the last paragraph. The part still exists (it carries
+    // the state, the persistence and the outbound skip); it simply stops
+    // projecting a block of its own when the text already places it.
+    _jobImageSources
+      ..clear()
+      ..addAll([
+        for (final part in widget.message.parts)
+          if (part is ImagePart && part.jobId != null) part.uri,
+      ]);
+    // Which of this reply's promised pictures the text actually places, and
+    // where. `_replyImageOffsets` refuses to parse a reply that cannot contain
+    // one and remembers the answer for the text it just looked at.
+    _ownershipContent = enableAssistantMarkdown ? visualContent : null;
+    _inlineJobUris
+      ..clear()
+      ..addAll(_replyImageOffsets().keys);
     final visualTranslation = widget.message.translation != null
         ? _applyVisualAssistantRegexes(
             widget.message.translation!,
@@ -3430,7 +3754,7 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (showModelName)
+                      if (showHeaderName)
                         Text(
                           widget.useAssistantName
                               ? (widget.assistantName?.trim().isNotEmpty == true
@@ -4199,6 +4523,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
   // Keep callbacks stable while only the streamed text changes. A new lookup
   // changes the resolver identity so cached citation widgets refresh their labels.
+  // The rule itself lives in `citation_index.dart`, which the PDF export reads too,
+  // so the number a capsule shows is decided once — the map shape here is only the
+  // identity the widget cache compares.
   String? Function(String) _buildCitationIndexResolver(
     List<Map<String, dynamic>> items,
   ) {
@@ -4280,8 +4607,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     }
   }
 
-  // Extract items from all search_web or builtin_search tool results for this assistant message.
-  // We scan from end to start so "latest" items win when there are duplicates.
+  // The items are scanned from end to start so "latest" wins on duplicates,
+  // and the scan is memoized on the parts list identity: the timeline asks for
+  // them on every rebuild of a streaming reply.
   List<Map<String, dynamic>> _allSearchItems() {
     final parts = widget.toolParts ?? const <ToolUIPart>[];
     if (identical(parts, _searchItemsParts) && _searchItemsCache != null) {
@@ -4406,14 +4734,37 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       context,
       target: target,
     );
-    final child = switch (target) {
-      ChatBubbleStyleTarget.user => _buildUserMessage(),
-      ChatBubbleStyleTarget.thinkingToolCard => _buildToolMessage(),
-      ChatBubbleStyleTarget.assistant => PageStorage(
-        bucket: widget.timelineStorage ?? _localTimelineStorage,
-        child: _buildAssistantMessage(),
-      ),
-    };
+    SubagentResultPart? subagentResult;
+    SubagentMailPart? subagentMail;
+    for (final part in widget.message.parts) {
+      if (part is SubagentResultPart) {
+        subagentResult = part;
+      } else if (part is SubagentMailPart) {
+        subagentMail = part;
+      }
+      if (subagentResult != null && subagentMail != null) break;
+    }
+    final Widget child;
+    if (subagentResult != null) {
+      child = SubagentResultDivider(
+        part: subagentResult,
+        onTap: () => showSubagentPanel(
+          context,
+          conversationId: widget.message.conversationId,
+        ),
+      );
+    } else if (subagentMail != null) {
+      child = SubagentMailNotice(part: subagentMail, message: widget.message);
+    } else {
+      child = switch (target) {
+        ChatBubbleStyleTarget.user => _buildUserMessage(),
+        ChatBubbleStyleTarget.thinkingToolCard => _buildToolMessage(),
+        ChatBubbleStyleTarget.assistant => PageStorage(
+          bucket: widget.timelineStorage ?? _localTimelineStorage,
+          child: _buildAssistantMessage(),
+        ),
+      };
+    }
     return ChatSurfaceTheme(palette: palette, child: child);
   }
 }

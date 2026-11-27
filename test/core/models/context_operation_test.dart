@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/context_operation.dart';
-import 'package:Kelivo/core/models/compress_context_options.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/context_operation.dart';
+import 'package:Cuplivo/core/models/compress_context_options.dart';
 
 void main() {
   ChatMessage message(String id) =>

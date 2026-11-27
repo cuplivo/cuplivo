@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/api/providers/openai/openai_request_shaping.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_request_shaping.dart';
 
 void main() {
   test('chat completions usage maps reasoning and cached tokens', () {

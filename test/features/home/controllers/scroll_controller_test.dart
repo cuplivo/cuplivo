@@ -1,10 +1,10 @@
-import 'package:Kelivo/features/chat/widgets/viewport_block_list.dart';
-import 'package:Kelivo/features/home/controllers/scroll_controller.dart';
-import 'package:Kelivo/shared/widgets/scroll_layout_anchor.dart';
+import 'package:Cuplivo/features/chat/widgets/viewport_block_list.dart';
+import 'package:Cuplivo/features/home/controllers/scroll_controller.dart';
+import 'package:Cuplivo/shared/widgets/scroll_layout_anchor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
-import 'package:Kelivo/shared/widgets/visible_route_theme.dart';
+import 'package:Cuplivo/shared/widgets/visible_route_theme.dart';
 
 void main() {
   testWidgets('an image resize before the first paint honors a direct jump', (

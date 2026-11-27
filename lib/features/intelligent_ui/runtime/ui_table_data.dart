@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:Kelivo/features/intelligent_ui/catalog/ui_budgets.dart';
-import 'package:Kelivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
-import 'package:Kelivo/features/intelligent_ui/runtime/ui_chart_data.dart';
+import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
+import 'package:Cuplivo/features/intelligent_ui/protocol/ui_diagnostic.dart';
+import 'package:Cuplivo/features/intelligent_ui/runtime/ui_chart_data.dart';
 
 final class UiTableDataException implements Exception {
   const UiTableDataException(this.code, this.detail);

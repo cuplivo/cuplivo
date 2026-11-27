@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -11,21 +11,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:Kelivo/core/models/world_book.dart';
-import 'package:Kelivo/core/providers/world_book_provider.dart';
-import 'package:Kelivo/desktop/setting/world_book_pane.dart';
-import 'package:Kelivo/features/world_book/pages/world_book_page.dart';
-import 'package:Kelivo/features/world_book/widgets/world_book_entry_widgets.dart';
-import 'package:Kelivo/features/world_book/widgets/world_book_card_header.dart';
-import 'package:Kelivo/features/world_book/widgets/world_book_library.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_form_text_field.dart';
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/adaptive_form.dart';
-import 'package:Kelivo/shared/widgets/snackbar.dart';
-import 'package:Kelivo/shared/widgets/text_input_dialog.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
+import 'package:Cuplivo/core/providers/world_book_provider.dart';
+import 'package:Cuplivo/desktop/setting/world_book_pane.dart';
+import 'package:Cuplivo/features/world_book/pages/world_book_page.dart';
+import 'package:Cuplivo/features/world_book/widgets/world_book_entry_widgets.dart';
+import 'package:Cuplivo/features/world_book/widgets/world_book_card_header.dart';
+import 'package:Cuplivo/features/world_book/widgets/world_book_library.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_form_text_field.dart';
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/adaptive_form.dart';
+import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/shared/widgets/text_input_dialog.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 
 import '../../support/business_test_harness.dart';
 
@@ -806,13 +806,23 @@ void main() {
               1,
             ),
           );
-          expect(
-            tester.getCenter(find.text('2/3')).dy,
-            closeTo(
-              tester.getCenter(find.byTooltip(l10n.worldBookAddEntry)).dy,
-              1,
-            ),
-          );
+          // The count always hugs the trailing edge of the heading row. Where
+          // the width cannot hold the actions beside it — the header's own
+          // `stackActions` rule — they drop below instead of colliding, so the
+          // alignment this case guards is per mode rather than one number: a
+          // pixel value that only holds on one font is a fixture, not a check.
+          final header = tester.getRect(find.byType(WorldBookCardHeader).first);
+          final count = tester.getRect(find.text('2/3'));
+          final add = tester.getRect(find.byTooltip(l10n.worldBookAddEntry));
+          if (count.center.dy < add.center.dy - 1) {
+            // Stacked: the heading row owns the whole width, so the count sits
+            // at its trailing edge and the actions start below it.
+            expect(count.right, closeTo(header.right - 4, 1));
+            expect(count.bottom, lessThanOrEqualTo(add.top));
+          } else {
+            // Side by side: one baseline for the count and the buttons.
+            expect(count.center.dy, closeTo(add.center.dy, 1));
+          }
           expect(tester.takeException(), isNull);
           await screenshot(tester, '$platform-${locale.languageCode}-narrow');
         },

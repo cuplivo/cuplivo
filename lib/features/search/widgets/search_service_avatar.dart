@@ -66,7 +66,6 @@ class SearchServiceAvatar extends StatelessWidget {
         KimiOptions() => 'kimi',
         YouSearchOptions() => 'you',
         KeenableOptions() => 'keenable',
-        KelivoOptions() => 'kelivo',
         _ => 'search',
       };
 

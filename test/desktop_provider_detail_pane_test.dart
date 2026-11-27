@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:ui' show PointerDeviceKind, Tristate;
 
-import 'package:Kelivo/core/database/business_data.dart';
-import 'package:Kelivo/core/models/provider_oauth.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/models/provider_oauth.dart';
 import "support/business_test_harness.dart";
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/desktop/desktop_settings_page.dart';
-import 'package:Kelivo/desktop/widgets/desktop_form_dialog.dart';
-import 'package:Kelivo/desktop/widgets/desktop_select_dropdown.dart';
-import 'package:Kelivo/features/provider/widgets/provider_custom_request_editor.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_checkbox.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/model_tag_wrap.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/desktop/desktop_settings_page.dart';
+import 'package:Cuplivo/desktop/widgets/desktop_form_dialog.dart';
+import 'package:Cuplivo/desktop/widgets/desktop_select_dropdown.dart';
+import 'package:Cuplivo/features/provider/widgets/provider_custom_request_editor.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/model_tag_wrap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -123,12 +123,20 @@ void main() {
       await tester.pumpAndSettle();
 
       Future<void> focus(Finder control) async {
-        final node = Focus.of(tester.element(control));
-        for (var i = 0; i < 64 && !node.hasPrimaryFocus; i++) {
+        // The node is re-resolved every turn on purpose: opening a pane rebuilds
+        // the row that owns it, so a node captured before the first Tab belongs
+        // to an element that may already be gone — and its `hasPrimaryFocus`
+        // would then never turn true even though the row is the one focused.
+        for (var i = 0; i < 64; i++) {
+          if (Focus.of(tester.element(control)).hasPrimaryFocus) return;
           await tester.sendKeyEvent(LogicalKeyboardKey.tab);
           await tester.pump(const Duration(milliseconds: 100));
         }
-        expect(node.hasPrimaryFocus, isTrue, reason: control.toString());
+        expect(
+          Focus.of(tester.element(control)).hasPrimaryFocus,
+          isTrue,
+          reason: control.toString(),
+        );
       }
 
       Future<void> press(LogicalKeyboardKey key) async {

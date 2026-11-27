@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:Kelivo/desktop/sidebar_resize_handle.dart';
+import 'package:Cuplivo/desktop/sidebar_resize_handle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';

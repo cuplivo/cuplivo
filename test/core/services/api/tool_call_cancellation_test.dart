@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/services/api/tool_call_cancellation.dart';
+import 'package:Cuplivo/core/services/api/tool_call_cancellation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

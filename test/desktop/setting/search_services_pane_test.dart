@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/avatar_config.dart';
-import 'package:Kelivo/core/services/search/search_service.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/models/avatar_config.dart';
+import 'package:Cuplivo/core/services/search/search_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:provider/provider.dart';
 import '../../support/business_test_harness.dart';
-import 'package:Kelivo/desktop/setting/search_services_pane.dart';
-import 'package:Kelivo/features/search/widgets/search_service_avatar.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/desktop/setting/search_services_pane.dart';
+import 'package:Cuplivo/features/search/widgets/search_service_avatar.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages

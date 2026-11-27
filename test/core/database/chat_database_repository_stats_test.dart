@@ -2,13 +2,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/features/stats/models/stats_models.dart';
-import 'package:Kelivo/features/stats/services/stats_aggregation_service.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/features/stats/models/stats_models.dart';
+import 'package:Cuplivo/features/stats/services/stats_aggregation_service.dart';
 
 void main() {
   test(

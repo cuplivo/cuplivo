@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/features/home/controllers/streaming_tool_events.dart';
+import 'package:Cuplivo/features/home/controllers/streaming_tool_events.dart';
 
 void main() {
   Map<String, dynamic> event(String id, String name, [String? content]) => {

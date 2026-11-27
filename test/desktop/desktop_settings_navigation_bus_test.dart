@@ -1,4 +1,4 @@
-import 'package:Kelivo/desktop/desktop_settings_navigation_bus.dart';
+import 'package:Cuplivo/desktop/desktop_settings_navigation_bus.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

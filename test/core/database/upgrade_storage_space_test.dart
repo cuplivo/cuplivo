@@ -5,10 +5,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/private_data_storage.dart';
-import 'package:Kelivo/core/services/storage/device_storage_probe.dart';
-import 'package:Kelivo/core/services/storage/storage_space.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/core/services/storage/device_storage_probe.dart';
+import 'package:Cuplivo/core/services/storage/storage_space.dart';
 
 import 'generated_schema/schema_v3.dart' as v3;
 

@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/utils/source_text_map.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/utils/source_text_map.dart';
 import 'package:markstream/markstream_core.dart';
 
 class ThinkingTagParseResult {

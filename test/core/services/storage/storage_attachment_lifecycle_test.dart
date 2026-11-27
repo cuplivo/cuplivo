@@ -1,21 +1,21 @@
-import 'package:Kelivo/core/services/storage/attachment_file_lock.dart';
+import 'package:Cuplivo/core/services/storage/attachment_file_lock.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:image/image.dart' as img;
-import 'package:Kelivo/core/services/mcp/mcp_image_snapshot.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_image_snapshot.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/attachment_retention.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/storage/storage_attachment_usage.dart';
-import 'package:Kelivo/core/services/storage/storage_usage_service.dart';
-import 'package:Kelivo/core/services/workspace/workspace_file_coordinator.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/attachment_retention.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/storage/storage_attachment_usage.dart';
+import 'package:Cuplivo/core/services/storage/storage_usage_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_file_coordinator.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 import '../../../support/storage_images_test_fixture.dart';
 

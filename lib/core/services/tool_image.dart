@@ -104,7 +104,7 @@ class ToolImage {
         state == ui.AppLifecycleState.paused) {
       // Impeller queues GPU work while the iOS app is backgrounded.
       throw const ToolImageException(
-        'Return to Kelivo to prepare this image on iOS',
+        'Return to Cuplivo to prepare this image on iOS',
       );
     }
   }

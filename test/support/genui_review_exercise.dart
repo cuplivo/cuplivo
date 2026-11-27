@@ -3,17 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/gallery/review_gallery.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_surface.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_node.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_text_input.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_slider.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_boolean_input.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_choice_input.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_button.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_context_chip.dart';
-import 'package:Kelivo/features/intelligent_ui/widgets/genui_draft_dialog.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/gallery/review_gallery.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_surface.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_node.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_text_input.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_slider.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_boolean_input.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_choice_input.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_button.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_context_chip.dart';
+import 'package:Cuplivo/features/intelligent_ui/widgets/genui_draft_dialog.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
 
 /// Shared acceptance flow runs against real native widgets in an isolated app.
 /// Native captures are artifacts for visual inspection, never automatic approval.

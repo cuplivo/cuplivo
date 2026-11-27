@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/workspace/network_path_check.dart';
+import 'package:Cuplivo/core/services/workspace/network_path_check.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,14 +7,14 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:Kelivo/core/models/tool_permission_mode.dart';
-import 'package:Kelivo/core/models/workspace.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/services/workspace/workspace_paths.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/features/home/services/tool_approval_service.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/models/tool_permission_mode.dart';
+import 'package:Cuplivo/core/models/workspace.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_paths.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/features/home/services/tool_approval_service.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import '../../../support/claude_test_api.dart' show FakePathProviderPlatform;
 
 class DenyApproval extends ToolApprovalService {
@@ -242,13 +242,13 @@ void main() {
         isNull,
       );
       final link = Link(p.join(workspace.path, 'network'));
-      link.createSync('/net/kelivo-permission-test-not-a-real-host');
+      link.createSync('/net/cuplivo-permission-test-not-a-real-host');
       expect(
         await networkTargetForApproval(
           p.join(link.path, 'file'),
           workspace.path,
         ),
-        '/net/kelivo-permission-test-not-a-real-host/file',
+        '/net/cuplivo-permission-test-not-a-real-host/file',
       );
     },
     skip: Platform.isWindows,
@@ -256,7 +256,7 @@ void main() {
 
   test('network preflight rejects a target replaced during approval', () async {
     final link = Link(p.join(workspace.path, 'network.txt'))
-      ..createSync('/net/kelivo-permission-test-not-a-real-host/file');
+      ..createSync('/net/cuplivo-permission-test-not-a-real-host/file');
     final approvals = ToolApprovalService();
     addTearDown(approvals.dispose);
     final future = WorkspaceToolsService().handle(

@@ -5,7 +5,7 @@ description: Create or improve skills, turn a conversation into reusable SKILL.m
 
 # Skill Creator
 
-Help the user turn a repeatable task into a skill that works in Kelivo. Write
+Help the user turn a repeatable task into a skill that works in Cuplivo. Write
 instructions and explain the result in the user's language.
 
 ## Understand the task
@@ -38,7 +38,7 @@ as unspecified. Keep tentative proposals distinct from agreed decisions.
 
 Choose a short lowercase name using letters, digits, and hyphens, at most 64
 characters. Use the same name for its directory. Write a concise description
-that says what the skill does and when to use it; Kelivo shows only the first
+that says what the skill does and when to use it; Cuplivo shows only the first
 200 characters in the model's skill list. Put detailed instructions in the body.
 
 Include the task-specific decisions, output shape, and completion criteria that
@@ -57,19 +57,19 @@ environment variables by name when credentials are needed. Dependencies belong
 in the instructions only if the workflow needs them; a Markdown-only skill
 requires neither Python nor Node.js.
 
-## Deliver in Kelivo
+## Deliver in Cuplivo
 
-Use the tools and path zones shown in the current conversation. Kelivo supports
+Use the tools and path zones shown in the current conversation. Cuplivo supports
 SKILL.md instructions and supporting files; Codex/Claude-specific CLI commands,
 plugin manifests, subagents, and evaluation runners are not prerequisites.
 
-- **Workspace with writing tools enabled.** Install directly into Kelivo's
+- **Workspace with writing tools enabled.** Install directly into Cuplivo's
   skills directory using the path in the workspace context (`/skills` in a
   sandbox, the supplied host path in native mode). Use `write_file` to create
   files and `edit_file` to update them. Shell can also install skill files when
   available. Choose an unused directory for a new skill. For an update, use
   the existing directory and preserve unrelated files. Save supporting files
-  at their relative paths, then write the complete SKILL.md last. Kelivo
+  at their relative paths, then write the complete SKILL.md last. Cuplivo
   refreshes the skill list after writing, so saving here installs the skill.
 - **When writing tools are unavailable.** Return the complete SKILL.md in a
   fenced Markdown block as a draft. Direct installation requires a bound

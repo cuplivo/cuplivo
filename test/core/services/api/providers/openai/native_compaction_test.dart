@@ -1,22 +1,22 @@
-import 'package:Kelivo/core/models/request_budget.dart';
+import 'package:Cuplivo/core/models/request_budget.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'package:Kelivo/core/services/api/chat_api_service.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/services/api/chat_api_service.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/models/native_compaction.dart';
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
-import 'package:Kelivo/core/services/api/providers/openai/openai_provider.dart';
-import 'package:Kelivo/core/models/provider_oauth.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/native_compaction_context.dart';
-import 'package:Kelivo/core/services/api/providers/openai/native_compaction.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_request.dart';
-import 'package:Kelivo/core/services/api/request_history_context.dart';
-import 'package:Kelivo/core/services/auth/codex_request.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/openai_provider.dart';
+import 'package:Cuplivo/core/models/provider_oauth.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/native_compaction_context.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/native_compaction.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_request.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/auth/codex_request.dart';
 
 void main() {
   final config = ProviderConfig(

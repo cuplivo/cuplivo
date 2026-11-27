@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/core/services/storage/attachment_file_lock.dart';
-import 'package:Kelivo/core/services/storage/storage_usage_service.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/core/services/storage/attachment_file_lock.dart';
+import 'package:Cuplivo/core/services/storage/storage_usage_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
 

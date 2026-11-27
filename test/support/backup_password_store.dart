@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/services/backup/backup_secure_password_store.dart';
+import 'package:Cuplivo/core/services/backup/backup_secure_password_store.dart';
 
 class TestBackupPasswordStore extends BackupSecurePasswordStore {
   bool? lastNewConsent;

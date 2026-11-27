@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/home/widgets/message_list_view.dart';
+import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

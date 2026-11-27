@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import '../../../support/business_test_harness.dart';
-import 'package:Kelivo/core/models/request_budget.dart';
-import 'package:Kelivo/features/provider/widgets/request_budget_settings.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/request_budget.dart';
+import 'package:Cuplivo/features/provider/widgets/request_budget_settings.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 void main() {
   late SettingsProvider settings;

@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/provider_oauth.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/chat_api_helpers.dart';
-import 'package:Kelivo/core/services/network/provider_http_exception.dart';
-import 'package:Kelivo/features/chat/utils/image_generation_error.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/provider_oauth.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/chat_api_helpers.dart';
+import 'package:Cuplivo/core/services/network/provider_http_exception.dart';
+import 'package:Cuplivo/features/chat/utils/image_generation_error.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;

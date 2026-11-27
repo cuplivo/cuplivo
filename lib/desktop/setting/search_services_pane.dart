@@ -17,8 +17,8 @@ import '../../shared/widgets/ios_form_text_field.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../../theme/app_font_weights.dart';
 import '../widgets/desktop_select_dropdown.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class DesktopSearchServicesPane extends StatefulWidget {
   const DesktopSearchServicesPane({super.key});
@@ -392,8 +392,7 @@ class _ServiceCardState extends State<_ServiceCard> {
                   ],
                 ),
               ),
-              if (widget.service is! BingLocalOptions &&
-                  widget.service is! KelivoOptions) ...[
+              if (widget.service is! BingLocalOptions) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -2926,8 +2925,6 @@ String _serviceTypeName(BuildContext context, String type) {
       return l10n.searchServiceNameYou;
     case 'keenable':
       return l10n.searchServiceNameKeenable;
-    case 'kelivo':
-      return l10n.searchServiceNameKelivo;
     default:
       return type;
   }

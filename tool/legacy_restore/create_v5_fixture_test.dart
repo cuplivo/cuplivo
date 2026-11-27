@@ -1,8 +1,8 @@
 // Manual fixture generation only; this is outside the default test glob.
 import 'dart:io';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/models/backup.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../test/support/genui_backup_fixture.dart';
 

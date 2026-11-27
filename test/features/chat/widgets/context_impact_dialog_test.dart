@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/context_operation.dart';
-import 'package:Kelivo/features/chat/widgets/context_dialog.dart';
-import 'package:Kelivo/features/chat/widgets/context_impact_dialog.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/l10n/app_localizations_en.dart';
-import 'package:Kelivo/l10n/app_localizations_zh.dart';
+import 'package:Cuplivo/core/models/context_operation.dart';
+import 'package:Cuplivo/features/chat/widgets/context_dialog.dart';
+import 'package:Cuplivo/features/chat/widgets/context_impact_dialog.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/l10n/app_localizations_en.dart';
+import 'package:Cuplivo/l10n/app_localizations_zh.dart';
 
 void main() {
   final en = AppLocalizationsEn();

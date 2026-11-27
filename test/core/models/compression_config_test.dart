@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/models/compression_config.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

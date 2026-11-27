@@ -1,6 +1,6 @@
 import 'support/business_test_harness.dart';
-import 'package:Kelivo/core/models/mobile_background_settings.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/models/mobile_background_settings.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

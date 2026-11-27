@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/services/logging/log_payload_elider.dart';
+import 'package:Cuplivo/core/services/logging/log_payload_elider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String _b64(int chars) => 'A' * chars;

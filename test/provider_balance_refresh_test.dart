@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/provider_balance_refresh.dart';
-import 'package:Kelivo/core/services/provider_balance_service.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/provider_balance_refresh.dart';
+import 'package:Cuplivo/core/services/provider_balance_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 

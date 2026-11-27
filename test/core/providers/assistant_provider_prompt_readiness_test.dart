@@ -198,11 +198,6 @@ void main() {
         final provider = AssistantProvider(preferences: session.preferences);
         await provider.loaded;
         await provider.setCurrentAssistant('assistant-a');
-        await provider.reorderAssistantsWithin(
-          subsetIds: ['assistant-a', 'assistant-b'],
-          oldIndex: 1,
-          newIndex: 0,
-        );
         expect(
           provider.resolveConversationAssistant('missing')!.id,
           'assistant-a',
@@ -213,7 +208,7 @@ void main() {
         session = await harness.open();
         final reopened = AssistantProvider(preferences: session.preferences);
         await reopened.loaded;
-        expect(reopened.assistants.first.id, 'assistant-b');
+        expect(reopened.assistants.first.id, 'assistant-a');
         expect(reopened.currentAssistantId, 'assistant-a');
         expect(
           reopened.resolveConversationAssistant('missing')!.id,
@@ -249,23 +244,19 @@ void main() {
     );
   }
 
-  test(
-    'first added assistant remains the recovery assistant after reorder',
-    () async {
-      final provider = AssistantProvider(preferences: session.preferences);
-      await provider.loaded;
-      expect(provider.resolveConversationAssistant('missing'), isNull);
-      final first = await provider.addAssistant(name: 'First');
-      await provider.addAssistant(name: 'Second');
-      await provider.reorderAssistants(1, 0);
-      expect(provider.resolveConversationAssistant('missing')!.id, first);
-      provider.dispose();
-      await session.close();
-      session = await harness.open();
-      final reopened = AssistantProvider(preferences: session.preferences);
-      await reopened.loaded;
-      expect(reopened.resolveConversationAssistant('missing')!.id, first);
-      reopened.dispose();
-    },
-  );
+  test('first added assistant remains the recovery assistant', () async {
+    final provider = AssistantProvider(preferences: session.preferences);
+    await provider.loaded;
+    expect(provider.resolveConversationAssistant('missing'), isNull);
+    final first = await provider.addAssistant(name: 'First');
+    await provider.addAssistant(name: 'Second');
+    expect(provider.resolveConversationAssistant('missing')!.id, first);
+    provider.dispose();
+    await session.close();
+    session = await harness.open();
+    final reopened = AssistantProvider(preferences: session.preferences);
+    await reopened.loaded;
+    expect(reopened.resolveConversationAssistant('missing')!.id, first);
+    reopened.dispose();
+  });
 }

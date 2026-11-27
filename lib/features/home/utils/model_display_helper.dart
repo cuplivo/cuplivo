@@ -1,6 +1,7 @@
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/models/assistant.dart';
 import '../../../core/models/conversation.dart';
+import '../../../core/services/decision/decision_client.dart';
 
 /// Helper class for extracting model display information.
 ///
@@ -43,6 +44,12 @@ class ModelDisplayInfo {
 /// [SettingsProvider.perChatModelEnabled] is off; pins stay in the database so
 /// turning the setting back on restores each conversation's own model.
 ///
+/// It is skipped for a group topic as well. A group writes every reply with its
+/// speaker's own model, so a pin on the topic cannot mean anything: honouring
+/// one would send every reply with that single model while the composer reports
+/// the roster, and a pin left over from before the conversation became a topic
+/// would do it silently.
+///
 /// This is the only place that chain should be written. Every caller that means
 /// "the model this chat uses" goes through here or [getActiveModelIds].
 ({String? providerKey, String? modelId}) resolveChatModel(
@@ -50,7 +57,10 @@ class ModelDisplayInfo {
   Conversation? conversation,
   Assistant? assistant,
 }) {
-  final pinned = settings.perChatModelEnabled ? conversation : null;
+  final pinned =
+      settings.perChatModelEnabled && conversation?.isGroupConversation != true
+      ? conversation
+      : null;
   final providerKey =
       pinned?.chatModelProvider ??
       assistant?.chatModelProvider ??
@@ -58,6 +68,54 @@ class ModelDisplayInfo {
   final modelId =
       pinned?.chatModelId ?? assistant?.chatModelId ?? settings.currentModelId;
   return (providerKey: providerKey, modelId: modelId);
+}
+
+/// Resolves the model that writes a conversation's title.
+///
+/// The title model is a global preference and wins everywhere. Without it a
+/// 1:1 chat falls back to the model that chat sends with; a group topic has no
+/// chat model of its own — the group's is the director's — so it falls back to
+/// the director model and then to the global default.
+///
+/// A director that is not a chat model is skipped: a decision model answers one
+/// typed question and produces no text, so asking it for a title means a
+/// request that can only fail — and the group keeps its placeholder name.
+///
+/// This is the only place the title-model chain is written: both the
+/// end-of-round path and the sidebar's "regenerate title" go through it.
+({String? providerKey, String? modelId}) resolveTitleModel(
+  SettingsProvider settings, {
+  Conversation? conversation,
+  Assistant? assistant,
+}) {
+  final titleProvider = settings.titleModelProvider;
+  final titleModel = settings.titleModelId;
+  if (titleProvider != null && titleModel != null) {
+    return (providerKey: titleProvider, modelId: titleModel);
+  }
+  if (conversation?.isGroupConversation == true) {
+    final providerKey =
+        settings.directorModelProvider ?? settings.currentModelProvider;
+    final modelId = settings.directorModelId ?? settings.currentModelId;
+    if (!_isDecisionModel(settings, providerKey, modelId)) {
+      return (providerKey: providerKey, modelId: modelId);
+    }
+  }
+  return resolveChatModel(
+    settings,
+    conversation: conversation,
+    assistant: assistant,
+  );
+}
+
+bool _isDecisionModel(
+  SettingsProvider settings,
+  String? providerKey,
+  String? modelId,
+) {
+  if (providerKey == null || modelId == null) return false;
+  final config = settings.getProviderConfig(providerKey);
+  return DecisionClient.canDecide(config, modelId);
 }
 
 /// Extracts model display information from settings, conversation and assistant.

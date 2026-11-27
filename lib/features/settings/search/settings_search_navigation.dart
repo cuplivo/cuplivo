@@ -52,7 +52,7 @@ Future<void> openMobileSettingsSearchResult(
     SettingsSearchDestination.haptics => const HapticsSettingsPage(),
     SettingsSearchDestination.background =>
       const MobileBackgroundSettingsPage(),
-    SettingsSearchDestination.assistant => const AssistantSettingsPage(),
+    SettingsSearchDestination.assistant => const ChatOwnerSettingsPage(),
     SettingsSearchDestination.phoneControl => const PhoneControlSettingsPage(),
     SettingsSearchDestination.providers => const ProvidersPage(),
     SettingsSearchDestination.defaultModel => const DefaultModelPage(),

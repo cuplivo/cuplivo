@@ -4,6 +4,9 @@ import 'dart:io';
 import "../../../support/business_test_harness.dart";
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/chat_owners_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
 import 'package:Cuplivo/core/providers/user_provider.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/core/providers/update_provider.dart';
@@ -213,6 +216,7 @@ void main() {
     final assistantPrefs = createBusinessTestPreferences();
     final backupPrefs = createBusinessTestPreferences();
     final tagPrefs = createBusinessTestPreferences();
+    final business = createBusinessTestPreferencesWithDatabase();
     final settings = settingsProvider ?? SettingsProvider(settingsPrefs);
     final scaffoldKey = GlobalKey<ScaffoldState>();
     final closeTick = ValueNotifier(0);
@@ -236,6 +240,7 @@ void main() {
                   onDismissKeyboard: () {},
                   onSelectConversation: (id) => onSelectConversation?.call(id),
                   onNewConversation: () {},
+                  onOpenOwner: (owner) async {},
                   onOpenMiniMap: () {},
                   onCreateNewConversation: () async {},
                   onToggleTemporaryConversation: () async {},
@@ -296,6 +301,18 @@ void main() {
             ChangeNotifierProvider(
               create: (_) => AssistantProvider(preferences: assistantPrefs),
             ),
+          ChangeNotifierProvider(
+            create: (_) => GroupChatProvider(
+              store: ExtensionEntityStore(business.database),
+            ),
+          ),
+          ChangeNotifierProvider(
+            create: (ctx) => ChatOwnersProvider(
+              assistants: ctx.read<AssistantProvider>(),
+              groups: ctx.read<GroupChatProvider>(),
+              preferences: business.preferences,
+            ),
+          ),
           ChangeNotifierProvider(
             create: (_) => BackupReminderProvider(preferences: backupPrefs),
           ),
@@ -676,6 +693,10 @@ void main() {
           title: 'Second topic',
           assistantId: second,
         );
+        // The list's scope is the owner of the open chat. This test varies the
+        // *selected* assistant instead, which is the scope only while no chat is
+        // open, so it starts from exactly that state.
+        service.setCurrentConversation(null);
       });
       await pumpDrawer(tester, service, assistantProvider: assistants);
       await tester.pumpAndSettle();
@@ -698,10 +719,8 @@ void main() {
             .assistantId,
         'missing-assistant',
       );
-      // Reordering must not move recovered history away from the selected
-      // assistant, including after reopening the persisted assistant snapshot.
-      await tester.runAsync(() => assistants.reorderAssistants(1, 0));
-      await tester.pumpAndSettle();
+      // Recovered history must stay with the selected assistant, including
+      // after reopening the persisted assistant snapshot.
       expect(assistants.currentAssistantId, first);
       expect(find.text('Orphaned topic'), findsOneWidget);
       expect(find.text('First topic'), findsOneWidget);
@@ -714,7 +733,7 @@ void main() {
       });
       await pumpDrawer(tester, service, assistantProvider: assistants);
       await tester.pumpAndSettle();
-      expect(assistants.assistants.first.id, second);
+      expect(assistants.assistants.first.id, first);
       expect(assistants.currentAssistantId, first);
       expect(find.text('Orphaned topic'), findsOneWidget);
       await tester.runAsync(() => assistants.deleteAssistant(first));

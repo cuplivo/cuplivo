@@ -49,6 +49,8 @@ import '../features/assistant/pages/assistant_settings_edit_page.dart'
     show showAssistantDesktopDialog; // dialog opener only
 import '../core/providers/assistant_provider.dart';
 import '../features/assistant/widgets/assistant_copy_dialog.dart';
+import '../features/assistant/widgets/chat_owner_section_header.dart';
+import '../core/models/chat_owner.dart';
 import '../features/home/controllers/chat_actions.dart' show ChatActions;
 import '../core/models/assistant.dart';
 import '../shared/widgets/avatar_image.dart';
@@ -114,6 +116,12 @@ import '../theme/custom_theme.dart';
 import '../features/settings/widgets/custom_theme_widgets.dart';
 import '../features/settings/pages/message_style_settings_page.dart';
 import '../shared/widgets/tip_icon.dart';
+import '../core/models/group_chat.dart';
+import '../core/providers/chat_owners_provider.dart';
+import '../core/providers/group_chat_provider.dart';
+import '../features/group_chat/group_navigation.dart';
+import '../features/group_chat/widgets/group_member_list.dart';
+import '../shared/widgets/action_sheet.dart';
 
 part 'setting/assistants_pane.dart';
 part 'setting/providers_pane.dart';
@@ -425,7 +433,7 @@ class _SettingsMenu extends StatelessWidget {
       (
         _SettingsMenuItem.assistant,
         lucide.Lucide.Bot,
-        l10n.settingsPageAssistant,
+        l10n.settingsPageChatOwners,
       ),
       (
         _SettingsMenuItem.defaultModel,

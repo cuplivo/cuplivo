@@ -6,6 +6,7 @@ import '../../../../core/models/model_spec.dart';
 import '../../../../core/models/image_generation_options.dart';
 import '../../../../core/models/request_budget.dart';
 import '../../../../core/models/avatar_config.dart';
+import '../../../../core/services/decision/decision_dialect.dart';
 import '../../../../utils/avatar_files.dart';
 import '../../../../core/providers/settings_provider.dart';
 import '../../../../core/services/api/builtin_tools.dart';
@@ -91,6 +92,10 @@ class ModelSpecFormController extends ChangeNotifier {
         ),
       );
     }
+    _decisionDialect = DecisionDialectSetting.of(config, modelKey);
+    decisionUrlController = TextEditingController(
+      text: DecisionDialectSetting.urlOverride(config, modelKey) ?? '',
+    );
   }
 
   final ProviderConfig _config;
@@ -286,6 +291,47 @@ class ModelSpecFormController extends ChangeNotifier {
 
   void setType(ModelType type) {
     draft = draft.copyWith(type: type);
+    _changed();
+  }
+
+  /// Which decision protocol a decision model speaks. Only meaningful when the
+  /// type is [ModelType.decision]; stored beside the other per-model options.
+  late DecisionDialect _decisionDialect;
+
+  DecisionDialect get decisionDialect => _decisionDialect;
+
+  void setDecisionDialect(DecisionDialect dialect) {
+    _decisionDialect = dialect;
+    draft = draft.copyWith(
+      extra: {
+        ...draft.extra,
+        DecisionDialectSetting.overrideKey: DecisionDialectSetting.encode(
+          dialect,
+        ),
+      },
+    );
+    _changed();
+  }
+
+  /// Full address of the decision endpoint. Empty means "the dialect's own
+  /// path under the provider's base URL"; a gateway that serves decisions
+  /// elsewhere (OpenRouter's `/api/alpha/decisions`) needs it filled in.
+  late final TextEditingController decisionUrlController;
+
+  /// Host of the provider this model belongs to, for the "current provider"
+  /// hint in the help sheet. Not used to decide anything.
+  String get providerHost =>
+      (Uri.tryParse(_config.baseUrl)?.host ?? '').toLowerCase();
+
+  void setDecisionUrl(String value) {
+    final trimmed = value.trim();
+    final extra = Map<String, dynamic>.from(draft.extra);
+    if (trimmed.isEmpty) {
+      extra.remove(DecisionDialectSetting.urlOverrideKey);
+    } else {
+      extra[DecisionDialectSetting.urlOverrideKey] = trimmed;
+    }
+    draft = draft.copyWith(extra: extra);
     _changed();
   }
 
@@ -678,6 +724,7 @@ class ModelSpecFormController extends ChangeNotifier {
     pricingCacheReadController.dispose();
     pricingCacheWriteController.dispose();
     currencyController.dispose();
+    decisionUrlController.dispose();
     for (final controller in budgetControllers.values) {
       controller.dispose();
     }
@@ -847,6 +894,12 @@ class ModelSpecFormController extends ChangeNotifier {
       json.remove('output');
       json.remove('abilities');
     }
+    if (spec.type != ModelType.decision) {
+      // A model that stopped being a decision model keeps none of its decision
+      // configuration: the next decision model must not inherit an endpoint.
+      json.remove(DecisionDialectSetting.overrideKey);
+      json.remove(DecisionDialectSetting.urlOverrideKey);
+    }
     if (previous is Map) {
       final prev = Map<String, dynamic>.from(previous);
       for (final entry in prev.entries) {
@@ -883,6 +936,10 @@ class ModelSpecFormController extends ChangeNotifier {
     'builtInTools',
     'tools',
     'built_in_tools',
+    // Owned here too: otherwise the previous override's value is copied back
+    // over the one just chosen, and the dialect silently never changes.
+    DecisionDialectSetting.overrideKey,
+    DecisionDialectSetting.urlOverrideKey,
   };
 
   static String _nextModelKey(ProviderConfig cfg, String apiModelId) {

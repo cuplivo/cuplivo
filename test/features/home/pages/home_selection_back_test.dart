@@ -14,6 +14,8 @@ import 'package:flutter/foundation.dart';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/providers/asr_provider.dart';
 import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/chat_owners_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
 import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
 import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
 import 'package:Cuplivo/core/providers/mcp_provider.dart';
@@ -232,6 +234,18 @@ void main() {
               ChangeNotifierProvider(
                 create: (_) =>
                     WorldBookProvider(preferences: harness.preferences),
+              ),
+              ChangeNotifierProvider(
+                create: (_) => GroupChatProvider(
+                  store: ExtensionEntityStore(harness.database),
+                ),
+              ),
+              ChangeNotifierProvider(
+                create: (ctx) => ChatOwnersProvider(
+                  assistants: ctx.read<AssistantProvider>(),
+                  groups: ctx.read<GroupChatProvider>(),
+                  preferences: harness.preferences,
+                ),
               ),
             ],
             child: MaterialApp(

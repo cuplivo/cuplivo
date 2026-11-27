@@ -834,6 +834,12 @@ final class BusinessKeyRegistry {
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
     ),
+    'display_separate_chat_owners_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+      'How this device draws the owner list: one mixed assistant/group list, '
+      'or assistants and group chats as two sections.',
+    ),
     'display_show_app_updates_v1': KeyRule(
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
@@ -1475,6 +1481,8 @@ final class BusinessKeyRegistry {
     BusinessEntityKind.memoryEntry: {},
     BusinessEntityKind.workspace: {},
     BusinessEntityKind.skill: {},
+    // A group and its topics are rows; the sidebar's mixed order is this key.
+    BusinessEntityKind.groupChat: {'chat_owner_order_v1'},
     BusinessEntityKind.userProfileField: {},
     // The global compression defaults name the template a conversation falls
     // back to, so they organize the library exactly as the active world-book
@@ -2136,27 +2144,6 @@ final class BusinessSettingsRouter {
           strings: const {'avatar'},
           numbers: const {'v', 'maxSpeakerTurns'},
           stringLists: const {'memberIds'},
-        );
-        return;
-      case BusinessEntityKind.compressionTemplate:
-        // A prompt the user wrote for the summariser: opaque to this router, so
-        // it is type-checked at the import boundary and never interpreted.
-        _validateKnownFields(
-          kind,
-          payload,
-          requiredStrings: const {'id', 'name', 'prompt'},
-          strings: const {'scene', 'outputLanguage'},
-          integers: const {'formatVersion'},
-        );
-        return;
-      case BusinessEntityKind.compressionRecipe:
-        _validateKnownFields(
-          kind,
-          payload,
-          requiredStrings: const {'id', 'name'},
-          strings: const {'focus'},
-          maps: const {'template', 'settings'},
-          integers: const {'formatVersion'},
         );
         return;
       case BusinessEntityKind.userProfileField:

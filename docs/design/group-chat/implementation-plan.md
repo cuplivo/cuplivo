@@ -120,7 +120,8 @@
 
 | 问题 | 处置 | 落地 |
 | --- | --- | --- |
-| 群话题里按 ↻ 会写出**没有作者**的回复，模型用的是当前选中的助手 | 修 | 群里的重来以**一轮**为单位：用户消息的 ↻ 删掉这条之后的整轮回复并重跑 `_runGroupRound`（`ChatActions.restartGroupRound`，与发送共用 `_claimGroupRound` / `_startGroupRound`）；助手回复不再提供 ↻（`onRegenerateMessage` 在群里传 null，null 现在等于「不显示」而不是「点了没反应」） |
+| 群话题里按 ↻ 会写出**没有作者**的回复，模型用的是当前选中的助手 | 修（后改口，见下条） | 群里的重来以**一轮**为单位：用户消息的 ↻ 删掉这条之后的整轮回复并重跑 `_runGroupRound`（`ChatActions.restartGroupRound`，与发送共用 `_claimGroupRound` / `_startGroupRound`）；助手回复不再提供 ↻（`onRegenerateMessage` 在群里传 null，null 现在等于「不显示」而不是「点了没反应」） |
+| 群里只能整轮重来，一条答坏的回复没法单独重问 | 改口 | 助手回复的 ↻ 回来了，点下去只重问这一位：作者（`senderId`，只有写这条的模型就是它的作者时才写，否则宁可留空也不改名）、它自己的模型、发言人视角的转写（`GroupTranscript.forSpeaker` + 花名册），新答案作为该条的新版本挂在原处；整轮仍由用户消息的 ↻ 重跑。它后面的回复基于旧版文字、且不提示——与单人聊天里重生成一条早期回复完全一致，这是明确接受的代价，不再另加「已过期」标记 |
 | 群的第一条话题永远叫「新话题」，标题模型从不接手 | 修 | 占位标题收口到 `ChatService.isPlaceholderTitle`（会话占位 + 话题占位），启动时 `setPlaceholderTitles` 一次注入；侧栏与 composer 两条新建路径都用 `groupTopicTitle`；`_maybeGenerateTitleFor` 只问这一个谓词 |
 | 未分组段拖拽跨过一个打了标签的行会丢 | 修 | 两段合成一个 `buildReorderableSection`：索引一律是本段索引，全部走 `reorderWithin`；旧的「全局 index + 段内 delta」算法删除 |
 | 提示词邀请导演重复选人，runner 又拒绝 | 修 | 提示词改为「每位成员每轮最多一次，全员发过言就 `end_turn`」；轮次上限按 `min(maxSpeakerTurns, 成员数)` 夹紧；`_decode` 的拒绝留作兜底 |

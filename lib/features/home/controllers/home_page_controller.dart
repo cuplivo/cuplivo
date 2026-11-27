@@ -26,7 +26,9 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/models/chat_input_data.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/group_chat.dart';
 import '../../../core/models/message_part.dart';
+import '../../../core/models/chat_owner.dart';
 import '../../../core/models/conversation.dart';
 import '../../../core/models/reasoning_request.dart';
 import '../../../core/models/workspace_binding.dart';
@@ -74,6 +76,7 @@ import '../services/message_generation_service.dart';
 import '../services/local_tools_service.dart';
 import '../services/ask_user_interaction_service.dart';
 import '../services/ocr_service.dart';
+import '../../../core/providers/group_chat_provider.dart';
 import '../services/translation_service.dart';
 import '../services/file_upload_service.dart';
 import '../services/composer_document_route.dart';
@@ -1000,6 +1003,18 @@ class HomePageController extends ChangeNotifier {
           message: l10n.homePagePleaseSelectModel,
           type: NotificationType.warning,
         );
+      } else if (warning == 'group_unavailable') {
+        showAppSnackBar(
+          _context,
+          message: l10n.groupChatUnavailableWarning,
+          type: NotificationType.warning,
+        );
+      } else if (warning == 'group_director_fallback') {
+        showAppSnackBar(
+          _context,
+          message: l10n.groupChatDirectorFallbackWarning,
+          type: NotificationType.warning,
+        );
       }
     };
     _viewModel.onScrollToBottom = () {
@@ -1399,9 +1414,23 @@ class HomePageController extends ChangeNotifier {
   Future<void> initChat() async {
     final prefs = _context.read<SettingsProvider>();
     final assistantProvider = _context.read<AssistantProvider>();
+    // Absent only in harnesses that mount no group store; the app always has one.
+    GroupChatProvider? groups;
     try {
-      // The two startups are independent of each other.
-      await Future.wait([assistantProvider.loaded, _chatService.init()]);
+      groups = _context.read<GroupChatProvider>();
+    } catch (_) {}
+    try {
+      // The startups are independent of each other, except for the group list:
+      // a topic inside a group is not owned by the selected assistant, so it
+      // paints no wallpaper and no gradient — restoring one before that list is
+      // read puts the previous assistant's artwork behind it for a frame. It is
+      // one table read, and it is what makes "whose chat is open" answerable
+      // from the first frame.
+      await Future.wait([
+        assistantProvider.loaded,
+        _chatService.init(),
+        if (groups != null) groups.loaded,
+      ]);
       if (prefs.newChatOnLaunch) {
         await _createNewConversation();
       } else {
@@ -1868,6 +1897,43 @@ class HomePageController extends ChangeNotifier {
     bool omitImages = false,
   }) async {
     if (currentConversation == null) return;
+    final target = _chatService.getConversation(message.conversationId);
+    if (target == null) return;
+    // A group regenerates per message. The user turn re-asks the whole round —
+    // who answers is the director's decision, so "say that again" belongs to
+    // the message that opened it. A member's reply re-asks that member alone:
+    // same author, same model, a new version. That is the single-owner path
+    // with two group facts added, so it keeps the preflight, the confirmations
+    // and the context guards instead of growing a second way to write a reply —
+    // including "delete the messages below", which stays the user's setting.
+    final group = _groupChatFor(target);
+    Assistant? groupSpeaker;
+    var groupMembers = const <Assistant>[];
+    if (group != null) {
+      if (message.role == 'user') {
+        final success = await _viewModel.restartGroupRound(
+          conversation: target,
+          userMessage: message,
+        );
+        if (success) notifyListeners();
+        return;
+      }
+      final assistants = _context.read<AssistantProvider>();
+      final senderId = message.senderId;
+      groupSpeaker = senderId == null ? null : assistants.getById(senderId);
+      groupMembers = [
+        for (final id in group.memberIds)
+          if (assistants.getById(id) case final member?) member,
+      ];
+      // The group is there but nobody is in it: say so. A reply with no author
+      // left is a different state — the timeline does not offer the action for
+      // it — and there is nothing to ask, so it stays quiet.
+      if (groupMembers.isEmpty) {
+        _viewModel.onWarning?.call('group_unavailable');
+        return;
+      }
+      if (groupSpeaker == null) return;
+    }
     final deletingTail = _context
         .read<SettingsProvider>()
         .regenerateDeleteTrailingMessages;
@@ -1918,11 +1984,50 @@ class HomePageController extends ChangeNotifier {
       omitImages: omitImages,
       assistantAsNewReply: assistantAsNewReply,
       expectedContextState: approved,
+      assistantOverride: groupSpeaker,
+      group: group,
+      members: groupMembers,
       allowImagesApiRouting:
           allowImagesApiRouting ?? _mediaController.allowImagesApiRouting,
     );
     if (success) {
       notifyListeners();
+    }
+  }
+
+  /// Whether a group row exists for [groupChatId].
+  ///
+  /// Guarded: the controller is also exercised in trees that do not provide the
+  /// group list, and there nothing can be a live group.
+  bool _hasGroupChat(String? groupChatId) =>
+      _groupChatExists(groupChatId) == true;
+
+  /// The group a conversation is a topic of, or null when it is not one.
+  ///
+  /// Guarded like [_groupChatExists]: a reduced tree has no group list, and
+  /// there nothing can be a live group.
+  GroupChat? _groupChatFor(Conversation conversation) {
+    final groupChatId = conversation.groupChatId;
+    if (groupChatId == null) return null;
+    try {
+      return _context.read<GroupChatProvider>().byId(groupChatId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether [groupChatId] names a live group, or null when this tree has no
+  /// group list at all and the answer cannot be known.
+  ///
+  /// The difference matters where the claim is *carried* rather than acted on: a
+  /// reduced host must keep the topic where it is, while a real host has to stop
+  /// a topic from following a group that is gone.
+  bool? _groupChatExists(String? groupChatId) {
+    if (groupChatId == null) return false;
+    try {
+      return _context.read<GroupChatProvider>().byId(groupChatId) != null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -1934,6 +2039,10 @@ class HomePageController extends ChangeNotifier {
     final conversation = currentConversation;
     if (conversation == null ||
         _viewModel.isConversationSendInFlight(conversation.id) ||
+        // A round writing into this topic already owns its send path; answering
+        // a card from an earlier turn would start a second writer and abandon
+        // the turn the round is in the middle of.
+        _viewModel.isGroupRoundLoading(conversation.id) ||
         _chatService.contextCompression.blocksSending(conversation.id)) {
       return;
     }
@@ -1986,6 +2095,105 @@ class HomePageController extends ChangeNotifier {
   // ============================================================================
   // Public Methods - Conversation Management
   // ============================================================================
+
+  /// Opens the chat an owner stands for: one tap, one intent.
+  ///
+  /// [ChatOwner] is the only parameter shape — an assistant and a group differ
+  /// in what the tap *resolves to*, never in the steps taken. Each step has
+  /// exactly one implementation, so a new entry point (share sheet, deep link,
+  /// hotkey) calls this instead of reassembling the three decisions:
+  ///
+  /// 1. **the conversation**: an assistant opens a new 1:1 (when the switch asks
+  ///    for one) or its most recent one; a group opens a new topic under the same
+  ///    switch, or its most recent topic.
+  /// 2. **whose it is**: the committed chat's owner is remembered as the
+  ///    *fallback* assistant ([_syncDefaultAssistant]); selection is derived from
+  ///    the open chat, never written before it.
+  /// 3. **the view**: [revealTopics] shows the list the chat now belongs to.
+  ///
+  /// Version 4.6.0 threaded an `assistantId` through six widgets to fix the same
+  /// accident; that parameter chain is deliberately not reintroduced.
+  Future<void> openOwner(ChatOwner owner) async {
+    final assistants = _context.read<AssistantProvider>();
+    // A group row that is already gone owns nothing, and must never mint another
+    // topic tagged with its id. The same for an assistant deleted in another
+    // window: there is nothing to open.
+    if (owner.isGroup && !_hasGroupChat(owner.id)) return;
+    if (!owner.isGroup && assistants.getById(owner.id) == null) return;
+    // A narrow desktop window shows the sidebar as a modal overlay over the chat,
+    // not as a route: the drawer's own dismissal is a PopScope a phone wraps
+    // itself in, and it cannot reach this panel (the page is the first route, so
+    // `maybePop` bubbles). Left open, it hides the chat the tap just opened. The
+    // guard inside makes this inert on a phone, a tablet and a wide window.
+    closeCompactSidebar();
+    // The switch is about the tap on an owner, not about one kind: a group's
+    // topic is a conversation too, so "start a new one when I switch" answers
+    // the same way for both. Its title still says 助手 — the row was written for
+    // the assistant case and the wording is deliberately left alone.
+    final wantsNewChat = _context
+        .read<SettingsProvider>()
+        .newChatOnAssistantSwitch;
+    final existing = wantsNewChat
+        ? null
+        : _mostRecentConversationOf(owner, assistants);
+    if (existing != null) {
+      await switchConversationAnimated(existing.id);
+    } else {
+      await createNewConversationAnimated(owner: owner);
+    }
+    if (!_context.mounted) return;
+    _syncDefaultAssistant();
+    // Reveal after the frame that paints the committed chat. The sidebar derives
+    // its list from the open chat and rebuilds on that frame; flipping to the
+    // topics tab in the same microtask shows the *previous* owner's rows for the
+    // first frames of the tab animation. An assistant switch happened to be
+    // immune because its own provider notification lands earlier.
+    //
+    // A callback rather than an awaited frame: [openOwner] stays awaitable by
+    // callers (and by tests) instead of blocking until something pumps.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_context.mounted) _revealAfterOwnerTap();
+    });
+  }
+
+  /// The conversation a tap on [owner] should land on, or null when it has none.
+  ///
+  /// [ChatService.getAllConversations] is already ordered by `updatedAt`
+  /// descending, so the first match is the most recent one.
+  Conversation? _mostRecentConversationOf(
+    ChatOwner owner,
+    AssistantProvider assistants,
+  ) {
+    for (final conversation in _chatService.getAllConversations()) {
+      if (_ownerOf(conversation, assistants) == owner) return conversation;
+    }
+    return null;
+  }
+
+  /// [ownerOfConversation] with this tree's liveness rules bound.
+  ChatOwner? _ownerOf(
+    Conversation? conversation,
+    AssistantProvider assistants,
+  ) => ownerOfConversation(
+    conversation,
+    isLiveGroup: _hasGroupChat,
+    resolveAssistantId: (id) => assistants.resolveConversationAssistant(id)?.id,
+  );
+
+  /// Remembers which assistant the next 1:1 belongs to.
+  ///
+  /// Nothing here writes a "selected assistant": selection is read back from the
+  /// open chat ([_ownerOf]) by the owner list, the topic scope and the backdrop.
+  /// What this persists is the *fallback* — the assistant an unbound
+  /// conversation, a temporary chat or the next new conversation belongs to. A
+  /// group topic is never that fallback, so it writes nothing and the previous
+  /// assistant stays.
+  void _syncDefaultAssistant() {
+    final assistants = _context.read<AssistantProvider>();
+    final owner = _ownerOf(currentConversation, assistants);
+    if (owner == null || owner.isGroup) return;
+    unawaited(assistants.setCurrentAssistant(owner.id));
+  }
 
   Future<void> switchConversationAnimated(String id) async {
     final serial = ++_switchSerial;
@@ -2091,13 +2299,36 @@ class HomePageController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Starts a chat.
+  ///
+  /// [owner] names who the new chat belongs to. Without it, "+" keeps the
+  /// context it was pressed in: inside a group topic that means another topic of
+  /// that group, and the fallback assistant must not take over.
+  ///
+  /// A *named* owner never inherits the group on screen. Switching to an
+  /// assistant while a group topic was open used to answer with another topic of
+  /// the same group, so the page never left it.
   Future<Conversation?> createNewConversationAnimated({
     bool preserveDraft = false,
+    ChatOwner? owner,
   }) async {
     // Cancel any in-flight conversation switch fetch.
     final serial = ++_switchSerial;
     _cancelMessageJump();
-    final assistantId = _context.read<AssistantProvider>().currentAssistantId;
+    // Inherit the group only while its row still exists: a topic whose group is
+    // gone is an ordinary conversation, and "+" must not mint another topic
+    // tagged with the dead group.
+    final inheritedGroupChatId = currentConversation?.groupChatId;
+    final inheritedGroupIsLive =
+        _groupChatExists(inheritedGroupChatId) != false;
+    final resolvedGroupChatId = owner == null
+        ? (inheritedGroupIsLive ? inheritedGroupChatId : null)
+        : (owner.isGroup ? owner.id : null);
+    // Null keeps the fallback assistant: the view model resolves an unbound
+    // owner to the assistant the next 1:1 belongs to.
+    final resolvedAssistantId = resolvedGroupChatId == null && owner != null
+        ? owner.id
+        : null;
     _warmupSerial++;
     _selectionEpoch++;
     try {
@@ -2115,7 +2346,8 @@ class HomePageController extends ChangeNotifier {
     if (!_context.mounted || serial != _switchSerial) return null;
     final conversation = await _createNewConversation(
       preserveDraft: preserveDraft,
-      assistantId: assistantId,
+      assistantId: resolvedAssistantId,
+      groupChatId: resolvedGroupChatId,
     );
     if (conversation == null ||
         !_context.mounted ||
@@ -2143,6 +2375,7 @@ class HomePageController extends ChangeNotifier {
   Future<Conversation?> _createNewConversation({
     bool preserveDraft = false,
     String? assistantId,
+    String? groupChatId,
   }) async {
     if (_composerDrafts == null) {
       _exitUserMessageEdit(clearDraft: !preserveDraft);
@@ -2151,6 +2384,7 @@ class HomePageController extends ChangeNotifier {
     final previousId = currentConversation?.id;
     final conversation = await _viewModel.createNewConversation(
       assistantId: assistantId,
+      groupChatId: groupChatId,
     );
     if (conversation == null || currentConversation?.id != conversation.id) {
       return conversation;
@@ -3447,6 +3681,46 @@ class HomePageController extends ChangeNotifier {
         _tabletSidebarOpen,
       );
     } catch (_) {}
+  }
+
+  /// Shows the list the open chat belongs to, where the layout can show one.
+  ///
+  /// One implementation for the three callers — an owner tap ([openOwner]), the
+  /// header avatar and the hotkey — so a layout decides *where* the topics live,
+  /// never *whether* the step runs. That distinction is what broke the
+  /// topics-on-the-right layout: the only reveal lived inside a branch that
+  /// layout never takes.
+  ///
+  /// This is the mechanism, not the policy: *auto switch to topics* belongs to
+  /// the owner tap (`_revealAfterOwnerTap`), because the avatar and the hotkey
+  /// mean "show me the list" whether or not that setting is on.
+  ///
+  /// A phone has no topics tab (the drawer is the list), so this does nothing
+  /// there.
+  void revealTopics() {
+    if (!isDesktopPlatform) return;
+    final settings = _context.read<SettingsProvider>();
+    if (settings.desktopTopicPosition == DesktopTopicPosition.right) {
+      DesktopSidePanelController.instance.open(kind: SidePanelTabKind.topics);
+      return;
+    }
+    if (!tabletSidebarOpen) toggleTabletSidebar();
+    DesktopSidebarTabBus.instance.switchToTopics();
+  }
+
+  /// What an owner tap does about the list — and that is a setting: with *auto
+  /// switch to topics* off, a tap leaves the list exactly as it was.
+  void _revealAfterOwnerTap() {
+    if (!_context.read<SettingsProvider>().desktopAutoSwitchTopics) return;
+    if (!isDesktopPlatform) return;
+    // A compact window's sidebar is an overlay: opening it to show the list
+    // would cover the chat the tap just opened. The tab still switches, so the
+    // next time the overlay is opened it already sits on topics.
+    if (_compactDesktop) {
+      DesktopSidebarTabBus.instance.switchToTopics();
+      return;
+    }
+    revealTopics();
   }
 
   void updateSidebarWidth(double dx) {

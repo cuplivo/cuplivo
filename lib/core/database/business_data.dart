@@ -44,6 +44,11 @@ enum BusinessEntityKind {
     tableName: 'extension_entity_rows',
     extensionKind: 'skill',
   ),
+  groupChat(
+    sourceKey: 'group_chats_v1',
+    tableName: 'extension_entity_rows',
+    extensionKind: 'groupChat',
+  ),
   userProfileField(
     sourceKey: 'user_profile_fields_v1',
     tableName: 'user_profile_field_rows',

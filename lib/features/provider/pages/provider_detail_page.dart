@@ -4220,6 +4220,9 @@ Future<String?> showModelPickerForTest(
     limitProviderKey: providerKey,
     initialProviderKey: initialModelId == null ? null : providerKey,
     initialModelId: initialModelId,
+    // The test knows how to verify a decision model, and one is exactly what a
+    // user may want to check on its own.
+    includeDecisionModels: true,
   );
   return sel?.modelId;
 }

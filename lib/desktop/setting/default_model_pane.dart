@@ -1,4 +1,5 @@
 import '../../features/chat/widgets/compression_template_library.dart';
+import '../../features/home/utils/model_display_helper.dart';
 import '../../features/home/widgets/model_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -341,6 +342,39 @@ class DesktopDefaultModelPane extends StatelessWidget {
                           );
                       if (sel != null) {
                         await settingsProvider.setProactiveCareDecisionModel(
+                          sel.providerKey,
+                          sel.modelId,
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _ModelCard(
+                    icon: lucide.Lucide.Users,
+                    title: l10n.defaultModelPageDirectorModelTitle,
+                    subtitle: l10n.defaultModelPageDirectorModelSubtitle,
+                    modelProvider: settings.directorModelProvider,
+                    modelId: settings.directorModelId,
+                    fallbackProvider: settings.currentModelProvider,
+                    fallbackModelId: settings.currentModelId,
+                    onReset: () async {
+                      await context
+                          .read<SettingsProvider>()
+                          .resetDirectorModel();
+                    },
+                    onPick: () async {
+                      final settingsProvider = context.read<SettingsProvider>();
+                      final sel =
+                          await showModelSelectorWithCurrentChatFallback(
+                            context,
+                            initialProviderKey: settings.directorModelProvider,
+                            initialModelId: settings.directorModelId,
+                            // The director is a decision slot: a decision model
+                            // is exactly what belongs here.
+                            includeDecisionModels: true,
+                          );
+                      if (sel != null) {
+                        await settingsProvider.setDirectorModel(
                           sel.providerKey,
                           sel.modelId,
                         );
@@ -896,22 +930,11 @@ class _ModelCardState extends State<_ModelCard> {
     if (effectiveProvider != null && effectiveModelId != null) {
       final cfg = settings.getProviderConfig(effectiveProvider);
       providerName = cfg.name.isNotEmpty ? cfg.name : effectiveProvider;
-      final ov = cfg.modelOverrides[effectiveModelId] as Map?;
-      if (ov != null) {
-        final overrideName = (ov['name'] as String?)?.trim();
-        if (overrideName != null && overrideName.isNotEmpty) {
-          modelDisplay = overrideName;
-        } else {
-          final apiId = (ov['apiModelId'] ?? ov['api_model_id'])
-              ?.toString()
-              .trim();
-          modelDisplay = (apiId != null && apiId.isNotEmpty)
-              ? apiId
-              : effectiveModelId;
-        }
-      } else {
-        modelDisplay = effectiveModelId;
-      }
+      modelDisplay = modelDisplayName(
+        settings,
+        effectiveProvider,
+        effectiveModelId,
+      );
     }
     if (usingFallback) {
       modelDisplay = widget.disabledWhenUnset

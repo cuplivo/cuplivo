@@ -23,6 +23,7 @@ import '../../../utils/sandbox_path_resolver.dart';
 import '../mcp/mcp_image_snapshot.dart';
 import '../tools/view_image_tool.dart';
 import 'chat_api_helpers.dart';
+import 'message_authorship.dart';
 
 /// Kept out of prompts and removed before a provider serializes a request.
 const imageContextOwnerKey = '_kelivo_image_owner';
@@ -44,6 +45,9 @@ bool isUserInputMessage(
   required bool hasOwners,
 }) {
   if (message['role'] != 'user') return false;
+  // A group peer's turn travels as `user` but is not the user's own words; its
+  // images and attachments belong to the member that sent it.
+  if (message[groupPeerSenderKey] != null) return false;
   if (!hasOwners) return true;
   final owner = message[imageContextOwnerKey];
   return owner is String &&

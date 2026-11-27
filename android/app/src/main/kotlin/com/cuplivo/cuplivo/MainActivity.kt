@@ -15,6 +15,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.FlutterSurfaceView
 import io.flutter.embedding.android.FlutterView
 import io.flutter.embedding.engine.FlutterEngine
+import com.cuplivo.cuplivo.background.BackgroundRuntime
 import com.cuplivo.cuplivo.workspace.WorkspacePlugin
 import io.flutter.plugin.common.MethodChannel
 import com.crazecoder.openfile.OpenFilePlugin
@@ -134,7 +135,9 @@ class MainActivity : FlutterActivity() {
         (kelivo.engine.plugins.get(FlutterLocalNotificationsPlugin::class.java) as? FlutterLocalNotificationsPlugin)?.let {
             forwardCachedNotificationLaunch(reusedEngine, savedInstanceState, intent, it)
         }
-        kelivo.backgroundRuntime.receiveConversation(intent)
+        val origin = if (savedInstanceState == null) BackgroundRuntime.Origin.TASK_LAUNCH
+            else BackgroundRuntime.Origin.RECORD_RESTORE
+        kelivo.backgroundRuntime.receiveConversation(intent, origin)
         receivedShare = savedInstanceState?.getBoolean("kelivo.receivedShare") == true
         if (!receivedShare) receivedShare = incomingShareHandler?.receive(intent) == true
     }
@@ -224,7 +227,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        kelivo.backgroundRuntime.receiveConversation(intent)
+        kelivo.backgroundRuntime.receiveConversation(intent, BackgroundRuntime.Origin.NEW_INTENT)
         setIntent(intent)
         receivedShare = incomingShareHandler?.receive(intent) == true
         val text = takeProcessText(intent) ?: return

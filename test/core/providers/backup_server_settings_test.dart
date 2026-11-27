@@ -95,6 +95,21 @@ void main() {
         await business.repository.getPreference('s3_config_v1'),
         s3.copyWith(scope: updated).toJsonString(),
       );
+
+      // The reader travels the same way the scope does: a backup is addressed
+      // to a person, so a destination that still believes it writes for the
+      // other reader must not be left behind.
+      await settings.setBackupTarget(BackupTarget.kelivo);
+      expect(
+        await business.repository.getPreference('webdav_config_v1'),
+        dav
+            .copyWith(scope: updated, target: BackupTarget.kelivo)
+            .toJsonString(),
+      );
+      expect(
+        await business.repository.getPreference('s3_config_v1'),
+        s3.copyWith(scope: updated, target: BackupTarget.kelivo).toJsonString(),
+      );
     },
   );
 

@@ -118,11 +118,16 @@ class WorldBookStore {
 
   Future<WorldBookGrouping> getGrouping() async {
     await _preferences.load();
-    return WorldBookGrouping.decode(_preferences.get(WorldBookGrouping.preferenceKey));
+    return WorldBookGrouping.decode(
+      _preferences.get(WorldBookGrouping.preferenceKey),
+    );
   }
 
   Future<void> saveGrouping(WorldBookGrouping grouping) async {
-    await _preferences.setString(WorldBookGrouping.preferenceKey, grouping.encode());
+    await _preferences.setString(
+      WorldBookGrouping.preferenceKey,
+      grouping.encode(),
+    );
   }
 
   Future<void> reorder({required int oldIndex, required int newIndex}) async {

@@ -2694,6 +2694,13 @@ class SettingsProvider extends ChangeNotifier {
     s3: (cfg) => cfg.copyWith(scope: scope),
   );
 
+  /// The reader the archive is written for. Both destinations carry it, the way
+  /// they carry the scope: a backup is addressed to a person, not a transport.
+  Future<void> setBackupTarget(BackupTarget target) => _updateBackupConfigs(
+    webDav: (cfg) => cfg.copyWith(target: target),
+    s3: (cfg) => cfg.copyWith(target: target),
+  );
+
   Future<void> _updateBackupConfigs({
     WebDavConfig Function(WebDavConfig)? webDav,
     S3Config Function(S3Config)? s3,

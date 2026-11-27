@@ -32,6 +32,7 @@ import '../../features/backup/widgets/backup_progress_dialog.dart';
 import '../../features/backup/backup_restart_dialog.dart';
 import '../../features/backup/widgets/backup_reminder_helpers.dart';
 import '../../features/backup/widgets/backup_scope_tile.dart';
+import '../../features/backup/widgets/backup_target_tile.dart';
 import '../../features/backup/widgets/backup_encryption_tile.dart';
 import '../../features/backup/widgets/storage_migration_notice_button.dart';
 import '../../features/backup/pages/local_snapshots_page.dart';
@@ -209,6 +210,15 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                       desktop: true,
                       scope: dav.scope,
                       onChanged: busy ? null : settings.setBackupScope,
+                    ),
+                    // Which reader the archive is written for. Both settings
+                    // halves move together, because an archive addressed to one
+                    // reader must not be produced by a destination that still
+                    // believes it is talking to the other.
+                    BackupTargetTile(
+                      desktop: true,
+                      target: dav.target,
+                      onChanged: busy ? null : settings.setBackupTarget,
                     ),
                     BackupEncryptionTile(busy: busy),
                   ],

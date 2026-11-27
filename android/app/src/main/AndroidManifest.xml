@@ -35,10 +35,10 @@
          tools:ignore="ProtectedPermissions" />
     <!-- OS auto-backup/device-transfer can restore a partial SQLite file
          family (db without -wal, receipt without db), which the fail-closed
-         startup gate rejects. Kelivo ships its own backup (WebDAV/S3/local
+         startup gate rejects. Cuplivo ships its own backup (WebDAV/S3/local
          export), so system backup is disabled. -->
     <application
-        android:label="Kelivo"
+        android:label="Cuplivo"
         android:name=".KelivoApplication"
         android:appCategory="productivity"
         android:allowBackup="false"
@@ -64,6 +64,11 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Conversation URLs are delivered through app.mobile_background,
+                 not Flutter's Navigator route handling. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -72,6 +77,12 @@
                 <action android:name="android.intent.action.PROCESS_TEXT"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="text/plain"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cuplivo" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -104,7 +115,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="psyche.kelivo" android:host="mcp-oauth-callback"/>
+                <data android:scheme="com.cuplivo.cuplivo" android:host="mcp-oauth-callback"/>
             </intent-filter>
         </activity>
         <service
@@ -137,6 +148,15 @@
             </intent-filter>
         </provider>
         <receiver android:name=".scheduled.ScheduledTaskReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".scheduled.ProactiveCareAlarmReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

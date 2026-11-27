@@ -18,7 +18,7 @@ struct BackgroundGenerationTask {
   init(_ map: [String: Any]) {
     id = map["id"] as? String ?? ""
     conversationId = map["conversationId"] as? String ?? ""
-    title = String((map["title"] as? String ?? "Kelivo").prefix(120))
+    title = String((map["title"] as? String ?? "Cuplivo").prefix(120))
     detail = String((map["detail"] as? String ?? "").prefix(180))
     startedAt = Date(timeIntervalSince1970: ((map["startedAt"] as? NSNumber)?.doubleValue ?? 0) / 1000)
     tokens = map["tokens"] as? Int ?? 0
@@ -63,7 +63,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
   private var observers: [NSObjectProtocol] = []
   private var lastError = UserDefaults.standard.string(forKey: "kelivo.background.lastError") ?? ""
   private var dartReady = false
-  private static let pendingConversationKey = "kelivo.background.pendingConversation"
+  private static let pendingConversationLinkKey = "kelivo.background.pendingConversationLink"
 
   static var liveActivitiesSupported: Bool {
     #if targetEnvironment(macCatalyst)
@@ -200,11 +200,11 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
         handler.returnStatus(result)
       }
     case "getStatus": returnStatus(result)
-    case "takePendingConversation":
+    case "takePendingConversationLink":
       dartReady = true
-      let id = UserDefaults.standard.string(forKey: Self.pendingConversationKey)
-      UserDefaults.standard.removeObject(forKey: Self.pendingConversationKey)
-      result(id)
+      let link = UserDefaults.standard.string(forKey: Self.pendingConversationLinkKey)
+      UserDefaults.standard.removeObject(forKey: Self.pendingConversationLinkKey)
+      result(link)
     case "requestPermission": requestPermission(call.arguments as? String ?? "", result: result)
     case "openSettings": openSettings(call.arguments as? String ?? "app", result: result)
     case "audioOwner":
@@ -225,18 +225,23 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
     }
   }
 
+  /// Accepts `cuplivo://conversation/<id>[?message=<id>]` — the Live Activity
+  /// widget URL and the link a user copies. The URL travels whole: the grammar
+  /// (and the message anchor) is parsed in Dart by `ConversationLink`, so this
+  /// side never has to know about query parameters.
   func receive(_ url: URL) -> Bool {
-    guard url.scheme == "kelivo", url.host == "conversation" else { return false }
+    guard url.scheme == "cuplivo", url.host == "conversation" else { return false }
     let id = url.pathComponents.dropFirst().first ?? ""
     guard !id.isEmpty else { return false }
-    if dartReady { channel?.invokeMethod("openConversation", arguments: id) }
-    else { UserDefaults.standard.set(id, forKey: Self.pendingConversationKey) }
+    let link = url.absoluteString
+    if dartReady { channel?.invokeMethod("openConversationLink", arguments: link) }
+    else { UserDefaults.standard.set(link, forKey: Self.pendingConversationLinkKey) }
     return true
   }
 
   private func requestPermission(_ permission: String, result: @escaping FlutterResult) {
     guard UIApplication.shared.applicationState == .active else {
-      result(FlutterError(code: "foreground_required", message: "Open Kelivo to request permission.", details: nil)); return
+      result(FlutterError(code: "foreground_required", message: "Open Cuplivo to request permission.", details: nil)); return
     }
     switch permission {
     case "notifications":
@@ -499,7 +504,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
       activeTaskCount: tasks.count,
       conversationId: task.conversationId,
       outcome: finished ? task.outcome : "",
-      staleMessage: labels["stale"] ?? "Open Kelivo to check the task.")
+      staleMessage: labels["stale"] ?? "Open Cuplivo to check the task.")
   }
 
   @available(iOS 16.1, *)
@@ -553,7 +558,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
 
   private func clearCompletionNotifications() {
     UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
-      let ids = notifications.filter { $0.request.content.threadIdentifier == "kelivo.chat-completion" }.map { $0.request.identifier }
+      let ids = notifications.filter { $0.request.content.threadIdentifier == "cuplivo.chat-completion" }.map { $0.request.identifier }
       UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
     }
   }
@@ -561,7 +566,7 @@ final class MobileBackgroundHandler: NSObject, CLLocationManagerDelegate {
   private func recordError(_ error: String) {
     lastError = error
     UserDefaults.standard.set(error, forKey: "kelivo.background.lastError")
-    NSLog("Kelivo background: %@", error)
+    NSLog("Cuplivo background: %@", error)
   }
 
   func prepareForTermination() {

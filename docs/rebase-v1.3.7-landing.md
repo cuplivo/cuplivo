@@ -482,6 +482,29 @@ helper reads `_cfg`, which is not this tree's field name. Unit 14's second attem
 **279 errors + 79 warnings** with those names unresolved, so the pass is a port of four files and a
 dozen call sites, not a merge.
 
+### Unit 14 landed: the data path, and one silent loss caught
+
+The port went as the table said. `backup.dart` keeps v1.3.7's `_BackupConfigFields` and reads the
+reader through it; `s3_backup_provider`'s helper now takes the call's own `S3Config` and is what both
+`DataSync` calls pass (the unit's point in one line: an upload that carried the scope but not the
+target writes an archive for the wrong reader); `data_sync` carries `formatVersion`/`target` through
+`prepareBackupFile` → `_BackupPackArgs` → our `_packAndVerifyInIsolate`, drops the unit's duplicate of
+that function, and gives `_sanitizeBackupDatabase` the `libraryInSettings` its call site already
+passed.
+
+**`backup_portability.dart` is the loss that did not conflict.** The unit's copy is a *subset* of
+v1.3.7's: it predates the `libraryInSettings` block and would have deleted it, along with three
+imports, cleanly and with no marker. HEAD's version is kept. That is the runbook's silent-merge class,
+caught by the analyzer rather than by git — the second instance in this replay, after unit 4's
+repository file.
+
+`dart analyze` after the port: **86 issues, 69 of them errors** — below unit 13's 79, and still every
+one of them a later unit's definition.
+
+**Remaining half: the pane's picker.** Its 153-line block targets `setWebDavConfig` / `updateConfig`
+and a single `BackupConfig`; porting it means rewriting that UI against `updateWebDavConfig` /
+`updateS3Config` and two configs. That is where the next pass starts.
+
 
 ### Unit 13, parked with its measurement
 

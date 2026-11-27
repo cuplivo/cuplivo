@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/database/business_settings_router.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/theme/chat_bubble_style.dart';
+import 'package:Cuplivo/core/database/business_settings_router.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/theme/chat_bubble_style.dart';
 
 import 'support/business_test_harness.dart';
 
@@ -321,22 +321,17 @@ void main() {
     );
   });
 
-  test('backup registry classifies the overrides key as a preference', () {
+  test('sync registry splits the overrides keys by disposition', () {
+    // The shared overlay rides sync (ADR-0003 slice 2): it says how the app
+    // should look on any device, so a new device wants it. The per-user overlay
+    // stays device-local, like the other per-user presentation keys.
     expect(
-      BusinessKeyRegistry.classify('chat_bubble_style_overrides_v1'),
-      BusinessKeyDisposition.preference,
+      BusinessKeyRegistry.isSynced('chat_bubble_style_overrides_v1'),
+      isTrue,
     );
     expect(
-      BusinessKeyRegistry.preferenceKeys,
-      contains('chat_bubble_style_overrides_v1'),
-    );
-    expect(
-      BusinessKeyRegistry.classify('chat_bubble_style_overrides_user_v1'),
-      BusinessKeyDisposition.preference,
-    );
-    expect(
-      BusinessKeyRegistry.preferenceKeys,
-      contains('chat_bubble_style_overrides_user_v1'),
+      BusinessKeyRegistry.policyOf('chat_bubble_style_overrides_user_v1'),
+      KeyPolicy.backupOnly,
     );
   });
 }

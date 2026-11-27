@@ -7,15 +7,15 @@ import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/backup_scope.dart';
-import 'package:Kelivo/core/services/backup/restore_bundle_preparation.dart';
-import 'package:Kelivo/core/services/backup/restore_cutover_executor.dart';
-import 'package:Kelivo/core/services/backup/restore_durability.dart';
-import 'package:Kelivo/core/services/backup/restore_previous_store.dart';
-import 'package:Kelivo/core/services/backup/restore_receipt.dart';
-import 'package:Kelivo/core/services/backup/restore_workspace_lock.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/backup_scope.dart';
+import 'package:Cuplivo/core/services/backup/restore_bundle_preparation.dart';
+import 'package:Cuplivo/core/services/backup/restore_cutover_executor.dart';
+import 'package:Cuplivo/core/services/backup/restore_durability.dart';
+import 'package:Cuplivo/core/services/backup/restore_previous_store.dart';
+import 'package:Cuplivo/core/services/backup/restore_receipt.dart';
+import 'package:Cuplivo/core/services/backup/restore_workspace_lock.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +45,13 @@ void main() {
       await oldUpload.parent.create();
       await oldUpload.writeAsString('old asset', flush: true);
       await Directory(p.join(appData.path, 'images')).create();
+      // Sync state the replacement must invalidate: the checkpoint describes a
+      // history the restored database no longer holds.
+      final staleCheckpoint = File(
+        p.join(appData.path, 'sync', 'checkpoints', 'peer-1.json.gz'),
+      );
+      await staleCheckpoint.parent.create(recursive: true);
+      await staleCheckpoint.writeAsString('stale', flush: true);
       final prepared = await _prepareBundle(
         root: root,
         appData: appData,
@@ -88,6 +95,15 @@ void main() {
         await File(p.join(previous.path, 'settings.json')).exists(),
         isFalse,
       );
+      // The replaced database invalidated the per-peer sync state: an entry
+      // describing rows this device no longer has would make a peer read their
+      // absence as a deletion and destroy its own copies, and the bumped epoch
+      // is what tells it otherwise.
+      expect(await staleCheckpoint.exists(), isFalse);
+      final epoch = jsonDecode(
+        await File(p.join(appData.path, 'sync', 'epoch.json')).readAsString(),
+      );
+      expect((epoch as Map)['epoch'], 1);
     });
 
     test(

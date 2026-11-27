@@ -30,6 +30,42 @@ enum McpStatus {
   error,
 }
 
+/// `401` as a standalone status code, and never as part of a longer number.
+///
+/// `package:http` embeds the request URI in what it throws, so a dropped socket
+/// reads `ClientException: Connection closed before full header was received,
+/// uri=http://127.0.0.1:34010/mcp`. A bare `contains('401')` finds the port
+/// inside that URI and reports an OAuth failure for what is really a transport
+/// failure - and which port a socket got is not a property of the response.
+///
+/// Neither neighbour may be a digit (so `34010`, `14012`, `40100` and `94011`
+/// are all out), a preceding `.` disqualifies an address octet, and a following
+/// `.<digit>` disqualifies a decimal, while `401`, `401,` and `401.` all still
+/// read as a status code.
+final RegExp _standaloneUnauthorizedStatus = RegExp(r'(?<![\d.])401(?!\.?\d)');
+
+/// Any URL embedded in an error message. A URL is not evidence of the status
+/// that failed: neither its port nor its path may decide that a request came
+/// back unauthorized.
+final RegExp _urlInErrorMessage = RegExp(
+  r'[a-z][a-z0-9+.-]*://\S+',
+  caseSensitive: false,
+);
+
+/// Whether a free-text error message is evidence that the server answered
+/// "unauthorized".
+///
+/// Only consulted for errors that are not an [mcp.McpHttpError]; those carry the
+/// real status code, which is always preferred over reading prose.
+@visibleForTesting
+bool mcpErrorTextLooksUnauthorized(String message) {
+  final text = message.toLowerCase().replaceAll(_urlInErrorMessage, ' ');
+  return _standaloneUnauthorizedStatus.hasMatch(text) ||
+      text.contains('unauthorized') ||
+      text.contains('invalid_token') ||
+      text.contains('authentication failed');
+}
+
 class _DetachedConnection {
   const _DetachedConnection({
     this.activeConnect,
@@ -482,6 +518,14 @@ class McpProvider extends ChangeNotifier {
   int get requestTimeoutSeconds => _requestTimeout.inSeconds;
   bool isOAuthAuthorized(String id) =>
       getById(id)?.oauth?.accessToken.isNotEmpty == true;
+
+  /// Re-reads MCP servers after LAN sync wrote them outside this provider.
+  /// Serialized against server mutations so a reload cannot interleave with a
+  /// tool call editing the same list.
+  Future<void> reloadAfterExternalChange() async {
+    await _serializeServerMutation(_load);
+    notifyListeners();
+  }
 
   Future<void> _load() async {
     await preferences.load();
@@ -1449,6 +1493,9 @@ class McpProvider extends ChangeNotifier {
           !_authorizationIsCurrent(server, state, generation)) {
         return false;
       }
+      // Awaited like the attempt above it: this retry is the same call, so a
+      // failure has to land in the same handler (which turns it into a status
+      // and a `false`) instead of escaping as a thrown error.
       _resetConnectionRetry(state);
       return await session.wait(_connect(server.id, retryUnauthorized: false));
     } on McpOAuthCancelled {
@@ -1759,7 +1806,7 @@ class McpProvider extends ChangeNotifier {
         return false;
       }
       final clientConfig = mcp.McpClient.simpleConfig(
-        name: 'Kelivo MCP',
+        name: 'Cuplivo MCP',
         version: '1.0.0',
         enableDebugLogging: false,
         requestTimeout: _requestTimeout,
@@ -2025,11 +2072,7 @@ class McpProvider extends ChangeNotifier {
       return error.statusCode == 401 ||
           (error.statusCode == 403 && _isInsufficientScope(error));
     }
-    final message = error.toString().toLowerCase();
-    return message.contains('401') ||
-        message.contains('unauthorized') ||
-        message.contains('invalid_token') ||
-        message.contains('authentication failed');
+    return mcpErrorTextLooksUnauthorized(error.toString());
   }
 
   bool _isHttpUnauthorized(Object error) =>

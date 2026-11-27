@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/database/business_settings_router.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/database/business_settings_router.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,10 +27,7 @@ void main() {
       final localPreferences = await SharedPreferences.getInstance();
       expect(localPreferences.getBool(key), isFalse);
       expect(harness.preferences.containsKey(key), isFalse);
-      expect(
-        BusinessKeyRegistry.classify(key),
-        BusinessKeyDisposition.localOnly,
-      );
+      expect(BusinessKeyRegistry.isPlatformOnly(key), isTrue);
 
       final copied = settings.copyWith();
       addTearDown(copied.dispose);

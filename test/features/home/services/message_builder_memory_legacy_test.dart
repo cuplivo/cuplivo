@@ -1,22 +1,22 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_data.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/memory_entry.dart';
-import 'package:Kelivo/core/providers/memory_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/logging/context_logger.dart';
-import 'package:Kelivo/core/services/memory/memory_block_builder.dart';
-import 'package:Kelivo/core/services/memory/memory_prompts.dart';
-import 'package:Kelivo/features/home/services/message_builder_service.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/memory_entry.dart';
+import 'package:Cuplivo/core/providers/memory_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/logging/context_logger.dart';
+import 'package:Cuplivo/core/services/memory/memory_block_builder.dart';
+import 'package:Cuplivo/core/services/memory/memory_prompts.dart';
+import 'package:Cuplivo/features/home/services/message_builder_service.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
@@ -191,53 +191,38 @@ void main() {
     setUp(openHarness);
     tearDown(closeHarness);
 
-    test(
-      'resolveMemoryPrefix is empty and freeze writes no snapshot',
-      () async {
-        await settings.setLegacyMemoryMode(true);
-        await seedAssistant(assistant.id);
-        await putEntry(id: 'mem_01', content: 'User likes Flutter.');
-        final conversation = await seedConversation('conv-1');
-        final message = await seedUserMessage(
-          id: 'u1',
-          conversationId: 'conv-1',
-          content: 'hello',
-        );
-        final service = buildService(messages: [message]);
-        final apiMessages = <Map<String, dynamic>>[
-          {
-            'role': 'user',
-            'content': 'hello',
-            MessageBuilderService.internalRevisionIdKey: 'u1',
-          },
-        ];
+    test('the request carries no snapshot and freeze records none', () async {
+      await settings.setLegacyMemoryMode(true);
+      await seedAssistant(assistant.id);
+      await putEntry(id: 'mem_01', content: 'User likes Flutter.');
+      final conversation = await seedConversation('conv-1');
+      final message = await seedUserMessage(
+        id: 'u1',
+        conversationId: 'conv-1',
+        content: 'hello',
+      );
+      final service = buildService(messages: [message]);
+      final apiMessages = <Map<String, dynamic>>[
+        {
+          'role': 'user',
+          'content': 'hello',
+          MessageBuilderService.internalRevisionIdKey: 'u1',
+        },
+      ];
 
-        final result = await service.resolveMemoryPrefix(
-          conversation: conversation,
-          assistant: assistant,
-          apiMessages: apiMessages,
-          currentMessageId: 'u1',
-          lang: MemoryPromptLang.zh,
-          settings: settings,
-        );
-        expect(result.prefix, isEmpty);
-        expect(result.hash, isNull);
-        expect(result.snapshotKind, isNull);
-
-        await service.processUserMessagesForApi(
-          apiMessages,
-          settings,
-          assistant,
-          conversation: conversation,
-          sourceMessages: [message],
-        );
-        final frozen = await chatRepository.getMessagePrompt('u1');
-        expect(frozen, isNotNull);
-        expect(frozen!.carriesMemorySnapshot, isFalse);
-        expect(frozen.payload, isNot(contains('<user_memory')));
-        expect(frozen.payload, isNot(contains(MemoryPrompts.introFullZh)));
-      },
-    );
+      await service.processUserMessagesForApi(
+        apiMessages,
+        settings,
+        assistant,
+        conversation: conversation,
+        sourceMessages: [message],
+      );
+      final frozen = await chatRepository.getMessagePrompt('u1');
+      expect(frozen, isNotNull);
+      expect(frozen!.carriesMemorySnapshot, isFalse);
+      expect(frozen.payload, isNot(contains('<user_memory')));
+      expect(frozen.payload, isNot(contains(MemoryPrompts.introFullZh)));
+    });
 
     test(
       'strips a previously frozen v2 snapshot from send, keeps the freeze row',

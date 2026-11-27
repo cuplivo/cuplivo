@@ -1,19 +1,28 @@
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/environment_state.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/environment_provider.dart';
-import 'package:Kelivo/core/models/environment_variable.dart';
-import 'package:Kelivo/core/services/mcp/stdio_arguments.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/features/mcp/widgets/mcp_server_edit_sheet.dart';
-import 'package:Kelivo/desktop/setting/mcp_edit_dialog.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/environment_state.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/sync_provider.dart';
+import 'package:Cuplivo/core/providers/environment_provider.dart';
+import 'package:Cuplivo/core/models/environment_variable.dart';
+import 'package:Cuplivo/core/services/business_state_reloader.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/mcp/stdio_arguments.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/features/mcp/widgets/mcp_server_edit_sheet.dart';
+import 'package:Cuplivo/desktop/setting/mcp_edit_dialog.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -447,7 +456,145 @@ void main() {
     expect(provider.getById('guest')!.env, {'API_TOKEN': 'test-token'});
     await tester.pumpWidget(const SizedBox.shrink());
   }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+  // Both edit surfaces are separate widgets, and the hold switch has to exist on
+  // each: the desktop dialog is the one #1029 was reported from (a PC's stdio
+  // command), so a switch only in the mobile sheet would leave the feature
+  // unreachable where it matters most.
+  //
+  // The provider is a fake rather than a real [SyncStore]: file I/O does not
+  // complete under a widget test's fake clock, and what these cases are about
+  // is the wiring — read once, show it, write the user's answer — not the file
+  // format (`sync_store_local_only_test.dart` owns that).
+  for (final desktop in [false, true]) {
+    testWidgets('the hold switch reads and writes through the provider, '
+        'desktop=$desktop', (tester) async {
+      final sync = _FakeHoldSyncProvider(held: {_guestKey});
+      addTearDown(sync.dispose);
+      await _openEditor(
+        tester,
+        [],
+        desktop: desktop,
+        size: desktop ? const Size(1280, 900) : const Size(390, 844),
+        sync: sync,
+        remoteConfig: _remoteOAuthConfig,
+      );
+      final holdSwitch = _holdSwitch();
+      expect(holdSwitch, findsOneWidget);
+      expect(
+        tester.widget<IosSwitch>(holdSwitch).value,
+        isTrue,
+        reason: 'the held key has to reach the switch',
+      );
+
+      await tester.tap(holdSwitch);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save').last);
+      await tester.pumpAndSettle();
+      expect(
+        sync.written[_guestKey],
+        isFalse,
+        reason: 'releasing the hold is a write, not a local edit',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('a form that never read the set writes nothing, '
+        'desktop=$desktop', (tester) async {
+      // The read is still in flight when the user saves. Writing the default
+      // back would mean "release the hold" — a switch that turns itself off
+      // because a read was slow, or failed.
+      final sync = _FakeHoldSyncProvider(blockRead: true);
+      addTearDown(sync.dispose);
+      await _openEditor(
+        tester,
+        [],
+        desktop: desktop,
+        size: desktop ? const Size(1280, 900) : const Size(390, 844),
+        sync: sync,
+        remoteConfig: _remoteOAuthConfig,
+      );
+      await tester.tap(find.text('Save').last);
+      await tester.pumpAndSettle();
+      expect(
+        sync.written,
+        isEmpty,
+        reason: 'an unread switch is not an answer the form may persist',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 }
+
+const _guestKey = 'mcp_server_rows\u0000guest';
+
+/// The switch inside the row labelled "This device only", whichever surface
+/// draws it.
+Finder _holdSwitch() => find.descendant(
+  of: find
+      .ancestor(of: find.text('This device only'), matching: find.byType(Row))
+      .first,
+  matching: find.byType(IosSwitch),
+);
+
+/// The hold half of [SyncProvider], in memory.
+class _FakeHoldSyncProvider extends SyncProvider {
+  _FakeHoldSyncProvider({Set<String>? held, this.blockRead = false})
+    : held = {...?held},
+      super(
+        chatService: _chatService(),
+        repository: _chatRepository(),
+        businessRepository: _businessRepository(),
+        businessPreferences: _businessPreferences(),
+        reloader: _reloader(),
+        syncDirectory: () async => throw UnimplementedError('no store'),
+      );
+
+  /// What the sheet would read from the file.
+  final Set<String> held;
+
+  /// Whether the read never answers — the "opened before the answer arrived"
+  /// state the save must not overwrite.
+  final bool blockRead;
+
+  /// Every write the form attempted, by key.
+  final Map<String, bool> written = {};
+
+  @override
+  Future<Set<String>> readLocalOnlyKeys() async {
+    if (blockRead) return Completer<Set<String>>().future;
+    return {...held};
+  }
+
+  @override
+  Future<bool> setLocalOnly(String key, bool hold) async {
+    written[key] = hold;
+    if (hold) {
+      held.add(key);
+    } else {
+      held.remove(key);
+    }
+    return true;
+  }
+}
+
+// One in-memory database for the fake's dependencies. None of them is reached:
+// the fake overrides both methods the form calls.
+final AppDatabase _syncDatabase = AppDatabase(NativeDatabase.memory());
+final BusinessRepository _syncBusinessRepository = BusinessRepository(
+  _syncDatabase,
+);
+final BusinessPreferences _syncBusinessPreferences = BusinessPreferences(
+  _syncBusinessRepository,
+);
+
+ChatService _chatService() => ChatService();
+ChatDatabaseRepository _chatRepository() =>
+    ChatDatabaseRepository(_syncDatabase);
+BusinessRepository _businessRepository() => _syncBusinessRepository;
+BusinessPreferences _businessPreferences() => _syncBusinessPreferences;
+BusinessStateReloader _reloader() =>
+    BusinessStateReloader(_syncBusinessPreferences);
 
 Finder _fieldWithText(String text) => find.byWidgetPredicate(
   (widget) => widget is TextField && widget.controller?.text == text,
@@ -465,6 +612,7 @@ Future<McpProvider> _openEditor(
   Brightness brightness = Brightness.light,
   Size size = const Size(600, 1600),
   Map<String, Object?>? remoteConfig,
+  SyncProvider? sync,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -529,6 +677,8 @@ Future<McpProvider> _openEditor(
         ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider.value(value: env),
         if (workspaces != null) ChangeNotifierProvider.value(value: workspaces),
+        if (sync != null)
+          ChangeNotifierProvider<SyncProvider>.value(value: sync),
       ],
       child: MaterialApp(
         theme: ThemeData(brightness: brightness),

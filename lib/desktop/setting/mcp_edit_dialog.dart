@@ -7,6 +7,7 @@ import '../../core/models/mcp_presentation.dart';
 import 'dart:math' as math;
 import '../../core/services/mcp/stdio_arguments.dart';
 import '../../features/mcp/widgets/mcp_environment_picker.dart';
+import '../../features/mcp/widgets/mcp_local_only_form.dart';
 import '../../features/mcp/widgets/mcp_oauth_settings.dart';
 
 import 'package:flutter/material.dart';
@@ -19,8 +20,8 @@ import '../../core/providers/mcp_provider.dart';
 import '../../shared/widgets/snackbar.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 Future<void> showDesktopMcpEditDialog(
   BuildContext context, {
@@ -48,7 +49,7 @@ class _DesktopMcpEditDialog extends StatefulWidget {
 }
 
 class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, McpLocalOnlyForm {
   bool get isEdit => widget.serverId != null;
   late final TabController? _tab = isEdit
       ? TabController(length: 2, vsync: this)
@@ -72,6 +73,7 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
   @override
   void initState() {
     super.initState();
+    attachLocalOnly(widget.serverId);
     _oauth = McpOAuthFormController(
       widget.serverId == null
           ? null
@@ -275,7 +277,11 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
         );
       }
     }
-    await _savePresentation(mcp, savedId!);
+    // Before the presentation writes: once the row exists, the hold is what
+    // keeps it off the wire, and those two writes are a window a session can
+    // plan in.
+    await saveLocalOnly(savedId!);
+    await _savePresentation(mcp, savedId);
     if (mounted) Navigator.of(context).maybePop();
   }
 
@@ -355,6 +361,26 @@ class _DesktopMcpEditDialogState extends State<_DesktopMcpEditDialog>
             ],
           ),
         ),
+        // Only where there is somewhere to keep the answer, and never on the
+        // built-in server: it is not a synced row.
+        if (!isBuiltin && canHoldLocalOnly)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.mcpServerEditSheetLocalOnlyLabel,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: AppFontWeights.medium,
+                    ),
+                  ),
+                ),
+                IosSwitch(value: localOnlyHeld, onChanged: setLocalOnlyHeld),
+              ],
+            ),
+          ),
         const SizedBox(height: 10),
         McpPresentationFields(
           desktop: true,

@@ -5,26 +5,27 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_data.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_restore_service.dart';
-import 'package:Kelivo/core/database/business_settings_router.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/backup/backup_cancel_token.dart';
-import 'package:Kelivo/core/services/backup/backup_task_progress.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/utils/app_directories.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_data.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_restore_service.dart';
+import 'package:Cuplivo/core/database/business_settings_router.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/backup.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/backup/backup_cancel_token.dart';
+import 'package:Cuplivo/core/services/backup/backup_task_progress.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 class _Paths extends PathProviderPlatform {
   _Paths(this.root, {this.separateDirectories = false});
@@ -252,19 +253,27 @@ void main() {
               entry.value,
             );
           }
+          // The archive is staged inside the app's own data root on a desktop
+          // host, and this test deletes that root to simulate an uninstall. A
+          // real user's copy lives wherever they saved it, so keep one outside
+          // the container being removed.
+          final keptBackup = File('${root.path}/saved-backup.zip');
+          await backup.copy(keptBackup.path);
           // Simulate uninstalling the old app: original absolute paths no longer exist.
           await oldContent.delete(recursive: true);
           PathProviderPlatform.instance = _Paths(
-            '${root.path}/new-container',
+            p.join(root.path, 'new-container'),
             separateDirectories: true,
           );
           await SandboxPathResolver.init();
           await importer.restoreFromLocalFile(
-            backup,
+            keptBackup,
             WebDavConfig(scope: scope),
             mode: mode,
           );
           final newContent = await AppDirectories.getContentDirectory();
+          // AppDirectories joins with '/', so compare against a canonical root.
+          final newRoot = p.normalize(newContent.path);
           for (final entry in assets.entries) {
             expect(
               await File('${newContent.path}/${entry.key}').readAsString(),
@@ -279,14 +288,14 @@ void main() {
           final assistant = assistants.assistants.singleWhere(
             (a) => a.id == 'source',
           );
-          expect(assistant.avatar, '${newContent.path}/avatars/assistant.png');
+          expect(assistant.avatar, p.join(newRoot, 'avatars', 'assistant.png'));
           expect(
             assistant.background,
-            '${newContent.path}/images/background.png',
+            p.join(newRoot, 'images', 'background.png'),
           );
           expect(
             SandboxPathResolver.fix(preferences.getString('avatar_value')!),
-            '${newContent.path}/avatars/user.png',
+            p.join(newRoot, 'avatars', 'user.png'),
           );
           final providers =
               jsonDecode(preferences.getString('provider_configs_v1')!) as Map;
@@ -294,14 +303,14 @@ void main() {
             SandboxPathResolver.fix(
               providers['source']['avatarValue'] as String,
             ),
-            '${newContent.path}/avatars/provider.png',
+            p.join(newRoot, 'avatars', 'provider.png'),
           );
           expect(
             SandboxPathResolver.fix(
               providers['source']['modelOverrides']['model']['avatar']['value']
                   as String,
             ),
-            '${newContent.path}/avatars/model.png',
+            p.join(newRoot, 'avatars', 'model.png'),
           );
         },
       );
@@ -771,7 +780,9 @@ void main() {
       final candidate =
           (await workspace
                   .list(recursive: true)
-                  .where((e) => e is Directory && e.path.endsWith('/candidate'))
+                  .where(
+                    (e) => e is Directory && p.basename(e.path) == 'candidate',
+                  )
                   .toList())
               .single;
       expect(await Directory('${candidate.path}/upload').exists(), isFalse);
@@ -810,6 +821,36 @@ void main() {
       expect(await upload.readAsString(), 'local-attachment');
     },
   );
+
+  test('the separate-owners switch survives a backup and a restore', () async {
+    // `display_separate_chat_owners_v1` is `backupOnly` in the router: which
+    // layout this device draws is its own choice and never rides a pairing, but
+    // a backup still carries it to the next install. The registry test only pins
+    // that classification; this is the write → backup → restore behind it, on
+    // the two entry points that do it: the settings payload a backup stores, and
+    // the write a restore performs.
+    const key = 'display_separate_chat_owners_v1';
+    final sourcePreferences = BusinessPreferences(sourceRepository);
+    await sourcePreferences.load();
+    await sourcePreferences.setBool(key, true);
+
+    final backupPayload = await BusinessRestoreService(
+      sourceRepository,
+    ).exportSettings();
+    expect(
+      backupPayload[key],
+      isTrue,
+      reason: 'a backup carries the choice, so the export must hold it',
+    );
+
+    expect(
+      await targetRepository.getPreference(key),
+      isNull,
+      reason: 'the target must not already agree by accident',
+    );
+    await BusinessRestoreService(targetRepository).overwrite(backupPayload);
+    expect(await targetRepository.getPreference(key), isTrue);
+  });
 
   test('cancelled staging releases the business write fence', () async {
     final backup = await exporter.prepareBackupFile(const WebDavConfig());

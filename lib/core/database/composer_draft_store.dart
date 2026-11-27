@@ -230,12 +230,25 @@ class ComposerDraftStore extends ChangeNotifier {
     }
   }
 
-  static String entryId(String? assistantId) => assistantId ?? '__default__';
-  Conversation? newEntry(String? assistantId) => _entries[entryId(assistantId)];
+  /// The new-entry slot one owner's fresh conversation occupies.
+  ///
+  /// A group conversation has no assistant, so its slot is named after the group
+  /// instead: two groups must not share the `__default__` slot the global
+  /// assistant-less conversation already owns.
+  static String entryId(String? assistantId, {String? groupChatId}) =>
+      groupChatId != null
+      ? 'group:$groupChatId'
+      : (assistantId ?? '__default__');
+
+  static String entryIdFor(Conversation conversation) =>
+      entryId(conversation.assistantId, groupChatId: conversation.groupChatId);
+
+  Conversation? newEntry(String? assistantId, {String? groupChatId}) =>
+      _entries[entryId(assistantId, groupChatId: groupChatId)];
   bool isNewEntry(String id) => _entries.values.any((entry) => entry.id == id);
   void registerNewEntry(Conversation conversation) {
     _entries.removeWhere((_, entry) => entry.id == conversation.id);
-    _entries[entryId(conversation.assistantId)] = conversation.copyWith();
+    _entries[entryIdFor(conversation)] = conversation.copyWith();
     if (!_ids.contains(conversation.id) &&
         !_loads.containsKey(conversation.id)) {
       _drafts.putIfAbsent(
@@ -1191,8 +1204,40 @@ class ComposerDraftStore extends ChangeNotifier {
     // The chat mutation publishes once after its whole delete batch finishes.
   }
 
+  /// Takes an owner back after an external writer put its draft row back — the
+  /// recycle bin's restore of a conversation.
+  ///
+  /// [delete] fences an id for the store's whole lifetime, which is what stops a
+  /// debounced write from resurrecting the draft of a conversation that is gone.
+  /// A restored conversation needs the opposite: without this, [load] throws
+  /// `composer_owner_deleted` and the composer cannot open at all.
+  Future<void> reloadRestored(String id) async {
+    final row = await _db
+        .customSelect(
+          'SELECT 1 FROM extension_entity_rows WHERE kind = ? AND id = ?;',
+          variables: [const Variable(kind), Variable(id)],
+        )
+        .getSingleOrNull();
+    _dirty.remove(id);
+    _drafts.remove(id);
+    _loads.remove(id);
+    invalidateOperations(id);
+    _deleted.remove(id);
+    if (row == null) {
+      _ids.remove(id);
+    } else {
+      _ids.add(id);
+    }
+    if (!_disposed) notifyListeners();
+  }
+
   Iterable<String> newEntriesForAssistant(String assistantId) => _entries.values
       .where((entry) => entry.assistantId == assistantId)
+      .map((entry) => entry.id)
+      .toList();
+
+  Iterable<String> newEntriesForGroup(String groupChatId) => _entries.values
+      .where((entry) => entry.groupChatId == groupChatId)
       .map((entry) => entry.id)
       .toList();
 

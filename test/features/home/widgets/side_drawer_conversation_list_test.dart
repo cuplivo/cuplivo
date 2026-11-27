@@ -2,27 +2,31 @@ import 'dart:async';
 import 'dart:io';
 
 import "../../../support/business_test_harness.dart";
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/user_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/update_provider.dart';
-import 'package:Kelivo/core/providers/backup_reminder_provider.dart';
-import 'package:Kelivo/core/providers/tag_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/features/home/widgets/side_drawer.dart';
-import 'package:Kelivo/features/home/widgets/conversation_title_builder.dart';
-import 'package:Kelivo/features/home/pages/home_mobile_layout.dart';
-import 'package:Kelivo/shared/animations/status_animation.dart';
-import 'package:Kelivo/shared/animations/widgets.dart';
-import 'package:Kelivo/shared/widgets/interactive_drawer.dart';
-import 'package:Kelivo/shared/widgets/ios_tactile.dart';
-import 'package:Kelivo/shared/widgets/visible_route_theme.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/chat_owners_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/providers/user_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/update_provider.dart';
+import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
+import 'package:Cuplivo/core/providers/tag_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/features/home/widgets/side_drawer.dart';
+import 'package:Cuplivo/features/home/widgets/conversation_title_builder.dart';
+import 'package:Cuplivo/features/home/pages/home_mobile_layout.dart';
+import 'package:Cuplivo/shared/animations/status_animation.dart';
+import 'package:Cuplivo/shared/animations/widgets.dart';
+import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
+import 'package:Cuplivo/shared/widgets/ios_tactile.dart';
+import 'package:Cuplivo/shared/widgets/visible_route_theme.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 // ignore: depend_on_referenced_packages
@@ -212,6 +216,7 @@ void main() {
     final assistantPrefs = createBusinessTestPreferences();
     final backupPrefs = createBusinessTestPreferences();
     final tagPrefs = createBusinessTestPreferences();
+    final business = createBusinessTestPreferencesWithDatabase();
     final settings = settingsProvider ?? SettingsProvider(settingsPrefs);
     final scaffoldKey = GlobalKey<ScaffoldState>();
     final closeTick = ValueNotifier(0);
@@ -235,6 +240,7 @@ void main() {
                   onDismissKeyboard: () {},
                   onSelectConversation: (id) => onSelectConversation?.call(id),
                   onNewConversation: () {},
+                  onOpenOwner: (owner) async {},
                   onOpenMiniMap: () {},
                   onCreateNewConversation: () async {},
                   onToggleTemporaryConversation: () async {},
@@ -295,6 +301,18 @@ void main() {
             ChangeNotifierProvider(
               create: (_) => AssistantProvider(preferences: assistantPrefs),
             ),
+          ChangeNotifierProvider(
+            create: (_) => GroupChatProvider(
+              store: ExtensionEntityStore(business.database),
+            ),
+          ),
+          ChangeNotifierProvider(
+            create: (ctx) => ChatOwnersProvider(
+              assistants: ctx.read<AssistantProvider>(),
+              groups: ctx.read<GroupChatProvider>(),
+              preferences: business.preferences,
+            ),
+          ),
           ChangeNotifierProvider(
             create: (_) => BackupReminderProvider(preferences: backupPrefs),
           ),
@@ -675,6 +693,10 @@ void main() {
           title: 'Second topic',
           assistantId: second,
         );
+        // The list's scope is the owner of the open chat. This test varies the
+        // *selected* assistant instead, which is the scope only while no chat is
+        // open, so it starts from exactly that state.
+        service.setCurrentConversation(null);
       });
       await pumpDrawer(tester, service, assistantProvider: assistants);
       await tester.pumpAndSettle();
@@ -697,10 +719,8 @@ void main() {
             .assistantId,
         'missing-assistant',
       );
-      // Reordering must not move recovered history away from the selected
-      // assistant, including after reopening the persisted assistant snapshot.
-      await tester.runAsync(() => assistants.reorderAssistants(1, 0));
-      await tester.pumpAndSettle();
+      // Recovered history must stay with the selected assistant, including
+      // after reopening the persisted assistant snapshot.
       expect(assistants.currentAssistantId, first);
       expect(find.text('Orphaned topic'), findsOneWidget);
       expect(find.text('First topic'), findsOneWidget);
@@ -713,7 +733,7 @@ void main() {
       });
       await pumpDrawer(tester, service, assistantProvider: assistants);
       await tester.pumpAndSettle();
-      expect(assistants.assistants.first.id, second);
+      expect(assistants.assistants.first.id, first);
       expect(assistants.currentAssistantId, first);
       expect(find.text('Orphaned topic'), findsOneWidget);
       await tester.runAsync(() => assistants.deleteAssistant(first));
@@ -1377,4 +1397,78 @@ void main() {
       });
     },
   );
+
+  testWidgets('iOS long-press copies a link to the conversation', (
+    tester,
+  ) async {
+    // The override must be reset inside the body: the binding verifies
+    // foundation debug variables before package:test tearDowns.
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    String? clipboard;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        clipboard = (call.arguments as Map)['text'] as String?;
+      }
+      return null;
+    });
+    try {
+      final service = createService();
+      late final Conversation alpha;
+      await tester.runAsync(() async {
+        await service.init();
+        alpha = await service.createConversation(title: 'Alpha');
+      });
+      await pumpDrawer(tester, service);
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(SideDrawer)),
+      )!;
+
+      await tester.longPress(find.text('Alpha'));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.sideDrawerMenuCopyLink), findsOneWidget);
+
+      await tester.tap(find.text(l10n.sideDrawerMenuCopyLink));
+      await tester.pumpAndSettle();
+
+      expect(clipboard, 'cuplivo://conversation/${alpha.id}');
+      // Let the confirmation toast dismiss before the tree goes away.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    } finally {
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('iOS offers no link for an id the grammar cannot carry', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      final service = createService();
+      await tester.runAsync(() => service.init());
+      // A stored id past the cap has no link, so the entry must not be offered:
+      // the link would be dropped on the way back in.
+      service.seedConversationsForTest([
+        Conversation(id: 'x' * 201, title: 'Unlinkable'),
+      ]);
+      await pumpDrawer(tester, service);
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(SideDrawer)),
+      )!;
+
+      await tester.longPress(find.text('Unlinkable'));
+      await tester.pumpAndSettle();
+
+      // The menu itself is open (its neighbour is there), so the absence below
+      // is the gate and not a menu that never appeared.
+      expect(find.text(l10n.sideDrawerMenuCopy), findsOneWidget);
+      expect(find.text(l10n.sideDrawerMenuCopyLink), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

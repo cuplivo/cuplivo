@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-enum ModelType { chat, embedding, image }
+enum ModelType { chat, embedding, image, decision }
 
 enum Modality { text, image, audio, video, pdf }
 
@@ -86,7 +86,9 @@ List<ModelAbility> _normalizeAbilities(
   Iterable<ModelAbility> abilities,
   ModelType type,
 ) {
-  if (type == ModelType.embedding) return const <ModelAbility>[];
+  if (type == ModelType.embedding || type == ModelType.decision) {
+    return const <ModelAbility>[];
+  }
   return _uniqueSortedByIndex(abilities);
 }
 
@@ -638,6 +640,10 @@ class ModelSpec {
 
   bool get supportsReasoning => abilities.contains(ModelAbility.reasoning);
 
+  /// Answers one typed decision question instead of generating text. A model of
+  /// this type never holds a chat and never appears in a chat model picker.
+  bool get isDecision => type == ModelType.decision;
+
   bool get supportsImageInput => input.contains(Modality.image);
 
   bool get supportsAudioInput => input.contains(Modality.audio);
@@ -997,7 +1003,9 @@ class ModelSpecOverride {
     final outputMods = effectiveType == ModelType.embedding
         ? const [Modality.text]
         : _nonEmptyModalities(output ?? base.output);
-    final nextAbilities = effectiveType == ModelType.embedding
+    final nextAbilities =
+        effectiveType == ModelType.embedding ||
+            effectiveType == ModelType.decision
         ? const <ModelAbility>[]
         : (abilities ?? base.abilities);
     final next = base.copyWith(
@@ -1028,6 +1036,7 @@ class ModelSpecOverride {
     if (s == 'embedding' || s == 'embeddings') return ModelType.embedding;
     if (s == 'chat') return ModelType.chat;
     if (s == 'image') return ModelType.image;
+    if (s == 'decision') return ModelType.decision;
     return null;
   }
 

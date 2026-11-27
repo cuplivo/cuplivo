@@ -2,13 +2,14 @@ import '../../../../support/business_test_harness.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/models/model_spec.dart';
-import 'package:Kelivo/core/models/request_budget.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/builtin_tools.dart';
-import 'package:Kelivo/core/services/model_spec/model_spec_resolver.dart';
-import 'package:Kelivo/features/model/widgets/model_spec_form/model_spec_form_controller.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/model_spec.dart';
+import 'package:Cuplivo/core/models/request_budget.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/builtin_tools.dart';
+import 'package:Cuplivo/core/services/decision/decision_dialect.dart';
+import 'package:Cuplivo/core/services/model_spec/model_spec_resolver.dart';
+import 'package:Cuplivo/features/model/widgets/model_spec_form/model_spec_form_controller.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 
 ProviderConfig _cfg({
   String id = 'Test',
@@ -43,6 +44,56 @@ void main() {
 
   setUpAll(() async {
     l10n = await AppLocalizations.delegate.load(const Locale('en'));
+  });
+
+  test('decision dialect and URL survive a save and a reload', () async {
+    final cfg = _cfg(
+      models: const ['judge'],
+      overrides: const {
+        'judge': {'type': 'decision'},
+      },
+    );
+    final settings = await _settings(cfg);
+    addTearDown(settings.dispose);
+    final controller = ModelSpecFormController(
+      config: cfg,
+      modelKey: 'judge',
+      isNew: false,
+    );
+    addTearDown(controller.dispose);
+    expect(controller.decisionDialect, DecisionDialect.systemOne);
+
+    controller.setDecisionDialect(DecisionDialect.openAi);
+    controller.setDecisionUrl('https://openrouter.ai/api/alpha/decisions');
+    expect(await controller.save(settings), isTrue);
+    final saved = settings.getProviderConfig(cfg.id);
+    expect(saved.modelOverrides['judge']['decisionDialect'], 'openai');
+    expect(
+      saved.modelOverrides['judge']['decisionUrl'],
+      'https://openrouter.ai/api/alpha/decisions',
+    );
+
+    final next = ModelSpecFormController(
+      config: saved,
+      modelKey: 'judge',
+      isNew: false,
+    );
+    addTearDown(next.dispose);
+    expect(next.decisionDialect, DecisionDialect.openAi);
+    expect(
+      next.decisionUrlController.text,
+      'https://openrouter.ai/api/alpha/decisions',
+    );
+
+    // Switching back must overwrite the saved value, not add a second one.
+    next.setDecisionDialect(DecisionDialect.systemOne);
+    expect(await next.save(settings), isTrue);
+    expect(
+      settings
+          .getProviderConfig(cfg.id)
+          .modelOverrides['judge']['decisionDialect'],
+      'systemone',
+    );
   });
 
   test(

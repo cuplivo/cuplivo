@@ -1,15 +1,15 @@
 import 'dart:io';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/skills_binding.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/skills/skills_service.dart';
-import 'package:Kelivo/features/workspace/widgets/skills/conversation_skills_sheet.dart';
-import 'package:Kelivo/features/workspace/widgets/skills/skill_detail.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/skills_binding.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/skills/skills_service.dart';
+import 'package:Cuplivo/features/workspace/widgets/skills/conversation_skills_sheet.dart';
+import 'package:Cuplivo/features/workspace/widgets/skills/skill_detail.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -56,6 +56,8 @@ void main() {
     required FakeChatService chat,
     required AssistantProvider assistants,
     Assistant? assistant,
+    bool scopeToAssistant = false,
+    bool compact = false,
   }) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
@@ -80,6 +82,8 @@ void main() {
             body: ConversationSkillsPanel(
               conversationId: 'c1',
               assistant: assistant ?? Assistant(id: _assistantId, name: 'A'),
+              scopeToAssistant: scopeToAssistant,
+              compact: compact,
             ),
           ),
         ),
@@ -217,6 +221,94 @@ void main() {
       );
     },
   );
+
+  testWidgets('a member-scoped panel writes that assistant, nothing shared', (
+    tester,
+  ) async {
+    final alpha = createTempSkill(
+      id: 'alpha',
+      name: 'Alpha',
+      description: 'First',
+      parent: tempDir,
+    );
+    final beta = createTempSkill(
+      id: 'beta',
+      name: 'Beta',
+      description: 'Second',
+      parent: tempDir,
+    );
+    final skills = FakeSkillsService(
+      skills: [alpha, beta],
+      skillsDirectory: tempDir,
+    );
+    final chat = FakeChatService(
+      conversation: Conversation(id: 'c1', title: 'Chat'),
+    );
+    final assistants = await loadAssistant(tester);
+    // The state that used to write the global switch: following the assistant,
+    // with no list of its own.
+    expect(assistants.getById(_assistantId)!.skillIds, isNull);
+
+    await pumpPanel(
+      tester,
+      skills: skills,
+      chat: chat,
+      assistants: assistants,
+      scopeToAssistant: true,
+    );
+
+    // The inherit switch would write the conversation, so a scoped panel drops
+    // it rather than offering a control whose target is the whole roster.
+    expect(find.byKey(ConversationSkillsPanel.inheritKey), findsNothing);
+
+    await tester.tap(find.byKey(ConversationSkillsPanel.skillKey('beta')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // The member's own list materialises on the first toggle...
+    expect(assistants.getById(_assistantId)!.skillIds, ['alpha']);
+    // ...and the two shared layers are untouched: the global enabled record and
+    // the conversation-wide override would both change every member.
+    expect(skills.enabledCalls, isEmpty);
+    expect(chat.lastExtras, isNull);
+  });
+
+  testWidgets('a compact member-scoped panel drops the inherit switch too', (
+    tester,
+  ) async {
+    final alpha = createTempSkill(
+      id: 'alpha',
+      name: 'Alpha',
+      description: 'First',
+      parent: tempDir,
+    );
+    final skills = FakeSkillsService(skills: [alpha], skillsDirectory: tempDir);
+    final chat = FakeChatService(
+      conversation: Conversation(id: 'c1', title: 'Chat'),
+    );
+    final assistants = await loadAssistant(tester);
+
+    await pumpPanel(
+      tester,
+      skills: skills,
+      chat: chat,
+      assistants: assistants,
+      scopeToAssistant: true,
+      compact: true,
+    );
+
+    // The compact variant sits at the bottom of the panel and is the same
+    // control: it writes the conversation, which a scoped panel must not touch.
+    expect(find.byKey(ConversationSkillsPanel.inheritKey), findsNothing);
+
+    await tester.tap(find.byKey(ConversationSkillsPanel.skillKey('alpha')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(assistants.getById(_assistantId)!.skillIds, isEmpty);
+    expect(skills.enabledCalls, isEmpty);
+    expect(chat.lastExtras, isNull);
+  });
 
   testWidgets('long-pressing a skill opens its detail page', (tester) async {
     final enabled = createTempSkill(

@@ -9,11 +9,12 @@ import '../../../core/services/chat/chat_service.dart';
 import '../../chat/controllers/quote_editing_controller.dart';
 import '../../intelligent_ui/models/ui_context_attachment.dart';
 import '../../intelligent_ui/host/ui_composer_context_chip.dart';
+import '../../group_chat/models/group_quick_entries.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../theme/app_semantic_colors.dart';
-import 'package:Kelivo/features/chat/widgets/tool_permission_widgets.dart';
+import 'package:Cuplivo/features/chat/widgets/tool_permission_widgets.dart';
 import '../services/composer_clipboard.dart';
-import 'package:Kelivo/shared/text_input/message_editing_controller.dart';
+import 'package:Cuplivo/shared/text_input/message_editing_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, listEquals;
 import 'package:flutter/rendering.dart';
@@ -69,7 +70,7 @@ import '../../../shared/widgets/app_text_selection_toolbar.dart';
 import '../services/context_usage_service.dart';
 import '../services/composer_document_route.dart';
 import '../../../core/services/chat/document_text_extractor.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 import '../../../core/models/composer_draft.dart';
 import '../../../core/database/composer_draft_store.dart';
 
@@ -384,6 +385,22 @@ class ChatInputBarController {
   }
 
   void clearImages() => _state?._clearImages();
+
+  /// Whether every long paste this controller started has finished writing, and
+  /// released its file if the draft no longer wanted it.
+  ///
+  /// The write tail already serialises pastes; this mirrors its state so a test
+  /// can observe it after the widget that started the paste is gone.
+  bool _textPasteWriteSettled = true;
+
+  void _trackTextPasteWrite(Future<void> write) {
+    _textPasteWriteSettled = false;
+    unawaited(write.whenComplete(() => _textPasteWriteSettled = true));
+  }
+
+  @visibleForTesting
+  bool get debugTextPasteWriteSettled => _textPasteWriteSettled;
+
   void addFiles(List<DocumentAttachment> docs) {
     if (_currentTarget) {
       _root._state?._addFiles(docs);
@@ -773,11 +790,16 @@ class ChatInputBar extends StatefulWidget {
     this.onToggleOcr,
     this.conversationId,
     this.sendButtonTooltip,
+    this.leading,
+    this.onTapLeading,
+    this.leadingTooltip,
+    this.leadingExtent = 30,
     this.backgroundImageActive = false,
     this.inputBackgroundOpacityLight =
         SettingsProvider.defaultChatInputBackgroundOpacityLight,
     this.inputBackgroundOpacityDark =
         SettingsProvider.defaultChatInputBackgroundOpacityDark,
+    this.groupSearch,
   });
 
   final Future<ChatInputSubmissionResult> Function(ChatInputData)? onSend;
@@ -822,6 +844,13 @@ class ChatInputBar extends StatefulWidget {
   final bool showToolsButton;
   final bool toolsActive;
   final bool toolsConnectionIssue;
+
+  /// Non-null in a group chat: what the roster's search resolves to, so the
+  /// entry can show a brand or the neutral globe instead of one assistant's
+  /// switch. Reasoning carries no object: its two states (offered, lit) reach the
+  /// button as [supportsReasoning] and [reasoningActive].
+  final GroupSearchEntry? groupSearch;
+
   final bool showMiniMapButton;
   final VoidCallback? onOpenMiniMap;
   final VoidCallback? onPickCamera;
@@ -850,6 +879,16 @@ class ChatInputBar extends StatefulWidget {
   final String? chatModelProviderKey;
   final String? chatModelId;
   final String? sendButtonTooltip;
+
+  /// Replaces the model-select slot at the start of the composer.
+  ///
+  /// A group chat has no single model to show, so that slot carries the member
+  /// cluster instead: the one control that says who is in this room.
+  final Widget? leading;
+  final VoidCallback? onTapLeading;
+  final String? leadingTooltip;
+  final double leadingExtent;
+
   final bool backgroundImageActive;
   final double inputBackgroundOpacityLight;
   final double inputBackgroundOpacityDark;
@@ -3214,6 +3253,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     final previousWrite = _textPasteWriteTail;
     final writeDone = Completer<void>();
     _textPasteWriteTail = writeDone.future;
+    (target ?? widget.mediaController)?._trackTextPasteWrite(writeDone.future);
 
     try {
       await previousWrite;
@@ -3238,10 +3278,18 @@ class _ChatInputBarState extends State<ChatInputBar>
         );
       } catch (_) {}
 
+      // An attachment cannot outlive the composer that owns it. A draft keeps
+      // text, not files, so adopting a file into a composer that is already gone
+      // leaves a file nobody will ever release — the superseded-paste leak the
+      // cleanup test pins, and the reason the `retained` path below inserts the
+      // *text* instead. A live composer still adopts the attachment; the two
+      // `mounted` uses here are the whole decision, and there is exactly one
+      // adoption site for a pasted text file in this file.
       if (attachment != null &&
+          mounted &&
           ((retained && target.isValid) ||
-              (mounted && _pendingTextPasteIds.contains(pasteId)))) {
-        if (mounted) setState(() => _pendingTextPasteIds.remove(pasteId));
+              _pendingTextPasteIds.contains(pasteId))) {
+        setState(() => _pendingTextPasteIds.remove(pasteId));
         if (target != null) {
           target.addFiles([attachment]);
         } else {
@@ -3376,25 +3424,60 @@ class _ChatInputBarState extends State<ChatInputBar>
         final List<_OverflowAction> actions = [];
         int? reasoningActionIndex;
 
-        // Model select (always present; can be hidden if overflow)
-        actions.add(
-          _OverflowAction(
-            width: (widget.modelIcon != null) ? modelButtonW : normalButtonW,
-            builder: () => _CompactIconButton(
-              tooltip: l10n.chatInputBarSelectModelTooltip,
-              icon: Lucide.Boxes,
-              modelIcon: true,
-              onTap: lockTap(widget.onSelectModel),
-              onLongPress: lockTap(widget.onLongPressSelectModel),
-              child: widget.modelIcon,
+        // Model select (always present; can be hidden if overflow). A group
+        // replaces it with the member cluster, which is the same "who am I
+        // talking with" slot.
+        if (widget.leading != null) {
+          actions.add(
+            _OverflowAction(
+              width: widget.leadingExtent,
+              builder: () => Tooltip(
+                message: widget.leadingTooltip ?? '',
+                waitDuration: const Duration(milliseconds: 350),
+                child: Semantics(
+                  button: true,
+                  label: widget.leadingTooltip,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: lockTap(widget.onTapLeading),
+                    child: SizedBox(
+                      height: 30,
+                      width: widget.leadingExtent,
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: widget.leading,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.Users,
+                label: widget.leadingTooltip ?? '',
+                onTap: lockTap(widget.onTapLeading),
+              ),
             ),
-            menu: DesktopContextMenuItem(
-              icon: Lucide.Boxes,
-              label: l10n.chatInputBarSelectModelTooltip,
-              onTap: lockTap(widget.onSelectModel),
+          );
+        } else {
+          actions.add(
+            _OverflowAction(
+              width: (widget.modelIcon != null) ? modelButtonW : normalButtonW,
+              builder: () => _CompactIconButton(
+                tooltip: l10n.chatInputBarSelectModelTooltip,
+                icon: Lucide.Boxes,
+                modelIcon: true,
+                onTap: lockTap(widget.onSelectModel),
+                onLongPress: lockTap(widget.onLongPressSelectModel),
+                child: widget.modelIcon,
+              ),
+              menu: DesktopContextMenuItem(
+                icon: Lucide.Boxes,
+                label: l10n.chatInputBarSelectModelTooltip,
+                onTap: lockTap(widget.onSelectModel),
+              ),
             ),
-          ),
-        );
+          );
+        }
 
         // Search button (stateful icon depending on provider config)
         final settings = context.watch<SettingsProvider>();
@@ -3425,91 +3508,142 @@ class _ChatInputBarState extends State<ChatInputBar>
           return BrandAssets.assetForName(svc.name);
         })();
 
-        // Search button
-        actions.add(
-          _OverflowAction(
-            width: normalButtonW,
-            builder: () {
-              // Not enabled at all -> default globe
-              if (!appSearchEnabled && !builtinSearchActive) {
-                return _CompactIconButton(
-                  tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                  icon: Lucide.Globe,
-                  active: false,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              // Built-in search -> magnifier icon in theme color
-              if (builtinSearchActive) {
-                return _CompactIconButton(
-                  tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                  icon: Lucide.Search,
-                  active: true,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              // External provider search -> brand icon
-              return _CompactIconButton(
+        // A group has no single search mode: the entry reports the roster.
+        // Uniform members get their own value (the provider's brand, or the
+        // magnifier for built-in search); disagreeing members get the neutral
+        // globe, lit as long as somebody searches. The per-member values live
+        // in the panel, not on this button.
+        final groupSearch = widget.groupSearch;
+        if (groupSearch != null && widget.onOpenSearch != null) {
+          final groupBrandAsset =
+              (groupSearch.uniform &&
+                  !groupSearch.builtIn &&
+                  groupSearch.serviceName != null)
+              ? BrandAssets.assetForName(groupSearch.serviceName!)
+              : null;
+          actions.add(
+            _OverflowAction(
+              width: normalButtonW,
+              builder: () => _CompactIconButton(
                 tooltip: l10n.chatInputBarOnlineSearchTooltip,
-                icon: Lucide.Globe,
-                active: true,
+                icon: groupSearch.uniform && groupSearch.builtIn
+                    ? Lucide.Search
+                    : Lucide.Globe,
+                active: groupSearch.anyOn,
                 onTap: lockTap(widget.onOpenSearch),
-                childBuilder: (c) {
-                  final asset = brandAsset;
-                  if (asset != null) {
-                    if (asset.endsWith('.svg')) {
-                      return SvgPicture.asset(
-                        asset,
-                        width: 20,
-                        height: 20,
-                        colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
-                      );
-                    } else {
-                      return Image.asset(
-                        asset,
-                        width: 20,
-                        height: 20,
-                        color: c,
-                        colorBlendMode: BlendMode.srcIn,
-                      );
-                    }
-                  } else {
-                    return Icon(Lucide.Globe, size: 20, color: c);
-                  }
-                },
-              );
-            },
-            menu: () {
-              // Prefer vector icon if brandAsset is svg, otherwise pick reasonable default
-              if (!appSearchEnabled && !builtinSearchActive) {
-                return DesktopContextMenuItem(
-                  icon: Lucide.Globe,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              if (builtinSearchActive) {
-                return DesktopContextMenuItem(
-                  icon: Lucide.Search,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              if (brandAsset != null && brandAsset.endsWith('.svg')) {
-                return DesktopContextMenuItem(
-                  svgAsset: brandAsset,
-                  label: l10n.chatInputBarOnlineSearchTooltip,
-                  onTap: lockTap(widget.onOpenSearch),
-                );
-              }
-              return DesktopContextMenuItem(
+                childBuilder: groupBrandAsset == null
+                    ? null
+                    : (c) {
+                        if (groupBrandAsset.endsWith('.svg')) {
+                          return SvgPicture.asset(
+                            groupBrandAsset,
+                            width: 20,
+                            height: 20,
+                            colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
+                          );
+                        }
+                        return Image.asset(
+                          groupBrandAsset,
+                          width: 20,
+                          height: 20,
+                          color: c,
+                          colorBlendMode: BlendMode.srcIn,
+                        );
+                      },
+              ),
+              menu: DesktopContextMenuItem(
                 icon: Lucide.Globe,
                 label: l10n.chatInputBarOnlineSearchTooltip,
                 onTap: lockTap(widget.onOpenSearch),
-              );
-            }(),
-          ),
-        );
+              ),
+            ),
+          );
+        } else if (widget.onOpenSearch != null) {
+          actions.add(
+            _OverflowAction(
+              width: normalButtonW,
+              builder: () {
+                // Not enabled at all -> default globe
+                if (!appSearchEnabled && !builtinSearchActive) {
+                  return _CompactIconButton(
+                    tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                    icon: Lucide.Globe,
+                    active: false,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                // Built-in search -> magnifier icon in theme color
+                if (builtinSearchActive) {
+                  return _CompactIconButton(
+                    tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                    icon: Lucide.Search,
+                    active: true,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                // External provider search -> brand icon
+                return _CompactIconButton(
+                  tooltip: l10n.chatInputBarOnlineSearchTooltip,
+                  icon: Lucide.Globe,
+                  active: true,
+                  onTap: lockTap(widget.onOpenSearch),
+                  childBuilder: (c) {
+                    final asset = brandAsset;
+                    if (asset != null) {
+                      if (asset.endsWith('.svg')) {
+                        return SvgPicture.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          colorFilter: ColorFilter.mode(c, BlendMode.srcIn),
+                        );
+                      } else {
+                        return Image.asset(
+                          asset,
+                          width: 20,
+                          height: 20,
+                          color: c,
+                          colorBlendMode: BlendMode.srcIn,
+                        );
+                      }
+                    } else {
+                      return Icon(Lucide.Globe, size: 20, color: c);
+                    }
+                  },
+                );
+              },
+              menu: () {
+                // Prefer vector icon if brandAsset is svg, otherwise pick reasonable default
+                if (!appSearchEnabled && !builtinSearchActive) {
+                  return DesktopContextMenuItem(
+                    icon: Lucide.Globe,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                if (builtinSearchActive) {
+                  return DesktopContextMenuItem(
+                    icon: Lucide.Search,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                if (brandAsset != null && brandAsset.endsWith('.svg')) {
+                  return DesktopContextMenuItem(
+                    svgAsset: brandAsset,
+                    label: l10n.chatInputBarOnlineSearchTooltip,
+                    onTap: lockTap(widget.onOpenSearch),
+                  );
+                }
+                return DesktopContextMenuItem(
+                  icon: Lucide.Globe,
+                  label: l10n.chatInputBarOnlineSearchTooltip,
+                  onTap: lockTap(widget.onOpenSearch),
+                );
+              }(),
+            ),
+          );
+        }
 
         if (widget.supportsReasoning || widget.showResponseSpeedAction) {
           final reasoning = widget.supportsReasoning;
@@ -3963,14 +4097,18 @@ class _ChatInputBarState extends State<ChatInputBar>
           children.add(
             Container(
               key: _leftOverflowAnchorKey,
+              // Not a second "+": a phone draws the tools panel's own "+" in the
+              // same row, and two buttons wearing the same glyph and the same
+              // tooltip read as one control twice. This one reaches the actions
+              // that did not fit.
               child: _CompactIconButton(
                 key:
                     reasoningActionIndex != null &&
                         reasoningActionIndex >= visibleCount
                     ? widget.reasoningButtonKey
                     : null,
-                tooltip: l10n.chatInputBarMoreTooltip,
-                icon: Lucide.Plus,
+                tooltip: l10n.chatInputBarOverflowTooltip,
+                icon: Lucide.Ellipsis,
                 onTap: () {
                   showDesktopAnchoredMenu(
                     context,

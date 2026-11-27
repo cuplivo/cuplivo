@@ -31,12 +31,13 @@ import 'network_proxy_page.dart';
 import 'phone_control_settings_page.dart';
 import '../../home/services/local_tools_service.dart';
 import 'storage_space_page.dart';
+import 'sync_settings_page.dart';
 import '../../stats/pages/stats_page.dart';
 import '../../../core/services/storage/storage_usage_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -194,11 +195,11 @@ class SettingsPage extends StatelessWidget {
               _iosNavRow(
                 context,
                 icon: Lucide.Bot,
-                label: l10n.settingsPageAssistant,
+                label: l10n.settingsPageChatOwners,
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const AssistantSettingsPage(),
+                      builder: (_) => const ChatOwnerSettingsPage(),
                     ),
                   );
                 },
@@ -398,6 +399,17 @@ class SettingsPage extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const StorageSpacePage()),
+                  );
+                },
+              ),
+              _iosDivider(context),
+              _iosNavRow(
+                context,
+                icon: Lucide.RefreshCw,
+                label: l10n.settingsPageSync,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SyncSettingsPage()),
                   );
                 },
               ),

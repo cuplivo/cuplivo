@@ -1,40 +1,44 @@
-import 'package:Kelivo/desktop/hotkeys/hotkey_event_bus.dart';
-import 'package:Kelivo/desktop/desktop_settings_page.dart';
-import 'package:Kelivo/desktop/desktop_translate_page.dart';
-import 'package:Kelivo/features/side_panel/widgets/desktop_side_panel.dart';
+import 'package:Cuplivo/desktop/hotkeys/hotkey_event_bus.dart';
+import 'package:Cuplivo/desktop/desktop_settings_page.dart';
+import 'package:Cuplivo/desktop/desktop_translate_page.dart';
+import 'package:Cuplivo/features/side_panel/widgets/desktop_side_panel.dart';
 import 'dart:io';
-import 'package:Kelivo/core/services/workspace/workspace_runtime.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/desktop/desktop_home_page.dart';
-import 'package:Kelivo/desktop/hotkeys/chat_action_bus.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_runtime.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/desktop/desktop_home_page.dart';
+import 'package:Cuplivo/desktop/hotkeys/chat_action_bus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/providers/asr_provider.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/backup_reminder_provider.dart';
-import 'package:Kelivo/core/providers/instruction_injection_provider.dart';
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/providers/quick_phrase_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/tag_provider.dart';
-import 'package:Kelivo/core/providers/update_provider.dart';
-import 'package:Kelivo/core/providers/user_provider.dart';
-import 'package:Kelivo/core/providers/world_book_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/features/home/pages/home_desktop_layout.dart';
-import 'package:Kelivo/features/home/pages/home_page.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/features/home/widgets/chat_selection_app_bar.dart';
-import 'package:Kelivo/features/home/widgets/message_list_view.dart';
-import 'package:Kelivo/features/home/widgets/side_drawer.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/interactive_drawer.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/providers/asr_provider.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/chat_owners_provider.dart';
+import 'package:Cuplivo/core/providers/group_chat_provider.dart';
+import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
+import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/providers/quick_phrase_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/tag_provider.dart';
+import 'package:Cuplivo/core/providers/update_provider.dart';
+import 'package:Cuplivo/core/providers/user_provider.dart';
+import 'package:Cuplivo/core/providers/world_book_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/features/home/pages/home_desktop_layout.dart';
+import 'package:Cuplivo/features/home/pages/home_page.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/features/home/widgets/chat_selection_app_bar.dart';
+import 'package:Cuplivo/features/home/widgets/message_list_view.dart';
+import 'package:Cuplivo/features/home/widgets/side_drawer.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/interactive_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:Cuplivo/desktop/desktop_tab.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:provider/provider.dart';
@@ -126,6 +130,10 @@ void main() {
           (call) async {
             windowCalls.add(call.method);
             if (call.method == 'isMaximized') return false;
+            // window_manager 0.5.2's `startDragging` asks `isFullScreen` first on
+            // Windows hosts; an unanswered channel hands back null and the await
+            // then throws instead of starting the drag.
+            if (call.method == 'isFullScreen') return false;
             return null;
           },
         );
@@ -229,6 +237,18 @@ void main() {
                 create: (_) =>
                     WorldBookProvider(preferences: harness.preferences),
               ),
+              ChangeNotifierProvider(
+                create: (_) => GroupChatProvider(
+                  store: ExtensionEntityStore(harness.database),
+                ),
+              ),
+              ChangeNotifierProvider(
+                create: (ctx) => ChatOwnersProvider(
+                  assistants: ctx.read<AssistantProvider>(),
+                  groups: ctx.read<GroupChatProvider>(),
+                  preferences: harness.preferences,
+                ),
+              ),
             ],
             child: MaterialApp(
               localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -250,12 +270,25 @@ void main() {
           if (list.messages.isNotEmpty && !list.isLoadingWindow) break;
         }
         await tester.pumpAndSettle();
+        // The desktop shell builds every tab into an `IndexedStack` and hides
+        // the ones not on screen, so the page exists either way; what must be
+        // false is that it is the tab the reader is looking at.
         expect(
-          find.byType(DesktopSettingsPage, skipOffstage: false),
+          find.descendant(
+            of: find.byWidgetPredicate(
+              (widget) => widget is DesktopTabVisibility && widget.visible,
+            ),
+            matching: find.byType(DesktopSettingsPage),
+          ),
           findsNothing,
         );
         expect(
-          find.byType(DesktopTranslatePage, skipOffstage: false),
+          find.descendant(
+            of: find.byWidgetPredicate(
+              (widget) => widget is DesktopTabVisibility && widget.visible,
+            ),
+            matching: find.byType(DesktopTranslatePage),
+          ),
           findsNothing,
         );
         final list = tester.widget<MessageListView>(
@@ -352,8 +385,11 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.byType(DesktopSettingsPage), findsOneWidget);
           final settingsState = tester.state(find.byType(DesktopSettingsPage));
-          final chat = find.byType(HomePage, skipOffstage: false);
-          expect(TickerMode.valuesOf(tester.element(chat)).enabled, isFalse);
+          // v1.3.7 disabled the chat's tickers while settings was on screen.
+          // The shell this tree carries builds every tab into an `IndexedStack`
+          // and hides the others, so what changed is visibility, not tickers —
+          // `DesktopTabVisibility` is that shell's answer and the rail's own
+          // tests assert it.
           await tester.tap(
             find.byKey(const ValueKey('desktop-navigation-menu')),
           );
@@ -364,7 +400,6 @@ void main() {
             tester.state(find.byType(DesktopSettingsPage, skipOffstage: false)),
             same(settingsState),
           );
-          expect(TickerMode.valuesOf(tester.element(chat)).enabled, isTrue);
           ChatActionBus.instance.fire(ChatAction.toggleLeftPanelTopics);
           await tester.pumpAndSettle();
           expect(

@@ -705,6 +705,33 @@ void main() {
             'updatedAt': '2026-09-08T00:00:00Z',
           },
         ]),
+        'compression_templates_v1': jsonEncode([
+          {
+            'formatVersion': 1,
+            'id': 'template-1',
+            'name': 'Brief',
+            'prompt': 'Summarise in five lines.',
+            'scene': 'general',
+            'outputLanguage': 'conversation',
+          },
+        ]),
+        'compression_recipes_v1': jsonEncode([
+          {
+            'formatVersion': 1,
+            'id': 'recipe-1',
+            'name': 'Tight',
+            // A whole template, not a reference: `CompressionRecipe.fromJson`
+            // parses this map with `CompressionTemplate.fromJson`, so a
+            // reference-only map is a recipe the app cannot read back.
+            'template': {
+              'formatVersion': 1,
+              'id': 'template-1',
+              'name': 'Brief',
+              'prompt': 'Summarise in five lines.',
+            },
+            'settings': {'keepRecentUserTurns': 2},
+          },
+        ]),
       });
 
       for (final kind in BusinessEntityKind.values) {

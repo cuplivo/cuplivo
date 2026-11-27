@@ -2570,7 +2570,6 @@ class ChatService extends ChangeNotifier {
     }
 
     if (!deleted) return;
-    await _cleanupOrphanUploads();
     _bumpConversationListRevision();
     notifyListeners();
   }

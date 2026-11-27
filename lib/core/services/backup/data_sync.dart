@@ -883,6 +883,9 @@ class DataSync {
           databaseFile,
           scope: scope,
           target: target,
+          // The same call writes `settings.json` from the same scope, so the
+          // library is in that half and must not also stay in this one.
+          libraryInSettings: scope.includes(BackupCategory.instructions),
         );
       }
 

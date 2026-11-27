@@ -4,7 +4,6 @@ import 'package:crypto/crypto.dart';
 
 import '../models/assistant.dart';
 import '../models/provider_balance_refresh_interval.dart';
-import '../models/world_book_grouping.dart';
 import '../models/compression_config.dart';
 import 'business_data.dart';
 
@@ -2149,6 +2148,27 @@ final class BusinessSettingsRouter {
           strings: const {'avatar'},
           numbers: const {'v', 'maxSpeakerTurns'},
           stringLists: const {'memberIds'},
+        );
+        return;
+      case BusinessEntityKind.compressionTemplate:
+        // A prompt the user wrote for the summariser: opaque to this router, so
+        // it is type-checked at the import boundary and never interpreted.
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name', 'prompt'},
+          strings: const {'scene', 'outputLanguage'},
+          integers: const {'formatVersion'},
+        );
+        return;
+      case BusinessEntityKind.compressionRecipe:
+        _validateKnownFields(
+          kind,
+          payload,
+          requiredStrings: const {'id', 'name'},
+          strings: const {'focus'},
+          maps: const {'template', 'settings'},
+          integers: const {'formatVersion'},
         );
         return;
       case BusinessEntityKind.userProfileField:

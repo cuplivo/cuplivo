@@ -113,7 +113,7 @@ class _ScheduledTasksPageState extends State<ScheduledTasksPage>
       MaterialPageRoute(
         builder: (_) => ScheduledTaskEditorPage(
           task: task,
-          assistants: assistants.assistants,
+          assistants: assistants.chatAssistants,
           initialAssistantId: assistants.currentAssistant?.id,
           onSave: _save,
         ),

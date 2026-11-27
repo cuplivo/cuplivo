@@ -130,7 +130,8 @@ class WebDavConfig {
       path: fields.trimmed('path', const WebDavConfig().path),
       userAgent: fields.read<String>('userAgent') ?? '',
       scope: fields.scope,
-      target: BackupTarget.fromName(fields.read<String>('target')) ??
+      target:
+          BackupTarget.fromName(fields.read<String>('target')) ??
           BackupTarget.cuplivo,
     );
   }
@@ -238,7 +239,8 @@ class S3Config {
       pathStyle: fields.read<bool>('pathStyle') ?? const S3Config().pathStyle,
       userAgent: fields.read<String>('userAgent') ?? '',
       scope: fields.scope,
-      target: BackupTarget.fromName(fields.read<String>('target')) ??
+      target:
+          BackupTarget.fromName(fields.read<String>('target')) ??
           BackupTarget.cuplivo,
     );
   }

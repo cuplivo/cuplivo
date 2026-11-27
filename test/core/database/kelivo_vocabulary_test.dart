@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:Cuplivo/core/database/app_database.dart';
@@ -77,7 +79,11 @@ void main() {
       };
       expect(
         written.difference(pinned.entitySourceKeys),
-        {'group_chats_v1'},
+        {
+          'group_chats_v1',
+          'compression_templates_v1',
+          'compression_recipes_v1',
+        },
         reason:
             'Update KelivoVocabulary with a new frozen constant for a newer '
             'Kelivo release rather than editing v1_3_2 in place, and move the '
@@ -141,13 +147,17 @@ void main() {
     for (final target in BackupTarget.values) {
       expect(BackupTarget.fromName(target.name), target);
       expect(
-        WebDavConfig.fromJsonString(
-          WebDavConfig(target: target).toJsonString(),
+        WebDavConfig.fromJson(
+          jsonDecode(WebDavConfig(target: target).toJsonString())
+              as Map<String, dynamic>,
         ).target,
         target,
       );
       expect(
-        S3Config.fromJsonString(S3Config(target: target).toJsonString()).target,
+        S3Config.fromJson(
+          jsonDecode(S3Config(target: target).toJsonString())
+              as Map<String, dynamic>,
+        ).target,
         target,
       );
     }

@@ -4262,11 +4262,6 @@ class _SideDrawerState extends State<SideDrawer> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _handleSelectGroup(GroupChat group) async {
-    final sp = context.read<SettingsProvider>();
-    await _openGroup(group, closeDrawer: !sp.keepSidebarOpenOnAssistantTap);
-  }
-
   Conversation? _currentConversationOf(ChatService chat) {
     final id = chat.currentConversationId;
     return id == null ? null : chat.getConversation(id);

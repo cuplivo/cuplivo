@@ -39,6 +39,11 @@ import 'core/providers/mcp_provider.dart';
 import 'core/providers/tts_provider.dart';
 import 'core/providers/asr_provider.dart';
 import 'core/providers/assistant_provider.dart';
+import 'core/providers/harness_connection_provider.dart';
+import 'core/services/harness/harness_tailcat_dialer.dart';
+import 'core/services/harness/harness_tailcat_identity.dart';
+import 'core/services/harness/harness_tailcat_probe.dart';
+import 'core/services/harness/harness_tailcat_tunnels.dart';
 import 'core/providers/tag_provider.dart';
 import 'core/providers/update_provider.dart';
 import 'core/providers/quick_phrase_provider.dart';
@@ -1029,6 +1034,33 @@ class MyApp extends StatelessWidget {
             preferences: businessPreferences,
             chatService: ctx.read<ChatService>(),
           ),
+        ),
+        // One identity backs both the key row in settings and every tunnel:
+        // the allow-list entry a user copies has to be the key that dials.
+        Provider<HarnessTailcatIdentityStore>(
+          create: (_) => FileHarnessTailcatIdentityStore(),
+        ),
+        Provider<HarnessTailcatTunnels>(
+          create: (ctx) {
+            final identity = ctx.read<HarnessTailcatIdentityStore>();
+            return HarnessTailcatTunnels(
+              dialer: (address) async => createHarnessTailcatDialer(
+                address,
+                privateKey: (await identity.load()).privateKey,
+              ),
+            );
+          },
+          dispose: (_, tunnels) => unawaited(tunnels.closeAll()),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) {
+            final tunnels = ctx.read<HarnessTailcatTunnels>();
+            return HarnessConnectionProvider(
+              assistants: ctx.read<AssistantProvider>(),
+              tailcatProbe: HarnessTailcatProbe(tunnels: tunnels),
+              tailcatTunnels: tunnels,
+            );
+          },
         ),
         ChangeNotifierProvider(
           create: (ctx) {

@@ -256,6 +256,9 @@ class _RecycleBinPageState extends State<RecycleBinPage> {
     RecycleEntryType.businessEntity => switch (entry.kindWire) {
       'assistant_rows' => Lucide.Bot,
       'groupChat' => Lucide.Users,
+      'conversationContext' => Lucide.History,
+      'conversationImageContext' => Lucide.Image,
+      'conversationCompression' => Lucide.Settings2,
       _ => Lucide.SlidersHorizontal,
     },
   };

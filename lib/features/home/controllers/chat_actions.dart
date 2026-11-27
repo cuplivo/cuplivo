@@ -645,8 +645,6 @@ class ChatActions {
     onLoadingChanged?.call(conversationId, loading);
   }
 
-  List<Map<String, dynamic>> _copyToolEvents(String messageId) =>
-      _streamingToolEvents[messageId]?.snapshot ?? const [];
   // ---------------------------------------------------------------------------
   // Group chat rounds
   // ---------------------------------------------------------------------------
@@ -1192,11 +1190,8 @@ class ChatActions {
     return assistantMessage;
   }
 
-  List<Map<String, dynamic>> _copyToolEvents(String messageId) {
-    return _toolEventSnapshots[messageId] ??= ToolEventSnapshot(
-      _streamingToolEvents[messageId] ?? const <Map<String, dynamic>>[],
-    );
-  }
+  List<Map<String, dynamic>> _copyToolEvents(String messageId) =>
+      _streamingToolEvents[messageId]?.snapshot ?? const [];
 
   StreamingToolEvents _eventsFor(String messageId) =>
       _streamingToolEvents.putIfAbsent(messageId, StreamingToolEvents.new);

@@ -291,12 +291,12 @@ class _BackupPageState extends State<BackupPage> {
                 onChanged: busy || vm.busy || s3Vm.busy
                     ? null
                     : (target) async {
-                        final newCfg = vm.config.copyWith(target: target);
-                        final newS3Cfg = s3Vm.config.copyWith(target: target);
-                        vm.updateConfig(newCfg);
-                        s3Vm.updateConfig(newS3Cfg);
-                        await settings.setWebDavConfig(newCfg);
-                        await settings.setS3Config(newS3Cfg);
+                        await settings.updateWebDavConfig(
+                          (cfg) => cfg.copyWith(target: target),
+                        );
+                        await settings.updateS3Config(
+                          (cfg) => cfg.copyWith(target: target),
+                        );
                       },
               ),
               _iosDivider(context),

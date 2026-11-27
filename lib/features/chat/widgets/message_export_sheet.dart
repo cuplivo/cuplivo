@@ -24,6 +24,7 @@ import 'package:path/path.dart' as p;
 import 'image_preview_sheet.dart';
 import 'export_image_capture.dart';
 import 'export_progress_overlay.dart';
+import 'pdf_export_dialog.dart';
 import '../utils/export_image_processor.dart';
 import '../../subagent/widgets/subagent_mail_notice.dart'
     show subagentMailLabelText;
@@ -2859,24 +2860,6 @@ class _ExportedChatImage extends StatelessWidget {
               ),
               SizedBox(height: isDesktop ? 10.0 : 12.0),
               for (final m in messages) ...[
-<<<<<<< HEAD
-                _ExportedBubble(
-                  message: m,
-                  cs: cs,
-                  showThinkingAndToolCards: showThinkingAndToolCards,
-                  expandThinkingContent: expandThinkingContent,
-                  collapseThinkingSteps: collapseThinkingSteps,
-                  isDesktop: isDesktop,
-                ),
-||||||| parent of 400543932 (feat(subagent): 把一件事交给子会话，做完再回报 (#1108))
-                _ExportedBubble(
-                  message: m,
-                  cs: cs,
-                  showThinkingAndToolCards: showThinkingAndToolCards,
-                  expandThinkingContent: expandThinkingContent,
-                  isDesktop: isDesktop,
-                ),
-=======
                 // A delegation's result is a divider here too: the bubble would
                 // print the user's name over a row they never wrote. Mail is the
                 // same kind of row.
@@ -2907,9 +2890,9 @@ class _ExportedChatImage extends StatelessWidget {
                     cs: cs,
                     showThinkingAndToolCards: showThinkingAndToolCards,
                     expandThinkingContent: expandThinkingContent,
+                    collapseThinkingSteps: collapseThinkingSteps,
                     isDesktop: isDesktop,
                   ),
->>>>>>> 400543932 (feat(subagent): 把一件事交给子会话，做完再回报 (#1108))
                 SizedBox(height: isDesktop ? 6.0 : 8.0),
               ],
               SizedBox(height: isDesktop ? 10.0 : 12.0),

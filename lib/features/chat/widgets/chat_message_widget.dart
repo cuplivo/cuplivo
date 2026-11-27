@@ -4734,56 +4734,37 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       context,
       target: target,
     );
-<<<<<<< HEAD
-    final child = switch (target) {
-      ChatBubbleStyleTarget.user => _buildUserMessage(),
-      ChatBubbleStyleTarget.thinkingToolCard => _buildToolMessage(),
-      ChatBubbleStyleTarget.assistant => PageStorage(
-        bucket: widget.timelineStorage ?? _localTimelineStorage,
-        child: _buildAssistantMessage(),
-      ),
-    };
-||||||| parent of 400543932 (feat(subagent): 把一件事交给子会话，做完再回报 (#1108))
-    final child = isUser
-        ? _buildUserMessage()
-        : widget.message.role == 'tool'
-        ? _buildToolMessage()
-        : PageStorage(
-            bucket: widget.timelineStorage ?? _localTimelineStorage,
-            child: _buildAssistantMessage(),
-          );
-=======
     SubagentResultPart? subagentResult;
     SubagentMailPart? subagentMail;
-    if (isUser) {
-      for (final part in widget.message.parts) {
-        if (part is SubagentResultPart) {
-          subagentResult = part;
-        } else if (part is SubagentMailPart) {
-          subagentMail = part;
-        }
-        if (subagentResult != null && subagentMail != null) break;
+    for (final part in widget.message.parts) {
+      if (part is SubagentResultPart) {
+        subagentResult = part;
+      } else if (part is SubagentMailPart) {
+        subagentMail = part;
       }
+      if (subagentResult != null && subagentMail != null) break;
     }
-    final child = subagentResult != null
-        ? SubagentResultDivider(
-            part: subagentResult,
-            onTap: () => showSubagentPanel(
-              context,
-              conversationId: widget.message.conversationId,
-            ),
-          )
-        : subagentMail != null
-        ? SubagentMailNotice(part: subagentMail, message: widget.message)
-        : isUser
-        ? _buildUserMessage()
-        : widget.message.role == 'tool'
-        ? _buildToolMessage()
-        : PageStorage(
-            bucket: widget.timelineStorage ?? _localTimelineStorage,
-            child: _buildAssistantMessage(),
-          );
->>>>>>> 400543932 (feat(subagent): 把一件事交给子会话，做完再回报 (#1108))
+    final Widget child;
+    if (subagentResult != null) {
+      child = SubagentResultDivider(
+        part: subagentResult,
+        onTap: () => showSubagentPanel(
+          context,
+          conversationId: widget.message.conversationId,
+        ),
+      );
+    } else if (subagentMail != null) {
+      child = SubagentMailNotice(part: subagentMail, message: widget.message);
+    } else {
+      child = switch (target) {
+        ChatBubbleStyleTarget.user => _buildUserMessage(),
+        ChatBubbleStyleTarget.thinkingToolCard => _buildToolMessage(),
+        ChatBubbleStyleTarget.assistant => PageStorage(
+          bucket: widget.timelineStorage ?? _localTimelineStorage,
+          child: _buildAssistantMessage(),
+        ),
+      };
+    }
     return ChatSurfaceTheme(palette: palette, child: child);
   }
 }

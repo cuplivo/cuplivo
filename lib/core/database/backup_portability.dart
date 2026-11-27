@@ -9,6 +9,7 @@ import '../models/compression_config.dart';
 import '../models/tool_permission_mode.dart';
 import '../models/workspace_binding.dart';
 import 'backup_content_filter.dart';
+import 'kelivo_vocabulary.dart';
 import 'business_data.dart';
 import 'business_repository.dart';
 import 'business_settings_router.dart';

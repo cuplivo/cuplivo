@@ -29,13 +29,15 @@ Future<String?> showAssistantMoveSelector(
       defaultTargetPlatform == TargetPlatform.windows ||
       defaultTargetPlatform == TargetPlatform.linux;
   final ap = context.read<AssistantProvider>();
+  // A conversation moves between chat assistants only: a remote DeepSeek
+  // Harness has no chat model to hand it to.
   // The order the user dragged into place, not the creation order the assistant
   // list happens to hold. The order is a nicety: a host that does not provide
   // one (an embedded picker, a widget test) still gets a usable list.
-  var owned = List<Assistant>.of(ap.assistants);
+  var owned = List<Assistant>.of(ap.chatAssistants);
   try {
     owned = context.read<ChatOwnersProvider>().inOwnerOrder(
-      ap.assistants,
+      ap.chatAssistants,
       (assistant) => ChatOwner.assistant(assistant.id).key,
     );
   } catch (_) {}

@@ -8,8 +8,6 @@ import '../../../utils/utf16_safe_cut.dart';
 import '../../chat/utils/thinking_tag_parser.dart';
 import 'package:Cuplivo/core/providers/external_mounts_provider.dart';
 import 'dart:convert';
-import 'dart:io';
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import '../../../core/database/app_database.dart';
@@ -1298,55 +1296,6 @@ class MessageBuilderService {
       }
     }
 
-    Future<String?> readDocument(DocumentAttachment d) async {
-      if (previewOnly) return null;
-      // Resolve once so cache key and extractor share the same absolute path.
-      // null means rejected (UNC/SMB) — never fall back to the raw path.
-      final resolvedPath = SandboxPathResolver.resolveForIo(d.path);
-      if (resolvedPath == null) return null;
-      // Use file stat to detect content changes without hashing.
-      FileStat? stat;
-      try {
-        stat = await File(resolvedPath).stat();
-      } catch (_) {
-        stat = null;
-      }
-      if (stat != null) {
-        final cached = _docTextCache[resolvedPath];
-        if (cached != null &&
-            cached.modifiedMs == stat.modified.millisecondsSinceEpoch &&
-            cached.size == stat.size) {
-          return cached.text;
-        }
-      }
-      try {
-        final text = await DocumentTextExtractor.extractResolved(
-          path: resolvedPath,
-          mime: _effectiveAttachmentMime(d),
-        );
-        // Cache only when stat is available; otherwise avoid staleness.
-        if (stat != null) {
-          _docTextCache[resolvedPath] = _DocTextCacheEntry(
-            text: text,
-            modifiedMs: stat.modified.millisecondsSinceEpoch,
-            size: stat.size,
-          );
-        }
-        return text;
-      } on AttachmentRequiresWorkspace {
-        throw AttachmentRequiresWorkspace(d.fileName);
-      } catch (_) {
-        if (stat != null) {
-          _docTextCache[resolvedPath] = _DocTextCacheEntry(
-            text: null,
-            modifiedMs: stat.modified.millisecondsSinceEpoch,
-            size: stat.size,
-          );
-        }
-        return null;
-      }
-    }
-
     final workspaceAttachmentPrompts = <int, String>{};
 
     for (int i = 0; i < apiMessages.length; i++) {
@@ -2065,19 +2014,6 @@ class MessageBuilderService {
       maxItems: maxItems,
       fullInjectionTypes: assistant.memoryFullInjectionTypes,
     );
-  }
-
-  /// Default OCR text wrapper
-  String _defaultWrapOcrBlock(String ocrText) {
-    final buf = StringBuffer();
-    buf.writeln(
-      "The image_file_ocr tag contains a description of an image that the user uploaded to you, not the user's prompt.",
-    );
-    buf.writeln('<image_file_ocr>');
-    buf.writeln(ocrText.trim());
-    buf.writeln('</image_file_ocr>');
-    buf.writeln();
-    return buf.toString();
   }
 
   /// Inject system prompt into apiMessages.

@@ -43,7 +43,7 @@ class WorkspaceBinding {
     final next = changed
         ? ToolPermissionMode.withoutGrant(extras)
         : Map<String, dynamic>.from(extras);
-    next.remove('workspace.allowAll');
+    next.remove(ToolPermissionMode.allowAllExtrasKey);
     if (!isBound) {
       next.remove(keyId);
       next.remove(keyCwd);

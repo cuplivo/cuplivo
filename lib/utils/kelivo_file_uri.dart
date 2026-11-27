@@ -320,7 +320,14 @@ final class KelivoFileUri {
   }
 
   static String _encodeSegments(List<String> parts) {
-    final encoded = parts.map(Uri.encodeComponent).join('/');
+    // `'` is an RFC 3986 sub-delim that `Uri.encodeComponent` leaves raw, and the
+    // blob scan reads a raw apostrophe as prose (`a.png's`), so a name that
+    // really carries one would never be advertised. Escaping it here is the
+    // producer's half of that rule: the parser may then treat `'` as prose,
+    // because a real one always arrives as `%27`.
+    final encoded = parts
+        .map((part) => Uri.encodeComponent(part).replaceAll("'", '%27'))
+        .join('/');
     return '$_scheme:///$encoded';
   }
 

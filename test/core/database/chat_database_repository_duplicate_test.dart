@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:Cuplivo/core/database/chat_database_repository.dart';
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/services/sync/sync_merge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
@@ -111,10 +112,17 @@ void main() {
 
         expect(duplicate, isNotNull);
         expect(duplicate!.id, isNot('source'));
-        expect(duplicate.extras, {'workspace.id': 'workspace', 'custom': 42});
+        // The copy carries the workspace keys and gets a mutation clock of its
+        // own (it is a different row, written now).
+        expect({...duplicate.extras}..remove(syncClockExtrasKey), {
+          'workspace.id': 'workspace',
+          'custom': 42,
+        });
+        expect(duplicate.extras[syncClockExtrasKey], isA<int>());
         expect(
-          (await repository.getConversation(duplicate.id))!.extras,
-          duplicate.extras,
+          {...(await repository.getConversation(duplicate.id))!.extras}
+            ..remove(syncClockExtrasKey),
+          {...duplicate.extras}..remove(syncClockExtrasKey),
         );
         expect(
           (await repository.getConversation(

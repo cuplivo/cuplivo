@@ -36,6 +36,19 @@ final class BusinessPreferences {
 
   bool get isLoaded => _isLoaded;
 
+  /// True while a restore holds the write fence: nothing may be written through
+  /// this view until the process restarts, which also means LAN sync must defer
+  /// rather than write (ADR-0003 apply path).
+  bool get writesBlockedForRestore => _writesBlockedForRestore;
+
+  /// Runs [operation] on the same queue as local writes. Used by LAN sync so an
+  /// apply cannot interleave with a provider's read-modify-write of a whole
+  /// entity list: either the apply lands first (and the provider's next read
+  /// sees it) or the provider's write lands first (and the apply's LWW decides
+  /// against the newer row).
+  Future<T> serializeExternalWrite<T>(Future<T> Function() operation) =>
+      _serialize(operation);
+
   Future<void> load() {
     if (_isLoaded) return Future<void>.value();
     final inFlight = _loadFuture;
@@ -208,6 +221,18 @@ final class BusinessPreferences {
         final kind = _entityKindForKey(entry.key);
         if (kind == null) {
           _validatePreferenceKey(entry.key);
+          // The registry table is the authority for what a preference key is. A
+          // key written without a row is stored and backed up but silently
+          // never synced — the defect class that produced #1018, #1054 and
+          // #1062. CI's writer scan catches it in review; this catches it in the
+          // build that introduces it. Scoped to the app's own `_vN` convention,
+          // so a key from outside the app (a plugin, a restored artifact) is
+          // stored and fail-closed instead of crashing a debug build.
+          assert(
+            BusinessKeyRegistry.ruleFor(entry.key) != null ||
+                !BusinessKeyRegistry.appKeyPattern.hasMatch(entry.key),
+            'Unregistered preference key: ${entry.key}',
+          );
           preferenceUpdates[entry.key] = entry.value;
         } else {
           kinds.add(kind);
@@ -367,9 +392,8 @@ final class BusinessPreferences {
   }
 
   static void _validatePreferenceKey(String key) {
-    final disposition = BusinessKeyRegistry.classify(key);
-    if (disposition == BusinessKeyDisposition.localOnly ||
-        disposition == BusinessKeyDisposition.discarded) {
+    if (BusinessKeyRegistry.isPlatformOnly(key) ||
+        BusinessKeyRegistry.isDiscarded(key)) {
       throw ArgumentError.value(key, 'key', 'Not a business preference');
     }
   }

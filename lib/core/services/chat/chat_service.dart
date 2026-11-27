@@ -3060,18 +3060,22 @@ class ChatService extends ChangeNotifier {
   }
 
   /// Re-reads persisted chat state after a writer outside this service changed
-  /// the database — the recycle bin's restore writes rows through the
-  /// repository and then needs the in-memory caches to catch up. Mirrors the
-  /// post-merge tail of [mergeDatabaseSnapshot]; no restart is involved.
+  /// the database — the recycle bin's restore and a LAN sync apply both write
+  /// rows through the repository and then need the in-memory caches to catch
+  /// up. Mirrors the post-merge tail of [mergeDatabaseSnapshot]; no restart is
+  /// involved.
   ///
   /// [touchedConversations] names what the external writer changed, so the open
   /// window knows to rebuild itself instead of leaving the user on the content
-  /// that was there before the write.
+  /// that was there before the write: each one moves its
+  /// [externalWriteRevision] as well as its context revision.
   Future<void> reloadAfterExternalChange({
     Set<String>? touchedConversations,
   }) async {
     if (touchedConversations != null) {
       for (final conversationId in touchedConversations) {
+        _externalWriteRevisions[conversationId] =
+            (_externalWriteRevisions[conversationId] ?? 0) + 1;
         _bumpContextRevision(conversationId);
       }
     }
@@ -3204,6 +3208,17 @@ class ChatService extends ChangeNotifier {
     notifyListeners();
     return report;
   }
+
+  /// Bumped for each conversation an *external* writer (LAN sync's apply)
+  /// changed. A window that has already rendered the row set holds the counter
+  /// it rendered with, so a notification for any other reason never rebuilds
+  /// it, and a rebuild that had to be skipped — a local generation owned the
+  /// window — still happens on the next notification.
+  final Map<String, int> _externalWriteRevisions = <String, int>{};
+
+  /// How many external writes have landed in [conversationId] since launch.
+  int externalWriteRevision(String conversationId) =>
+      _externalWriteRevisions[conversationId] ?? 0;
 
   /// Chats-only merge/restore follow-up for imported conversations.
   Future<int> recomputeImportedAttachmentAvailability({
@@ -3371,15 +3386,16 @@ class ChatService extends ChangeNotifier {
     if (_draftConversations.containsKey(id)) {
       final draft = _draftConversations[id]!;
       draft.title = newTitle;
-      draft.updatedAt = DateTime.now();
       notifyListeners();
       return;
     }
     final conversation = _conversationsCache[id];
     if (conversation == null) return;
 
+    // A rename is tidying, not activity: it travels on the conversation's sync
+    // clock and leaves `updated_at` where it was, so renaming a three-day-old
+    // conversation does not put it at the top of the list.
     conversation.title = newTitle;
-    conversation.updatedAt = DateTime.now();
     await _saveConversation(conversation);
     _bumpConversationListRevision();
     notifyListeners();

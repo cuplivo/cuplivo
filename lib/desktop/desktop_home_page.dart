@@ -10,6 +10,7 @@ import '../shared/responsive/screen_type_helper.dart';
 import '../shared/widgets/ios_tactile.dart';
 import '../icons/lucide_adapter.dart';
 import 'desktop_settings_page.dart';
+import 'setting/sync_pane.dart';
 import 'desktop_translate_page.dart';
 import '../features/settings/pages/storage_space_page.dart';
 import '../l10n/app_localizations.dart';

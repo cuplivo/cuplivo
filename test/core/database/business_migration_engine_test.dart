@@ -274,12 +274,13 @@ void main() {
   test('routes a complete registered business snapshot without loss', () async {
     const codexCache = '{"version":"0.170.0","checkedAt":1786012880106}';
     final source = <String, Object?>{
-      for (final key in BusinessKeyRegistry.preferenceKeys)
-        key: switch (key) {
-          BusinessKeyRegistry.balanceRefreshIntervalKey => 10,
-          BusinessKeyRegistry.balanceRefreshOnReplyKey => true,
-          _ => 'value:$key',
-        },
+      for (final key in BusinessKeyRegistry.rules.keys)
+        if (BusinessKeyRegistry.isRegisteredInBusinessStore(key))
+          key: switch (key) {
+            BusinessKeyRegistry.balanceRefreshIntervalKey => 10,
+            BusinessKeyRegistry.balanceRefreshOnReplyKey => true,
+            _ => 'value:$key',
+          },
       for (final kind in BusinessEntityKind.values)
         kind.sourceKey: kind == BusinessEntityKind.provider
             ? jsonEncode({
@@ -319,6 +320,30 @@ void main() {
                       'source': 'file',
                       'installedAt': '2026-09-08T00:00:00Z',
                       'updatedAt': '2026-09-08T00:00:00Z',
+                    },
+                    if (kind == BusinessEntityKind.groupChat) ...{
+                      'name': 'Panel',
+                      'memberIds': <String>['assistant-a'],
+                      'createdAt': '2026-09-08T00:00:00Z',
+                      'updatedAt': '2026-09-08T00:00:00Z',
+                    },
+                    if (kind == BusinessEntityKind.compressionTemplate) ...{
+                      'formatVersion': 1,
+                      'name': 'Brief',
+                      'prompt': 'Summarise in five lines.',
+                    },
+                    if (kind == BusinessEntityKind.compressionRecipe) ...{
+                      'formatVersion': 1,
+                      'name': 'Tight',
+                      // A whole template: the recipe decoder parses this map, so
+                      // a reference would be a row the library cannot read back.
+                      'template': <String, Object?>{
+                        'formatVersion': 1,
+                        'id': 'template-a',
+                        'name': 'Brief',
+                        'prompt': 'Summarise in five lines.',
+                      },
+                      'settings': <String, Object?>{},
                     },
                     'opaque': kind.name,
                   },

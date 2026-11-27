@@ -11,14 +11,17 @@ import '../../../utils/app_directories.dart';
 ///
 /// Small row sets (`businessEntity`, `preference`) keep their tables inside
 /// `entry.json` itself, so a losing settings row or memory entry is exactly one
-/// file. The two shapes that can be large travel beside it: a conversation
-/// subtree as `body.json`, a workspace file's bytes as `body` (moved, never
-/// re-encoded).
+/// file. The three shapes that can be large travel beside it: a conversation
+/// subtree as `body.json`, a workspace file's bytes as `body`, and a skill's
+/// whole directory as `body.d` — the last two *moved*, never re-encoded, because
+/// a rename keeps the bytes, the mtimes and the tree in O(1) where a copy is
+/// O(size).
 enum RecycleEntryType {
   conversation('conversation'),
   businessEntity('businessEntity'),
   preference('preference'),
-  workspaceFile('workspaceFile');
+  workspaceFile('workspaceFile'),
+  skillBody('skillBody');
 
   const RecycleEntryType(this.wire);
 
@@ -27,6 +30,7 @@ enum RecycleEntryType {
   RecycleBodyKind get bodyKind => switch (this) {
     RecycleEntryType.conversation => RecycleBodyKind.jsonFile,
     RecycleEntryType.workspaceFile => RecycleBodyKind.byteFile,
+    RecycleEntryType.skillBody => RecycleBodyKind.directory,
     RecycleEntryType.businessEntity ||
     RecycleEntryType.preference => RecycleBodyKind.inline,
   };
@@ -48,7 +52,13 @@ enum RecycleBodyKind {
   jsonFile('json'),
 
   /// The body is the moved file itself (`body`).
-  byteFile('file');
+  byteFile('file'),
+
+  /// The body is the moved directory itself (`body.d`) — a whole tree, with its
+  /// files and their mtimes exactly as they were. The entry's rows still inline
+  /// in `entry.json`: a skill's record travels with the body it belongs to, so
+  /// restoring one cannot install a row whose directory is missing.
+  directory('dir');
 
   const RecycleBodyKind(this.wire);
 
@@ -242,10 +252,11 @@ class RecycleEntry {
 ///   enumerates it, no indexer walks it, and no backup entry names it — the
 ///   same standing as `<appData>/sync` (device identity and checkpoints).
 /// * **Uncompressed and self-describing.** An entry is a directory holding an
-///   `entry.json`; small row sets inline their tables there, and only the two
-///   shapes that can be large get a separate body. A conversation subtree is
-///   JSON, exactly the column maps the database stores; a workspace file is
-///   moved, so the bytes and the mtime are preserved rather than re-encoded.
+///   `entry.json`; small row sets inline their tables there, and only the shapes
+///   that can be large get a separate body. A conversation subtree is JSON,
+///   exactly the column maps the database stores; a workspace file and a skill's
+///   directory are moved, so the bytes, the mtimes and the tree are preserved
+///   rather than re-encoded.
 /// * **Best effort, never a veto.** Staging is called on the delete/apply path,
 ///   so it fails open: an unwritable bin logs and returns null, and the
 ///   deletion or the merge proceeds. The bin is a safety net, not a write
@@ -285,6 +296,7 @@ class RecycleStore {
   static const String _entryFileName = 'entry.json';
   static const String _bodyFileName = 'body.json';
   static const String _fileBodyName = 'body';
+  static const String _bodyDirName = 'body.d';
   static const String _stagingPrefix = '.tmp-';
   static const int _titleMaxLength = 200;
 
@@ -493,18 +505,96 @@ class RecycleStore {
     );
   }
 
+  /// Moves a skill's whole directory into the bin, with the skill's record row
+  /// inline, so the two halves restore together.
+  ///
+  /// The body is *moved*, like a workspace file and for the same reason: a
+  /// rename keeps the tree, its bytes and its mtimes in O(1), where a copy is
+  /// O(size) on a body that may be 200 MB. Returns null when the move failed, so
+  /// the caller can fall back to its ordinary delete rather than assume the
+  /// directory is safe — the same contract [stageFile] has, and the reason a bin
+  /// that cannot be written never vetoes the deletion or the apply it observed.
+  ///
+  /// This is one entry rather than a row entry plus a body entry on purpose: a
+  /// skill whose record came back without its directory is a broken skill, and a
+  /// restore that could produce that state is not a restore.
+  Future<RecycleEntry?> stageSkillBody({
+    required String skillId,
+    required Directory source,
+    required Map<String, List<Map<String, Object?>>> tables,
+    required RecycleOrigin origin,
+    required RecycleReason reason,
+    String? title,
+  }) async {
+    if (skillId.isEmpty) return null;
+    final deletedAt = DateTime.now().toUtc();
+    final id = _entryId(deletedAt);
+    final sizeBytes = _directoryBytes(source);
+    final resolvedTitle = title ?? skillId;
+    final String entryJson;
+    try {
+      entryJson = jsonEncode(
+        _envelope(
+          id: id,
+          type: RecycleEntryType.skillBody,
+          bodyKind: RecycleBodyKind.directory,
+          origin: origin,
+          reason: reason,
+          key: skillId,
+          title: resolvedTitle,
+          kindWire: null,
+          deletedAt: deletedAt,
+          sizeBytes: sizeBytes,
+          tables: tables,
+        ),
+      );
+    } catch (error) {
+      debugPrint('recycle: encoding a skill body entry failed: $error');
+      return null;
+    }
+    final staged = await _stage(
+      id: id,
+      entryJson: entryJson,
+      bodyJson: null,
+      moveSource: source,
+    );
+    if (!staged) return null;
+    requestSweep(id);
+    return _entry(
+      id: id,
+      type: RecycleEntryType.skillBody,
+      bodyKind: RecycleBodyKind.directory,
+      origin: origin,
+      reason: reason,
+      key: skillId,
+      title: resolvedTitle,
+      kindWire: null,
+      deletedAt: deletedAt,
+      sizeBytes: sizeBytes,
+    );
+  }
+
   /// Every staged entry, newest first.
   ///
-  /// Entries that share a [RecycleEntry.key] collapse to the newest one: a row
+  /// Entries that stage the *same record* collapse to the newest one: a row
   /// deleted twice, or a merge that lost the same row in two sessions, must not
   /// appear as two recoverable items that would then fight over one row.
+  ///
+  /// The record is (type, key, kind), not (type, key). A conversation document is
+  /// keyed by its conversation's id, so the three documents of one conversation
+  /// share a key while being three different rows: collapsing them hid two of
+  /// them from the list, and restoring the visible one purged the others' only
+  /// copies. `kindWire` is the discriminator the restore itself already uses to
+  /// pick the row it writes.
+  ///
   /// Unreadable directories are left for [evict] to reclaim, so listing stays
   /// read-only.
   Future<List<RecycleEntry>> list() async {
     final scan = await _scan();
     final newest = <String, RecycleEntry>{};
     for (final entry in scan.entries) {
-      final dedupeKey = '${entry.type.wire}\u0000${entry.key}';
+      final dedupeKey =
+          '${entry.type.wire}\u0000${entry.key}\u0000${entry.kindWire ?? ''}';
       final existing = newest[dedupeKey];
       if (existing == null || entry.deletedAt.isAfter(existing.deletedAt)) {
         newest[dedupeKey] = entry;
@@ -555,14 +645,30 @@ class RecycleStore {
     return await file.exists() ? file : null;
   }
 
+  /// The moved directory of a [RecycleEntryType.skillBody] entry, or null when
+  /// it is not there any more.
+  Future<Directory?> bodyDirectory(RecycleEntry entry) async {
+    if (entry.bodyKind != RecycleBodyKind.directory) return null;
+    final directory = await _entryDirectory(entry.id);
+    final body = Directory(p.join(directory.path, _bodyDirName));
+    return await body.exists() ? body : null;
+  }
+
   /// Removes one entry directory.
   Future<void> purge(RecycleEntry entry) async {
     final directory = await _entryDirectory(entry.id);
     await _deleteQuietly(directory);
   }
 
-  /// Removes every entry that staged [key] — what a restore owes the bin, so a
-  /// recovered row cannot also be restored again into a second copy.
+  /// Removes every entry that staged the same record as ([type], [key],
+  /// [kindWire]) — what a restore owes the bin, so a recovered row cannot also
+  /// be restored again into a second copy.
+  ///
+  /// [kindWire] is required for the same reason [list] counts it: it is part of
+  /// the record's identity, and a conversation's three documents share its id, so
+  /// a purge that matched on (type, key) alone would delete the staged copies of
+  /// the documents the restore did not touch. A kind-less entry (a conversation, a
+  /// skill body) passes the null its own entries carry.
   ///
   /// [exceptId] keeps one entry: a restore that replaced a live row stages the
   /// version it displaced, and that entry is the *result* of the restore rather
@@ -570,12 +676,16 @@ class RecycleStore {
   Future<int> purgeKey(
     RecycleEntryType type,
     String key, {
+    required String? kindWire,
     String? exceptId,
   }) async {
     final scan = await _scan();
     var removed = 0;
     for (final entry in scan.entries) {
-      if (entry.type != type || entry.key != key || entry.id == exceptId) {
+      if (entry.type != type ||
+          entry.key != key ||
+          entry.kindWire != kindWire ||
+          entry.id == exceptId) {
         continue;
       }
       await purge(entry);
@@ -691,6 +801,33 @@ class RecycleStore {
 
   static int _byteLength(String value) => utf8.encode(value).length;
 
+  /// Bytes a directory tree holds, for the list's size column.
+  ///
+  /// Stat-only and best effort: a tree this walk cannot enter reports what it
+  /// managed to count rather than failing the staging that was preserving it.
+  /// A skill body may reach 200 MB, which is why the bin's ceiling is a budget
+  /// and not a promise — an entry over it is still staged, and eviction is what
+  /// makes room.
+  static int _directoryBytes(Directory source) {
+    var total = 0;
+    final stack = <String>[source.path];
+    while (stack.isNotEmpty) {
+      final current = stack.removeLast();
+      try {
+        for (final entity in Directory(current).listSync(followLinks: false)) {
+          if (entity is Directory) {
+            stack.add(entity.path);
+          } else if (entity is File) {
+            total += entity.statSync().size;
+          }
+        }
+      } catch (error) {
+        debugPrint('recycle: could not measure ${source.path}: $error');
+      }
+    }
+    return total;
+  }
+
   static Map<String, Object?> _envelope({
     required String id,
     required RecycleEntryType type,
@@ -769,21 +906,26 @@ class RecycleStore {
   /// `.tmp-` name and renamed into place, so a reader never sees a half-written
   /// entry and a crash leaves only an orphan the next [evict] reclaims.
   ///
-  /// A failure *after* [moveSource] was moved hands the file back before the
-  /// staging directory is discarded. That ordering is the whole contract of the
-  /// return value: `false` means "not preserved", and the caller answers it by
-  /// doing its own delete — so a bin that deleted the file on its way out would
-  /// turn the caller's fallback into a no-op over a file that is already gone.
+  /// [moveSource] is the file or the whole directory the entry preserves, and it
+  /// is *moved* rather than copied. A failure after it was moved hands it back
+  /// before the staging directory is discarded. That ordering is the whole
+  /// contract of the return value: `false` means "not preserved", and the caller
+  /// answers it by doing its own delete — so a bin that deleted the body on its
+  /// way out would turn the caller's fallback into a no-op over data that is
+  /// already gone.
   Future<bool> _stage({
     required String id,
     required String entryJson,
     required String? bodyJson,
-    required File? moveSource,
+    required FileSystemEntity? moveSource,
   }) async {
     final root = await _directory();
     final staging = Directory(p.join(root.path, '$_stagingPrefix$id'));
-    final bodyPath = p.join(staging.path, _fileBodyName);
-    File? movedFrom;
+    final bodyPath = p.join(
+      staging.path,
+      moveSource is Directory ? _bodyDirName : _fileBodyName,
+    );
+    FileSystemEntity? movedFrom;
     // Registered before the directory exists and cleared once it is renamed, so
     // a sweep running in between cannot mistake this write for a crash leftover.
     // Staging is concurrent by design — an assistant's cascade launches one
@@ -814,7 +956,10 @@ class RecycleStore {
         await _deleteQuietly(staging);
         return false;
       }
-      if (await _putBack(File(bodyPath), movedFrom)) {
+      if (await _putBack(
+        moveSource is Directory ? Directory(bodyPath) : File(bodyPath),
+        movedFrom,
+      )) {
         await _deleteQuietly(staging);
       }
       // A failed put-back leaves the staging directory alone: the bytes are
@@ -829,7 +974,10 @@ class RecycleStore {
   }
 
   /// Moves a staged body back to [target], reporting whether it landed there.
-  static Future<bool> _putBack(File staged, File target) async {
+  static Future<bool> _putBack(
+    FileSystemEntity staged,
+    FileSystemEntity target,
+  ) async {
     try {
       await _moveInto(staged, target.path);
       return true;
@@ -846,13 +994,18 @@ class RecycleStore {
   /// paths are on different volumes (a rename cannot cross one).
   ///
   /// A failed copy leaves the source untouched and the staging directory is
-  /// discarded, so the caller's file is never lost by trying to preserve it.
-  static Future<void> _moveInto(File source, String target) async {
+  /// discarded, so the caller's file is never lost by trying to preserve it. A
+  /// directory gets no copy fallback: the bin and the skills root are both under
+  /// the app data directory, so the rename cannot cross a volume, and a
+  /// recursive copy here would be a second, unbounded implementation of the
+  /// move for a case that cannot happen.
+  static Future<void> _moveInto(FileSystemEntity source, String target) async {
     try {
       await source.rename(target);
       return;
     } on FileSystemException {
       // Different volume, or a platform that refuses the rename: copy instead.
+      if (source is! File) rethrow;
     }
     await source.copy(target);
     await source.delete();

@@ -1,0 +1,5282 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+
+import 'blob_sync.dart';
+import 'sync_admission.dart';
+import 'sync_budget.dart';
+import 'sync_client.dart';
+import 'sync_data_plane.dart';
+import 'sync_family_registry.dart';
+import 'sync_endpoint_prober.dart';
+import 'sync_identity.dart';
+import 'sync_limits.dart';
+import 'sync_local_addresses.dart';
+import 'sync_merge.dart';
+import 'sync_models.dart';
+import 'sync_pairing_prober.dart';
+import 'sync_server.dart';
+import 'sync_store.dart';
+import 'workspace_content_sync.dart';
+
+/// One beat of an initiator session, for the card's progress line.
+enum SyncSessionPhase {
+  /// Dialing the remembered endpoints.
+  connecting,
+
+  /// Hello: exchanging manifests and planning.
+  exchanging,
+
+  /// Reading this device's side: the plan is fixed, the pages are being packed.
+  /// Distinct from [exchanging] because that is a network round trip and this is
+  /// local work over the whole library — the two used to share one label, which
+  /// made the heaviest stretch of a session look like a stalled comparison.
+  preparing,
+
+  /// Pushing this device's changes.
+  sending,
+
+  /// Fetching the peer's changes.
+  receiving,
+
+  /// Pulling file/skill blobs, counting [SyncSessionProgress.done] of [total].
+  files,
+
+  /// Applying what arrived to the local database.
+  applying,
+}
+
+/// What the panel shows while this device initiates a session with a peer.
+/// Transient by design — it lives exactly as long as the session.
+class SyncSessionProgress {
+  const SyncSessionProgress(
+    this.phase, {
+    this.done = 0,
+    this.total = 0,
+    this.bytes = 0,
+    this.address,
+  });
+
+  final SyncSessionPhase phase;
+
+  /// How many of [total] items the phase has finished — conversations for
+  /// [SyncSessionPhase.sending] and [SyncSessionPhase.receiving], files for
+  /// [SyncSessionPhase.files].
+  final int done;
+  final int total;
+
+  /// Bytes this phase has moved so far.
+  ///
+  /// Always a measured number and never an estimate: a page's size is the exact
+  /// length of the JSON that carries it (the send path encodes it to gzip it),
+  /// and a file's size is its manifest entry. There is deliberately no
+  /// percentage: how much is left is not known before the plan is read, and a
+  /// progress bar that moves to a made-up denominator is a lie the user can see.
+  final int bytes;
+
+  /// The endpoint this beat is working on, `host:port`. Only
+  /// [SyncSessionPhase.connecting] names one: an address that never answers is
+  /// the one case where "which address?" is the whole story, and without it the
+  /// card showed an opaque spinner while the dial, the handshake and a hello in
+  /// flight (up to the hello deadline) all looked like "comparing data". Never
+  /// a rank among candidates: the probe already ranked them at once, and how
+  /// many addresses the dial has left is not something a user can act on.
+  final String? address;
+}
+
+/// Outcome of one session, for the peer card and the sync report.
+class SyncSessionReport {
+  final bool success;
+  final String summary;
+  final SyncRefusalReason? refusal;
+
+  /// Why the session failed when it was not a refusal — the structured form
+  /// the panel localizes. A raw exception never leaves the engine: it carries
+  /// the peer's address, and it is not a sentence.
+  final SyncFailureReason? failure;
+  final int conversationsSent;
+  final int conversationsReceived;
+  final int messagesUpserted;
+  final int messagesDeleted;
+  final int deferred;
+  final int conversationsDeletedLocally;
+
+  /// Deletions that were planned and then not executed, because the local copy
+  /// had changed since the plan was computed. Nothing else on the card can say
+  /// so: the row is still here, which looks exactly like "there was nothing to
+  /// delete".
+  final int deletedBlocked;
+
+  /// Business rows exchanged in either direction (entities + preferences).
+  /// One number per face: the card says how much business state moved, and the
+  /// per-row detail lives in the logs.
+  final int entityRows;
+  final int preferenceRows;
+
+  /// Business rows this device *received* — the incoming half alone, where
+  /// [entityRows]/[preferenceRows] add both directions because "how much moved"
+  /// is what a card wants to say. An arrival gate must not read the aggregate:
+  /// a session that only pushed rows to the peer changed nothing here.
+  final int entityRowsReceived;
+  final int preferenceRowsReceived;
+
+  /// Blobs this device received and landed (slice 3), the bytes they carried,
+  /// skill bodies that converged, skills whose local content lost the
+  /// deterministic conflict rule, and blobs that could not be fetched.
+  final int blobsMoved;
+  final int blobBytes;
+  final int skillsUpdated;
+  final int skillConflicts;
+  final int blobsMissing;
+
+  /// Business rows whose local version the peer's newer row replaced (slice
+  /// 5). The counters exist so an overwritten local edit is never silent.
+  final int entityRowsLost;
+  final int preferencesLost;
+
+  /// Conversations whose own document the peer's newer copy replaced (D-7):
+  /// compression history, image context, compression config — one per
+  /// conversation, however many of its documents changed. The same rule as
+  /// above — an overwritten local edit is never silent — for the families that
+  /// were device-local until this protocol version. Provider artifacts are not
+  /// counted: they are continuation state, not the user's work.
+  final int conversationsWithDocumentsReplaced;
+
+  /// Conversations this push left behind because they did not fit: the budget
+  /// admitted the batch without them, their checkpoints stayed at `prior`, and
+  /// the next round retries them.
+  ///
+  /// Workspace content in either direction (slice 18), counted the same way the
+  /// blob face is: what this device itself landed, deleted, lost and could not
+  /// apply — plus how many workspaces it shared no content for (turned off, or
+  /// over the caps), because silence about those is the one thing this face
+  /// must never do.
+  final int workspaceFiles;
+  final int workspaceBytes;
+  final int workspaceFilesRemoved;
+  final int workspaceConflicts;
+  final int workspaceFilesMissing;
+  final int workspacesOmitted;
+
+  /// Managed workspace *folders* this device kept on disk after the peer deleted
+  /// their row: the user had switched content sync off for them, or the folder
+  /// holds a file the two sides never agreed on and removing it would have
+  /// destroyed that edit with nothing in the bin to bring it back.
+  ///
+  /// The row is gone either way; this counts the folders something protected, so
+  /// that protection is a fact on the report rather than something the user has
+  /// to discover in a file manager.
+  final int workspaceFoldersKept;
+
+  /// Signed clock divergence observed at hello, in milliseconds — present
+  /// only beyond [kClockSkewWarnMs]. The session succeeded anyway.
+  final int? clockSkewMs;
+
+  const SyncSessionReport({
+    required this.success,
+    required this.summary,
+    this.refusal,
+    this.failure,
+    this.conversationsSent = 0,
+    this.conversationsReceived = 0,
+    this.messagesUpserted = 0,
+    this.messagesDeleted = 0,
+    this.deferred = 0,
+    this.conversationsDeletedLocally = 0,
+    this.deletedBlocked = 0,
+    this.entityRows = 0,
+    this.preferenceRows = 0,
+    this.entityRowsReceived = 0,
+    this.preferenceRowsReceived = 0,
+    this.blobsMoved = 0,
+    this.blobBytes = 0,
+    this.skillsUpdated = 0,
+    this.skillConflicts = 0,
+    this.blobsMissing = 0,
+    this.entityRowsLost = 0,
+    this.preferencesLost = 0,
+    this.conversationsWithDocumentsReplaced = 0,
+    this.workspaceFiles = 0,
+    this.workspaceBytes = 0,
+    this.workspaceFilesRemoved = 0,
+    this.workspaceConflicts = 0,
+    this.workspaceFilesMissing = 0,
+    this.workspaceFoldersKept = 0,
+    this.workspacesOmitted = 0,
+    this.clockSkewMs,
+  });
+
+  /// The persistable, localizable form stored on the peer record.
+  SyncPeerReport toPeerReport() => SyncPeerReport(
+    success: success,
+    sent: conversationsSent,
+    received: conversationsReceived,
+    upsertedMessages: messagesUpserted,
+    deletedMessages: messagesDeleted,
+    deletedConversations: conversationsDeletedLocally,
+    deletedBlocked: deletedBlocked,
+    deferred: deferred,
+    entityRows: entityRows,
+    preferenceRows: preferenceRows,
+    blobsMoved: blobsMoved,
+    blobBytes: blobBytes,
+    skillsUpdated: skillsUpdated,
+    skillConflicts: skillConflicts,
+    blobsMissing: blobsMissing,
+    entityRowsLost: entityRowsLost,
+    preferencesLost: preferencesLost,
+    conversationsWithDocumentsReplaced: conversationsWithDocumentsReplaced,
+    workspaceFiles: workspaceFiles,
+    workspaceBytes: workspaceBytes,
+    workspaceFilesRemoved: workspaceFilesRemoved,
+    workspaceConflicts: workspaceConflicts,
+    workspaceFilesMissing: workspaceFilesMissing,
+    workspaceFoldersKept: workspaceFoldersKept,
+    workspacesOmitted: workspacesOmitted,
+    clockSkewMs: clockSkewMs,
+    refusal: refusal,
+    failure: success || refusal != null ? null : failure,
+  );
+}
+
+/// Orchestrates LAN sync sessions (ADR-0003, slice 1: conversations only).
+///
+/// The engine owns both roles. As the initiator it drives the six-beat session;
+/// as the responder it implements [SyncServerHandler], keeping one bounded
+/// session per initiator so `hello`, the incoming apply and the outgoing
+/// subtree fetch share a single plan and checkpoint.
+class SyncEngine implements SyncServerHandler {
+  /// The family a sent payload's message rows travel under, named because the
+  /// checkpoint entry is built from exactly those rows.
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
+
+  SyncEngine({
+    required this.identity,
+    required this.store,
+    required this.dataPlane,
+    required this.onStateChanged,
+    this.onProgressChanged,
+    this.onResponderSession,
+    this.onProbes,
+    this.sessionIdleTtl = kSessionIdleTtl,
+    this.yieldedSessionTtl = kYieldedSessionTtl,
+    this.pageBytes = kSyncPageBytes,
+    int Function()? clockUs,
+    DateTime Function()? now,
+  }) : clockUs = clockUs ?? (() => DateTime.now().microsecondsSinceEpoch),
+       now = now ?? DateTime.now;
+
+  final SyncDeviceIdentity identity;
+  final SyncStore store;
+  final SyncDataPlane dataPlane;
+
+  /// How long an accepted session may go *untouched* before it is swept.
+  ///
+  /// Idle time, not age: the clock starts at the peer's last beat (or at the
+  /// hello, for a session that has never been beaten), which is what
+  /// [_dropIdleSessions] measures. A parameter only so a test can shrink the
+  /// window instead of sleeping through the production one.
+  final Duration sessionIdleTtl;
+
+  /// How long a session accepted by yielding this device's own dial waits for
+  /// the peer's first beat before it is dropped (see [kYieldedSessionTtl]).
+  /// A parameter only so a test can shrink the window instead of sleeping
+  /// through the production one; production never passes it.
+  final Duration yieldedSessionTtl;
+
+  /// How many bytes one page of a transfer may carry.
+  ///
+  /// A parameter only so a test can pin the paging state table with pages of a
+  /// few hundred bytes instead of fixtures of megabytes; production never passes
+  /// it, and the relation between it and the server's body cap is asserted in
+  /// `sync_limits_test.dart`. There is no per-conversation ceiling beside it: a
+  /// conversation's size decides how many pages it takes, never whether it may
+  /// cross.
+  final int pageBytes;
+
+  /// This engine's wall clock. Read for every session timestamp — the hello
+  /// stamp, a session's start, each beat — so a test can drive the clocks a
+  /// session sweep is defined by without waiting for real minutes to pass.
+  ///
+  /// The checkpoint's own row clocks do not come from here: those are written by
+  /// the database on the write path.
+  final DateTime Function() now;
+
+  /// The wall clock stamped into hellos, so tests can manufacture a skew. It
+  /// feeds nothing else — row clocks keep coming from the write path.
+  final int Function() clockUs;
+
+  /// Called whenever engine-visible state changes (pairing window, peer list,
+  /// session start and end) so the UI can rebuild.
+  final void Function() onStateChanged;
+
+  /// Called for the beats *inside* a running session, the file counter above
+  /// all: it advances once per pulled blob. A consumer that reloads peer
+  /// records on [onStateChanged] must not do it here — a beat cannot have
+  /// changed a record, and a first sync pulls hundreds of blobs. Defaults to
+  /// [onStateChanged], which is always correct and only costs that reload.
+  final void Function()? onProgressChanged;
+
+  /// Called when a session this device *answered* completes, with the peer as
+  /// this engine last saved it and the report of what that session moved —
+  /// the responder's counterpart to the report [syncWithPeer] returns. This
+  /// device started nothing, so nothing else can tell the consumer the data
+  /// arrived; whether that deserves a user-facing announcement is the
+  /// consumer's decision, not the engine's.
+  final void Function(SyncPeerRecord peer, SyncSessionReport report)?
+  onResponderSession;
+
+  /// This device's own candidate addresses, pushed by the provider whenever it
+  /// re-enumerates them. The dial uses them to tell an address on the network
+  /// this device is standing on from a memory of another one; empty until the
+  /// first enumeration lands, which leaves candidate order untouched.
+  List<LanAddress> localAddresses = const [];
+
+  /// The listener port this device advertises in its hello: [port], unless a
+  /// test says otherwise.
+  ///
+  /// The seam exists for one condition a two-peer test cannot otherwise produce:
+  /// both sides of a test pair are dialable at 127.0.0.1, so "the peer wants a
+  /// file it cannot fetch for itself" — the case the push fallback is for — has
+  /// no other way to be constructed.
+  @visibleForTesting
+  int? advertisedListenPort;
+
+  late final SyncServer server = SyncServer(
+    identity: identity,
+    store: store,
+    handler: this,
+  );
+  late final SyncClient client = SyncClient(identity: identity);
+
+  final Random _random = Random.secure();
+  final Map<String, _ResponderSession> _sessions = {};
+
+  /// Peers this device is currently initiating *to*. Together with [_sessions]
+  /// it is the single-flight lock for a pair: both roles write the same
+  /// checkpoint file, so they must never run at once (see [syncWithPeer]).
+  ///
+  /// A round is cancellable only until it hears the peer's hello: at that point
+  /// it is a live session and the pair's real outcome is already forming. Before
+  /// that it has proved nothing, which is why an arriving hello defeats it
+  /// ([_InitiatorRound]).
+  final Map<String, _InitiatorRound> _initiatorRounds = {};
+
+  /// The probes this device has for each peer's endpoints, pushed by the
+  /// provider so the dial can spend the measurement it already paid for
+  /// instead of probing again: the address that answered in 4 ms is the one to
+  /// dial, and its round trip is what bounds the connect timeout.
+  ///
+  /// Each measurement carries its own timestamp, and one older than
+  /// [kSyncProbeFreshness] is ignored — it describes a network this device may
+  /// have already left. A snapshot is not re-stamped per publish: the figure's
+  /// age is the figure's, not the round's.
+  Map<String, List<EndpointProbeResult>> endpointProbes = const {};
+
+  /// Called when this engine ran a probe round of its own (a session whose
+  /// snapshot had gone stale). The consumer folds the results into the cards'
+  /// latency figures and its own snapshot.
+  void Function(String deviceId, List<EndpointProbeResult> results)? onProbes;
+
+  /// Live progress of this device's initiator sessions, by peer id — the
+  /// provider surfaces it on the peer cards. Entries live exactly as long as
+  /// the session in [syncWithPeer]'s `finally`.
+  final Map<String, SyncSessionProgress> initiatorProgress = {};
+
+  /// Publishes one progress beat. A phase change is one line of UI; the file
+  /// count is the only sub-beat worth a rebuild.
+  void _setProgress(
+    String deviceId,
+    SyncSessionPhase phase, {
+    int done = 0,
+    int total = 0,
+    int bytes = 0,
+    String? address,
+  }) {
+    initiatorProgress[deviceId] = SyncSessionProgress(
+      phase,
+      done: done,
+      total: total,
+      bytes: bytes,
+      address: address,
+    );
+    (onProgressChanged ?? onStateChanged)();
+  }
+
+  /// What this device published for a manifest, by content hash: files are
+  /// served straight from their canonical path, skill directories are zipped
+  /// on demand. Populated whenever a manifest is built or received, so a blob
+  /// pending from an earlier session in this launch is still servable.
+  final Map<String, File> _publishedBlobs = {};
+  final Map<String, String> _publishedSkillIds = {};
+
+  String? _pairingPin;
+  DateTime? _pairingExpiresAt;
+  int _pairingFailures = 0;
+  SyncSessionReport? lastReport;
+
+  static const _pairingWindow = Duration(minutes: 5);
+
+  /// How long an accepted session may go untouched before it is swept. Two
+  /// minutes is far longer than any healthy beat, and short enough that a
+  /// session abandoned by a peer that vanished does not hold the pair's single
+  /// session slot for the rest of the launch.
+  ///
+  /// It is a *liveness* bound on an idle session, never on a session that is
+  /// working: a beat in flight is activity, however long it runs (a first sync
+  /// of a large library is one push beat lasting minutes), and the sweep reads
+  /// the session's own state to know that ([_ResponderSession.beatsInFlight]).
+  /// Measuring age from the hello instead — which this rule used to do — kills
+  /// the very session that is transferring, and the peer's next beat then fails
+  /// against a session the sweep removed underneath it.
+  static const kSessionIdleTtl = Duration(minutes: 2);
+
+  /// How long a session this device accepted by **yielding** its own dial waits
+  /// for the peer's first beat before it is treated as abandoned.
+  ///
+  /// Yielding is a bet: an arriving hello proves the peer reaches this device,
+  /// so the round it superseded is dropped and this side answers instead. In a
+  /// crossing dial *both* sides make that bet, so neither client is left to
+  /// drive either session — each side then holds a session nobody will push to
+  /// and refuses its own dials as busy. A yielded session with no beat after
+  /// this window is therefore dropped rather than believed, and the pair's next
+  /// attempt gets through. The window is short on purpose: the peer that
+  /// yielded to us pushes within milliseconds of its hello, so a yielded
+  /// session that has never been touched is not a slow session.
+  static const kYieldedSessionTtl = Duration(seconds: 4);
+
+  /// The port a sync listener prefers, so a firewall rule and a peer's stored
+  /// endpoint stay stable across launches. A busy port falls back to an
+  /// ephemeral one (two app instances on one machine).
+  static const kPreferredPort = 9527;
+
+  /// The port this device's sync listener is bound to, or null when stopped.
+  int? get port => server.port;
+
+  /// Whether this device currently holds an accepted session for [deviceId].
+  ///
+  /// The state the sweep rules are about, exposed so a test can assert on the
+  /// session itself. A refusal is not a substitute: `busy` is produced by a held
+  /// session *and* by a peer that is mid-session of its own, so a test that reads
+  /// only the refusal cannot tell "the sweep kept my session" from "the peer
+  /// refused me".
+  @visibleForTesting
+  bool hasResponderSession(String deviceId) => _sessions.containsKey(deviceId);
+
+  /// How many beats are in flight on [deviceId]'s session here, or 0 when there
+  /// is no session.
+  @visibleForTesting
+  int beatsInFlightFor(String deviceId) =>
+      _sessions[deviceId]?.beatsInFlight ?? 0;
+
+  bool get isPairingOpen =>
+      _pairingPin != null &&
+      _pairingExpiresAt != null &&
+      DateTime.now().isBefore(_pairingExpiresAt!);
+
+  String? get pairingPin => isPairingOpen ? _pairingPin : null;
+
+  DateTime? get pairingExpiresAt => isPairingOpen ? _pairingExpiresAt : null;
+
+  /// Starts listening on [preferredPort], falling back to an ephemeral port
+  /// when it is taken. Returns the bound port.
+  Future<int> start({int preferredPort = kPreferredPort}) async {
+    await store.ensureDirectories();
+    // Transfer scratch and served-zip caches are reproducible, so a launch
+    // starts from an empty cache instead of accumulating stale archives.
+    await store.clearBlobCache();
+    await dataPlane.clearSkillBlobCache();
+    try {
+      return await server.start(requestedPort: preferredPort);
+    } on SocketException {
+      return server.start(requestedPort: 0);
+    }
+  }
+
+  Future<void> stop() async {
+    await server.stop();
+    _sessions.clear();
+    _publishedBlobs.clear();
+    _publishedSkillIds.clear();
+    _pairingPin = null;
+    _pairingExpiresAt = null;
+    _pairingFailures = 0;
+  }
+
+  /// Opens a one-shot pairing window and returns the PIN to type on the other
+  /// device.
+  String openPairing() {
+    final pin = List.generate(6, (_) => _random.nextInt(10)).join();
+    _pairingPin = pin;
+    _pairingExpiresAt = DateTime.now().add(_pairingWindow);
+    _pairingFailures = 0;
+    onStateChanged();
+    return pin;
+  }
+
+  void cancelPairing() {
+    _pairingPin = null;
+    _pairingExpiresAt = null;
+    onStateChanged();
+  }
+
+  /// Pairs with a peer showing [pin] at `host:port`. [expectedDeviceId] is
+  /// the QR-scanned certificate fingerprint; see [SyncClient.pair].
+  ///
+  /// [knownCandidates] are the other endpoints the QR advertised: only `host`
+  /// has answered, so the rest are remembered as hints behind it.
+  /// [advertisedAddresses] are this device's own addresses, sent so the
+  /// responder remembers more than the one address this connection came from.
+  Future<SyncPeerRecord> pairWith({
+    required String host,
+    required int port,
+    required String pin,
+    String? expectedDeviceId,
+    List<(String, int)> knownCandidates = const [],
+    List<String> advertisedAddresses = const [],
+  }) async {
+    final result = await client.pair(
+      host: host,
+      port: port,
+      pin: pin,
+      listenPort: this.port,
+      expectedDeviceId: expectedDeviceId,
+      candidateHosts: advertisedAddresses,
+    );
+    final answer = result.answer;
+    final peer = SyncPeerRecord(
+      deviceId: answer.deviceId,
+      certPem: result.certPem,
+      secret: answer.secret,
+      name: answer.deviceName.isEmpty ? answer.deviceId : answer.deviceName,
+      platform: answer.platform,
+    );
+    final existing = await store.findPeer(answer.deviceId);
+    _carryPairingFacts(peer, existing);
+    peer.noteEndpointSuccess(host, port);
+    _reportDroppedEndpoints(
+      answer.deviceId,
+      peer.rememberEndpointCandidates(knownCandidates),
+    );
+    // And behind both, the networks the pair has already met: re-pairing is the
+    // drift-repair journey, so forgetting them here is what made alternating
+    // home and office cost a re-scan every time.
+    if (existing != null) {
+      _reportDroppedEndpoints(
+        answer.deviceId,
+        peer.rememberEndpointHistory(existing.endpoints),
+      );
+    }
+    await store.savePeer(peer);
+    // This listener must accept the peer too: pairing may have been initiated
+    // from this side, in which case the answer (not a request) carried the
+    // secret.
+    server.rememberPeer(peer);
+    onStateChanged();
+    return peer;
+  }
+
+  /// Pairs with a peer by trying [endpoints] in order until one answers.
+  ///
+  /// The candidates are probed in parallel first (see [orderPairingCandidates]),
+  /// so a black-holed address costs one shared probe instead of a full dial
+  /// budget per candidate. This is the one walk that keeps the *bare TCP* probe:
+  /// pairing is where no secret exists yet, so there is nothing to authenticate
+  /// with until the PIN (or the scanned fingerprint) has been spent.
+  ///
+  /// What a failing candidate means decides whether the next one is tried:
+  ///
+  /// - A dead address (refused connection, timeout, failed handshake) moves on:
+  ///   the next candidate is still a fair attempt. A failed handshake in
+  ///   particular says nothing about the pairing — the pin refuses that address
+  ///   inside the handshake, before any request byte leaves this device — so an
+  ///   address belonging to someone else disqualifies the *address*.
+  /// - A verdict from the scanned device itself (a refused PIN, an identity
+  ///   mismatch) ends the attempt: the device answered, and it would answer the
+  ///   same way on every other address it holds.
+  ///
+  /// When nothing answers, the last connectivity error is rethrown for the
+  /// caller to classify — unless some address answered as a different device,
+  /// which is the more actionable outcome (no retry helps; a fresh code does).
+  /// Neither is ever rendered raw.
+  ///
+  /// Every endpoint this loop does *not* spend the pairing on stays on the
+  /// record as a hint behind the winner: the peer's other addresses are
+  /// exactly what a later roaming round needs when this one stops working.
+  Future<SyncPeerRecord> pairWithCandidates({
+    required List<(String, int)> endpoints,
+    required String pin,
+    String? expectedDeviceId,
+    List<String> advertisedAddresses = const [],
+  }) async {
+    final candidates = await orderPairingCandidates(
+      endpoints,
+      localAddresses: localAddresses,
+    );
+    Object? lastConnectivityError;
+    var sawWrongCertificate = false;
+    for (final (host, port) in candidates) {
+      try {
+        return await pairWith(
+          host: host,
+          port: port,
+          pin: pin,
+          expectedDeviceId: expectedDeviceId,
+          // Probe-ordered rather than as scanned: the addresses that answered
+          // just now are the ones a later roaming round should try first.
+          knownCandidates: candidates,
+          advertisedAddresses: advertisedAddresses,
+        );
+      } on SyncClientException catch (error) {
+        if (error.message != 'pair_fingerprint_mismatch') rethrow;
+        // Not a verdict from the scanned device: this address presented another
+        // certificate, so the pin refused it before the PIN was sent anywhere.
+        // The peer's remaining addresses are still untried.
+        sawWrongCertificate = true;
+      } on SocketException catch (error) {
+        lastConnectivityError = error;
+      } on TimeoutException catch (error) {
+        lastConnectivityError = error;
+      }
+    }
+    if (sawWrongCertificate) {
+      // An address answered and it was not the scanned device. That is more
+      // actionable than silence: the code in hand is wrong or stale, and
+      // retrying the same list changes nothing.
+      throw const SyncClientException('pair_fingerprint_mismatch');
+    }
+    throw lastConnectivityError ??
+        const SocketException('no pairing endpoint answered');
+  }
+
+  /// Removes a pairing from this device, and — best effort — tells the peer to
+  /// forget us too. The remote call is fire-and-forget with the secret we
+  /// still hold: unpairing must not wait on a peer that may be gone, and any
+  /// failure leaves the fallback intact (the peer's next session ends as a
+  /// localized `not_paired` refusal instead of a raw error).
+  ///
+  /// The notice goes to the best-remembered endpoint only: it is a courtesy
+  /// within a three-second budget, and every candidate it did not reach is
+  /// covered by the fallback above.
+  Future<void> unpair(String deviceId) async {
+    final peer = await store.findPeer(deviceId);
+    final endpoint = peer?.primaryEndpoint;
+    if (peer != null && endpoint != null) {
+      unawaited(
+        client
+            .revoke(peer: peer, host: endpoint.host, port: endpoint.port)
+            .catchError((_) {}),
+      );
+    }
+    await store.deletePeer(deviceId);
+    server.forgetPeer(deviceId);
+    // The pairing is gone, so the files this device advertised for it are not
+    // promised to anyone any more.
+    dataPlane.clearWorkspacePublication(deviceId);
+    onStateChanged();
+  }
+
+  /// The other half of unpairing: a paired peer proved its identity and asks
+  /// this device to drop the pairing. Only the caller's own record goes — the
+  /// per-peer secret is what authenticated the request, so no third device
+  /// can revoke someone else's pairing.
+  @override
+  Future<void> handleRevoke(
+    String peerDeviceId, {
+    required SyncAdmission admission,
+  }) async {
+    // One commit: the session, the publication, the record on disk and the
+    // in-memory secret. Checked before the first of them, so a revoke the
+    // deadline abandoned leaves the pairing exactly as it was — the peer's next
+    // session finds it too and revokes again.
+    admission.check();
+    _sessions.remove(peerDeviceId);
+    dataPlane.clearWorkspacePublication(peerDeviceId);
+    await store.deletePeer(peerDeviceId);
+    server.forgetPeer(peerDeviceId);
+    onStateChanged();
+  }
+
+  /// Runs one session against a paired peer. This is the initiator role.
+  ///
+  /// One session per pair at a time, in both roles. Two sessions for the same
+  /// peer (this device initiating while it also answers the peer's hello) would
+  /// write the same checkpoint file from two call sites, each computed from the
+  /// checkpoint it read at its own hello, so the later write would discard the
+  /// other advance. The marker is taken before the first await — Dart's single
+  /// isolate makes that the whole lock — and a peer initiating at the same
+  /// moment is refused instead of interleaved.
+  ///
+  /// The remembered endpoints are probed in parallel and the dial spends that
+  /// proof: the addresses the probe reached — best measured first — are dialed
+  /// in order until one answers, and an address it did not reach is not dialed
+  /// at all. The probe already asked every address at once, so re-asking them
+  /// one at a time would spend the same parallel answer twice, and pay a full
+  /// connect budget for each repetition. An address is a hint from a network
+  /// this device may have left — the same laptop sits at a different address at
+  /// home, at work and on a phone hotspot — and the certificate pin re-verifies
+  /// whoever answers.
+  ///
+  /// A probe that proved nothing still buys one dial — the best-remembered
+  /// address — because a single measurement is not a verdict on the network.
+  /// Only "could not be reached at all" falls through to the next proven
+  /// candidate; a refusal from the peer is that peer's verdict, and its other
+  /// addresses would only repeat it.
+  Future<SyncSessionReport> syncWithPeer(
+    SyncPeerRecord peer, {
+    String? host,
+    int? port,
+  }) async {
+    // Before the refusal below: an abandoned session held for this peer is what
+    // would refuse this round, so it has to be reconsidered first (see
+    // [_sweepSessions]).
+    _sweepSessions();
+    if (_sessions.containsKey(peer.deviceId) ||
+        _initiatorRounds.containsKey(peer.deviceId)) {
+      return await _finish(
+        const SyncSessionReport(
+          success: false,
+          summary: 'refused:busy',
+          refusal: SyncRefusalReason.busy,
+        ),
+        peer: peer,
+      );
+    }
+    final round = _InitiatorRound();
+    // Taken before the first await: Dart's single isolate makes the insertion
+    // the whole lock, so a hello arriving during the dial either finds this
+    // round or finds nothing.
+    _initiatorRounds[peer.deviceId] = round;
+    try {
+      _setProgress(peer.deviceId, SyncSessionPhase.connecting);
+      if (round.cancelled) return _superseded(peer);
+      // An explicit endpoint (a repair attempt) is the only candidate; the
+      // remembered set is the default, best first.
+      final candidates = (host != null && port != null)
+          ? <(String, int)>[(host, port)]
+          : [
+              for (final endpoint in peer.endpoints)
+                (endpoint.host, endpoint.port),
+            ];
+      if (candidates.isEmpty) {
+        // Recorded on the peer like every other outcome: the card reads
+        // `peer.lastReport`, so an unpersisted failure would leave a stale
+        // success on screen. `noEndpoint` rather than `unreachable`: nothing
+        // was dialed, so the card must ask for an address instead of a retry.
+        return await _finish(
+          const SyncSessionReport(
+            success: false,
+            summary: 'no_endpoint',
+            failure: SyncFailureReason.noEndpoint,
+          ),
+          peer: peer,
+        );
+      }
+      final ordered = await _orderCandidates(peer, candidates, round);
+      if (round.cancelled) return _superseded(peer);
+      // One address is the probe's own degenerate case: there is nothing to
+      // choose between, so the dial is the probe and no measurement is needed
+      // to justify it.
+      final dialable = ordered.length == 1
+          ? ordered
+          : dialableCandidates(ordered, round.probed);
+      // The probe is the dial's parallel pre-step, and the dial spends it: only
+      // an address it proved (or was too loaded to judge) is worth a session.
+      // Proving nothing is the one case that still gets a single guess — the
+      // best-remembered address — because one measurement is not a verdict on
+      // the network, and walking every other address one at a time is what made
+      // a probe that had already run in parallel look serial.
+      final attempts = dialable.isNotEmpty
+          ? dialable
+          : _oneGuess(ordered, round.lastKnown);
+      for (final (candidateHost, candidatePort) in attempts) {
+        if (round.cancelled) return _superseded(peer);
+        // The dial, the handshake and the hello in flight are one opaque beat
+        // from the outside, and it is the one that can hang: naming the address
+        // is what turns "it is stuck" into "it is stuck on *this* address".
+        _setProgress(
+          peer.deviceId,
+          SyncSessionPhase.connecting,
+          address: formatHostPort(candidateHost, candidatePort),
+        );
+        final report = await _syncWithPeerAt(
+          peer,
+          host: candidateHost,
+          port: candidatePort,
+          round: round,
+          connectTimeout: dialTimeoutFor(
+            round.probed[(candidateHost, candidatePort)],
+          ),
+        );
+        if (round.cancelled) return _superseded(peer);
+        if (report != null) return report;
+      }
+      // Nothing answered: the peer is off, or it moved to a network this device
+      // has not learned yet (re-scan its QR, or type the address on its card).
+      return await _finish(
+        const SyncSessionReport(
+          success: false,
+          summary: 'unreachable:no_candidate_answered',
+          failure: SyncFailureReason.unreachable,
+        ),
+        peer: peer,
+      );
+    } finally {
+      if (identical(_initiatorRounds[peer.deviceId], round)) {
+        _initiatorRounds.remove(peer.deviceId);
+      }
+      initiatorProgress.remove(peer.deviceId);
+      onStateChanged();
+    }
+  }
+
+  /// The report of a round that yielded to the peer's own session. It is not a
+  /// failure and not a refusal by the peer, so it is recorded nowhere: the
+  /// pair's real outcome arrives from the answered side, and a "busy" line on
+  /// the card for a session that is about to succeed would be a lie.
+  SyncSessionReport _superseded(SyncPeerRecord peer) {
+    debugPrint(
+      'sync: ${peer.deviceId} superseded by the peer\'s own session with us',
+    );
+    onStateChanged();
+    return const SyncSessionReport(
+      success: false,
+      summary: 'superseded',
+      refusal: SyncRefusalReason.superseded,
+    );
+  }
+
+  /// Orders [candidates] for the serial dial, from the freshest measurement
+  /// available.
+  ///
+  /// The provider's snapshot is used as-is — that is the whole point of probing
+  /// on a timer, the session must not pay for it twice — but each measurement is
+  /// judged on its own timestamp: the provider reuses the answers for endpoints
+  /// a tick did not visit, so a snapshot can hold one figure from four seconds
+  /// ago and another from a minute ago. Only the fresh ones count, and when none
+  /// is left this round probes for itself. Either way the order is "answered,
+  /// fastest first", and the same measurements set each candidate's connect
+  /// budget.
+  Future<List<(String, int)>> _orderCandidates(
+    SyncPeerRecord peer,
+    List<(String, int)> candidates,
+    _InitiatorRound round,
+  ) async {
+    if (candidates.length <= 1) return candidates;
+    final snapshot = endpointProbes[peer.deviceId];
+    if (snapshot != null) {
+      final now = DateTime.now();
+      round.probed = {
+        for (final result in snapshot)
+          if (now.difference(result.measuredAt) <= kSyncProbeFreshness)
+            result.endpoint: result,
+      };
+      // Kept whole, freshness aside: only the fallback below reads it, and there
+      // a stale answer is the best thing known about an address nothing could
+      // prove this round.
+      round.lastKnown = {
+        for (final result in snapshot) result.endpoint: result,
+      };
+      if (round.probed.isNotEmpty) {
+        return orderCandidatesByProbe(candidates, round.probed, localAddresses);
+      }
+    }
+    final results = await probePeerEndpoints(
+      endpoints: candidates,
+      probe: syncEndpointProbe(client, peer),
+    );
+    round.probed = {for (final result in results) result.endpoint: result};
+    round.lastKnown = round.probed;
+    onProbes?.call(peer.deviceId, results);
+    return orderCandidatesByProbe(candidates, round.probed, localAddresses);
+  }
+
+  /// The one address a round that proved nothing still dials.
+  ///
+  /// The raw head of the order is the memory's first address, which may be one
+  /// that has *never* answered while the address that worked last time sits
+  /// behind it: the freshness rule ([kSyncProbeFreshness]) keeps an old figure
+  /// from ordering the dial, but it does not make the address that figure names
+  /// a bad bet — and the address that answered last is exactly what the round is
+  /// trying to reach again. Candidates whose last answer was silence are only
+  /// reached when *none* ever answered, and the order is preserved inside each
+  /// half, so topology still breaks the tie among the last-known-answered.
+  ///
+  /// One guess, never two: this is the state in which the probe has already
+  /// asked every address, and the session may not turn into a second serial
+  /// probe.
+  static List<(String, int)> _oneGuess(
+    List<(String, int)> ordered,
+    Map<(String, int), EndpointProbeResult> lastKnown,
+  ) {
+    for (final candidate in ordered) {
+      if (lastKnown[candidate]?.answered ?? false) return [candidate];
+    }
+    return ordered.take(1).toList();
+  }
+
+  /// Runs the session body against one fixed endpoint. Returns the report, or
+  /// null when the endpoint never answered — the caller then tries the next
+  /// remembered candidate.
+  ///
+  /// A `TlsException` — a `HandshakeException` among them — is a null too, on
+  /// purpose: it means the address now belongs to another device (a recycled
+  /// lease) or something claims to be the peer. The pin refused it inside the
+  /// handshake, before any request byte, so nothing leaked towards the wrong
+  /// endpoint and the next candidate is still a fair attempt.
+  Future<SyncSessionReport?> _syncWithPeerAt(
+    SyncPeerRecord peer, {
+    required String host,
+    required int port,
+    required _InitiatorRound round,
+    Duration? connectTimeout,
+  }) async {
+    onStateChanged();
+    if (round.cancelled) return null;
+    final session = client.openSession(
+      peer,
+      host: host,
+      port: port,
+      connectTimeout: connectTimeout,
+    );
+    // Published on the round so a hello arriving while this one is in flight
+    // can break it: a round that yields must not keep a socket, a request or a
+    // checkpoint write alive behind the session that superseded it.
+    round.session = session;
+    try {
+      // Read before the manifest, because the manifest is what the set
+      // subtracts: a row this device withholds is not offered at all, and the
+      // hello's `localOnly` list is what stops the peer reading that absence as
+      // a deletion.
+      final myLocalOnly = await store.readLocalOnlyKeys();
+      final myManifest = await dataPlane.buildManifest(
+        withheldKeys: myLocalOnly,
+      );
+      if (round.cancelled) return null;
+      final myClockUs = clockUs();
+      // Read before the hello, as one pair: the checkpoint carries what this
+      // device owes itself from last session (applies it had to defer), and the
+      // peer needs that in the hello to tell "never delivered" from "deleted
+      // here". The epoch comes first inside that pair, or a replacement landing
+      // between the two reads slips past the closing save — see
+      // [SyncStore.loadSession].
+      final opened = await store.loadSession(peer.deviceId);
+      final previous = opened.previous;
+      final myEpoch = opened.epoch;
+      if (round.cancelled) return null;
+      final SyncHelloOutcome hello;
+      try {
+        hello = await session.hello(
+          SyncHello(
+            protocolVersion: kSyncProtocolVersion,
+            schemaVersion: dataPlane.schemaVersion,
+            deviceId: identity.deviceId,
+            deviceName: identity.name,
+            platform: platformTag(),
+            manifest: myManifest,
+            // Advertised so the responder can pull its blobs back over this
+            // device's listener (slice 3). `this.port` on purpose: the method's
+            // own `port` parameter is the peer's endpoint, not ours.
+            listenPort: advertisedListenPort ?? this.port,
+            // ...and where that listener can be reached (slice 23). The address
+            // the responder sees this connection come from can be its own, so
+            // these are the addresses it falls back to when it has to dial back.
+            candidateHosts: [
+              for (final address in localAddresses) address.address,
+            ],
+            clockUs: myClockUs,
+            unappliedConversations: previous.unappliedConversations,
+            unappliedBusiness: previous.unappliedBusiness,
+            // Deletions this device has not seen confirmed by the peer.
+            deletedConversations: _deletionsToAnnounce(previous, myManifest),
+            // This device's data epoch: a bulk replacement since the last session
+            // tells the peer not to read this device's missing rows as deletions.
+            epoch: myEpoch,
+            // ...and the rows it holds without offering, which the peer must
+            // not read as deletions either. Sorted, because the store writes it
+            // that way and a stable list is one less thing to diff.
+            localOnly: myLocalOnly.toList(growable: false),
+          ),
+        );
+      } on SocketException catch (error) {
+        // Refused, unroutable: nothing answered at this address. The caller
+        // tries the next one.
+        debugPrint('sync: ${peer.deviceId} unreachable at $host:$port: $error');
+        return null;
+      } on TlsException catch (error) {
+        // The address answered, and the pin refused what answered: a recycled
+        // lease a second install now holds, or an identity that rotated after a
+        // wipe. That is a verdict on the *address*, so the walk continues — the
+        // same reading the pairing walk gives it. A `HandshakeException`
+        // implements `TlsException` (it is **not** a `SocketException`), and the
+        // refusal happens inside the handshake, before any request byte, so
+        // nothing leaked towards the endpoint that answered.
+        debugPrint(
+          'sync: ${peer.deviceId} answered as another device at $host:$port: '
+          '$error',
+        );
+        return null;
+      } on TimeoutException catch (error) {
+        debugPrint('sync: ${peer.deviceId} timed out at $host:$port: $error');
+        return null;
+      }
+      // The peer answered *this* round, so it is a live session: from here on a
+      // hello from the peer is refused as busy instead of superseding us. The
+      // flag is set synchronously when the await resumes, so a hello handled
+      // after this point cannot race it.
+      round.answered = true;
+      if (round.cancelled) return null;
+      if (hello.refusal != null) {
+        return await _finish(
+          SyncSessionReport(
+            success: false,
+            summary: 'refused:${hello.refusal!.reason.wire}',
+            refusal: hello.refusal!.reason,
+          ),
+          peer: peer,
+          host: host,
+          port: port,
+        );
+      }
+      final peerHello = hello.hello!;
+      // Yellow-flag clock divergence (slice 5): informational only, the
+      // session proceeds regardless.
+      final clockSkewMs = _clockSkewMs(myClockUs, peerHello.clockUs);
+      // Symmetric version gate, our half: refuse a peer whose schema we do not
+      // know (the peer enforces its half before answering).
+      if (peerHello.schemaVersion > dataPlane.schemaVersion) {
+        return await _finish(
+          const SyncSessionReport(
+            success: false,
+            summary: 'refused:peer_schema_newer',
+            refusal: SyncRefusalReason.peerSchemaNewer,
+          ),
+          peer: peer,
+          host: host,
+          port: port,
+        );
+      }
+      // Both manifests are in hand and the peer answered: this is the beat the
+      // label can honestly call "comparing data". It must not be set any
+      // earlier — the hello round trip is where a silent address spends its
+      // whole budget, and showing that as "comparing data" is what made a
+      // hanging dial look like a hung comparison.
+      _setProgress(peer.deviceId, SyncSessionPhase.exchanging);
+
+      // Conversations the peer says it could not apply: its copy is stale or
+      // absent, so re-send rather than read its silence as a deletion. Its
+      // announced deletions are the mirror image and take precedence: they name
+      // deletions rather than absences.
+      final peerUnapplied = peerHello.unappliedConversations.toSet();
+      // A different epoch means the peer's database was bulk-replaced: rows it
+      // lacks were dropped by that replacement, not deleted, so no absence of
+      // its may justify a deletion here.
+      final peerReplaced = peerHello.epoch != previous.peerEpoch;
+      // The rows either side holds without offering: this device's own set and
+      // the peer's announcement. One set, because every reader needs both
+      // halves — the plan (do not send, do not delete), the apply (do not
+      // write over the peer's copy) and the checkpoint (do not record an
+      // agreement nobody reached).
+      final businessSkipKeys = {...myLocalOnly, ...peerHello.localOnly};
+      var plan = composeConversationPlan(
+        mine: myManifest,
+        peers: peerHello.manifest,
+        checkpoint: previous,
+        peerUnapplied: peerUnapplied,
+        announced: peerHello.deletedConversations,
+        peerReplaced: peerReplaced,
+      );
+      var businessPlan = _keepRowsPeerMayNeverHaveSeen(
+        planBusinessSync(
+          mine: myManifest,
+          peers: peerHello.manifest,
+          checkpoint: previous,
+          localOnly: businessSkipKeys,
+        ),
+        peerHello.unappliedBusiness,
+      );
+      if (peerReplaced) businessPlan = _keepInsteadOfDelete(businessPlan);
+      final skillPlan = planSkillContentSync(
+        mine: myManifest,
+        peers: peerHello.manifest,
+        checkpoint: previous,
+        skillWire: SyncDataPlane.skillWire,
+      );
+      // Skill directory hashes as they stand *before* anything is applied:
+      // both the outgoing manifest and the content verdict are read from here.
+      final mySkillHashes = await dataPlane.skillDirHashes();
+
+      // The plan is fixed; what follows is this device's own work — reading its
+      // rows and packing pages — so the label says so. It used to stay on
+      // "comparing data" for the whole of it, which is the longest stretch of a
+      // session over a large library.
+      _setProgress(peer.deviceId, SyncSessionPhase.preparing);
+      final sendable = [
+        for (final item in plan)
+          if (item.action == SyncConvAction.iSend ||
+              item.action == SyncConvAction.bothSend)
+            item.conversationId,
+      ];
+
+      // Business rows this device owes the peer. Read before the budget is
+      // measured: they travel in the same body and belong to no conversation.
+      final outgoingEntityIds = <String, Set<String>>{};
+      final outgoingPreferenceKeys = <String>{};
+      for (final item in businessPlan) {
+        if (item.action != SyncConvAction.iSend &&
+            item.action != SyncConvAction.bothSend) {
+          continue;
+        }
+        if (item.kindWire == kSyncPreferenceWire) {
+          outgoingPreferenceKeys.add(item.id);
+        } else {
+          (outgoingEntityIds[item.kindWire] ??= <String>{}).add(item.id);
+        }
+      }
+      final outgoingRead = await dataPlane.readBusinessRows(
+        entityIds: outgoingEntityIds,
+        preferenceKeys: outgoingPreferenceKeys,
+      );
+      final outgoingBusiness = outgoingRead.payload;
+      // A row the manifest promised but the read did not deliver (deleted in
+      // between) is not sent, and must not advance the checkpoint.
+      final sentBusiness = outgoingRead.keys;
+
+      // Workspace content (slice 18): the file tables travel in the body too, so
+      // the walk has to happen before the budget is measured. The publish stays
+      // just before the push, because the responder fetches whatever it decides
+      // it needs *inside* that beat: a file this device has not advertised and
+      // published by then cannot be served.
+      final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
+      final advertised = dataPlane.workspaceTables(myWorkspaceSnapshots);
+
+      // Only the skill bodies this push actually carries advertise a hash.
+      final sentSkillIds =
+          outgoingEntityIds[SyncDataPlane.skillWire] ?? const <String>{};
+      // The body hashes that travel with this payload. Named because the
+      // checkpoint entry for a skill has to name the hash the peer was *told*
+      // about, and a second read at advance time could describe a directory
+      // nobody advertised.
+      final pushedSkillHashes = {
+        for (final id in sentSkillIds)
+          if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
+      };
+
+      // The fixed part of the first page: business rows, skill hashes and the
+      // workspace tables. Measured, never capped (ADR-0003) — and it rides page
+      // 0 only, so the session pays for it once rather than once per page.
+      final firstPageEnvelope = pushEnvelopeBytes(
+        business: outgoingBusiness,
+        assets: const [],
+        skillHashes: pushedSkillHashes,
+        workspaceFiles: advertised.tables,
+      );
+      // A quarter of a page is held back for the asset manifest, which can only
+      // be built from the page's own rows: the old code measured one manifest
+      // over every planned conversation, and a conversation is no longer the
+      // unit a push is planned in.
+      final assetReserve = pageBytes ~/ 4;
+
+      // Published before the first beat, because the responder decides what it
+      // needs *inside* that beat: a file this device has not advertised and
+      // published by then cannot be served.
+      dataPlane.publishWorkspaceContent(peer.deviceId, myWorkspaceSnapshots);
+
+      final skippedSends = <String>{};
+      final sent = <String, _TransferProgress>{};
+      // Every acknowledgement of this session asks for something: the responder
+      // pulls its blobs and files inside each push beat, so its asks arrive with
+      // the page it made them on. One set per kind, because a page that asks
+      // twice for the same file would otherwise push it twice.
+      final workspaceRequests = <String, SyncWorkspaceFileRequest>{};
+      final blobRequests = <String, SyncBlobEntry>{};
+      // What the responder acknowledged about this push: a conversation it
+      // deferred is *not* state the peer holds, and an entry advanced as if it
+      // were would turn the peer's older copy into a deletion next session.
+      var peerDeferred = const <String>{};
+      var peerBusinessDeferred = false;
+      var peerDeferredSkills = const <String>{};
+      // The rows the responder says it holds from this push. The receipt for an
+      // `iSend`: a peer that dropped a row (a key its build does not sync) names
+      // it in neither this list nor its next manifest, so nothing here records
+      // an agreement the peer never took.
+      var peerAcceptedBusiness = const <String>{};
+      var firstPush = true;
+      var bytesSent = 0;
+
+      _setProgress(
+        peer.deviceId,
+        SyncSessionPhase.sending,
+        total: sendable.length,
+      );
+
+      try {
+        for (final id in sendable) {
+          if (round.cancelled) return null;
+          if (await dataPlane.isStreaming(id)) {
+            skippedSends.add(id);
+            continue;
+          }
+          // A conversation the previous session left half-sent resumes where that
+          // session stopped proving, not where it stopped reading: the cursor is
+          // the last page the peer acknowledged.
+          final prior = previous.conversations[id];
+          final cursor = prior?.cursor;
+          var after = cursor != null && cursor.sending ? cursor.after : null;
+          final progress = _TransferProgress();
+          // A resumed transfer starts from what the last one proved: those rows
+          // were sent and acknowledged, so they belong to this transfer's payload.
+          // Seeding them keeps the completion entry honest, and keeps them out of
+          // the "late rows" set — which would otherwise re-read and re-encode
+          // every row before the cursor on the last page.
+          if (after != null) progress.seed(prior!.rows);
+          sent[id] = progress;
+          while (true) {
+            if (round.cancelled) return null;
+            final envelope = firstPush ? firstPageEnvelope : 0;
+            // What this page's rows may occupy: the page, minus the fixed part the
+            // same body carries and minus the manifest allowance below.
+            final rowBudget = pageRowBudget(
+              pageBytes: pageBytes,
+              envelopeBytes: envelope + assetReserve,
+            );
+            final page = await dataPlane.readSubtreePage(
+              id,
+              after: after,
+              rowBudget: rowBudget,
+              pageBytes: rowBudget,
+              sentIds: progress.rows.keys.toSet(),
+            );
+            if (page == null) {
+              skippedSends.add(id);
+              sent.remove(id);
+              break;
+            }
+            final payload = page.payload;
+            final assets = await dataPlane.buildBlobManifest(
+              subtrees: [payload],
+              business: firstPush
+                  ? outgoingBusiness
+                  : const SyncBusinessPayload(),
+            );
+            final batch = SyncDeltaBatch(
+              [payload],
+              business: firstPush
+                  ? outgoingBusiness
+                  : const SyncBusinessPayload(),
+              assets: assets,
+              skillHashes: firstPush ? pushedSkillHashes : const {},
+              workspaceFiles: firstPush ? advertised.tables : const {},
+            );
+            // The guard the arithmetic in `sync_budget_test.dart` cannot give:
+            // this measures the very batch `pushDelta` sends, so an edit that
+            // packs one set and sends another fails here — where the sender can
+            // still say so — instead of as a 413 on the peer. Debug and test
+            // builds only; release strips it.
+            assert(() {
+              // The page's *rows* are what the budget bounds. The manifest is the
+              // part this pass cannot price before reading them, so it gets the
+              // reserve as a sub-budget and this is the guard that the reserve is
+              // enough; `overflow` is the part of one unsplittable row that could
+              // not fit, which must not fail a round release would have sent.
+              final assetBytes = wireBytesOf([
+                for (final entry in assets) entry.toJson(),
+              ]);
+              if (assetBytes > assetReserve) {
+                throw StateError(
+                  'asset manifest $assetBytes B exceeds the $assetReserve B '
+                  'reserve',
+                );
+              }
+              final movable = conversationWireBytes(payload);
+              final limit = rowBudget + page.overflow;
+              if (movable > limit) {
+                throw StateError(
+                  'page rows $movable B exceed the $limit B page',
+                );
+              }
+              return true;
+            }());
+            _rememberPublished(assets);
+            final ack = await session.pushDelta(batch);
+            for (final request in ack.workspaceRequests) {
+              workspaceRequests['${request.workspaceId}\u0000${request.relPath}'] =
+                  request;
+            }
+            for (final entry in ack.blobRequests) {
+              blobRequests['${entry.kind}\u0000${entry.key}\u0000'
+                      '${entry.contentHash}'] =
+                  entry;
+            }
+            if (ack.deferred.contains(id)) {
+              // Accepted and not applied — a generation is writing there. The
+              // cursor stays at the last page the peer did take, which is exactly
+              // where the next session resumes.
+              peerDeferred = {...peerDeferred, id};
+              break;
+            }
+            progress.addPage(payload, after: page.nextAfter);
+            after = page.nextAfter;
+            bytesSent += conversationWireBytes(payload);
+            if (firstPush) {
+              peerBusinessDeferred = ack.businessDeferred;
+              peerDeferredSkills = ack.deferredSkills;
+              peerAcceptedBusiness = ack.businessAccepted;
+              firstPush = false;
+            }
+            _setProgress(
+              peer.deviceId,
+              SyncSessionPhase.sending,
+              done: sent.values.where((entry) => entry.complete).length,
+              total: sendable.length,
+              bytes: bytesSent,
+            );
+            if (progress.complete) break;
+          }
+        }
+        // The push beat always runs, even with nothing to push. It is where the
+        // responder executes its own blob pull — including the retries its
+        // checkpoint still owes — and where its plan runs; skipping it would both
+        // lose that retry and persist the empty pull outcome over the pending
+        // list.
+        if (firstPush) {
+          // The manifest still has to be advertised on a push that carries no
+          // conversation: a skill's body is a blob, and the receiver registers the
+          // reference from this advertisement — without it the record arrives and
+          // the body is never planned.
+          final assets = await dataPlane.buildBlobManifest(
+            subtrees: const [],
+            business: outgoingBusiness,
+          );
+          final batch = SyncDeltaBatch(
+            const [],
+            business: outgoingBusiness,
+            assets: assets,
+            skillHashes: pushedSkillHashes,
+            workspaceFiles: advertised.tables,
+          );
+          assert(() {
+            assertPushFits(batch, pageBytes, envelopeBytes: firstPageEnvelope);
+            return true;
+          }());
+          final ack = await session.pushDelta(batch);
+          peerBusinessDeferred = ack.businessDeferred;
+          peerDeferredSkills = ack.deferredSkills;
+          peerAcceptedBusiness = ack.businessAccepted;
+          for (final request in ack.workspaceRequests) {
+            workspaceRequests['${request.workspaceId}\u0000${request.relPath}'] =
+                request;
+          }
+          for (final entry in ack.blobRequests) {
+            blobRequests['${entry.kind}\u0000${entry.key}\u0000'
+                    '${entry.contentHash}'] =
+                entry;
+          }
+          firstPush = false;
+        }
+
+        // Files the responder could not fetch for itself (slice 23). It asked for
+        // them in the acknowledgement, and this connection is the direction the
+        // pair is known to have; pushing here — before the fetch beat — means the
+        // responder's own file walk, taken while it answers that beat, already
+        // sees them, so its reply describes what it holds rather than what it
+        // hoped to.
+        final pushed = await _pushRequestedWorkspaceFiles(
+          session: session,
+          peerDeviceId: peer.deviceId,
+          requests: workspaceRequests.values.toList(growable: false),
+        );
+
+        // The blobs the responder could not fetch for itself (slice 24), for the
+        // same reason and in the same place: a message's image, an avatar or a
+        // skill body reaches a peer that cannot be dialled back only because the
+        // side that holds it sends it, and sending it before the fetch beat means
+        // the responder's own walk — taken while it answers that beat — already
+        // describes what it holds.
+        final pushedBlobs = await _pushRequestedBlobs(
+          session: session,
+          peerDeviceId: peer.deviceId,
+          requests: blobRequests.values.toList(growable: false),
+        );
+
+        final requested = [
+          for (final item in plan)
+            if (item.action == SyncConvAction.peerSends ||
+                item.action == SyncConvAction.bothSend)
+              item.conversationId,
+        ];
+        final requestedEntityIds = <String, Set<String>>{};
+        final requestedPreferenceKeys = <String>{};
+        for (final item in businessPlan) {
+          if (item.action != SyncConvAction.peerSends &&
+              item.action != SyncConvAction.bothSend) {
+            continue;
+          }
+          if (item.kindWire == kSyncPreferenceWire) {
+            requestedPreferenceKeys.add(item.id);
+          } else {
+            (requestedEntityIds[item.kindWire] ??= <String>{}).add(item.id);
+          }
+        }
+
+        final outcomes = <String, SyncSubtreeApplyOutcome>{};
+        final missingIncoming = <String>{};
+        // The fetch beat always runs, even with an empty request: it is where the
+        // responder executes its own plan — the deletions it must apply, its
+        // checkpoint advance and its report. Skipping it when this device wants
+        // nothing would leave a conversation this device deleted alive on an
+        // unmodified peer, which the dropped checkpoint entry then re-adopts.
+        _setProgress(
+          peer.deviceId,
+          SyncSessionPhase.receiving,
+          total: requested.length,
+        );
+        final incoming = await session.fetchSubtrees(
+          SyncFetchRequest(
+            conversationIds: requested,
+            entityIds: {
+              for (final entry in requestedEntityIds.entries)
+                entry.key: entry.value.toList(growable: false),
+            },
+            preferenceKeys: requestedPreferenceKeys.toList(growable: false),
+          ),
+        );
+        _rememberPublished(incoming.assets);
+
+        // Blob beat: what this device must pull from the peer, in one pass —
+        // the files the incoming rows reference, any skill body whose content
+        // arc says the peer wins, and whatever a previous session still owes.
+        final adoptions = _planSkillAdoptions(
+          plan: skillPlan,
+          mine: myManifest,
+          peers: peerHello.manifest,
+          peerSkillHashes: incoming.skillHashes,
+          mySkillHashes: mySkillHashes,
+          myDeviceId: identity.deviceId,
+          peerDeviceId: peer.deviceId,
+        );
+        final neededAssets = await dataPlane.neededFileBlobs(incoming.assets);
+        final wanted = _foldBlobWanted([
+          ...neededAssets,
+          ...adoptions.wanted,
+        ], previous.pendingBlobs.values);
+        final pulled = await _pullBlobs(
+          wanted.values.toList(),
+          session,
+          onProgress: (done, total) => _setProgress(
+            peer.deviceId,
+            SyncSessionPhase.files,
+            done: done,
+            total: total,
+          ),
+        );
+        final deferredSkills = {
+          ...adoptions.deferred,
+          for (final id in adoptions.wantedSkillIds)
+            if (!pulled.landedSkillIds.contains(id)) id,
+        };
+
+        final delivered = {
+          for (final subtree in incoming.subtrees)
+            subtree.conversation['id'] as String,
+        };
+        missingIncoming.addAll(
+          requested.where((id) => !delivered.contains(id)),
+        );
+        _setProgress(
+          peer.deviceId,
+          SyncSessionPhase.receiving,
+          done: incoming.subtrees.length,
+          total: requested.length,
+          bytes: incoming.subtrees.fold<int>(
+            0,
+            (sum, subtree) => sum + conversationWireBytes(subtree),
+          ),
+        );
+        _setProgress(peer.deviceId, SyncSessionPhase.applying);
+        outcomes.addAll(
+          await dataPlane.applySubtrees(
+            incoming.subtrees,
+            myDeviceId: identity.deviceId,
+            peerDeviceId: peer.deviceId,
+            // A conversation the peer reported as unapplied is one whose rows it
+            // may never have seen: the merge must not treat this device's local
+            // rows as rows the peer deleted.
+            checkpointRowsByConversation: _rowsOf(
+              previous,
+              // A replaced peer's absences prove nothing about this device's
+              // rows: its old copy never carried them at all.
+              peerReplaced ? const <String>{} : delivered,
+              unconfirmed: peerUnapplied,
+            ),
+          ),
+        );
+        // Registration keys off the peer's whole advertisement, not what the
+        // pull landed: a blob whose fetch failed still gets its reference now,
+        // so the retry that lands it in a later session is already protected.
+        await dataPlane.registerLandedAssets(
+          subtrees: incoming.subtrees,
+          outcomes: outcomes,
+          advertisedByUri: {
+            for (final entry in incoming.assets) entry.key: entry,
+          },
+        );
+
+        // A skill record whose body did not converge is deferred: a record
+        // without its directory would only install a broken skill here.
+        final applicableBusiness = dataPlane.withoutSkillRows(
+          incoming.business,
+          deferredSkills,
+        );
+        final receivedBusiness = dataPlane.businessKeysOf(applicableBusiness);
+        final businessOutcome = await dataPlane.applyBusiness(
+          applicableBusiness,
+          myDeviceId: identity.deviceId,
+          peerDeviceId: peer.deviceId,
+          // A row either side holds without offering is never written here: the
+          // peer's plan does not send it, and this is the last gate in case some
+          // later path ever does.
+          skipKeys: businessSkipKeys,
+        );
+        // A swapped-in or deleted skill body changes what the skills service
+        // exposes even when the record row itself did not move.
+        if (pulled.landedSkillIds.isNotEmpty) await dataPlane.reloadBusiness();
+
+        // Workspace files (slice 18). The peer's table arrived with the fetch
+        // response, and the responder published its own files before answering
+        // it, so everything this device decides it needs is servable right now
+        // over the connection that is already open.
+        //
+        // The walk is taken *here*, after the business apply, and deliberately not
+        // reused from the pre-push one: a workspace record that just arrived is
+        // what makes its folder this device's to populate, and it is absent from a
+        // list walked before the apply — so the whole direction would wait a
+        // session for content the peer is advertising right now. The pre-push walk
+        // stays what it is for (what this device serves inside the push beat), and
+        // the responder walks twice per session in exactly the same way.
+        final planningSnapshots = await dataPlane.workspaceSnapshots();
+        final workspaceOutcome = await dataPlane.applyWorkspaceContent(
+          myDeviceId: identity.deviceId,
+          peerDeviceId: peer.deviceId,
+          mine: planningSnapshots,
+          peerTables: incoming.workspaceFiles,
+          ledger: previous.workspaceFiles,
+          // A bulk-replaced peer's missing files prove nothing: they were
+          // dropped, not deleted, so they are re-offered rather than removed
+          // here.
+          allowDeletes: !peerReplaced,
+          fetch: (workspaceId, relPath, destination) =>
+              session.fetchWorkspaceFile(
+                workspaceId: workspaceId,
+                relPath: relPath,
+                destination: destination,
+              ),
+        );
+
+        final deleted = <String>{};
+        final failedDeletes = <String>{};
+        final blockedDeletes = <String>{};
+        for (final item in plan) {
+          if (item.action != SyncConvAction.iDelete) continue;
+          if (!await _conversationDeletionStillStands(
+            item.conversationId,
+            previous,
+            peerHello.deletedConversations,
+          )) {
+            // Booked as a deletion that did not happen, so the checkpoint keeps
+            // the entry it read, and counted on its own so the card can say why
+            // the row is still here.
+            blockedDeletes.add(item.conversationId);
+            failedDeletes.add(item.conversationId);
+            continue;
+          }
+          final ok = await dataPlane.deleteConversation(item.conversationId);
+          (ok ? deleted : failedDeletes).add(item.conversationId);
+        }
+        if (deleted.isNotEmpty) await dataPlane.reload();
+
+        final deletedBusiness = <String>{};
+        final failedBusinessDeletes = <String>{};
+        final blockedBusinessDeletes = <String>{};
+        final deletedSkillIds = <String>{};
+        var keptWorkspaceFolders = 0;
+        for (final item in businessPlan) {
+          if (item.action != SyncConvAction.iDelete) continue;
+          final key = syncBusinessKey(item.kindWire, item.id);
+          if (!await _businessDeletionStillStands(
+            item.kindWire,
+            item.id,
+            previous,
+          )) {
+            blockedBusinessDeletes.add(key);
+            failedBusinessDeletes.add(key);
+            continue;
+          }
+          final outcome = await dataPlane.deleteBusinessRow(
+            item.kindWire,
+            item.id,
+            agreedFiles:
+                previous.workspaceFiles[item.id] ??
+                const <String, SyncAgreedFile>{},
+          );
+          (outcome.removed ? deletedBusiness : failedBusinessDeletes).add(key);
+          if (outcome.folderKept) keptWorkspaceFolders++;
+          if (outcome.removed && item.kindWire == SyncDataPlane.skillWire) {
+            deletedSkillIds.add(item.id);
+          }
+        }
+        // A deletion writes through the repository, not through
+        // BusinessPreferences, so the in-memory view the providers read has to be
+        // refreshed here — the apply path only refreshes when it wrote something.
+        if (deletedBusiness.isNotEmpty) await dataPlane.reloadBusiness();
+
+        final next = await _advanceCheckpoint(
+          myManifest: myManifest,
+          previous: previous,
+          plan: plan,
+          outcomes: outcomes,
+          deletedIds: deleted,
+          failedDeletes: failedDeletes,
+          peerDeferredConversations: peerDeferred,
+          sentTransfers: sent,
+          receivedTransfers: {
+            for (final subtree in incoming.subtrees)
+              subtree.conversation['id'] as String: _TransferProgress()
+                ..addPage(subtree, after: null),
+          },
+        );
+        final nextBusiness = await _advanceBusinessCheckpoint(
+          previous: previous,
+          plan: businessPlan,
+          sentKeys: sentBusiness,
+          sentBusiness: outgoingBusiness,
+          sentSkillHashes: pushedSkillHashes,
+          receivedKeys: receivedBusiness,
+          deletedKeys: deletedBusiness,
+          failedDeleteKeys: failedBusinessDeletes,
+          peerAdvertisedKeys: _manifestKeys(peerHello.manifest),
+          peerAcceptedKeys: peerAcceptedBusiness,
+          applyDeferred: businessOutcome.deferred,
+          peerApplyDeferred: peerBusinessDeferred,
+          // A skill whose body never landed was stripped on the peer, so the
+          // push delivered nothing for it: keep the entry and re-send.
+          peerDeferredSkillIds: peerDeferredSkills,
+        );
+        // Read back after every apply: on both sides the local hash *is* the
+        // converged value once the exchange succeeded. A skill the peer deferred
+        // keeps its previous baseline for the same reason its row does.
+        final nextSkillHashes = await _advanceSkillHashes(
+          previous: previous,
+          plan: skillPlan,
+          deferredSkills: {...deferredSkills, ...peerDeferredSkills},
+          deletedSkills: deletedSkillIds,
+          localHashes: await dataPlane.skillDirHashes(),
+        );
+        await store.saveCheckpointUnlessReplaced(
+          peer.deviceId,
+          epochAtHello: myEpoch,
+          checkpoint: SyncCheckpoint(
+            next.conversations,
+            entities: nextBusiness.entities,
+            preferences: nextBusiness.preferences,
+            pendingBlobs: pulled.failed,
+            skillHashes: nextSkillHashes,
+            // What both sides now demonstrably hold of every workspace's files.
+            // The content plan reads it next session, and it is the only thing
+            // that lets a missing file be read as a deletion.
+            workspaceFiles: workspaceOutcome.ledger,
+            // What this device could not apply is owed to the peer as a report
+            // on the next hello: it is the only way the peer can tell "never
+            // delivered" from "deleted on the other device".
+            unappliedConversations: [
+              for (final entry in outcomes.entries)
+                if (entry.value.deferred) entry.key,
+            ],
+            unappliedBusiness: businessOutcome.deferred,
+            peerEpoch: peerHello.epoch,
+          ),
+        );
+        return await _finish(
+          _report(
+            sent: sent.length,
+            received: outcomes.length,
+            outcomes: outcomes.values,
+            // One conversation, one row. Deferred is what a live generation held
+            // back on either side, or what the fetch did not deliver. A page the
+            // peer accepted and did not apply belongs here too: from the card's
+            // point of view the conversation did not land, and it must not read as
+            // if it had.
+            deferred: {
+              ...skippedSends,
+              ...missingIncoming,
+              ...peerDeferred,
+            }.length,
+            deletedLocally: deleted.length,
+            deletedBlocked:
+                blockedDeletes.length + blockedBusinessDeletes.length,
+            business: outgoingBusiness,
+            receivedBusiness: applicableBusiness,
+            appliedBusiness: businessOutcome,
+            blobPull: pulled,
+            skillConflicts: adoptions.conflicts.length,
+            deferredSkills: deferredSkills.length,
+            workspace: workspaceOutcome,
+            workspaceFoldersKept: keptWorkspaceFolders,
+            workspacePushed: pushed.files,
+            workspacePushedBytes: pushed.bytes,
+            // The tables this device advertised are the ones it could have dropped
+            // a shared workspace from: the peer then reads that workspace as "not
+            // shared" and plans nothing, so this is where the silence has to be
+            // counted.
+            workspacesDroppedByCap: advertised.droppedWorkspaces,
+            blobsPushed: pushedBlobs.blobs,
+            blobBytesPushed: pushedBlobs.bytes,
+            clockSkewMs: clockSkewMs,
+          ),
+          peer: peer,
+          host: host,
+          port: port,
+        );
+      } on Object {
+        // A page that was acknowledged is a page the peer holds, and the proof
+        // outlives whichever beat failed next — the empty push, the blob pull,
+        // the fetch, an apply. Without this write every way of ending a session
+        // other than "cleanly" would discard that proof and restart the
+        // conversation from page one, so a conversation larger than one
+        // uninterrupted session could never finish. A round that yielded to the
+        // peer's own session proves nothing and is left alone.
+        if (!round.cancelled) {
+          await _persistPartialSend(
+            peerDeviceId: peer.deviceId,
+            epoch: myEpoch,
+            previous: previous,
+            sent: sent,
+          );
+        }
+        rethrow;
+      }
+    } catch (error, stack) {
+      // A round that yielded does not report: the socket it had is being torn
+      // down under it, so every exception from here on is the consequence of
+      // that decision, not evidence about the peer. Persisting one would put a
+      // failure on the card for a session that is about to succeed elsewhere.
+      if (round.cancelled) return null;
+      // The machine summary stays for the logs; the card and the persisted
+      // record get the classified reason instead, so no exception text (with
+      // the peer's address) is ever rendered.
+      debugPrint('sync: session with ${peer.deviceId} failed: $error\n$stack');
+      return await _finish(
+        SyncSessionReport(
+          success: false,
+          summary: 'error:$error',
+          failure: _failureReason(error),
+        ),
+        peer: peer,
+        host: host,
+        port: port,
+      );
+    } finally {
+      session.close();
+      if (identical(round.session, session)) round.session = null;
+      // The round is over, so the files it advertised for the peer are no longer
+      // promised to anyone: the peer's own reverse pulls inside this round are
+      // done by now (they run inside the push beat, before this device's fetch
+      // beat), and a table that outlived the round would answer a later request
+      // from a walk taken before the user switched the workspace off.
+      dataPlane.clearWorkspacePublication(peer.deviceId);
+      onStateChanged();
+    }
+  }
+
+  // ---- responder role (SyncServerHandler) ----
+
+  @override
+  Future<Object> handleHello(
+    String peerDeviceId,
+    SyncHello initiatorHello, {
+    String? remoteAddress,
+    required SyncAdmission admission,
+  }) async {
+    _sweepSessions();
+    // A new session replaces the previous session's advertisement: it was
+    // published *inside* that session and is not this one's promise. Cleared at
+    // the hello rather than at the beat that published it, because the initiator
+    // pulls the files this device advertised *after* the fetch response — a table
+    // dropped when that response was written would 404 the very pull it exists
+    // for.
+    dataPlane.clearWorkspacePublication(peerDeviceId);
+    // The authenticated identity is the only one this session may act as:
+    // [peerDeviceId] is the device whose per-peer secret authenticated the
+    // request, and a hello body naming some other paired device would
+    // otherwise look up, plan against and store the session under that
+    // device's checkpoint — substituting the caller's plan into the named
+    // peer's next fetch beat and holding the single session slot under a
+    // foreign name.
+    if (initiatorHello.deviceId != peerDeviceId) {
+      return const SyncHelloRefusal(
+        SyncRefusalReason.identityMismatch,
+        'The hello names a device other than the authenticated caller.',
+      );
+    }
+    if (initiatorHello.protocolVersion != kSyncProtocolVersion) {
+      return const SyncHelloRefusal(
+        SyncRefusalReason.protocolUnknown,
+        'This device speaks a different sync protocol. Update it first.',
+      );
+    }
+    if (initiatorHello.schemaVersion > dataPlane.schemaVersion) {
+      return const SyncHelloRefusal(
+        SyncRefusalReason.peerSchemaNewer,
+        'The other device has a newer database schema. Update this device '
+        'before syncing.',
+      );
+    }
+    if (await store.findPeer(initiatorHello.deviceId) == null) {
+      return const SyncHelloRefusal(
+        SyncRefusalReason.notPaired,
+        'This device is not paired with the caller.',
+      );
+    }
+    final active = _sessions.isEmpty ? null : _sessions.keys.first;
+    if (active != null && active != initiatorHello.deviceId) {
+      return const SyncHelloRefusal(
+        SyncRefusalReason.busy,
+        'Another sync session is already running.',
+      );
+    }
+    // This device is initiating to the caller right now. Answering would give
+    // the pair two sessions, each advancing the same checkpoint file from the
+    // copy it read, so the later write would discard the other's advance — but
+    // only once the local round is a *session*. A round that has not heard the
+    // peer's hello has proved nothing, while this hello just proved the peer
+    // reaches this device: on a LAN that only works one way, refusing it made
+    // both devices fail forever while the reachable direction sat idle (the
+    // local dial times out, and every retry collides with the same refusal).
+    // The arriving hello therefore wins over a round that is still dialing, and
+    // the local round is cancelled before this handler awaits anything. The
+    // session this builds is then a *yielded* one: it is a bet that the peer's
+    // own client is still there to drive it, which is why one that is never
+    // touched is dropped again (see [kYieldedSessionTtl]).
+    final round = _initiatorRounds[initiatorHello.deviceId];
+    final yielded = round != null && !round.answered;
+    if (round != null) {
+      if (round.answered) {
+        return const SyncHelloRefusal(
+          SyncRefusalReason.busy,
+          'This device is already syncing with you.',
+        );
+      }
+      round.cancel();
+    }
+
+    // Read before the manifest: the rows this device withholds are what the
+    // manifest leaves out, and what the response hello has to announce so the
+    // caller does not read their absence as a deletion.
+    final myLocalOnly = await store.readLocalOnlyKeys();
+    final myManifest = await dataPlane.buildManifest(withheldKeys: myLocalOnly);
+    // One pair, epoch first: see [SyncStore.loadSession].
+    final opened = await store.loadSession(initiatorHello.deviceId);
+    final checkpoint = opened.previous;
+    final myClockUs = clockUs();
+    final myEpoch = opened.epoch;
+    // What the initiator reports it could not apply decides whether its silence
+    // about a conversation or a business row means "deleted there" or "never
+    // arrived there".
+    final peerUnapplied = initiatorHello.unappliedConversations.toSet();
+    // A different epoch means the caller's database was bulk-replaced: its
+    // missing rows were dropped, not deleted, so none of its absences may
+    // justify a deletion here.
+    final peerReplaced = initiatorHello.epoch != checkpoint.peerEpoch;
+    // Both halves: this device's own set and the caller's announcement. The
+    // session keeps it, because the fetch beat and the skill pairing apply rows
+    // long after this plan was made.
+    final businessSkipKeys = {...myLocalOnly, ...initiatorHello.localOnly};
+    var plan = composeConversationPlan(
+      mine: myManifest,
+      peers: initiatorHello.manifest,
+      checkpoint: checkpoint,
+      peerUnapplied: peerUnapplied,
+      announced: initiatorHello.deletedConversations,
+      peerReplaced: peerReplaced,
+    );
+    var businessPlan = _keepRowsPeerMayNeverHaveSeen(
+      planBusinessSync(
+        mine: myManifest,
+        peers: initiatorHello.manifest,
+        checkpoint: checkpoint,
+        localOnly: businessSkipKeys,
+      ),
+      initiatorHello.unappliedBusiness,
+    );
+    if (peerReplaced) businessPlan = _keepInsteadOfDelete(businessPlan);
+    final session = _ResponderSession(
+      initiatorHello: initiatorHello,
+      plan: plan,
+      businessPlan: businessPlan,
+      skillPlan: planSkillContentSync(
+        mine: myManifest,
+        peers: initiatorHello.manifest,
+        checkpoint: checkpoint,
+        skillWire: SyncDataPlane.skillWire,
+      ),
+      myManifest: myManifest,
+      checkpoint: checkpoint,
+      epochAtHello: myEpoch,
+      businessSkipKeys: businessSkipKeys,
+      startedAt: now(),
+      myHosts: _myHosts,
+      initiatorHost: remoteAddress,
+      clockSkewMs: _clockSkewMs(myClockUs, initiatorHello.clockUs),
+      peerReplaced: peerReplaced,
+      yielded: yielded,
+    );
+    // The commit: installing the session is what makes every later beat of this
+    // exchange possible, so it is the point past which a cancelled hello must
+    // not go. Everything above it is planning; everything below it is that
+    // plan being promised to the peer.
+    admission.check();
+    _sessions[initiatorHello.deviceId] = session;
+    _assertSessionInvariants();
+    return SyncHello(
+      protocolVersion: kSyncProtocolVersion,
+      schemaVersion: dataPlane.schemaVersion,
+      deviceId: identity.deviceId,
+      deviceName: identity.name,
+      platform: platformTag(),
+      manifest: myManifest,
+      listenPort: port,
+      clockUs: myClockUs,
+      // The responder answers with the same report: it too may have deferred
+      // an apply, and the initiator needs it before it plans.
+      unappliedConversations: checkpoint.unappliedConversations,
+      unappliedBusiness: checkpoint.unappliedBusiness,
+      deletedConversations: _deletionsToAnnounce(checkpoint, myManifest),
+      epoch: myEpoch,
+      // The caller has to know which of this device's rows are held rather
+      // than deleted: it plans from this hello, and one of its absences here is
+      // a row this device chose to keep.
+      localOnly: myLocalOnly.toList(growable: false),
+    );
+  }
+
+  @override
+  Future<SyncApplyAck> handleApplySubtrees(
+    String peerDeviceId,
+    SyncDeltaBatch batch, {
+    required SyncAdmission admission,
+  }) async {
+    final session = _sessions[peerDeviceId];
+    if (session == null) throw const SyncRequestRefusal.sessionMissing();
+    // A push arrives once per page, so this beat is not exclusive: the rule the
+    // fetch beat enforces is "a push came first", not "one push only". A page is
+    // idempotent (its rows apply by clock), and the session's counters
+    // accumulate across pages by construction.
+    // The peer's client is alive and pushing: a session this device accepted by
+    // yielding its own dial is no longer a bet (see [kYieldedSessionTtl]), and a
+    // beat in flight means the idle sweep must leave this session alone however
+    // long it runs.
+    _beginBeat(session);
+    try {
+      return await _applyPushedBatch(peerDeviceId, session, batch, admission);
+    } finally {
+      _endBeat(session);
+      _assertSessionInvariants();
+    }
+  }
+
+  Future<SyncApplyAck> _applyPushedBatch(
+    String peerDeviceId,
+    _ResponderSession session,
+    SyncDeltaBatch batch,
+    SyncAdmission admission,
+  ) async {
+    // The fetch beat answers the same peer on the same session, and it reads the
+    // ledger this beat produces. Marked before any await, so a fetch that
+    // arrives while the push is still running is refused rather than answered
+    // from a half-written session.
+    session.pushSeen = true;
+    _rememberPublished(batch.assets);
+    // The session-level work — skill hashes, the business apply, the workspace
+    // walk and the ledger it produces — runs once per session, on the first push
+    // beat. Every page applies its own rows, but a later page must not run the
+    // tail again: the ledger it would recompute is the one the checkpoint saves,
+    // and recomputing it against that page's empty tables throws the first
+    // beat's agreement away.
+    //
+    // Keyed on the beat rather than on what the beat carries: a session whose
+    // push holds nothing but conversations still has a tail to run (an empty
+    // one), and it is the first beat that runs it.
+    final firstBeat = session.pushBeats == 0;
+    session.pushBeats++;
+
+    // Blob beat, responder side. The initiator pushed rows before the fetch
+    // beat, so anything those rows reference has to arrive now — and the only
+    // way here is back over the initiator's own listener, which its hello
+    // advertised. A missing endpoint or a refused connection is not fatal:
+    // the blobs go pending and the rows still apply (a skill record waits).
+    final mySkillHashes = firstBeat
+        ? await dataPlane.skillDirHashes()
+        : const <String, String>{};
+    // Skills travel on the session's first beat only. A later page carries no
+    // hashes to judge them against, and a plan made from nothing would defer
+    // every skill the first beat had already installed.
+    final adoptions = firstBeat
+        ? _planSkillAdoptions(
+            plan: session.skillPlan,
+            mine: session.myManifest,
+            peers: session.initiatorHello.manifest,
+            peerSkillHashes: batch.skillHashes,
+            mySkillHashes: mySkillHashes,
+            myDeviceId: identity.deviceId,
+            peerDeviceId: peerDeviceId,
+          )
+        : _SkillAdoptionPlan();
+    final neededAssets = await dataPlane.neededFileBlobs(batch.assets);
+    final wanted = _foldBlobWanted([
+      ...neededAssets,
+      ...adoptions.wanted,
+    ], session.checkpoint.pendingBlobs.values);
+    // One reverse connection for the whole beat: the blobs the pushed rows
+    // reference and the workspace files the push advertised both have to come
+    // back over the initiator's own listener, and a peer that cannot be dialed
+    // back is one answer, not two failures to diagnose separately.
+    final reverse = await _openReverseConnection(peerDeviceId, session);
+    // This batch's per-conversation outcomes, declared outside the connection's
+    // lifetime: the acknowledgement below is built after it closes, and what
+    // this beat reports must not depend on when a socket went away.
+    var outcomes = const <String, SyncSubtreeApplyOutcome>{};
+    try {
+      final beatPull = reverse == null
+          ? _unreachableBlobPull(wanted.values.toList())
+          : await _pullBlobs(
+              wanted.values.toList(),
+              reverse,
+              cancelled: () => !admission.alive,
+            );
+      if (firstBeat) {
+        session.blobPull = beatPull;
+      } else {
+        // A later page's references still have to be pulled, and a failure
+        // still has to become a pending blob: what must not happen is the
+        // first page's outcome being replaced by this one's.
+        session.blobPull.absorb(beatPull);
+      }
+      session.deferredSkills = {
+        // A body that landed on this beat stops being deferred; the plain
+        // union would keep it deferred for a session, and assigning alone
+        // would drop what an earlier page deferred.
+        ...session.deferredSkills.difference(beatPull.landedSkillIds),
+        ...adoptions.deferred,
+        for (final id in adoptions.wantedSkillIds)
+          if (!session.blobPull.landedSkillIds.contains(id)) id,
+      };
+      // Only the first beat judges skills, so only the first beat may name
+      // conflicts: assigning an empty plan's verdict here erases the set the beat
+      // that actually compared them produced, and the report then says a lost
+      // local skill body was nothing.
+      if (firstBeat) {
+        session.skillConflicts = adoptions.conflicts;
+      }
+
+      // Kept for the checkpoint advance one beat later: a `peerSends` entry
+      // describes the payload that arrived, never the local state the merge
+      // leaves behind (which also carries rows written here mid-session), and
+      // the fetch beat no longer has this batch in hand. A conversation that
+      // arrives in several pages accumulates here, because the entry needs every
+      // row the transfer carried — not only the last page's.
+      for (final subtree in batch.subtrees) {
+        final id = subtree.conversation['id'] as String;
+        final progress = session.receivedTransfers[id] ??= _TransferProgress();
+        final prior = session.checkpoint.conversations[id];
+        // A cursor on the entry is the earlier session's proof; without its
+        // rows this transfer would record only what arrived after it.
+        if (!progress.seeded && prior?.cursor != null) {
+          progress.seed(prior!.rows);
+        }
+        progress.addPage(subtree, after: null);
+      }
+
+      outcomes = await dataPlane.applySubtrees(
+        batch.subtrees,
+        myDeviceId: identity.deviceId,
+        peerDeviceId: peerDeviceId,
+        // The apply is the one place a push beat can run long: one transaction
+        // per conversation. The check is between transactions (never inside
+        // one), so a cancelled beat finishes the conversation it is on and
+        // starts none after it.
+        cancelled: () => !admission.alive,
+        // The responder's entries are composed from the payload that arrived,
+        // never from this digest, and computing it reads every family of the
+        // conversation — the whole content, per page.
+        composeDigest: false,
+        checkpointRowsByConversation: _rowsOf(
+          session.checkpoint,
+          // A replaced caller's absences prove nothing about this device's rows.
+          session.peerReplaced
+              ? const <String>{}
+              : {
+                  for (final subtree in batch.subtrees)
+                    subtree.conversation['id'] as String,
+                },
+          // Same protection as on the initiator's side: a conversation the
+          // caller said it could not apply proves nothing about the caller's
+          // rows.
+          unconfirmed: session.initiatorHello.unappliedConversations.toSet(),
+        ),
+      );
+      session.outcomes.addAll(outcomes);
+      // Same rule as the initiator's side: the advertisement (not the pull
+      // outcome) owns the reference set, scoped to revisions this apply wrote.
+      await dataPlane.registerLandedAssets(
+        subtrees: batch.subtrees,
+        outcomes: outcomes,
+        advertisedByUri: {for (final entry in batch.assets) entry.key: entry},
+      );
+      // Business rows arrive in the same push; the responder's own plan already
+      // decided what it needs from the initiator, so this is purely an apply.
+      // One push per session, so the payload is kept as-is for the checkpoint
+      // and the report.
+      final applicable = dataPlane.withoutSkillRows(
+        batch.business,
+        session.deferredSkills,
+      );
+      // Kept un-stripped beside it: a skill body the initiator pushes after the
+      // acknowledgement arrives with its record already filtered out here, and
+      // the push has to be able to put it back (slice 24).
+      if (firstBeat) {
+        // Kept un-stripped beside it: a skill body the initiator pushes after
+        // the acknowledgement arrives with its record already filtered out
+        // here, and the push has to be able to put it back (slice 24).
+        session.pushedBusiness = batch.business;
+        session.receivedBusiness = applicable;
+      }
+      admission.check();
+      if (firstBeat) {
+        session.businessOutcome = await dataPlane.applyBusiness(
+          applicable,
+          myDeviceId: identity.deviceId,
+          peerDeviceId: peerDeviceId,
+          // The caller's plan already leaves out what either side withholds;
+          // this is the gate that keeps a row this device holds from being
+          // written over if some later path ever pushes one anyway.
+          skipKeys: session.businessSkipKeys,
+        );
+      }
+      if (session.blobPull.landedSkillIds.isNotEmpty) {
+        await dataPlane.reloadBusiness();
+      }
+
+      // Workspace files (slice 18), this side of the push beat. The walk runs
+      // after the business apply because a workspace record that just arrived
+      // is what makes its folder this device's to populate — and its index is
+      // then empty, which is exactly what tells the plan to fetch everything
+      // the caller advertised.
+      if (firstBeat) {
+        final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
+        session.workspaceOutcome = await dataPlane.applyWorkspaceContent(
+          myDeviceId: identity.deviceId,
+          peerDeviceId: peerDeviceId,
+          mine: myWorkspaceSnapshots,
+          peerTables: batch.workspaceFiles,
+          ledger: session.checkpoint.workspaceFiles,
+          allowDeletes: !session.peerReplaced,
+          // Per file, because that is the commit: a landing that has not
+          // started is not owed once the beat is cancelled, while one
+          // already landing is atomic (staging, then a rename).
+          cancelled: () => !admission.alive,
+          fetch: reverse == null
+              ? null
+              : (workspaceId, relPath, destination) =>
+                    reverse.fetchWorkspaceFile(
+                      workspaceId: workspaceId,
+                      relPath: relPath,
+                      destination: destination,
+                    ),
+        );
+      }
+      // Whatever this beat could not land becomes the ask the initiator answers
+      // before its fetch beat (slice 23). Every pair named here was advertised
+      // in `batch`, so this set is exactly, and only, the writes this session
+      // may accept — see [handlePutWorkspaceFile].
+      if (firstBeat) {
+        session.workspaceRequests.addAll({
+          for (final workspace in session.workspaceOutcome!.unlanded.entries)
+            for (final file in workspace.value.entries)
+              WorkspaceContentSync.serveKey(
+                workspace.key,
+                file.key,
+              ): SyncWorkspaceFileRequest(
+                workspaceId: workspace.key,
+                relPath: file.key,
+                stamp: file.value,
+              ),
+        });
+      }
+      // Which of those requests, if they land, will *replace a local edit*
+      // (`peerWins`). Only the plan knows — the request carries the version, not
+      // the action — and the landing is the moment the edit is actually lost, so
+      // the set is kept until then and the report counts what landed.
+      if (firstBeat) {
+        session.workspaceReplacements.addAll(
+          session.workspaceOutcome!.replacedUnlanded,
+        );
+      }
+    } finally {
+      reverse?.close();
+    }
+    // The acknowledgement the initiator's checkpoint advance needs: which
+    // conversations were accepted but not applied, whether the business
+    // apply as a whole was deferred, and which skill records were stripped
+    // because their body did not land.
+    final deferredSkills = {
+      for (final row
+          in batch.business.entities[SyncDataPlane.skillWire] ?? const [])
+        if (row['id'] is String &&
+            session.deferredSkills.contains(row['id'] as String))
+          row['id'] as String,
+    };
+    // Everything this beat planned and could not land becomes the ask the
+    // initiator answers over the connection it already holds (slice 24). The
+    // set is built from the manifest the initiator itself sent — or asked for in
+    // an earlier session and still owes — so it is exactly, and only, the blobs
+    // this session may accept. See [handlePutBlob].
+    session.blobRequests.addAll({
+      for (final entry in session.blobPull.failed.values) entry.target: entry,
+    });
+    return SyncApplyAck(
+      applied: outcomes.length,
+      deferred: {
+        for (final entry in outcomes.entries)
+          if (entry.value.deferred) entry.key,
+      },
+      businessDeferred: session.businessOutcome?.deferred ?? false,
+      // What this device holds from the push. The initiator's checkpoint treats
+      // this as the receipt for a row it sent: the apply is otherwise blind to
+      // per-key rejection, and a row dropped here would look, one session later,
+      // exactly like a row the initiator deleted.
+      businessAccepted: session.businessOutcome?.acceptedKeys ?? const {},
+      deferredSkills: deferredSkills,
+      // Files this side wanted and could not take: the initiator pushes them
+      // over the connection it already holds, which is the direction that is
+      // known to work.
+      workspaceRequests: session.workspaceRequests.values.toList(
+        growable: false,
+      ),
+      // The same for blobs, which is what carries a message's images to the
+      // side that cannot be dialled back.
+      blobRequests: session.blobRequests.values.toList(growable: false),
+    );
+  }
+
+  /// Opens the connection back to the initiator over its own listener — the only
+  /// route to a peer that dialed this device — or null when none of the
+  /// addresses this pair knows answers.
+  ///
+  /// One connection for the whole beat on purpose: the blobs the pushed rows
+  /// reference and the workspace files the push advertised are fetched in the
+  /// same stretch of time, and opening two sockets to answer "is the peer
+  /// dialable back?" would pay the same failure twice.
+  ///
+  /// Each candidate is *pinged* before it is used, because opening a session is
+  /// lazy — nothing connects until the first request — so a session object is
+  /// not evidence that the peer is there, and the old single-address version
+  /// could not tell "the peer is not reachable" from "the peer refused this
+  /// file" at all.
+  Future<SyncClientSession?> _openReverseConnection(
+    String peerDeviceId,
+    _ResponderSession session,
+  ) async {
+    final port = session.initiatorHello.listenPort;
+    if (port == null) return null;
+    final peer = await store.findPeer(peerDeviceId);
+    if (peer == null) return null;
+    for (final (host, candidatePort) in _reverseDialCandidates(session, peer)) {
+      final opened = client.openSession(peer, host: host, port: candidatePort);
+      try {
+        await opened.ping();
+        return opened;
+      } catch (error) {
+        debugPrint('sync: dialling back $host:$candidatePort failed: $error');
+        opened.close();
+      }
+    }
+    return null;
+  }
+
+  /// The addresses this device may dial the initiator back on, in the order they
+  /// are tried and capped at [kMaxReverseDialCandidates].
+  ///
+  /// The address the caller connected from comes first: on an ordinary LAN it is
+  /// the best evidence there is, because it is where the peer demonstrably
+  /// reaches out from. It is *not* always the peer's own address — a NAT rewrite
+  /// can make it this device's own, which is what the fallbacks are for: the
+  /// addresses the peer advertised in its hello, then the ones this pair
+  /// remembers. A candidate that is this device's own listener is left in the
+  /// list rather than filtered: the ping that follows refuses it in
+  /// milliseconds (the certificate pin cannot match), and filtering needs a
+  /// port comparison that a same-machine peer at a different port would fail.
+  List<(String, int)> _reverseDialCandidates(
+    _ResponderSession session,
+    SyncPeerRecord peer,
+  ) {
+    final port = session.initiatorHello.listenPort;
+    if (port == null) return const [];
+    final candidates = <(String, int)>[];
+    final seen = <String>{};
+    void add(String? host) {
+      if (host == null || host.isEmpty) return;
+      if (candidates.length >= kMaxReverseDialCandidates) return;
+      final normalized = normalizeHost(host);
+      if (!seen.add(normalized)) return;
+      candidates.add((normalized, port));
+    }
+
+    add(session.initiatorHost);
+    for (final host in session.initiatorHello.candidateHosts) {
+      add(host);
+    }
+    for (final endpoint in peer.endpoints) {
+      add(endpoint.host);
+    }
+    return candidates;
+  }
+
+  /// This device's own addresses, in the canonical form every layer stores.
+  ///
+  /// Read from [localAddresses], which the provider keeps current, rather than
+  /// enumerated here: the engine has no business opening the network interface
+  /// list mid-session, and the provider already does it for the pairing screen.
+  ///
+  /// It is the fact that separates "the peer is here" from "a NAT rewrote the
+  /// peer's source to this device", and both an endpoint being remembered and a
+  /// dial being attempted need that answer. Loopback is deliberately *not* in this
+  /// set — the enumeration drops it, and it must: another instance of this app on
+  /// this machine is a legitimate peer at 127.0.0.1.
+  Set<String> get _myHosts => {
+    for (final address in localAddresses) normalizeHost(address.address),
+  };
+
+  /// Everything a peer owes this device when it cannot be dialed back: every
+  /// wanted blob stays pending (the rows still apply — a conversation is still
+  /// a conversation without its picture), and no workspace file can move,
+  /// which the content plan records by keeping every ledger entry.
+  _BlobPullOutcome _unreachableBlobPull(List<SyncBlobEntry> wanted) {
+    final outcome = _BlobPullOutcome();
+    for (final entry in wanted) {
+      outcome.failed[entry.target] = entry;
+    }
+    return outcome;
+  }
+
+  @override
+  Future<SyncDeltaBatch> handleFetchSubtrees(
+    String peerDeviceId,
+    SyncFetchRequest request, {
+    required SyncAdmission admission,
+  }) async {
+    final session = _sessions[peerDeviceId];
+    if (session == null) throw const SyncRequestRefusal.sessionMissing();
+    // The fetch beat is the second half of one push: the initiator pushes, then
+    // asks for what it lacks. A fetch that arrives first is not a session, and
+    // answering it would persist a checkpoint built on nothing — the responder's
+    // workspace ledger is produced by the push, so this beat would write an empty
+    // one, and the next session would read "we never agreed about these files"
+    // and re-transfer, or read a file that was deleted here as one the peer never
+    // had.
+    if (!session.pushSeen) throw const SyncRequestRefusal.pushRequired();
+    _beginBeat(session);
+    try {
+      return await _serveFetchSubtrees(
+        peerDeviceId,
+        session,
+        request,
+        admission,
+      );
+    } finally {
+      _endBeat(session);
+      _assertSessionInvariants();
+    }
+  }
+
+  Future<SyncDeltaBatch> _serveFetchSubtrees(
+    String peerDeviceId,
+    _ResponderSession session,
+    SyncFetchRequest request,
+    SyncAdmission admission,
+  ) async {
+    final outgoing = <SyncSubtreePayload>[];
+    final skipped = <String>{};
+    for (final id in request.conversationIds) {
+      if (await dataPlane.isStreaming(id)) {
+        skipped.add(id);
+        continue;
+      }
+      final subtree = await dataPlane.readSubtree(id);
+      if (subtree == null) {
+        skipped.add(id);
+        continue;
+      }
+      outgoing.add(subtree);
+    }
+    final delivered = {
+      for (final subtree in outgoing) subtree.conversation['id'] as String,
+    };
+    final missing = request.conversationIds.toSet().difference(delivered);
+
+    final businessRead = await dataPlane.readBusinessRows(
+      entityIds: {
+        for (final entry in request.entityIds.entries)
+          entry.key: entry.value.toSet(),
+      },
+      preferenceKeys: request.preferenceKeys.toSet(),
+      // A row this device withholds is not served, however it was asked for:
+      // the request names what the peer wants, and the peer is not the one
+      // deciding what leaves this machine.
+      skipKeys: session.businessSkipKeys,
+    );
+
+    final deleted = <String>{};
+    final failedDeletes = <String>{};
+    final blockedDeletes = <String>{};
+    // The deletion loops are the last stretch of state changes before the
+    // checkpoint, and each deletion is idempotent against the plan that asked
+    // for it ("still stands" re-reads the row), so one check before the loop is
+    // the boundary: a beat cancelled here removes nothing further and records
+    // the rest as failed, which the next session re-plans.
+    final deletionsAllowed = admission.alive;
+    for (final item in session.plan) {
+      if (!deletionsAllowed) break;
+      if (item.action != SyncConvAction.iDelete) continue;
+      if (!await _conversationDeletionStillStands(
+        item.conversationId,
+        session.checkpoint,
+        session.initiatorHello.deletedConversations,
+      )) {
+        blockedDeletes.add(item.conversationId);
+        failedDeletes.add(item.conversationId);
+        continue;
+      }
+      final ok = await dataPlane.deleteConversation(item.conversationId);
+      (ok ? deleted : failedDeletes).add(item.conversationId);
+    }
+    if (deleted.isNotEmpty) await dataPlane.reload();
+
+    final deletedBusiness = <String>{};
+    final failedBusinessDeletes = <String>{};
+    final blockedBusinessDeletes = <String>{};
+    final deletedSkillIds = <String>{};
+    var keptWorkspaceFolders = 0;
+    for (final item in session.businessPlan) {
+      if (!deletionsAllowed) break;
+      if (item.action != SyncConvAction.iDelete) continue;
+      final key = syncBusinessKey(item.kindWire, item.id);
+      if (!await _businessDeletionStillStands(
+        item.kindWire,
+        item.id,
+        session.checkpoint,
+      )) {
+        blockedBusinessDeletes.add(key);
+        failedBusinessDeletes.add(key);
+        continue;
+      }
+      final outcome = await dataPlane.deleteBusinessRow(
+        item.kindWire,
+        item.id,
+        agreedFiles:
+            session.checkpoint.workspaceFiles[item.id] ??
+            const <String, SyncAgreedFile>{},
+      );
+      (outcome.removed ? deletedBusiness : failedBusinessDeletes).add(key);
+      if (outcome.folderKept) keptWorkspaceFolders++;
+      if (outcome.removed && item.kindWire == SyncDataPlane.skillWire) {
+        deletedSkillIds.add(item.id);
+      }
+    }
+    // Deletions bypass BusinessPreferences, so refresh the in-memory view the
+    // providers read; the apply above only refreshes when it wrote a row.
+    if (deletedBusiness.isNotEmpty) await dataPlane.reloadBusiness();
+
+    final next = await _advanceCheckpoint(
+      myManifest: session.myManifest,
+      previous: session.checkpoint,
+      plan: session.plan,
+      outcomes: session.outcomes,
+      deletedIds: deleted,
+      failedDeletes: failedDeletes,
+      // The initiator's report covers its own deferred applies, which must not
+      // advance unconfirmed state here either.
+      peerDeferredConversations: session.initiatorHello.unappliedConversations
+          .toSet(),
+      // What the initiator pushed, for the arms that record an arrival.
+      receivedTransfers: session.receivedTransfers,
+      // The fetch response is never acknowledged, so a conversation this beat
+      // sends back is not state the peer holds. Advancing it would make the
+      // next session read the peer's missing copy as a deletion and destroy
+      // the only remaining one; the entry appears one session later, when both
+      // manifests agree (`none`).
+      sendsConfirmed: false,
+    );
+    // The skill body hashes that travel with the response, read once. The
+    // checkpoint entry for a skill has to name the hash the initiator was told
+    // about, and a second read further down would let a directory edit land
+    // between the two and record a hash no peer ever heard of.
+    final sentSkillIds = {
+      for (final row
+          in businessRead.payload.entities[SyncDataPlane.skillWire] ?? const [])
+        if (row['id'] is String) row['id'] as String,
+    };
+    final mySkillHashes = await dataPlane.skillDirHashes();
+    final responseSkillHashes = {
+      for (final id in sentSkillIds)
+        if (mySkillHashes[id] != null) id: mySkillHashes[id]!,
+    };
+    final nextBusiness = await _advanceBusinessCheckpoint(
+      previous: session.checkpoint,
+      plan: session.businessPlan,
+      // What this device actually packed into the response; a row the plan
+      // promised but the read did not deliver stays at its previous entry.
+      sentKeys: businessRead.keys,
+      sentBusiness: businessRead.payload,
+      sentSkillHashes: responseSkillHashes,
+      receivedKeys: dataPlane.businessKeysOf(session.receivedBusiness),
+      deletedKeys: deletedBusiness,
+      failedDeleteKeys: failedBusinessDeletes,
+      peerAdvertisedKeys: _manifestKeys(session.initiatorHello.manifest),
+      // The initiator never acknowledges the fetch response, so this beat's
+      // sends have no receipt at all — `sendsConfirmed: false` already keeps
+      // their entries where they are.
+      peerAcceptedKeys: const {},
+      applyDeferred: session.businessOutcome?.deferred ?? false,
+      peerApplyDeferred: session.initiatorHello.unappliedBusiness,
+      // The fetch response is not acknowledged: this beat's sends stay
+      // unconfirmed and are healed by `none` once the peer's manifest shows
+      // them.
+      sendsConfirmed: false,
+    );
+    final skillHashes = await _advanceSkillHashes(
+      previous: session.checkpoint,
+      plan: session.skillPlan,
+      deferredSkills: session.deferredSkills,
+      deletedSkills: deletedSkillIds,
+      localHashes: mySkillHashes,
+    );
+    // The response batch carries this side's blob manifest for exactly what it
+    // is sending, so the initiator can pull the same way this device just did.
+    final responseAssets = await dataPlane.buildBlobManifest(
+      subtrees: outgoing,
+      business: businessRead.payload,
+    );
+    _rememberPublished(responseAssets);
+    // Workspace content, this side of the fetch beat (slice 18). The walk is
+    // fresh here — after the push beat's own transfers landed — because this
+    // table is what tells the initiator what this device now holds: a stale one
+    // would leave its ledger permanently behind, and it would re-offer the same
+    // files every session.
+    final myWorkspaceSnapshots = await dataPlane.workspaceSnapshots();
+    dataPlane.publishWorkspaceContent(peerDeviceId, myWorkspaceSnapshots);
+    final advertised = dataPlane.workspaceTables(myWorkspaceSnapshots);
+    final responseBatch = SyncDeltaBatch(
+      outgoing,
+      business: businessRead.payload,
+      assets: responseAssets,
+      skillHashes: responseSkillHashes,
+      workspaceFiles: advertised.tables,
+    );
+    // The last commit of the session, and the only one that must never happen
+    // after the deadline: the checkpoint is what both sides plan their next
+    // session from, so a cancelled beat that wrote it would advance state the
+    // peer was told (504) never arrived. Everything after this point is one
+    // unwind — the peer record, the report and the session removal describe the
+    // outcome the file now holds.
+    admission.check();
+    await store.saveCheckpointUnlessReplaced(
+      peerDeviceId,
+      epochAtHello: session.epochAtHello,
+      checkpoint: SyncCheckpoint(
+        next.conversations,
+        entities: nextBusiness.entities,
+        preferences: nextBusiness.preferences,
+        pendingBlobs: session.blobPull.failed,
+        skillHashes: skillHashes,
+        // What this session's file plane demonstrably agreed, finalised here
+        // because this beat is the last place every transfer is known: the push
+        // beat's ledger, plus every file the initiator pushed after it could not
+        // be fetched (slice 23).
+        //
+        // The rule is that the side which *lands* a file advances its entry —
+        // not the side that sends it, which cannot know whether its bytes
+        // arrived, and not the beat that ran before the file existed.
+        //
+        // The push is the only producer of the ledger's base, and this beat is
+        // refused without it (`push_required`), so the outcome is not optional:
+        // `?? const {}` here would erase everything both sides had agreed — the
+        // review's second finding — and an empty ledger reads as "never agreed",
+        // not as "nothing to say".
+        workspaceFiles: _finalWorkspaceLedger(session),
+        // The responder answers the initiator with the same report on its next
+        // hello: an apply it deferred here must not read as a deletion there.
+        unappliedConversations: [
+          for (final entry in session.outcomes.entries)
+            if (entry.value.deferred) entry.key,
+        ],
+        unappliedBusiness: session.businessOutcome?.deferred ?? false,
+        peerEpoch: session.initiatorHello.epoch,
+      ),
+    );
+    final report = _report(
+      sent: outgoing.length,
+      received: session.outcomes.length,
+      outcomes: session.outcomes.values,
+      // One conversation, one row: a conversation this side skipped *and* the
+      // initiator never received crossed in neither direction, but it is still
+      // one conversation.
+      deferred: {...skipped, ...missing}.length,
+      deletedLocally: deleted.length,
+      deletedBlocked: blockedDeletes.length + blockedBusinessDeletes.length,
+      business: businessRead.payload,
+      receivedBusiness: session.receivedBusiness,
+      appliedBusiness: session.businessOutcome,
+      blobPull: session.blobPull,
+      skillConflicts: session.skillConflicts.length,
+      deferredSkills: session.deferredSkills.length,
+      workspace: session.workspaceOutcome,
+      workspaceFoldersKept: keptWorkspaceFolders,
+      workspacePushed: session.pushedFiles,
+      workspacePushedBytes: session.pushedBytes,
+      // The responder is the side that can record a miss and then watch a push
+      // repair it; the initiator's own misses are never repaired this way.
+      workspaceMissesRepaired: session.pushedFiles,
+      // The `peerWins` replacements this beat's pushes actually performed: the
+      // fetch's own counter never saw them arrive.
+      workspaceReplacements: session.pushedReplacements,
+      workspacesDroppedByCap: advertised.droppedWorkspaces,
+      clockSkewMs: session.clockSkewMs,
+    );
+    // Merged into the record as it stands now, not written onto the copy read
+    // before this beat ran: the panel may have renamed the peer while the push
+    // was in flight, and a whole-record write would drop it.
+    final peer = await store.mutatePeer(peerDeviceId, (current) {
+      current.lastSyncedAt = DateTime.now();
+      // The session just ran over the caller's address, so that is where this
+      // network reaches it: refresh the memory (and promote it), which is what
+      // lets a peer that roamed keep syncing without a re-scan.
+      //
+      // Unless that address is one of this device's own: a NAT rewrites the
+      // source of the caller's connection to whoever forwards it, and the Android
+      // emulator's user-mode network rewrites it to the host — so what arrived
+      // here as "where the peer connected from" was this machine's own LAN
+      // address. Remembering it would put an address in the panel that dials this
+      // device itself, and promote it over addresses that might actually work.
+      final learnedHost = session.initiatorHost;
+      final learnedPort = session.initiatorHello.listenPort;
+      if (learnedHost != null &&
+          learnedPort != null &&
+          !session.myHosts.contains(normalizeHost(learnedHost))) {
+        current.noteEndpointSuccess(learnedHost, learnedPort);
+      }
+      current.lastReport = report.toPeerReport();
+      return true;
+    });
+    _sessions.remove(peerDeviceId);
+    onStateChanged();
+    if (peer != null) {
+      onResponderSession?.call(peer, report);
+    }
+    return responseBatch;
+  }
+
+  @override
+  Future<SyncPairAnswer?> handlePair(
+    SyncPairRequest request,
+    String? initiatorHost, {
+    required SyncAdmission admission,
+  }) async {
+    if (!isPairingOpen) return null;
+    if (request.pin != _pairingPin) {
+      // A 6-digit PIN is brute-forceable inside the window unless wrong
+      // guesses cost something: five of them close the window (reopening
+      // resets the counter and mints a fresh PIN).
+      if (++_pairingFailures >= 5) {
+        _pairingPin = null;
+        _pairingExpiresAt = null;
+        onStateChanged();
+      }
+      return null;
+    }
+    // Before the PIN is spent: a pairing the deadline abandoned must not close a
+    // window the user is standing in front of. (A cancellation that lands after
+    // this point but before the write below loses the PIN without installing
+    // anything; one that lands *inside* the write leaves the record — see the
+    // note at the commit.)
+    admission.check();
+    // One-shot: a PIN is spent on first success.
+    _pairingPin = null;
+    _pairingExpiresAt = null;
+    // The per-peer secret binds later sessions to this pairing: the listener
+    // has no TLS client certificate to authenticate the caller with, so this
+    // is what a paired peer must present (see [SyncServer]).
+    final secret = _newSecret();
+    final peer = SyncPeerRecord(
+      deviceId: request.deviceId,
+      certPem: request.certPem,
+      secret: secret,
+      name: request.deviceName.isEmpty ? request.deviceId : request.deviceName,
+      platform: request.platform,
+    );
+    // Same carry-over as the initiator's side: this responder may hold the
+    // older (and richer) record of the pair.
+    final existing = await store.findPeer(request.deviceId);
+    _carryPairingFacts(peer, existing);
+    // A source address of this device is not where the peer is: a NAT — the
+    // Android emulator's user-mode network included — rewrites the caller's
+    // source to whoever forwards it. Read once, for the address and for the
+    // candidates below.
+    final myHosts = _myHosts;
+    // The endpoint that demonstrably works: where the initiator connected from,
+    // paired with the listener port it advertised. Null when the initiator had
+    // no listener running; the address can be fixed by hand.
+    if (initiatorHost != null &&
+        request.listenPort != null &&
+        !myHosts.contains(normalizeHost(initiatorHost))) {
+      peer.noteEndpointSuccess(initiatorHost, request.listenPort!);
+    }
+    // Its other addresses are hints only: they have not answered anything here.
+    // One that is this device's own is not a hint at all — the peer that
+    // advertised it was describing the network it reached this device through,
+    // and remembering it would only offer the panel an address that dials this
+    // device itself.
+    if (request.listenPort != null) {
+      peer.rememberEndpointCandidates([
+        for (final host in request.candidateHosts)
+          if (!myHosts.contains(normalizeHost(host)))
+            (host, request.listenPort!),
+      ]);
+    }
+    // And the networks this pair already met, behind the fresh ones — the
+    // responder's half of the memory the initiator keeps (see [pairWith]).
+    if (existing != null) peer.rememberEndpointHistory(existing.endpoints);
+    // The commit: from here the pair exists on this side, and a pairing
+    // abandoned at the deadline must stop before it — the initiator never gets
+    // the answer that carries [secret], and this device would list a peer whose
+    // every request it refuses 401.
+    //
+    // The check is as close to the write as the shape allows, and it is a
+    // check *then* write: a deadline that lands inside `savePeer` still leaves
+    // the record. That window is the write's own duration (one file, chained
+    // behind the peer's other writes), and what heals it is the initiator's
+    // re-pair — the one it performs because it got a 504 in place of the
+    // secret. Making it atomic would need the store to refuse a commit on a
+    // gate it does not know about, which is a wider change than this one.
+    admission.check();
+    await store.savePeer(peer);
+    // The pairing request arrived on this listener, so the peer is known here
+    // already; the initiator learns the same secret from the answer.
+    server.rememberPeer(peer);
+    onStateChanged();
+    return SyncPairAnswer(
+      deviceId: identity.deviceId,
+      deviceName: identity.name,
+      platform: platformTag(),
+      certPem: identity.certPem,
+      secret: secret,
+    );
+  }
+
+  // ---- internals ----
+
+  /// Advances the per-peer checkpoint. A conversation only gets a *new* entry
+  /// once this device knows the peer reached the same state: undelivered sends,
+  /// undelivered fetches, deferred applies — this device's own and, per the
+  /// push acknowledgement, the peer's — and a peer deletion the peer reported
+  /// as failed all keep the previous entry so the next session retries them.
+  ///
+  /// **A send arm advances only when its payload crossed the wire.** Both send
+  /// arms ask the same question of the same two facts — [sentSubtrees] (the
+  /// batch this beat actually built) and [sendsConfirmed] — because the
+  /// alternative is what made a skipped send look like a delivered one: the
+  /// `bothSend` arm used to advance from the peer's apply alone, and an entry
+  /// built that way claims the peer holds rows it never received, after which
+  /// the next apply deletes them (they are local-only, and their clock is the
+  /// one recorded). A conversation this round's budget left behind is in
+  /// neither set, so it is retried exactly like one that was generating.
+  ///
+  /// [peerDeferredConversations] are the conversations the peer accepted but
+  /// did not apply; without it "sent" would be indistinguishable from
+  /// "received" and the next session would read the peer's older copy as a
+  /// deletion of the rows this device had just written.
+  ///
+  /// [sentSubtrees] is the push payload as it was read. An `iSend` entry is
+  /// built from it rather than from a fresh local read, so the entry describes
+  /// what actually crossed the wire — a row written while the session was in
+  /// flight was never sent, and recording it as peer-seen would make the next
+  /// merge delete it here.
+  ///
+  /// [receivedSubtrees] is the other direction, and it is the same argument:
+  /// a `peerSends` entry describes the payload that arrived, never the local
+  /// state the merge left behind, which also carries rows written here while
+  /// the session ran. `bothSend` is the one arm that cannot be described by a
+  /// single payload; see the case below for what it does instead.
+  ///
+  /// The `none` arm is the third writer of an entry and its only source is a
+  /// live re-read; see that arm for what makes a refresh admissible.
+  ///
+  /// [sendsConfirmed] is false for the responder's fetch beat, whose response
+  /// is never acknowledged: a conversation this device *sent* back is not
+  /// state the peer holds, and advancing it would make the next session read
+  /// the peer's silence as a deletion. Such an entry is created by [none] one
+  /// session later, when the peer's manifest confirms the transfer.
+  Future<SyncCheckpoint> _advanceCheckpoint({
+    required SyncManifest myManifest,
+    required SyncCheckpoint previous,
+    required List<SyncConvPlan> plan,
+    required Map<String, SyncSubtreeApplyOutcome> outcomes,
+    required Set<String> deletedIds,
+    required Set<String> failedDeletes,
+    Set<String> peerDeferredConversations = const {},
+    Map<String, _TransferProgress> sentTransfers = const {},
+    Map<String, _TransferProgress> receivedTransfers = const {},
+    bool sendsConfirmed = true,
+  }) async {
+    final next = <String, SyncCheckpointConversation>{};
+    for (final item in plan) {
+      final id = item.conversationId;
+      final prior = previous.conversations[id];
+      switch (item.action) {
+        case SyncConvAction.none:
+          // Both manifests agree, so local state *is* the shared state: the
+          // entry is refreshed rather than kept, healing a stale entry an
+          // interrupted session left behind before it can misread a peer
+          // deletion as a local edit. The business face has always refreshed
+          // here (setFromLocal); this aligns the conversation face with it.
+          //
+          // The manifest already carries the same digest and row clock, and
+          // both are computed from the same rows this refresh would read: when
+          // they match the entry, re-reading every message of every settled
+          // conversation would rebuild exactly the entry already in hand.
+          //
+          // A refresh is a *live* read, though, and the manifests attest an
+          // older instant: a write in the window is in the refresh and in
+          // neither manifest, and recording it would make the next session read
+          // the peer's silence as a deletion of it. So the refresh is admitted
+          // only when it *is* the attested state — the manifest's digest is the
+          // message identity the peer saw (it contributes each row's id and
+          // clock), and the row clock is the one field that identity cannot see
+          // (the digest covers the families below the root, never the row) and
+          // that the delete branch reads to tell an edit from an untouched copy.
+          //
+          // The comparison is by value, not against a clock of this device's
+          // own: a message clock was written by whichever device authored the
+          // row, and a peer whose clock runs ahead (the session report names
+          // that skew) would make every such row look "newer than this device
+          // ever was". Comparing the agreement with itself has no such ruler:
+          // a row that merely runs ahead moves neither value.
+          final mine = myManifest.conversations[id];
+          if (prior != null &&
+              mine != null &&
+              prior.digest == mine.digest &&
+              prior.updatedAtUs == mine.updatedAtUs) {
+            next[id] = prior;
+            break;
+          }
+          final entry = await dataPlane.checkpointFromLocal(id);
+          final attested =
+              entry != null &&
+              mine != null &&
+              entry.digest == mine.digest &&
+              entry.updatedAtUs == mine.updatedAtUs;
+          if (attested) {
+            next[id] = entry;
+          } else if (prior != null) {
+            next[id] = prior;
+          }
+        case SyncConvAction.iSend:
+          final sent = sentTransfers[id];
+          // A conversation whose transfer stopped early keeps the pages the
+          // peer took, even when the stop was a deferral: `sent` is built only
+          // from acknowledged pages, so its rows are proven and its `after` is
+          // the cursor the next session resumes from. Falling back to `prior`
+          // here is what made the resume path unreachable — every way of
+          // stopping left a deferred entry or none at all.
+          if (!sendsConfirmed || sent == null) {
+            if (prior != null) next[id] = prior;
+          } else if (!sent.complete) {
+            // Half-sent: the peer holds the pages it acknowledged, and nothing
+            // about the conversation is agreed. The entry says exactly that —
+            // the rows proven so far, the previous digest, and where to resume —
+            // and a plan that reads it is forced back into `iSend`.
+            next[id] = _halfSentEntry(prior, sent);
+          } else {
+            // Composed from the payload itself. A re-read would be wrong here:
+            // a row written while the session was in flight was never sent, and
+            // recording it as peer-seen makes the next merge read the peer's
+            // silence as a deletion.
+            final entry = _entryFor(sent.toPayload());
+            final resumedDigest = sent.seeded
+                ? (await dataPlane.checkpointFromLocal(id))?.digest
+                : null;
+            next[id] = resumedDigest == null
+                ? entry
+                : SyncCheckpointConversation(
+                    updatedAtUs: entry.updatedAtUs,
+                    digest: resumedDigest,
+                    rows: entry.rows,
+                  );
+          }
+        case SyncConvAction.peerSends || SyncConvAction.bothSend:
+          // An entry describes a payload that crossed, never the local state a
+          // merge left behind. The apply reads its base inside its own
+          // transaction, so a row written here while the session ran — the push
+          // beat plus the whole blob pull — is in that snapshot; an entry built
+          // from it claims the peer has a row it has never seen, and the next
+          // session deletes it here.
+          //
+          // Which payload a device may claim depends on which half of the
+          // session it can show crossed:
+          //
+          // - `peerSends`, and `bothSend` on the **responder**: this device's own
+          //   half is the fetch response, and nothing acknowledges a response.
+          //   What it can vouch for is the payload the peer handed it, so that
+          //   is what it records. The rows it served itself are not in it: they
+          //   may have been lost with the response, and claiming them would make
+          //   the peer's later silence a deletion of them. They are recorded one
+          //   session later, when both manifests agree and the heal runs.
+          // - `bothSend` on the **initiator** whose push crossed (the ack is the
+          //   difference): the peer's copy is read after it applied that push,
+          //   so the two payloads' merge *is* the peer's copy — except for rows
+          //   written here after the read, which `_snapshotOutrunsPeerCopy`
+          //   catches by clock.
+          // - A `bothSend` whose own push never crossed — a live generation, a
+          //   conversation this round's budget left behind — claims nothing new:
+          //   keeping the previous entry is what makes the next session retry it
+          //   with the peer's older copy still readable as an edit, not a delete.
+          final received = receivedTransfers[id];
+          final outcome = outcomes[id];
+          if (outcome == null ||
+              outcome.deferred ||
+              peerDeferredConversations.contains(id)) {
+            if (prior != null) next[id] = prior;
+            break;
+          }
+          if (received != null && !received.complete) {
+            // Half-received: this device holds some of the peer's pages and
+            // cannot say which rows the peer no longer has. Forcing `peerSends`
+            // is what keeps the partial copy from travelling back — the sender
+            // would read the rows it lacks as deletions.
+            next[id] = SyncCheckpointConversation(
+              updatedAtUs: prior?.updatedAtUs ?? 0,
+              digest: prior?.digest ?? '',
+              rows: {...?prior?.rows, ...received.rows},
+              cursor: const SyncTransferCursor(sending: false),
+            );
+            break;
+          }
+          final claimsPeerCopy =
+              item.action == SyncConvAction.peerSends ||
+              (item.action == SyncConvAction.bothSend && !sendsConfirmed);
+          if (claimsPeerCopy) {
+            if (received == null) {
+              if (prior != null) next[id] = prior;
+              break;
+            }
+            final entry = _entryFor(received.toPayload());
+            // A transfer an earlier session started names rows this payload
+            // does not describe: the pages before the cursor carried them, and
+            // neither their families nor their clocks are here. The entry is
+            // then the state this device holds now — after the merge, so both
+            // sides compose the same digest — restricted to the ids the
+            // transfer named, so a row written here mid-session stays out of it.
+            // Only when the payload genuinely cannot describe the transfer:
+            // an earlier session's rows are missing, or the page named ids
+            // this progress never carried. A page that is merely smaller
+            // than the id set is the ordinary last page of a multi-page
+            // transfer, and the accumulated progress already holds every
+            // page — reading the whole conversation there would put its text
+            // back in memory once per transfer, on the receiving side.
+            final resumed =
+                received.seeded ||
+                received.declaredIds.any(
+                  (rowId) => !received.rows.containsKey(rowId),
+                );
+            final local = resumed
+                ? await dataPlane.checkpointFromLocal(id)
+                : null;
+            next[id] = local == null
+                ? entry
+                : SyncCheckpointConversation(
+                    updatedAtUs: local.updatedAtUs,
+                    digest: local.digest,
+                    rows: {
+                      for (final rowId in received.declaredIds)
+                        if (local.rows[rowId] != null)
+                          rowId: local.rows[rowId]!,
+                    },
+                  );
+            break;
+          }
+          // `bothSend` on the initiator: only a transfer that actually completed
+          // may be recorded, and a conversation the peer deferred has not.
+          if (sentTransfers[id]?.complete != true) {
+            if (prior != null) next[id] = prior;
+            break;
+          }
+          if (_snapshotOutrunsPeerCopy(outcome, received)) {
+            if (prior != null) next[id] = prior;
+            break;
+          }
+          final conversationRow = outcome.conversationRow;
+          if (conversationRow == null) {
+            if (prior != null) next[id] = prior;
+            break;
+          }
+          // The identity the apply composed inside its own transaction: the state
+          // the two sides agreed on, not whatever a writer added afterwards.
+          final digest =
+              outcome.digest ??
+              (await dataPlane.checkpointFromLocal(id))?.digest;
+          if (digest != null) {
+            next[id] = buildCheckpointConversation(
+              conversationRow: conversationRow,
+              messageRows: outcome.messageRows,
+              digest: digest,
+            );
+          } else if (prior != null) {
+            next[id] = prior;
+          }
+        case SyncConvAction.iDelete:
+          if (failedDeletes.contains(id) && prior != null) next[id] = prior;
+        case SyncConvAction.peerDeletes:
+          // The peer still holds it and must delete it. The entry must not
+          // drop yet: with no entry the next session reads "a conversation
+          // the peer has and this device never had" and downloads it back, so
+          // a deletion the peer deferred (a generation was writing there)
+          // would resurrect the subtree. It is dropped by `bothDeleted`, on
+          // the session where the peer's manifest has caught up.
+          if (prior != null) next[id] = prior;
+        case SyncConvAction.bothDeleted:
+          break; // entry drops: neither side has the conversation any more
+      }
+    }
+    return SyncCheckpoint(next);
+  }
+
+  /// The checkpoint entry one payload makes: what crossed the wire, nothing
+  /// else.
+  ///
+  /// The sender's `iSend` arm composes the same entry for the same payload, so
+  /// the two sides of one transfer record the same agreement — and a row this
+  /// device wrote while the session ran is in neither.
+  static SyncCheckpointConversation _entryFor(SyncSubtreePayload payload) =>
+      buildCheckpointConversation(
+        conversationRow: payload.conversation,
+        messageRows: payload.rowsOf(_messageFamily),
+        digest: composeConversationDigest(identityContributionsOf(payload)),
+      );
+
+  /// Whether the apply's post-merge snapshot holds a message row the peer's own
+  /// copy does not carry at that clock.
+  ///
+  /// The apply reads its base inside its own transaction and the merge keeps the
+  /// newer copy, so a row written here while the session ran is in the snapshot
+  /// at a clock the peer has never seen. A ledger recording that clock makes the
+  /// peer's later silence read as "untouched here" — the one reading the
+  /// deletion oracle acts on — so the entry waits a round instead: the row is
+  /// here, and the next session sends it.
+  ///
+  /// The comparison is by **clock**, not by id. An id check admits an *edit* of
+  /// an existing row, whose id is known and whose clock is new, and an edit is
+  /// exactly the write that loses: the snapshot would record it as the
+  /// agreement, and a later peer deletion of that row would read as a deletion
+  /// of a row nobody touched. The peer's copy is the right witness — it is read
+  /// after the responder applied this session's push, so a row that crossed is
+  /// in it at the clock it crossed with.
+
+  /// The entry for a transfer that stopped half-way: what the peer
+  /// acknowledged, the last agreement's digest, and where to resume.
+  static SyncCheckpointConversation _halfSentEntry(
+    SyncCheckpointConversation? prior,
+    _TransferProgress sent,
+  ) => SyncCheckpointConversation(
+    updatedAtUs:
+        prior?.updatedAtUs ??
+        (sent.conversation == null
+            ? 0
+            : effectiveConversationClock(sent.conversation!)),
+    digest: prior?.digest ?? '',
+    rows: {...?prior?.rows, ...sent.rows},
+    cursor: SyncTransferCursor(sending: true, after: sent.after),
+  );
+
+  /// Records what a session proved before it was cut short.
+  ///
+  /// A page is acknowledged, so the peer holds it; the entry that says so is
+  /// otherwise written only when a session reaches its end. Everything that is
+  /// not half-sent keeps its previous entry: this is not a checkpoint advance,
+  /// it is a note that says "these pages crossed".
+  Future<void> _persistPartialSend({
+    required String peerDeviceId,
+    required int epoch,
+    required SyncCheckpoint previous,
+    required Map<String, _TransferProgress> sent,
+  }) async {
+    if (sent.values.every((progress) => progress.complete)) return;
+    final next = <String, SyncCheckpointConversation>{
+      ...previous.conversations,
+    };
+    for (final entry in sent.entries) {
+      final progress = entry.value;
+      if (progress.complete) continue;
+      final prior = previous.conversations[entry.key];
+      next[entry.key] = _halfSentEntry(prior, progress);
+    }
+    await store.saveCheckpointUnlessReplaced(
+      peerDeviceId,
+      epochAtHello: epoch,
+      checkpoint: SyncCheckpoint(
+        next,
+        entities: previous.entities,
+        preferences: previous.preferences,
+        pendingBlobs: previous.pendingBlobs,
+        skillHashes: previous.skillHashes,
+        workspaceFiles: previous.workspaceFiles,
+        unappliedConversations: previous.unappliedConversations,
+        unappliedBusiness: previous.unappliedBusiness,
+        peerEpoch: previous.peerEpoch,
+      ),
+    );
+  }
+
+  static bool _snapshotOutrunsPeerCopy(
+    SyncSubtreeApplyOutcome outcome,
+    _TransferProgress? received,
+  ) {
+    if (received == null) return true;
+    final peerClocks = received.rows;
+    for (final row in outcome.messageRows) {
+      if (peerClocks[row['id']] != messageRowMutationUs(row)) return true;
+    }
+    return false;
+  }
+
+  /// The peer-observed row state for the conversations in [conversationIds],
+  /// which is what the merge's deletion oracle reads. Ids in [unconfirmed] are
+  /// left out: the peer reported that its apply of them never happened, so its
+  /// copy proves nothing about rows this device holds on top of it.
+  Map<String, Map<String, int>> _rowsOf(
+    SyncCheckpoint checkpoint,
+    Set<String> conversationIds, {
+    Set<String> unconfirmed = const {},
+  }) => {
+    for (final id in conversationIds)
+      if (!unconfirmed.contains(id) && checkpoint.conversations[id] != null)
+        id: checkpoint.conversations[id]!.rows,
+  };
+
+  /// Conversations the peer reported it could not apply. Its copy of them is
+  /// stale or missing, so this device re-sends: the alternative reading (the
+  /// peer deleted them) would lose rows the peer never received.
+  static List<SyncConvPlan> _reSendUnapplied(
+    List<SyncConvPlan> plan,
+    Set<String> peerUnapplied,
+  ) {
+    if (peerUnapplied.isEmpty) return plan;
+    return [
+      for (final item in plan)
+        peerUnapplied.contains(item.conversationId)
+            ? SyncConvPlan(item.conversationId, SyncConvAction.iSend)
+            : item,
+    ];
+  }
+
+  /// Deletions to announce on this hello: conversations this device still has a
+  /// shared-history record for (it and the peer reached that state) but no
+  /// longer carries, with the state both sides agreed on — the digest *and* the
+  /// conversation row's clock.
+  ///
+  /// The alternative — letting the peer infer the deletion from this device's
+  /// absent manifest — cannot tell a deletion from a transfer the peer never
+  /// confirmed, which is exactly what the fetch-beat rule stopped claiming. The
+  /// entry stops being announced once the peer's manifest drops it too.
+  static Map<String, SyncAnnouncedDeletion> _deletionsToAnnounce(
+    SyncCheckpoint checkpoint,
+    SyncManifest manifest,
+  ) => {
+    for (final entry in checkpoint.conversations.entries)
+      if (!manifest.conversations.containsKey(entry.key))
+        entry.key: SyncAnnouncedDeletion(
+          digest: entry.value.digest,
+          updatedAtUs: entry.value.updatedAtUs,
+        ),
+  };
+
+  /// Applies the peer's announced deletions. A local copy the peer still
+  /// remembers as it was is a copy the peer really deleted; a copy that differs
+  /// — in its messages or in the conversation row's clock — was written here
+  /// since, and an edit beats a delete exactly as it does in the plan table.
+  ///
+  /// The clock is what makes a restore from the recycle bin an edit: the
+  /// messages come back identical and the row keeps the display clock it was
+  /// deleted with, so the digest cannot tell the restored copy from the deleted
+  /// one and only the re-stamped sync clock can (protocol v8). The comparison is `<=` rather than `!=` on
+  /// purpose: deleting too much is recoverable (the copy is staged into the bin
+  /// again), while keeping too much resurrects content the peer's user deleted.
+  static List<SyncConvPlan> _applyDeletionAnnouncements(
+    List<SyncConvPlan> plan,
+    Map<String, SyncAnnouncedDeletion> announced,
+    SyncManifest mine,
+  ) {
+    if (announced.isEmpty) return plan;
+    return [
+      for (final item in plan)
+        _announcementKills(
+              announced[item.conversationId],
+              mine.conversations[item.conversationId],
+            )
+            ? SyncConvPlan(item.conversationId, SyncConvAction.iDelete)
+            : item,
+    ];
+  }
+
+  /// Whether the peer's announced deletion still describes this device's copy.
+  ///
+  /// The same question the plan's delete branch asks, so the same function
+  /// answers it ([copyWrittenSinceAgreement]): a copy with an identical digest
+  /// and a row clock no newer than the announcement is the copy the peer
+  /// deleted. The comparison is `<=` rather than `!=` on purpose: deleting too
+  /// much is recoverable (the copy is staged into the bin again), while keeping
+  /// too much resurrects content the peer's user deleted.
+  ///
+  /// An announcement without a clock is the v7 shape: the version gate refuses
+  /// such a pair, and if one ever slipped through the digest alone is the old —
+  /// narrower — rule rather than a wrong one.
+  static bool _announcementKills(
+    SyncAnnouncedDeletion? announced,
+    SyncManifestEntry? mine,
+  ) {
+    if (announced == null || mine == null) return false;
+    return !copyWrittenSinceAgreement(
+      digest: mine.digest,
+      agreedDigest: announced.digest,
+      clock: mine.updatedAtUs,
+      agreedClock: announced.updatedAtUs,
+    );
+  }
+
+  /// Whether a planned conversation deletion still describes the copy it would
+  /// delete, asked again at the moment the deletion runs.
+  ///
+  /// The plan's verdict was computed from the manifest walk, and the deletion
+  /// executes beats later — after an apply and a push. Two thirds of the premise
+  /// travel and may not be re-read: the peer's manifest arrived with this
+  /// session's hello, and the checkpoint was read from disk at its start. The
+  /// remaining third is exactly the thing that can move underneath, so the local
+  /// copy is read again here and the same function is asked the same question.
+  ///
+  /// An answer that is no longer `iDelete` means an edit has beaten the deletion
+  /// here just as it would have beaten it at walk time
+  /// ([SyncConvAction.iDelete] is only reachable through
+  /// [copyWrittenSinceAgreement] answering "unchanged"), and deleting the copy
+  /// the user just wrote into would destroy the only version of it.
+  Future<bool> _conversationDeletionStillStands(
+    String conversationId,
+    SyncCheckpoint checkpoint,
+    Map<String, SyncAnnouncedDeletion> announced,
+  ) async {
+    final mine = await dataPlane.checkpointFromLocal(conversationId);
+    // Already gone: there is no copy for an edit to protect, and the deletion
+    // is the no-op it was before this re-read existed.
+    if (mine == null) return true;
+    // An announced deletion states its own premise, so it is re-asked against
+    // that one: the version the peer says it deleted, which travelled in this
+    // session's hello. The checkpoint is not that premise and often has no entry
+    // here at all — a row this device pushed is only recorded once the peer's
+    // manifest shows it, so a deletion announced *of* such a row would otherwise
+    // be blocked for having nothing to agree with.
+    final announcement = announced[conversationId];
+    if (announcement != null) {
+      return !copyWrittenSinceAgreement(
+        digest: mine.digest,
+        agreedDigest: announcement.digest,
+        clock: mine.updatedAtUs,
+        agreedClock: announcement.updatedAtUs,
+      );
+    }
+    final agreed = checkpoint.conversations[conversationId];
+    return planRowSync(
+          mineDigest: mine.digest,
+          // Carried, never re-read: the peer's manifest named no such conversation,
+          // which is the whole of what made this a deletion.
+          peerDigest: null,
+          checkpointDigest: agreed?.digest,
+          mineClock: mine.updatedAtUs,
+          checkpointClock: agreed?.updatedAtUs,
+        ) ==
+        SyncConvAction.iDelete;
+  }
+
+  /// The business-row face of [_conversationDeletionStillStands], with the same
+  /// premise split: the peer's absence and the agreement are carried, the row is
+  /// read here.
+  ///
+  /// A skill's digest covers its body directory, so the row's re-read is the
+  /// body's too: a skill whose files changed under a planned deletion is an edit
+  /// and the deletion does not run.
+  Future<bool> _businessDeletionStillStands(
+    String kindWire,
+    String id,
+    SyncCheckpoint checkpoint,
+  ) async {
+    final mine = await dataPlane.checkpointBusinessFromLocal(kindWire, id);
+    if (mine == null) return true;
+    final agreed = kindWire == kSyncPreferenceWire
+        ? checkpoint.preferences[id]
+        : checkpoint.entities[kindWire]?[id];
+    return planRowSync(
+          mineDigest: mine.digest,
+          peerDigest: null,
+          checkpointDigest: agreed?.digest,
+          mineClock: mine.updatedAtUs,
+          checkpointClock: agreed?.updatedAtUs,
+        ) ==
+        SyncConvAction.iDelete;
+  }
+
+  /// Business rows a peer's deferred apply makes ambiguous. A row that peer
+  /// lacks may have been deleted there or may simply never have arrived (a
+  /// restore held its write fence), and only the second reading is safe: the
+  /// row stays here, and the peer requests it in its own plan.
+  static List<SyncBusinessPlanItem> _keepRowsPeerMayNeverHaveSeen(
+    List<SyncBusinessPlanItem> plan,
+    bool peerUnappliedBusiness,
+  ) {
+    if (!peerUnappliedBusiness) return plan;
+    return [
+      for (final item in plan)
+        item.action == SyncConvAction.iDelete
+            ? SyncBusinessPlanItem(item.kindWire, item.id, SyncConvAction.none)
+            : item,
+    ];
+  }
+
+  /// A peer whose database was bulk-replaced lost rows that were never deleted,
+  /// so nothing it lacks may make this device delete its own copy. Deleting to
+  /// match the peer becomes re-sending to restore it; a deletion this device
+  /// made itself is unaffected, because that plans `peerDeletes` (carried to
+  /// the peer by the announcement), not `iDelete`.
+  static List<SyncConvPlan> _reSendInsteadOfDelete(List<SyncConvPlan> plan) {
+    if (!plan.any((item) => item.action == SyncConvAction.iDelete)) return plan;
+    return [
+      for (final item in plan)
+        item.action == SyncConvAction.iDelete
+            ? SyncConvPlan(item.conversationId, SyncConvAction.iSend)
+            : item,
+    ];
+  }
+
+  /// The conversation plan, composed in the one order that keeps the two
+  /// overrides from eating each other.
+  ///
+  /// `peerUnapplied` and the announcements both say something about an absence
+  /// the table would otherwise read as a deletion, and the epoch override says
+  /// something about all absences at once. Order matters: the epoch override
+  /// rewrites every `iDelete`, and an announced deletion *is* an `iDelete`, so
+  /// applying announcements first would have the epoch convert a deletion the
+  /// peer really made back into a re-send of the row it deleted. Announcements
+  /// go last: they name a deletion, where the epoch speaks only about absences.
+  @visibleForTesting
+  static List<SyncConvPlan> composeConversationPlan({
+    required SyncManifest mine,
+    required SyncManifest peers,
+    required SyncCheckpoint checkpoint,
+    required Set<String> peerUnapplied,
+    required Map<String, SyncAnnouncedDeletion> announced,
+    required bool peerReplaced,
+  }) {
+    var plan = _resumeUnfinishedTransfers(
+      _reSendUnapplied(
+        planSync(mine: mine, peers: peers, checkpoint: checkpoint),
+        peerUnapplied,
+      ),
+      checkpoint: checkpoint,
+      mine: mine,
+      peers: peers,
+    );
+    if (peerReplaced) plan = _reSendInsteadOfDelete(plan);
+    return _applyDeletionAnnouncements(plan, announced, mine);
+  }
+
+  /// A conversation whose transfer was cut short is not decided by the digests.
+  ///
+  /// Its checkpoint entry carries a [SyncTransferCursor], which says which side
+  /// owes the rows — and that is the only plan the pair can finish from. A
+  /// half-sent conversation must be finished here (`iSend`); a half-received one
+  /// must be finished by the peer (`peerSends`). Without this the receiving side
+  /// plans `bothSend` — its local digest differs from the peer's because it only
+  /// holds part of the copy — and pushing that partial copy is the one thing
+  /// that must never happen: the sender's deletion oracle would read the rows it
+  /// lacks as rows the receiver deleted.
+  ///
+  /// The forcing yields to the local reality: a conversation this device no
+  /// longer has cannot be sent because an old cursor says so.
+  static List<SyncConvPlan> _resumeUnfinishedTransfers(
+    List<SyncConvPlan> plan, {
+    required SyncCheckpoint checkpoint,
+    required SyncManifest mine,
+    required SyncManifest peers,
+  }) {
+    if (!checkpoint.conversations.values.any((entry) => entry.cursor != null)) {
+      return plan;
+    }
+    return [
+      for (final item in plan)
+        switch (checkpoint.conversations[item.conversationId]?.cursor) {
+          final SyncTransferCursor cursor
+              when cursor.sending
+                  ? mine.conversations.containsKey(item.conversationId)
+                  : peers.conversations.containsKey(item.conversationId) =>
+            SyncConvPlan(
+              item.conversationId,
+              cursor.sending ? SyncConvAction.iSend : SyncConvAction.peerSends,
+            ),
+          _ => item,
+        },
+    ];
+  }
+
+  /// The business face of [_reSendInsteadOfDelete].
+  static List<SyncBusinessPlanItem> _keepInsteadOfDelete(
+    List<SyncBusinessPlanItem> plan,
+  ) {
+    if (!plan.any((item) => item.action == SyncConvAction.iDelete)) return plan;
+    return [
+      for (final item in plan)
+        item.action == SyncConvAction.iDelete
+            ? SyncBusinessPlanItem(item.kindWire, item.id, SyncConvAction.iSend)
+            : item,
+    ];
+  }
+
+  /// Every row a manifest advertises, as [syncBusinessKey] strings: the
+  /// evidence that a row the peer *lacks* is one it could have taken.
+  static Set<String> _manifestKeys(SyncManifest manifest) => {
+    for (final entry in manifest.entities.entries)
+      for (final id in entry.value.keys) syncBusinessKey(entry.key, id),
+    for (final key in manifest.preferences.keys)
+      syncBusinessKey(kSyncPreferenceWire, key),
+  };
+
+  /// Advances the business half of the checkpoint. The rule mirrors
+  /// conversations: an entry moves to the current shared state (read back from
+  /// local, which *is* the shared state once the exchange succeeded) only when
+  /// both sides demonstrably reached it; anything skipped, undelivered or
+  /// deferred — here or, per the push acknowledgement, on the peer — keeps its
+  /// previous entry so the next session retries it. A row gone on both sides
+  /// drops its entry.
+  ///
+  /// **A row this device sent counts as agreed only on a receipt.** The
+  /// acknowledgement's counts are blind to per-key rejection: a peer on an older
+  /// build drops a key it does not sync at apply and answers success
+  /// (`business_repository.dart`: `if (!BusinessKeyRegistry.isSynced(key))
+  /// continue;`). Recording that as agreement is what let the *second* session
+  /// read the peer's silence as a deletion and remove the value here — the row
+  /// was absent there because it never arrived, not because anyone deleted it.
+  /// There are two honest receipts and either will do: the acknowledgement names
+  /// the rows the peer now holds ([peerAcceptedKeys], same session), and the
+  /// peer's manifest advertises them ([peerAdvertisedKeys], from the session
+  /// after it stores them). Until one of them names the row this device keeps
+  /// offering it — idempotent, and the plan turns into `none` on its own once
+  /// the peer can take it.
+  Future<SyncCheckpoint> _advanceBusinessCheckpoint({
+    required SyncCheckpoint previous,
+    required List<SyncBusinessPlanItem> plan,
+    required Set<String> sentKeys,
+    required Set<String> receivedKeys,
+    required Set<String> deletedKeys,
+    required Set<String> failedDeleteKeys,
+    required Set<String> peerAdvertisedKeys,
+    required Set<String> peerAcceptedKeys,
+
+    /// The payload this device packed for the peer, and the skill body hashes
+    /// that travelled with it. An entry for a row this device *sent* describes
+    /// that payload, not a re-read of what is here now — see
+    /// [SyncDataPlane.checkpointBusinessFromSent].
+    required SyncBusinessPayload sentBusiness,
+    Map<String, String> sentSkillHashes = const {},
+    required bool applyDeferred,
+    bool peerApplyDeferred = false,
+    bool sendsConfirmed = true,
+    Set<String> peerDeferredSkillIds = const {},
+  }) async {
+    // A skill the peer stripped (its body never landed) delivered nothing, so
+    // its row must keep the previous entry exactly as a deferred apply does.
+    final peerDeferredKeys = {
+      for (final id in peerDeferredSkillIds)
+        syncBusinessKey(SyncDataPlane.skillWire, id),
+    };
+    final entities = <String, Map<String, SyncCheckpointEntry>>{
+      for (final entry in previous.entities.entries)
+        entry.key: Map<String, SyncCheckpointEntry>.of(entry.value),
+    };
+    final preferences = <String, SyncCheckpointEntry>{...previous.preferences};
+
+    for (final item in plan) {
+      final key = syncBusinessKey(item.kindWire, item.id);
+      final prior = item.kindWire == kSyncPreferenceWire
+          ? preferences[item.id]
+          : entities[item.kindWire]?[item.id];
+      // Two receipts, either enough: the acknowledgement of *this* push names
+      // the rows the peer now holds, and the peer's manifest covers a row it
+      // already had (and every session an older build answers with no list at
+      // all). Neither names a row the peer dropped.
+      final peerHoldsRow =
+          peerAcceptedKeys.contains(key) || peerAdvertisedKeys.contains(key);
+
+      /// Records [entry] as the agreement for this row, or drops it when the row
+      /// is gone from here.
+      void store(SyncCheckpointEntry? entry) {
+        if (item.kindWire == kSyncPreferenceWire) {
+          if (entry == null) {
+            preferences.remove(item.id);
+          } else {
+            preferences[item.id] = entry;
+          }
+          return;
+        }
+        final rows = entities[item.kindWire] ??=
+            <String, SyncCheckpointEntry>{};
+        if (entry == null) {
+          rows.remove(item.id);
+        } else {
+          rows[item.id] = entry;
+        }
+      }
+
+      void keepPrior() {
+        if (prior == null) return;
+        if (item.kindWire == kSyncPreferenceWire) {
+          preferences[item.id] = prior;
+        } else {
+          (entities[item.kindWire] ??=
+                  <String, SyncCheckpointEntry>{})[item.id] =
+              prior;
+        }
+      }
+
+      void drop() {
+        if (item.kindWire == kSyncPreferenceWire) {
+          preferences.remove(item.id);
+        } else {
+          entities[item.kindWire]?.remove(item.id);
+        }
+      }
+
+      /// The row is here and nobody sent it: `none`, or a peer row this device
+      /// just applied. Re-reading is correct because the local row *is* the
+      /// agreed state.
+      Future<void> setFromLocal() async {
+        store(
+          await dataPlane.checkpointBusinessFromLocal(item.kindWire, item.id),
+        );
+      }
+
+      /// The row travelled from here: the entry describes what crossed the wire.
+      ///
+      /// A payload that does not carry the row proves nothing arrived, so the
+      /// previous entry stays and the next session offers the row again.
+      void setFromSent() {
+        final entry = dataPlane.checkpointBusinessFromSent(
+          sent: sentBusiness,
+          kindWire: item.kindWire,
+          id: item.id,
+          directoryHash: sentSkillHashes[item.id],
+        );
+        if (entry == null) {
+          keepPrior();
+          return;
+        }
+        store(entry);
+      }
+
+      // A withheld key is not an agreement. Nothing crossed, so there is
+      // nothing to record — and refreshing the entry from the local row
+      // (`none`'s own arm) would be worse than useless: it would claim the peer
+      // holds this version, which turns the first session after the user
+      // un-withholds the row from "the table's last-write-wins settles it" into
+      // "this device's copy wins", silently.
+      if (item.withheld) {
+        keepPrior();
+        continue;
+      }
+
+      switch (item.action) {
+        case SyncConvAction.none:
+          await setFromLocal();
+        case SyncConvAction.iSend:
+          if (sendsConfirmed &&
+              sentKeys.contains(key) &&
+              peerHoldsRow &&
+              !peerApplyDeferred &&
+              !peerDeferredKeys.contains(key)) {
+            // What the peer holds is what was pushed, which is not necessarily
+            // what the row says by the time this runs.
+            setFromSent();
+          } else {
+            keepPrior();
+          }
+        case SyncConvAction.peerSends:
+          if (applyDeferred || !receivedKeys.contains(key)) {
+            keepPrior();
+          } else {
+            await setFromLocal();
+          }
+        case SyncConvAction.bothSend:
+          if (applyDeferred ||
+              peerApplyDeferred ||
+              !sentKeys.contains(key) ||
+              !receivedKeys.contains(key)) {
+            keepPrior();
+          } else {
+            // The evidence face here, but only because of what it costs when it
+            // is wrong, not because the payload is the converged row. It is that
+            // on the responder, which reads it after its own apply; the initiator
+            // reads it *before* its apply and before the push, so its entry for a
+            // `bothSend` names its pre-apply row — which may be the row-level LWW
+            // loser.
+            //
+            // That understates the agreement rather than inventing one, and it
+            // heals itself: an entry naming the loser makes the next session plan
+            // `peerSends`/`iSend` again, and the `none` arm corrects the entry once
+            // both manifests agree on the winner. Reading the post-apply row here
+            // (setFromLocal) would instead record an edit made *after* the apply —
+            // the window this whole slice exists to close.
+            setFromSent();
+          }
+        case SyncConvAction.iDelete:
+          if (failedDeleteKeys.contains(key)) {
+            keepPrior();
+          } else {
+            drop();
+          }
+        case SyncConvAction.peerDeletes:
+        case SyncConvAction.bothDeleted:
+          drop();
+      }
+    }
+
+    // A kind whose rows all disappeared would otherwise leave an empty map
+    // behind and grow the checkpoint file for no reason.
+    entities.removeWhere((_, rows) => rows.isEmpty);
+    return SyncCheckpoint(
+      previous.conversations,
+      entities: entities,
+      preferences: preferences,
+    );
+  }
+
+  // ---- blobs (slice 3) ----
+
+  /// Advances the per-peer skill-content baseline. The rule is the row rule
+  /// applied to bodies: a skill the session resolved converges on the local
+  /// hash (which *is* the shared value once the exchange succeeded), a deleted
+  /// skill drops its entry, and a deferred body keeps the previous baseline so
+  /// the next session re-plans it.
+  Future<Map<String, String>> _advanceSkillHashes({
+    required SyncCheckpoint previous,
+    required List<SkillContentPlan> plan,
+    required Set<String> deferredSkills,
+    required Set<String> deletedSkills,
+    required Map<String, String> localHashes,
+  }) async {
+    final next = <String, String>{...previous.skillHashes};
+    for (final item in plan) {
+      final id = item.skillId;
+      if (deletedSkills.contains(id)) {
+        next.remove(id);
+        continue;
+      }
+      if (deferredSkills.contains(id)) continue; // keep the prior baseline
+      switch (item.action) {
+        case SyncConvAction.iDelete:
+        case SyncConvAction.peerDeletes:
+        case SyncConvAction.bothDeleted:
+          next.remove(id);
+        case SyncConvAction.none:
+        case SyncConvAction.iSend:
+        case SyncConvAction.peerSends:
+        case SyncConvAction.bothSend:
+          final hash = localHashes[id];
+          if (hash == null) {
+            next.remove(id);
+          } else {
+            next[id] = hash;
+          }
+      }
+    }
+    return next;
+  }
+
+  /// What the skill plan means for this device's content: the peer bodies to
+  /// pull, the records that cannot be verified yet, and the local edits the
+  /// deterministic rule discards (reported, never silent).
+  _SkillAdoptionPlan _planSkillAdoptions({
+    required List<SkillContentPlan> plan,
+    required SyncManifest mine,
+    required SyncManifest peers,
+    required Map<String, String> peerSkillHashes,
+    required Map<String, String> mySkillHashes,
+    required String myDeviceId,
+    required String peerDeviceId,
+  }) {
+    final out = _SkillAdoptionPlan();
+    final mineRows =
+        mine.entities[SyncDataPlane.skillWire] ??
+        const <String, SyncManifestEntry>{};
+    final peerRows =
+        peers.entities[SyncDataPlane.skillWire] ??
+        const <String, SyncManifestEntry>{};
+    for (final item in plan) {
+      final bothChanged = item.action == SyncConvAction.bothSend;
+      final adopt = switch (item.action) {
+        SyncConvAction.peerSends => true,
+        // Both bodies changed: the record clock decides, exactly as it does
+        // for a row, and both peers reach the same verdict independently.
+        SyncConvAction.bothSend => incomingBusinessRowWins(
+          localUpdatedAtUs: mineRows[item.skillId]?.updatedAtUs ?? 0,
+          incomingUpdatedAtUs: peerRows[item.skillId]?.updatedAtUs ?? 0,
+          myDeviceId: myDeviceId,
+          peerDeviceId: peerDeviceId,
+        ),
+        _ => false,
+      };
+      if (!adopt) continue;
+      // Adopting the peer's body means the local edit is gone; that is the
+      // "loser" the report must name.
+      if (bothChanged) out.conflicts.add(item.skillId);
+      final peerHash = peerSkillHashes[item.skillId];
+      if (peerHash == null) {
+        // A record arrived whose body hash did not: nothing can be verified,
+        // so the record waits for a session that carries the hash.
+        out.deferred.add(item.skillId);
+        continue;
+      }
+      if (mySkillHashes[item.skillId] == peerHash) {
+        continue; // already identical
+      }
+      out.wanted.add(
+        SyncBlobEntry(
+          kind: SyncBlobEntry.kindSkillDir,
+          key: item.skillId,
+          contentHash: peerHash,
+        ),
+      );
+      out.wantedSkillIds.add(item.skillId);
+    }
+    return out;
+  }
+
+  /// The blob set one session will try to land: what this side's plan wants
+  /// ([fresh]), plus what earlier sessions still owe ([pending]) — and a fresh
+  /// entry always wins.
+  ///
+  /// A blob's target is `(kind, key)`, so re-referencing an attachment or
+  /// editing a skill body keeps the target and changes the hash. The retry set
+  /// is keyed by target too and holds the hash that was *pending* — exactly the
+  /// hash a fresh advertisement supersedes. Folding it in last would make this
+  /// side ask, session after session, for a hash the peer no longer backs, while
+  /// the peer skips it as "no longer backed": a permanent stall for that file,
+  /// reported by neither side. The initiator and the responder fold one set, so
+  /// they fold it the same way — the second implementation is the bug.
+  static Map<String, SyncBlobEntry> _foldBlobWanted(
+    Iterable<SyncBlobEntry> fresh,
+    Iterable<SyncBlobEntry> pending,
+  ) {
+    final wanted = <String, SyncBlobEntry>{
+      for (final entry in fresh) entry.target: entry,
+    };
+    for (final entry in pending) {
+      wanted.putIfAbsent(entry.target, () => entry);
+    }
+    return wanted;
+  }
+
+  /// Pulls and applies every wanted blob over [session], returning what landed
+  /// and what must be retried. One blob's failure never aborts the session: a
+  /// conversation is still a conversation without its picture, and a skill
+  /// record is simply deferred. [onProgress] (if given) is called per blob with
+  /// how many are done out of the total — the one beat that can take minutes on
+  /// a first sync.
+  Future<_BlobPullOutcome> _pullBlobs(
+    List<SyncBlobEntry> wanted,
+    SyncClientSession session, {
+    void Function(int done, int total)? onProgress,
+    bool Function()? cancelled,
+  }) async {
+    final outcome = _BlobPullOutcome();
+    // Nothing to pull is not a beat: publishing "downloading files" for an
+    // empty set would flash a phase this session never enters.
+    if (wanted.isEmpty) return outcome;
+    for (var i = 0; i < wanted.length; i++) {
+      final entry = wanted[i];
+      if (cancelled?.call() ?? false) {
+        // Stop here rather than pull into a beat the peer has already been told
+        // is over. The ones not tried are *not* recorded as failed: a cancelled
+        // beat writes no checkpoint, so nothing would carry that record — the
+        // retry set this beat would have advanced is behind the same gate, and
+        // what is still owed comes back from the peer's next manifest.
+        break;
+      }
+      onProgress?.call(i, wanted.length);
+      File? temp;
+      try {
+        temp = await store.newBlobTempFile();
+        // The client hashes a file blob into this temp file as it streams, so
+        // what `_landStagedBlob` places is bytes this device already verified.
+        await session.fetchBlob(entry, temp);
+        final landed = await _landStagedBlob(entry, temp);
+        if (landed == null) {
+          outcome.failed[entry.target] = entry;
+        } else {
+          _recordLanded(entry, landed, outcome);
+        }
+      } catch (error) {
+        debugPrint('sync blob ${entry.contentHash} failed: $error');
+        outcome.failed[entry.target] = entry;
+      } finally {
+        if (temp != null) {
+          try {
+            if (await temp.exists()) await temp.delete();
+          } catch (_) {}
+        }
+      }
+    }
+    onProgress?.call(wanted.length, wanted.length);
+    return outcome;
+  }
+
+  /// Puts one staged blob where its entry says it belongs, returning the bytes
+  /// that landed or null when nothing was installed.
+  ///
+  /// The one place the two blob kinds' *placement* lives, shared by the fetch
+  /// beat and the push route (slice 24): a file is a managed-root check plus an
+  /// atomic rename, a skill directory is extracted and re-hashed before it is
+  /// swapped in. A pushed blob and a pulled one must pass the same gates.
+  Future<int?> _landStagedBlob(SyncBlobEntry entry, File staged) async {
+    if (entry.kind == SyncBlobEntry.kindSkillDir) {
+      final applied = await dataPlane.applySkillBlob(
+        skillId: entry.key,
+        dirHash: entry.contentHash,
+        zip: staged,
+      );
+      return applied ? await staged.length() : null;
+    }
+    return placeFileBlob(entry, staged, resolve: dataPlane.blobPathResolver);
+  }
+
+  /// Books one landed blob into [outcome]: the one place the two kinds'
+  /// bookkeeping is written, so a pull and a push cannot count differently.
+  void _recordLanded(
+    SyncBlobEntry entry,
+    int landed,
+    _BlobPullOutcome outcome,
+  ) {
+    if (entry.kind == SyncBlobEntry.kindSkillDir) {
+      outcome.landedSkillIds.add(entry.key);
+    } else {
+      outcome.landedByUri[entry.key] = entry.withSize(landed);
+    }
+    outcome.bytes += landed;
+    outcome.failed.remove(entry.target);
+  }
+
+  /// Pushes the workspace files the responder could not take for itself, over
+  /// the connection this round already holds (slice 23).
+  ///
+  /// The responder only ever asks for pairs it planned to fetch and could not
+  /// land — no reverse connection to this device, or a transfer that failed —
+  /// and each request names the version this device advertised in the push. A
+  /// file that is no longer that version is skipped here: [WorkspaceContentSync.serve]
+  /// re-stats it against the advertised stamp, and pushing bytes the receiver
+  /// would refuse only wastes the transfer. A failed push is owed, not fatal:
+  /// the file keeps its unadvanced ledger entry and is asked for again next
+  /// session.
+  ///
+  /// Sequential on purpose. The control beats are request/response on one
+  /// connection, and a workspace's misses are a handful of files; running them
+  /// concurrently would buy nothing and make the failure story per-file
+  /// unclear.
+  Future<({int files, int bytes})> _pushRequestedWorkspaceFiles({
+    required SyncClientSession session,
+    required String peerDeviceId,
+    required List<SyncWorkspaceFileRequest> requests,
+  }) async {
+    if (requests.isEmpty) return (files: 0, bytes: 0);
+    final content = dataPlane.workspaceContent;
+    if (content == null) return (files: 0, bytes: 0);
+    var files = 0;
+    var bytes = 0;
+    for (final request in requests) {
+      try {
+        final file = await content.serve(
+          peerDeviceId: peerDeviceId,
+          workspaceId: request.workspaceId,
+          relPath: request.relPath,
+        );
+        if (file == null) {
+          debugPrint(
+            'sync workspace: not pushing ${request.workspaceId}/'
+            '${request.relPath}: it is no longer the advertised version',
+          );
+          continue;
+        }
+        await session.pushWorkspaceFile(
+          workspaceId: request.workspaceId,
+          relPath: request.relPath,
+          source: file,
+          advertised: request.stamp,
+        );
+        files++;
+        bytes += request.stamp.size;
+        debugPrint(
+          'sync workspace: pushed ${request.workspaceId}/${request.relPath} '
+          '(${request.stamp.size} B) to the peer',
+        );
+      } catch (error) {
+        debugPrint(
+          'sync workspace: pushing ${request.workspaceId}/${request.relPath} '
+          'failed: $error',
+        );
+      }
+    }
+    return (files: files, bytes: bytes);
+  }
+
+  /// Pushes the blobs the responder could not take for itself, over the
+  /// connection this round already holds (slice 24).
+  ///
+  /// The same shape as [_pushRequestedWorkspaceFiles], and for the same reason:
+  /// the peer that cannot be dialled back is the peer whose pictures never
+  /// arrive, so the side that holds them has to send them. The responder asks
+  /// only for blobs its own plan named, and a blob this device no longer backs
+  /// at the requested hash is skipped here — the receiver would refuse those
+  /// bytes anyway, and the entry stays owed rather than half-true.
+  ///
+  /// Sequential on purpose: these are control-beat requests on one connection,
+  /// and pushing several large attachments at once would buy nothing while
+  /// making a stalled transfer's cause unclear.
+  Future<({int blobs, int bytes})> _pushRequestedBlobs({
+    required SyncClientSession session,
+    required String peerDeviceId,
+    required List<SyncBlobEntry> requests,
+  }) async {
+    if (requests.isEmpty) return (blobs: 0, bytes: 0);
+    var blobs = 0;
+    var bytes = 0;
+    for (final entry in requests) {
+      try {
+        final file = await _blobToPush(peerDeviceId, entry);
+        if (file == null) {
+          debugPrint(
+            'sync blob: not pushing ${entry.key}: this device no longer backs '
+            '${entry.contentHash}',
+          );
+          continue;
+        }
+        final size = await file.length();
+        await session.pushBlob(entry: entry, source: file, size: size);
+        blobs++;
+        bytes += size;
+        debugPrint('sync blob: pushed ${entry.key} ($size B) to the peer');
+      } catch (error) {
+        debugPrint('sync blob: pushing ${entry.key} failed: $error');
+      }
+    }
+    return (blobs: blobs, bytes: bytes);
+  }
+
+  /// The local file behind one blob this device is about to push, or null when
+  /// it can no longer back that hash.
+  ///
+  /// Resolution goes through [handleFetchBlob] — the same authority a `GET`
+  /// consults, so the push serves exactly what a fetch would have — and a file
+  /// blob is hashed again on top of it: a published mapping is a memory of what
+  /// the file *was* at manifest time, and the receiver's digest check would
+  /// throw the transfer away. The hasher memoises by (path, length, mtime), so
+  /// an unchanged file costs a stat.
+  Future<File?> _blobToPush(String peerDeviceId, SyncBlobEntry entry) async {
+    final File? file;
+    try {
+      file = await _servableBlob(entry.contentHash);
+    } catch (error) {
+      debugPrint('sync: serving blob ${entry.contentHash} failed: $error');
+      return null;
+    }
+    if (file == null) return null;
+    if (entry.kind == SyncBlobEntry.kindFile) {
+      final hash = await dataPlane.fileHasher.hashOf(file);
+      if (hash != entry.contentHash) return null;
+    }
+    return file;
+  }
+
+  /// Remembers what this device can serve for a manifest it just published.
+  /// The server resolves a blob hash from here first (the common case), then
+  /// falls back to the asset registry and a live skill hash scan — which is
+  /// what lets a blob pending from an *earlier* session still be served.
+  ///
+  /// The entries come off the wire, so a file entry is only remembered when it
+  /// names a managed blob root — the same allowlist the manifest builder and
+  /// the placement path enforce. Without it a paired peer could name any
+  /// readable local file and fetch it back by a hash it chose.
+  void _rememberPublished(List<SyncBlobEntry> entries) {
+    for (final entry in entries) {
+      if (entry.kind == SyncBlobEntry.kindFile) {
+        if (!isAllowedFileBlobUri(entry.key)) continue;
+        final resolved = dataPlane.blobPathResolver(entry.key);
+        if (resolved != null) {
+          _publishedBlobs[entry.contentHash] = File(resolved);
+        }
+      } else if (entry.kind == SyncBlobEntry.kindSkillDir) {
+        _publishedSkillIds[entry.contentHash] = entry.key;
+      }
+    }
+  }
+
+  @override
+  Future<File?> handleFetchBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required SyncAdmission admission,
+  }) async {
+    try {
+      // Zipping a skill body is the one read that can take minutes (it walks
+      // and archives a directory), so the whole resolution runs under the
+      // request's budget: a peer that stopped waiting is not owed a body.
+      return await admission.io(() => _servableBlob(contentHash));
+    } on SyncAdmissionLost {
+      rethrow;
+    } catch (error) {
+      // A body that changed between the manifest and the fetch is simply not
+      // servable: the peer records the miss and retries next session.
+      debugPrint('sync: serving blob $contentHash failed: $error');
+      return null;
+    }
+  }
+
+  /// The local file this device can serve for [contentHash], or null.
+  ///
+  /// Shared by the `GET` route (through [handleFetchBlob]) and by this device's
+  /// own push of a blob the peer asked for, so a pushed blob is exactly the one
+  /// a fetch would have received.
+  Future<File?> _servableBlob(String contentHash) async {
+    final published = _publishedBlobs[contentHash];
+    if (published != null && await published.exists()) return published;
+    final skillId = _publishedSkillIds[contentHash];
+    if (skillId != null) {
+      return dataPlane.skillBlobForHash(skillId: skillId, dirHash: contentHash);
+    }
+    // A pending retry from a previous launch: the content-addressed asset
+    // registry is the durable authority for what this device holds.
+    final registered = await dataPlane.assetFileForContentHash(contentHash);
+    if (registered != null && await registered.exists()) return registered;
+    // A skill body that still hashes to the requested value.
+    return dataPlane.skillBlobForContentHash(contentHash);
+  }
+
+  @override
+  Future<File?> handleFetchWorkspaceFile(
+    String peerDeviceId,
+    String workspaceId,
+    String relPath, {
+    required SyncAdmission admission,
+  }) async {
+    final content = dataPlane.workspaceContent;
+    // No content support in this build (conversation-only tests): the route
+    // answers 404 and the caller counts an unapplied file, which is exactly
+    // what "this device cannot serve it" means.
+    if (content == null) return null;
+    return content.serve(
+      peerDeviceId: peerDeviceId,
+      workspaceId: workspaceId,
+      relPath: relPath,
+    );
+  }
+
+  /// Receives one workspace file the initiator pushed because this device could
+  /// not fetch it (slice 23).
+  ///
+  /// Three refusals, in order, before a byte of the body is trusted:
+  ///
+  /// * the session must exist and have taken its push — a push without one has
+  ///   no request set, so it has nothing that could authorize a write;
+  /// * the pair must be in that session's request set, which is built from the
+  ///   table the initiator itself advertised: a crafted `(workspace, path)` has
+  ///   never been advertised and so can never be written;
+  /// * the declared size must be the size that was asked for, so a peer cannot
+  ///   substitute a different version of the file for the one it offered.
+  ///
+  /// What is left is the switch and the four landing gates, which the content
+  /// plane applies exactly as it does for a fetched file. The landed stamp goes
+  /// into the session, not the checkpoint: the ledger is written once, at the
+  /// fetch beat, after every file this session moved is known.
+  ///
+  /// The edit time is not a parameter: it travels in the request set's stamp,
+  /// which is the version this device asked for, and that is the only stamp the
+  /// landing may put on the file.
+  @override
+  Future<bool> handlePutWorkspaceFile(
+    String peerDeviceId,
+    String workspaceId,
+    String relPath, {
+    required int size,
+    required Stream<List<int>> body,
+    required SyncAdmission admission,
+  }) async {
+    final session = _sessions[peerDeviceId];
+    if (session == null) {
+      await _discard(body, size);
+      return false;
+    }
+    // A pushed file is peer work on the session, so it is a beat: the idle sweep
+    // must not decide this session is gone while the upload is still arriving.
+    // Without this, an upload phase longer than [kSessionIdleTtl] was swept out
+    // by this device's own next round — every remaining put then found no
+    // session, and the fetch beat that follows failed with `sessionMissing` —
+    // which is the long first sync the sweeps exist to protect, killed from the
+    // other end.
+    _beginBeat(session);
+    try {
+      return await _receivePutWorkspaceFile(
+        session,
+        workspaceId,
+        relPath,
+        size: size,
+        body: body,
+        admission: admission,
+      );
+    } finally {
+      _endBeat(session);
+    }
+  }
+
+  /// [handlePutWorkspaceFile]'s body, run inside that put's beat.
+  Future<bool> _receivePutWorkspaceFile(
+    _ResponderSession session,
+    String workspaceId,
+    String relPath, {
+    required int size,
+    required Stream<List<int>> body,
+    required SyncAdmission admission,
+  }) async {
+    if (!session.pushSeen) {
+      await _discard(body, size);
+      return false;
+    }
+    final key = WorkspaceContentSync.serveKey(workspaceId, relPath);
+    final requested = session.workspaceRequests[key];
+    if (requested == null || requested.stamp.size != size) {
+      await _discard(body, size);
+      debugPrint(
+        'sync workspace: refusing a push for $workspaceId/$relPath: this '
+        'session did not ask for that version',
+      );
+      return false;
+    }
+    final content = dataPlane.workspaceContent;
+    if (content == null) {
+      await _discard(body, size);
+      return false;
+    }
+    File? staged;
+    var received = 0;
+    try {
+      staged = await store.newBlobTempFile();
+      final sink = staged.openWrite();
+      try {
+        await for (final chunk in body) {
+          received += chunk.length;
+          // The declared length is the contract; a body that exceeds it is a
+          // peer bug or a hostile one, and neither gets to fill this disk.
+          if (received > size) throw const _PushTooLarge();
+          sink.add(chunk);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      if (received != size) {
+        debugPrint(
+          'sync workspace: refusing a push for $workspaceId/$relPath: $received '
+          'bytes arrived, $size were asked for',
+        );
+        return false;
+      }
+      // The commit: the rename into the workspace happens inside `acceptPushed`,
+      // so a cancel has to land before the call rather than inside it. Staging
+      // is not state — the whole body arrived, and it is thrown away either way.
+      admission.check();
+      final landed = await content.acceptPushed(
+        workspaceId: workspaceId,
+        relPath: relPath,
+        staged: staged,
+        advertised: requested.stamp,
+        // The premise the landing is judged by: what this pairing last agreed
+        // about this path, carried from the checkpoint read at session start. A
+        // file written here since makes the arrival refuse itself rather than
+        // replace the user's edit.
+        agreed: session.checkpoint.workspaceFiles[workspaceId]?[relPath],
+        myDeviceId: identity.deviceId,
+        peerDeviceId: session.initiatorHello.deviceId,
+      );
+      if (landed == null) return false;
+      session.pushedWorkspace.putIfAbsent(
+        workspaceId,
+        () => <String, SyncAgreedFile>{},
+      )[relPath] = SyncAgreedFile(
+        landed,
+        requested.stamp,
+      );
+      session.pushedFiles++;
+      session.pushedBytes += landed.size;
+      // A push that lands a `peerWins` is the replacement the fetch could not
+      // perform, and the card has to say so: `peerWins` promises "counted, never
+      // silent", and this is the one arrival the fetch's own counter never sees.
+      if (session.workspaceReplacements.remove(key)) {
+        session.pushedReplacements++;
+      }
+      // Asked for and delivered: nothing may write that pair again this
+      // session, and the next one re-plans from the ledger this produced.
+      session.workspaceRequests.remove(key);
+      return true;
+    } on SyncAdmissionLost {
+      // Not a failed transfer: the request is over, and the caller must hear
+      // 504 rather than the 404 a refused push would mean.
+      rethrow;
+    } catch (error) {
+      debugPrint(
+        'sync workspace: receiving the pushed $workspaceId/$relPath failed: '
+        '$error',
+      );
+      return false;
+    } finally {
+      try {
+        if (staged != null && await staged.exists()) await staged.delete();
+      } catch (_) {}
+    }
+  }
+
+  /// Reads and drops up to [limit] bytes of a request body this device is
+  /// refusing.
+  ///
+  /// A refusal answered while the peer is still writing leaves the socket
+  /// half-read until the route deadline — and a peer that pushed a workspace
+  /// file has spent the send either way, so the only thing left to choose is
+  /// whether the connection is left wedged. Nothing here is trusted: the read
+  /// stops at the declared length, and a body that dies mid-flight is the same
+  /// answer as one that was never read.
+  static Future<void> _discard(Stream<List<int>> body, int limit) async {
+    var seen = 0;
+    try {
+      await for (final chunk in body) {
+        seen += chunk.length;
+        if (seen >= limit) break;
+      }
+    } catch (_) {}
+  }
+
+  /// Receives one blob the initiator pushed because this device could not fetch
+  /// it (slice 24) — the blob plane's half of [handlePutWorkspaceFile].
+  ///
+  /// Three refusals before a byte is trusted, exactly as for a file:
+  ///
+  /// * the session must exist and have taken its push — no push beat, no request
+  ///   set, and therefore nothing that could authorize a write;
+  /// * the `(kind, key)` must be an entry this session asked for, and the
+  ///   route's hash must be that entry's hash — a crafted target has never been
+  ///   advertised and can never be written (the placement allowlist then keeps
+  ///   even an advertised URI inside the managed roots);
+  /// * a file blob's declared length must be the size that was asked for, so a
+  ///   peer cannot substitute a different version for the one it offered.
+  ///
+  /// The bytes are then checked by the *receiver*, which is where both
+  /// directions put that authority: a file is hashed and compared, a skill's zip
+  /// is extracted and its directory re-hashed. A skill body that lands is paired
+  /// with its record before this returns — the record was stripped from the
+  /// business apply while the body was missing, and a body that sits on disk
+  /// without one is adopted by the skills rescan as a fresh default record.
+  @override
+  Future<bool> handlePutBlob(
+    String peerDeviceId,
+    String contentHash, {
+    required String kind,
+    required String key,
+    required int size,
+    required Stream<List<int>> body,
+    required SyncAdmission admission,
+  }) async {
+    final session = _sessions[peerDeviceId];
+    if (session == null) {
+      await _discard(body, size);
+      return false;
+    }
+    // The blob plane's put is a beat for the same reason the file plane's is:
+    // a body that takes longer than [kSessionIdleTtl] to arrive is the session
+    // being worked on, not the session being abandoned.
+    _beginBeat(session);
+    try {
+      return await _receivePutBlob(
+        peerDeviceId,
+        session,
+        contentHash,
+        kind: kind,
+        key: key,
+        size: size,
+        body: body,
+        admission: admission,
+      );
+    } finally {
+      _endBeat(session);
+    }
+  }
+
+  /// [handlePutBlob]'s body, run inside that put's beat.
+  Future<bool> _receivePutBlob(
+    String peerDeviceId,
+    _ResponderSession session,
+    String contentHash, {
+    required String kind,
+    required String key,
+    required int size,
+    required Stream<List<int>> body,
+    required SyncAdmission admission,
+  }) async {
+    if (!session.pushSeen) {
+      await _discard(body, size);
+      return false;
+    }
+    final requested = session.blobRequests[SyncBlobEntry.targetOf(kind, key)];
+    if (requested == null ||
+        requested.contentHash != contentHash ||
+        requested.kind != kind ||
+        requested.key != key ||
+        (kind == SyncBlobEntry.kindFile && requested.byteSize != size)) {
+      await _discard(body, size);
+      debugPrint(
+        'sync blob: refusing a push for $kind "$key": this session did not ask '
+        'for that version',
+      );
+      return false;
+    }
+    File? staged;
+    var received = 0;
+    try {
+      staged = await store.newBlobTempFile();
+      final sink = staged.openWrite();
+      try {
+        await for (final chunk in body) {
+          received += chunk.length;
+          // A chunked body is refused at the route, so this is the peer lying
+          // about its own declaration; a skill's zip has no agreed length, so
+          // for it this is a self-consistency check rather than a contract.
+          if (received > size) throw const _PushTooLarge();
+          sink.add(chunk);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      if (received != size) {
+        debugPrint(
+          'sync blob: refusing a push for "$key": $received bytes arrived, '
+          '$size were declared',
+        );
+        return false;
+      }
+      if (kind == SyncBlobEntry.kindFile) {
+        final digest = await dataPlane.fileHasher.hashOf(staged);
+        if (digest != contentHash) {
+          // The peer's file changed since the manifest it published. Nothing is
+          // placed, and the entry is asked for again from whoever has it.
+          debugPrint(
+            'sync blob: refusing a push for "$key": the bytes hash to $digest, '
+            'not $contentHash',
+          );
+          return false;
+        }
+      }
+      // The commit, same rule as the file plane: the placement (a rename, or a
+      // verified directory swap) must not start once the request is over.
+      admission.check();
+      final landed = await _landStagedBlob(requested, staged);
+      if (landed == null) {
+        debugPrint('sync blob: the pushed $kind "$key" did not verify');
+        return false;
+      }
+      // Landed: it counts as this side's, it is no longer owed, and it may not
+      // be written again this session.
+      _recordLanded(requested, landed, session.blobPull);
+      session.pushedBlobs++;
+      session.pushedBlobBytes += landed;
+      session.blobRequests.remove(requested.target);
+      if (kind == SyncBlobEntry.kindSkillDir) {
+        await _pairPushedSkill(peerDeviceId, session, key);
+      }
+      return true;
+    } on SyncAdmissionLost {
+      rethrow;
+    } catch (error) {
+      debugPrint('sync blob: receiving the pushed $kind "$key" failed: $error');
+      return false;
+    } finally {
+      try {
+        if (staged != null && await staged.exists()) await staged.delete();
+      } catch (_) {}
+    }
+  }
+
+  /// Deploys the record of a skill whose body just arrived by push.
+  ///
+  /// The push beat strips the record of every skill whose body it could not
+  /// verify, and a pushed body lands *after* that apply — so without this the
+  /// session would end with a directory and no row. That is not a harmless
+  /// intermediate state: `SkillsService`'s rescan adopts a row-less directory as
+  /// a fresh record stamped *now*, which then beats the peer's record in the
+  /// next merge and silently replaces the user's skill settings with defaults.
+  ///
+  /// Only this skill's rows travel through [SyncDataPlane.applyBusiness] — the
+  /// rest of the push was applied beats ago — and the row joins
+  /// [receivedBusiness], which is what the fetch beat's checkpoint advance reads.
+  /// So this is also what makes the skill usable in *this* session rather than
+  /// the next one.
+  Future<void> _pairPushedSkill(
+    String peerDeviceId,
+    _ResponderSession session,
+    String skillId,
+  ) async {
+    final rows = [
+      for (final row
+          in session.pushedBusiness.entities[SyncDataPlane.skillWire] ??
+              const <Map<String, dynamic>>[])
+        if (row['id'] == skillId) row,
+    ];
+    if (rows.isEmpty) {
+      // The body arrived without its record in the push: the next session's
+      // plan brings it, and the rescan window is documented in the ADR.
+      return;
+    }
+    final outcome = await dataPlane.applyBusiness(
+      SyncBusinessPayload(entities: {SyncDataPlane.skillWire: rows}),
+      myDeviceId: identity.deviceId,
+      peerDeviceId: peerDeviceId,
+      skipKeys: session.businessSkipKeys,
+    );
+    if (outcome.deferred) {
+      // A restore holds the write fence: the record is not ours to write yet,
+      // and claiming it in the checkpoint would read as "the peer has it".
+      debugPrint(
+        'sync blob: the record of the pushed skill $skillId was deferred',
+      );
+      return;
+    }
+    final entities = {
+      for (final entry in session.receivedBusiness.entities.entries)
+        entry.key: List<Map<String, dynamic>>.of(entry.value),
+    };
+    entities[SyncDataPlane.skillWire] = [
+      ...?entities[SyncDataPlane.skillWire],
+      ...rows,
+    ];
+    session.receivedBusiness = SyncBusinessPayload(
+      entities: entities,
+      preferences: session.receivedBusiness.preferences,
+    );
+    // The body is here and its record is applied, so the content plan's verdict
+    // for this skill is settled: keeping it deferred would keep the skill
+    // baseline (and the record) one session behind for no reason.
+    session.deferredSkills.remove(skillId);
+  }
+
+  /// The file ledger this session ends with: everything the push beat agreed,
+  /// plus every file the initiator pushed afterwards.
+  ///
+  /// One place, at the fetch beat, because a pushed file arrives *after* the
+  /// beat that produced the ledger's base — two writers for one checkpoint is
+  /// exactly how an advance gets lost.
+  Map<String, Map<String, SyncAgreedFile>> _finalWorkspaceLedger(
+    _ResponderSession session,
+  ) {
+    final ledger = session.workspaceOutcome!.ledger;
+    final content = dataPlane.workspaceContent;
+    if (content == null || session.pushedWorkspace.isEmpty) return ledger;
+    return content.ledgerWithPushed(ledger, session.pushedWorkspace);
+  }
+
+  SyncSessionReport _report({
+    required int sent,
+    required int received,
+    required Iterable<SyncSubtreeApplyOutcome> outcomes,
+    required int deferred,
+    required int deletedLocally,
+    int deletedBlocked = 0,
+    SyncBusinessPayload business = const SyncBusinessPayload(),
+    SyncBusinessPayload receivedBusiness = const SyncBusinessPayload(),
+    SyncBusinessApplyOutcome? appliedBusiness,
+    _BlobPullOutcome? blobPull,
+    int skillConflicts = 0,
+    int deferredSkills = 0,
+    WorkspaceContentOutcome? workspace,
+    int workspaceFoldersKept = 0,
+    int workspacePushed = 0,
+    int workspacePushedBytes = 0,
+    int workspaceMissesRepaired = 0,
+    int workspaceReplacements = 0,
+    int workspacesDroppedByCap = 0,
+    int blobsPushed = 0,
+    int blobBytesPushed = 0,
+    int? clockSkewMs,
+  }) {
+    var upserted = 0;
+    var deleted = 0;
+    var conversationsWithDocumentsReplaced = 0;
+    for (final outcome in outcomes) {
+      upserted += outcome.upsertedMessages;
+      deleted += outcome.deletedMessages;
+      if (outcome.documentReplaced) conversationsWithDocumentsReplaced++;
+    }
+    final entityRows =
+        _entityRowCount(business) + _entityRowCount(receivedBusiness);
+    final preferenceRows =
+        business.preferences.length + receivedBusiness.preferences.length;
+    // The incoming half on its own, for the arrival gate: it cannot use the
+    // aggregates above, which are deliberately bidirectional.
+    final entityRowsReceived = _entityRowCount(receivedBusiness);
+    final preferenceRowsReceived = receivedBusiness.preferences.length;
+    final blobsMoved = blobPull?.landedCount ?? 0;
+    final blobBytes = blobPull?.bytes ?? 0;
+    final skillsUpdated = blobPull?.landedSkillIds.length ?? 0;
+    final blobsMissing = blobPull?.failed.length ?? 0;
+    final entityRowsLost = appliedBusiness?.entityRowsLost ?? 0;
+    final preferencesLost = appliedBusiness?.preferencesLost ?? 0;
+    // Everything the workspace plane moved, whichever side asked for it: a file
+    // this device pulled and one the peer pushed both arrived here, and the
+    // count is what the user sees on the card.
+    final workspaceFetched = workspace?.filesLanded ?? 0;
+    final workspaceFiles = workspaceFetched + workspacePushed;
+    final workspaceBytes = (workspace?.bytesLanded ?? 0) + workspacePushedBytes;
+    // A file the peer pushed is a miss that was repaired: the fetch failed when
+    // this device counted it, and the bytes arrived over the other direction.
+    // Reporting both would name the same file missing and present in one card,
+    // which is worse than either alone. What remains missing is what no
+    // direction moved — a deletion the filesystem refused, or a push that never
+    // arrived.
+    final workspaceMissing = max(
+      0,
+      (workspace?.filesMissing ?? 0) - workspaceMissesRepaired,
+    );
+    // A local edit replaced by the peer's version, however the bytes arrived: the
+    // fetch counts what it lands, and the push counts a `peerWins` the fetch
+    // could not land and this device asked for instead.
+    final workspaceReplaced =
+        (workspace?.filesReplaced ?? 0) + workspaceReplacements;
+    // "Shared no content for this session", both reasons in one number: the
+    // switch/caps the plan recorded, plus the shared workspaces the advertised
+    // tables had to drop to stay inside their own cap. The second is the reason
+    // nobody could see — the peer reads a dropped workspace as "not shared" and
+    // plans nothing — which is exactly the silence this count exists against.
+    final workspacesOmitted =
+        (workspace?.workspacesOmitted ?? 0) + workspacesDroppedByCap;
+    final skewMinutes = clockSkewMs == null
+        ? null
+        : (clockSkewMs.abs() / 60000).round();
+    final parts = <String>[
+      'sent $sent',
+      'received $received',
+      if (upserted > 0) '+$upserted msgs',
+      if (deleted > 0) '-$deleted msgs',
+      if (deletedLocally > 0) '-$deletedLocally convs',
+      if (deletedBlocked > 0) '$deletedBlocked deletes blocked',
+      if (entityRows > 0) 'entities $entityRows',
+      if (preferenceRows > 0) 'prefs $preferenceRows',
+      if (blobsMoved > 0) 'blobs $blobsMoved ($blobBytes B)',
+      if (blobsPushed > 0) 'blobs pushed $blobsPushed ($blobBytesPushed B)',
+      if (skillsUpdated > 0) 'skills $skillsUpdated',
+      if (workspaceFetched > 0)
+        'workspace files $workspaceFetched (${workspace!.bytesLanded} B)',
+      if (workspacePushed > 0)
+        'workspace files pushed $workspacePushed ($workspacePushedBytes B)',
+      if ((workspace?.filesRemoved ?? 0) > 0)
+        'workspace files removed ${workspace!.filesRemoved}',
+      if (workspaceReplaced > 0) 'workspace files replaced $workspaceReplaced',
+      // Gated on what is left after the repair, not on the raw miss count: a miss
+      // a push repaired is not a miss, and "workspace files missing 0" is what
+      // the raw gate printed for the one case the fallback exists for.
+      if (workspaceMissing > 0) 'workspace files missing $workspaceMissing',
+      if (workspacesOmitted > 0) 'workspaces omitted $workspacesOmitted',
+      if (skillConflicts > 0) '$skillConflicts skill conflicts',
+      if (blobsMissing > 0) '$blobsMissing blobs missing',
+      if (deferredSkills > 0) 'deferred $deferredSkills skills',
+      if (deferred > 0) 'deferred $deferred',
+      if (appliedBusiness?.deferred == true) 'business deferred',
+      if (entityRowsLost > 0) 'lost $entityRowsLost entity rows',
+      if (preferencesLost > 0) 'lost $preferencesLost prefs',
+      if (conversationsWithDocumentsReplaced > 0)
+        'replaced documents in $conversationsWithDocumentsReplaced convs',
+      if (skewMinutes != null) 'clock skew ~$skewMinutes min',
+    ];
+    return SyncSessionReport(
+      success: true,
+      summary: parts.join(' · '),
+      conversationsSent: sent,
+      conversationsReceived: received,
+      messagesUpserted: upserted,
+      messagesDeleted: deleted,
+      deferred: deferred,
+      conversationsDeletedLocally: deletedLocally,
+      deletedBlocked: deletedBlocked,
+      entityRows: entityRows,
+      preferenceRows: preferenceRows,
+      entityRowsReceived: entityRowsReceived,
+      preferenceRowsReceived: preferenceRowsReceived,
+      blobsMoved: blobsMoved,
+      blobBytes: blobBytes,
+      skillsUpdated: skillsUpdated,
+      skillConflicts: skillConflicts,
+      blobsMissing: blobsMissing,
+      entityRowsLost: entityRowsLost,
+      preferencesLost: preferencesLost,
+      conversationsWithDocumentsReplaced: conversationsWithDocumentsReplaced,
+      workspaceFiles: workspaceFiles,
+      workspaceBytes: workspaceBytes,
+      workspaceFilesRemoved: workspace?.filesRemoved ?? 0,
+      workspaceConflicts: workspaceReplaced,
+      workspaceFilesMissing: workspaceMissing,
+      workspaceFoldersKept: workspaceFoldersKept,
+      workspacesOmitted: workspacesOmitted,
+      clockSkewMs: clockSkewMs,
+    );
+  }
+
+  /// Signed clock divergence against a peer, in milliseconds, or null when
+  /// either reading is absent or the gap sits inside the warn threshold. The
+  /// comparison uses each side's own clock at hello-build time, so LAN
+  /// latency (~ms) is noise against a threshold measured in minutes.
+  static int? _clockSkewMs(int? myClockUs, int? peerClockUs) {
+    if (myClockUs == null || peerClockUs == null) return null;
+    final skewMs = ((myClockUs - peerClockUs) / 1000).round();
+    return skewMs.abs() > kClockSkewWarnMs ? skewMs : null;
+  }
+
+  static int _entityRowCount(SyncBusinessPayload payload) {
+    var total = 0;
+    for (final rows in payload.entities.values) {
+      total += rows.length;
+    }
+    return total;
+  }
+
+  /// Completes a session: records the outcome on the peer record and returns
+  /// the report. The save is awaited — the caller sees a report only once it is
+  /// durable, and nothing is left writing when the session is already over.
+  ///
+  /// [host]/[port] are the endpoint the session ran over. A session that got as
+  /// far as an answer proves that address reaches the peer on this network
+  /// (refusals included), so it is promoted to the front of the remembered set.
+  ///
+  /// A failed session updates [SyncPeerRecord.lastReport] but not
+  /// [SyncPeerRecord.lastSyncedAt]: "last synced" is a claim about the data the
+  /// user sees, and an unreachable peer changed none of it. The stamp otherwise
+  /// regressed to "just now" on every failure — exactly when nothing synced.
+  Future<SyncSessionReport> _finish(
+    SyncSessionReport report, {
+    SyncPeerRecord? peer,
+    String? host,
+    int? port,
+  }) async {
+    // A superseded round records nothing: it is not the peer's verdict, it did
+    // not run, and the session that did run reports for the pair. Writing it
+    // would leave the card claiming a failed attempt over a live one.
+    if (report.refusal == SyncRefusalReason.superseded) return report;
+    lastReport = report;
+    if (peer != null) {
+      // Merged into the record as it stands now, not written onto the instance
+      // this session has held since before it started: the session's own beats
+      // make the provider re-read the list from disk, so a copy that old is a
+      // copy without whatever the user changed meanwhile — and writing it whole
+      // is how a rename made during a session used to be lost.
+      await store.mutatePeer(peer.deviceId, (current) {
+        if (report.success) current.lastSyncedAt = DateTime.now();
+        current.lastReport = report.toPeerReport();
+        if (host != null && port != null) {
+          current.noteEndpointSuccess(host, port);
+        }
+        return true;
+      });
+    }
+    onStateChanged();
+    return report;
+  }
+
+  /// Classifies a failed session. The transport failures get their own
+  /// reasons so the panel can say what happened; everything else is internal,
+  /// which is the only case where the logs hold the detail.
+  static SyncFailureReason _failureReason(Object error) {
+    if (error is TimeoutException) return SyncFailureReason.timeout;
+    if (error is SocketException ||
+        error is HttpException ||
+        error is HandshakeException) {
+      return SyncFailureReason.unreachable;
+    }
+    if (error is SyncClientException) {
+      final status = error.statusCode;
+      if (status != null && status >= 500) return SyncFailureReason.peerError;
+    }
+    return SyncFailureReason.internal;
+  }
+
+  /// A fresh 32-byte secret for a newly paired peer, base64 in a form that is
+  /// safe in an HTTP header.
+  static String _newSecret() {
+    final random = Random.secure();
+    return base64Encode(
+      List<int>.generate(32, (_) => random.nextInt(256), growable: false),
+    );
+  }
+
+  /// Carries the facts a re-pair must not lose from [existing] onto [peer].
+  ///
+  /// Pairing rebuilds the record — a new certificate pin, a rotated secret, a
+  /// fresh address set — but a re-pair is the *drift-repair journey*, not a new
+  /// relationship, so three fields of the old record are still true: the manual
+  /// rename (a fact about this device's user, not about the peer), and the
+  /// last-sync stamp and report (the sessions that produced them happened, and
+  /// the checkpoint they advanced survives the re-pair untouched — it is keyed
+  /// by deviceId, which pairing does not change).
+  ///
+  /// Endpoints are deliberately *not* here: they have to land behind the
+  /// address this pairing just proved and the candidates it advertised, so each
+  /// caller appends the old set after its own endpoint writes
+  /// ([SyncPeerRecord.rememberEndpointHistory]).
+  static void _carryPairingFacts(
+    SyncPeerRecord peer,
+    SyncPeerRecord? existing,
+  ) {
+    if (existing == null) return;
+    peer.customName = existing.customName;
+    peer.lastSyncedAt = existing.lastSyncedAt;
+    peer.lastReport = existing.lastReport;
+  }
+
+  /// Drops the responder sessions that cannot be running any more.
+  ///
+  /// Two rules, two states, and they must not be confused with each other:
+  ///
+  /// * [_dropIdleSessions] — nothing has happened on this session for
+  ///   [kSessionIdleTtl]. The clock starts at the peer's last beat, so a session
+  ///   that is *working* (a beat in flight, however long) is never a candidate.
+  ///   A beat is the hello that opened the session, its push, its fetch — and
+  ///   every file or blob body the initiator is still uploading: the put routes
+  ///   run inside a beat for exactly this reason, because a first sync's upload
+  ///   phase can outlast the window with nothing else to show for it.
+  /// * [_dropAbandonedYieldedSessions] — a session this device accepted by
+  ///   yielding its own dial which the peer never came back to drive, after the
+  ///   short [yieldedSessionTtl].
+  ///
+  /// Both used to be one `removeWhere` keyed on `startedAt`, which is why a
+  /// twenty-minute first sync was swept out from under its own beat. Called from
+  /// the top of [handleHello] and, more importantly, from the top of
+  /// [syncWithPeer]: a session nobody drives is exactly what makes that call
+  /// refuse its own round as busy, so the sweep has to run *before* the refusal
+  /// or nothing this device does on its own would ever clear it.
+  void _sweepSessions() {
+    _dropIdleSessions();
+    _dropAbandonedYieldedSessions();
+    _assertSessionInvariants();
+  }
+
+  void _dropIdleSessions() {
+    final now = this.now();
+    _sessions.removeWhere((_, session) {
+      if (session.beatsInFlight > 0) return false;
+      final since = session.lastBeatAt ?? session.startedAt;
+      return now.difference(since) > sessionIdleTtl;
+    });
+  }
+
+  void _dropAbandonedYieldedSessions() {
+    final now = this.now();
+    _sessions.removeWhere((_, session) {
+      if (session.beatsInFlight > 0) return false;
+      return session.yielded &&
+          session.lastBeatAt == null &&
+          now.difference(session.startedAt) > yieldedSessionTtl;
+    });
+  }
+
+  /// Debug-only: the facts every session in [_sessions] has to satisfy,
+  /// whichever path put it there.
+  ///
+  /// This is the cheap half of the state table the round-2 review asked for: the
+  /// sweep's rules are only correct if a session can never be in a state nobody
+  /// enumerated (no beat, a beat in flight, yielded, answered), and an assertion
+  /// at the transitions catches the caller that invents a fifth state — in
+  /// debug, at the moment it happens, instead of as a wedged pair in the field.
+  void _assertSessionInvariants() {
+    assert(() {
+      for (final entry in _sessions.entries) {
+        final session = entry.value;
+        assert(
+          session.initiatorHello.deviceId == entry.key,
+          'a session is keyed by the device its hello named',
+        );
+        assert(
+          session.beatsInFlight >= 0,
+          'a beat cannot end more times than it began',
+        );
+        assert(
+          !(session.beatsInFlight > 0 && session.lastBeatAt == null),
+          'a beat in flight is a session the peer has touched',
+        );
+        assert(
+          session.pushSeen || session.workspaceRequests.isEmpty,
+          'the upload requests are the push beat\'s product: a session that '
+          'has not taken it has nothing to ask for',
+        );
+        assert(
+          session.pushSeen || session.blobRequests.isEmpty,
+          'the blob requests are the push beat\'s product too: a session that '
+          'has not taken it has nothing to ask for',
+        );
+        assert(
+          session.pushedWorkspace.isEmpty || session.pushSeen,
+          'a pushed file can only land on a session that has taken its push',
+        );
+        assert(
+          session.pushedBlobs == 0 || session.pushSeen,
+          'a pushed blob can only land on a session that has taken its push',
+        );
+      }
+      return true;
+    }());
+  }
+
+  /// Opens one beat on [peerDeviceId]'s session: the session is alive, and a
+  /// sweep must not touch it while the beat runs.
+  ///
+  /// The stamp is written on both ends of the beat, so "idle" means "nothing has
+  /// happened for the idle window", not "nothing has *started*" — a beat that
+  /// began two minutes ago and finished now is recent activity.
+  void _beginBeat(_ResponderSession session) {
+    session.beatsInFlight++;
+    session.lastBeatAt = now();
+  }
+
+  void _endBeat(_ResponderSession session) {
+    session.beatsInFlight--;
+    session.lastBeatAt = now();
+    _assertSessionInvariants();
+  }
+
+  static String platformTag() {
+    if (Platform.isAndroid) return 'android';
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isWindows) return 'windows';
+    if (Platform.isMacOS) return 'macos';
+    if (Platform.isLinux) return 'linux';
+    return 'unknown';
+  }
+}
+
+/// What one conversation's transfer has carried so far, on either side.
+///
+/// A transfer is a sequence of pages and a checkpoint entry is a single
+/// statement; this is the accumulator that turns the first into the second. It
+/// holds only what an entry needs — the root row, the families that do not page,
+/// and each message's id with its clock — so a conversation of hundreds of
+/// megabytes costs a few megabytes here rather than its own size.
+class _TransferProgress {
+  Map<String, dynamic>? conversation;
+  final Map<String, List<Map<String, dynamic>>> families = {};
+
+  /// Every message this transfer carried, by id, with its mutation clock.
+  final Map<String, int> rows = {};
+
+  /// The identity of every message part this transfer carried — the columns its
+  /// family keys on, plus its clock, and nothing else.
+  ///
+  /// Parts are half of a message's identity and hold the message's text, so a
+  /// transfer cannot afford to keep their rows: an entry records clocks, never
+  /// bytes. Dropping them entirely would be worse than expensive — the digest
+  /// composed from a payload without parts never matches the one the receiver
+  /// computes from its own state, and a mismatched agreement is what makes the
+  /// next session read the peer's copy as an edit and churn.
+  final List<Map<String, dynamic>> partIdentities = [];
+
+  /// Where the next page of this transfer starts, or null once it is complete.
+  String? after;
+
+  /// Whether the page that ended the transfer has been taken.
+  bool complete = false;
+
+  /// Whether this transfer continues one an earlier session started, whose
+  /// pages carried rows and families this session never sees again.
+  bool seeded = false;
+
+  /// Every id the transfer named, from the page that ends it.
+  Set<String> declaredIds = const {};
+
+  /// Starts from the rows an earlier session's pages proved. Both sides do
+  /// this, because the entry a completed transfer writes has to describe the
+  /// whole transfer — a payload that names only the pages after the cursor is
+  /// a digest neither side can match, and a row set the deletion oracle reads
+  /// as rows the peer never had.
+  void seed(Map<String, int> earlier) {
+    rows.addAll(earlier);
+    seeded = true;
+  }
+
+  void addPage(SyncSubtreePayload payload, {required String? after}) {
+    conversation ??= payload.conversation;
+    for (final entry in payload.families.entries) {
+      if (entry.key == _messageFamilyName ||
+          entry.key == _messagePartFamilyName) {
+        continue;
+      }
+      families.putIfAbsent(entry.key, () => []).addAll(entry.value);
+    }
+    for (final row in payload.rowsOf(_messagePartFamily)) {
+      partIdentities.add({
+        for (final column in _messagePartFamily.identityColumns)
+          column: row[column],
+        _messagePartFamily.clockColumn!:
+            row[_messagePartFamily.clockColumn!] ??
+            row[_messagePartFamily.fallbackClockColumn!] ??
+            0,
+      });
+    }
+    for (final row in payload.rowsOf(_messageFamily)) {
+      rows[row['id'] as String] = messageRowMutationUs(row);
+    }
+    if (payload.ids.isNotEmpty) {
+      declaredIds = {...rows.keys, ...payload.ids};
+    }
+    if (payload.more) {
+      this.after = after ?? this.after;
+    } else {
+      this.after = null;
+      complete = true;
+    }
+  }
+
+  /// The payload this transfer amounts to, in the shape the checkpoint helpers
+  /// read: messages are synthesised from [rows], because an entry records a
+  /// row's clock and never its content.
+  SyncSubtreePayload toPayload() => SyncSubtreePayload(
+    conversation: conversation ?? const {},
+    families: {
+      ...families,
+      if (rows.isNotEmpty)
+        _messageFamilyName: [
+          for (final entry in rows.entries)
+            {'id': entry.key, 'updated_at': entry.value},
+        ],
+      if (partIdentities.isNotEmpty) _messagePartFamilyName: partIdentities,
+    },
+  );
+
+  static final SyncFamily _messageFamily = syncFamilyOfTable('message_rows');
+  static final SyncFamily _messagePartFamily = syncFamilyOfTable(
+    'message_part_rows',
+  );
+  static final String _messageFamilyName = _messageFamily.name;
+  static final String _messagePartFamilyName = _messagePartFamily.name;
+}
+
+class _ResponderSession {
+  _ResponderSession({
+    required this.initiatorHello,
+    required this.plan,
+    required this.businessPlan,
+    required this.skillPlan,
+    required this.myManifest,
+    required this.checkpoint,
+    required this.epochAtHello,
+    this.businessSkipKeys = const {},
+    required this.startedAt,
+    required this.myHosts,
+    this.initiatorHost,
+    this.clockSkewMs,
+    this.peerReplaced = false,
+    this.yielded = false,
+  });
+
+  final SyncHello initiatorHello;
+  final List<SyncConvPlan> plan;
+  final List<SyncBusinessPlanItem> businessPlan;
+  final List<SkillContentPlan> skillPlan;
+
+  /// This device's manifest as built for the hello: the skill-content verdict
+  /// and the response batch are both read from it.
+  final SyncManifest myManifest;
+  final SyncCheckpoint checkpoint;
+
+  /// The rows either side holds without offering, as `syncBusinessKey`
+  /// strings, fixed at the hello: this device's own set joined with the
+  /// caller's announcement. The fetch beat and the skill pairing apply rows
+  /// beats later, when only the session can answer this.
+  final Set<String> businessSkipKeys;
+
+  /// This device's data epoch as the session read it, before any beat ran. The
+  /// closing save compares it against the epoch on disk: a replacement that
+  /// landed mid-session must not be overwritten by this session's `previous`
+  /// (see [SyncStore.saveCheckpointUnlessReplaced]).
+  final int epochAtHello;
+  final DateTime startedAt;
+
+  /// The address the initiator connected from, as this listener saw it: with
+  /// `initiatorHello.listenPort` it is the endpoint used to pull blobs back.
+  final String? initiatorHost;
+
+  /// This device's own addresses, read once when the session was accepted.
+  ///
+  /// The one fact that tells a NAT-rewritten caller address from a real one: a
+  /// source address of *this* device is never where the peer is, and recording it
+  /// as an endpoint would hand the panel an address that can only ever dial this
+  /// device itself.
+  final Set<String> myHosts;
+
+  /// Clock divergence against the initiator, when it exceeded the warn
+  /// threshold — lands in this side's report at the fetch beat.
+  final int? clockSkewMs;
+
+  /// The caller advertised a different data epoch than the last session: its
+  /// database was bulk-replaced, so its absences may not justify a deletion
+  /// here (see [SyncStore.readDataEpoch]).
+  final bool peerReplaced;
+
+  /// This session exists because the arriving hello superseded this device's own
+  /// unanswered dial. Such a session is a bet on the peer's client still being
+  /// alive to drive it — see [SyncEngine.kYieldedSessionTtl].
+  final bool yielded;
+
+  /// The conversations the initiator pushed this session, by id. The fetch
+  /// beat's checkpoint advance records an arrival from these — the payload that
+  /// crossed — rather than from the post-merge local state, which also carries
+  /// rows written here while the session ran.
+  /// What the initiator pushed, page by page — the arrival side of the same
+  /// record the sender keeps, so an entry describes what crossed rather than
+  /// what the merge left behind.
+  final Map<String, _TransferProgress> receivedTransfers = {};
+
+  /// When this session's first beat arrived *or ended*, or null while the peer's
+  /// client has not touched it yet (the state [SyncEngine.kYieldedSessionTtl]
+  /// bounds). The idle sweep measures from here, so it is written at both ends of
+  /// a beat: a beat that was in flight for minutes is recent activity when it
+  /// finishes.
+  DateTime? lastBeatAt;
+
+  /// How many beats are running on this session right now.
+  ///
+  /// The one thing the idle sweep must not confuse with idleness. A first sync of
+  /// a large library is a single push beat that runs for minutes with no other
+  /// traffic, and sweeping it out from under itself is what made the peer's next
+  /// beat fail with `sync_session_missing` (the round-2 review's first finding).
+  int beatsInFlight = 0;
+
+  /// Whether this session has taken the push beat it is built around.
+  ///
+  /// Every session is one push followed by one fetch; the fetch is answered only
+  /// after the push, because the workspace ledger (and the whole checkpoint this
+  /// side writes at the fetch beat) is produced by the push.
+  bool pushSeen = false;
+
+  final Map<String, SyncSubtreeApplyOutcome> outcomes = {};
+
+  /// Business rows the initiator pushed in this session's one PUT.
+  SyncBusinessPayload receivedBusiness = const SyncBusinessPayload();
+
+  /// The same push, exactly as it arrived — including the skill rows
+  /// [receivedBusiness] had stripped because their body had not landed.
+  ///
+  /// A body pushed *after* the business apply is one of those, so this is where
+  /// the late apply finds the record that belongs to it (slice 24).
+  SyncBusinessPayload pushedBusiness = const SyncBusinessPayload();
+
+  /// Result of applying them, for the checkpoint and the report.
+  /// How many push beats this session has taken: one per page, plus the
+  /// closing beat when the plan had nothing to send.
+  int pushBeats = 0;
+
+  SyncBusinessApplyOutcome? businessOutcome;
+
+  /// Blobs this responder pulled from the initiator in this session — and, for
+  /// the ones it could not pull, the same object the pushes land into, so the
+  /// report counts a blob exactly once whichever direction delivered it.
+  _BlobPullOutcome blobPull = _BlobPullOutcome();
+
+  /// The blobs this session asked the initiator to push, keyed by
+  /// `SyncBlobEntry.target`.
+  ///
+  /// Built by the push beat from the blobs it planned and could not land; it is
+  /// the write authorization for [handlePutBlob] — a push for an entry this map
+  /// does not hold is refused, so the route can never write content the peer
+  /// never advertised (slice 24). An entry is removed once its blob lands.
+  final Map<String, SyncBlobEntry> blobRequests = {};
+
+  /// Blobs the initiator pushed and this device landed, for the report —
+  /// counted separately from the fetch half so the log can tell the directions
+  /// apart. [blobPull] carries the same landings for the card.
+  int pushedBlobs = 0;
+  int pushedBlobBytes = 0;
+
+  /// Workspace content this responder moved in this session, and the file
+  /// ledger that came out of it. Its snapshot is re-walked at the fetch beat:
+  /// the response table has to describe the files this side holds *now*,
+  /// including the ones that landed a moment ago, or the initiator would never
+  /// learn its transfer arrived.
+  WorkspaceContentOutcome? workspaceOutcome;
+
+  /// The workspace files this session asked the initiator to push, keyed by
+  /// `WorkspaceContentSync.serveKey`.
+  ///
+  /// Built by the push beat from the files it planned and could not land; it is
+  /// the write authorization for [handlePutWorkspaceFile] — a push for a pair
+  /// this map does not hold is refused, so the route can never write a file the
+  /// peer never advertised (slice 23). An entry is removed once its file lands.
+  final Map<String, SyncWorkspaceFileRequest> workspaceRequests = {};
+
+  /// The serve keys among [workspaceRequests] whose plan action was `peerWins`:
+  /// if one of those lands, a local edit was replaced by the peer's version.
+  ///
+  /// Kept beside the request set rather than inside it: the request's job is the
+  /// write authorization, and the owner of the *action* is the plan
+  /// ([WorkspaceContentOutcome.replacedUnlanded]).
+  final Set<String> workspaceReplacements = {};
+
+  /// Files the initiator pushed and this device landed, by workspace then path,
+  /// with both sides' stamps. Merged into the ledger at the fetch beat, which is
+  /// the one place this side writes it.
+  final Map<String, Map<String, SyncAgreedFile>> pushedWorkspace = {};
+
+  /// What those pushes moved, for the report — counted separately from the
+  /// fetch half so the log can tell the two directions apart.
+  int pushedFiles = 0;
+  int pushedBytes = 0;
+
+  /// How many of [pushedFiles] landed in place of a local edit, for the report's
+  /// "edits replaced" row.
+  int pushedReplacements = 0;
+
+  /// Skill records the push carried whose body could not be verified here.
+  Set<String> deferredSkills = {};
+
+  /// Local skill edits the deterministic content rule discarded.
+  Set<String> skillConflicts = {};
+}
+
+/// Logs the endpoints a pairing had to drop because the peer's record is at the
+/// cap ([kMaxPeerEndpoints]).
+///
+/// An advertised address is the peer's own answer to "where am I reachable", and
+/// the memory of addresses is what lets a pair survive moving between networks —
+/// so dropping one is a fact worth a line, not a silent trim. A debug line rather
+/// than a report field: this happens only when a QR carries more candidates than
+/// a record can hold, which no shipped path produces.
+void _reportDroppedEndpoints(String deviceId, List<Object> dropped) {
+  if (dropped.isEmpty) return;
+  debugPrint(
+    'sync: $deviceId advertised ${dropped.length} address(es) beyond the '
+    '$kMaxPeerEndpoints remembered (${dropped.join(', ')})',
+  );
+}
+
+/// Outcome of pulling one session's blobs: what landed, what must be retried,
+/// and how many bytes crossed.
+class _BlobPullOutcome {
+  final Map<String, SyncBlobEntry> landedByUri = {};
+  final Set<String> landedSkillIds = {};
+  final Map<String, SyncBlobEntry> failed = {};
+  int bytes = 0;
+
+  int get landedCount => landedByUri.length + landedSkillIds.length;
+
+  /// Folds one push beat's pull into the session's.
+  ///
+  /// A session is several beats now — a page pulls the references it
+  /// advertises — so what the session reports and what it owes is the union,
+  /// never the last beat alone: a blob that failed on page two has to become
+  /// a pending blob even when page three pulled everything it asked for.
+  void absorb(_BlobPullOutcome other) {
+    landedByUri.addAll(other.landedByUri);
+    landedSkillIds.addAll(other.landedSkillIds);
+    // What landed on any page stops being owed, however it failed earlier:
+    // the union alone would leave it pending for ever.
+    final landed = <String>{
+      ...other.landedByUri.keys,
+      for (final entry in other.landedByUri.values) ...[
+        entry.target,
+        entry.key,
+      ],
+      ...other.landedSkillIds,
+    };
+    failed.removeWhere(
+      (target, entry) =>
+          landed.contains(target) ||
+          landed.contains(entry.target) ||
+          landed.contains(entry.key),
+    );
+    failed.addAll(other.failed);
+    bytes += other.bytes;
+  }
+}
+
+/// What the skill-content plan asks of this device.
+class _SkillAdoptionPlan {
+  final List<SyncBlobEntry> wanted = [];
+  final Set<String> wantedSkillIds = {};
+  final Set<String> deferred = {};
+  final Set<String> conflicts = {};
+}
+
+/// One initiator round, and the two facts that decide whether an arriving hello
+/// may supersede it.
+///
+/// [answered] turns true the moment the peer's hello response lands: from then
+/// on this round is a live session and the pair must not get a second one, so a
+/// hello from the peer is refused as busy. Before that the round has proved
+/// nothing — it may be stuck on an address that never answers, which is exactly
+/// the one-way LAN case — so the peer's hello, which *has* proved the peer
+/// reaches this device, takes over.
+class _InitiatorRound {
+  bool answered = false;
+  bool cancelled = false;
+
+  /// The session's client, published so [cancel] can break an await that is
+  /// waiting on a peer that may never answer. Null between candidates.
+  SyncClientSession? session;
+
+  /// The probe measurements the dial order was built from, kept so each
+  /// candidate's connect budget can come from the round trip it just measured.
+  Map<(String, int), EndpointProbeResult> probed = const {};
+
+  /// The same measurements *without* the freshness filter, so the one guess a
+  /// round that proved nothing still spends can prefer an address that answered
+  /// at some point over one that never has (see [_oneGuess]).
+  Map<(String, int), EndpointProbeResult> lastKnown = const {};
+
+  void cancel() {
+    cancelled = true;
+    final open = session;
+    session = null;
+    open?.close();
+  }
+}
+
+/// A pushed body larger than the length its own request declared.
+///
+/// Its own type so the refusal is one `catch` away from every other failure of
+/// the route, and so the two push handlers can stop reading the body rather
+/// than buffering what a buggy or hostile peer decided to send.
+class _PushTooLarge implements Exception {
+  const _PushTooLarge();
+}

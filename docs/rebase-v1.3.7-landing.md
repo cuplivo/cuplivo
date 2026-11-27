@@ -345,6 +345,45 @@ Both are live implementations of one feature and neither is a version of the oth
 two flows read side by side rather than a side picked. The ~1800 analyzer issues the tree reports
 right now are that file's parse fallout, not 1800 defects.
 
+### Unit 4 is not self-contained, and that is a fact about the series
+
+**Resolved, and it settles the memory question by evidence rather than taste**: unit 4 rewrote
+`message_builder_memory_prompt_test.dart` (+608/−615) and `message_builder_memory_legacy_test.dart`
+in the same commit, so the tests in the tree now assert `resolveMemoryPlan`. The plan wins, and
+v1.3.7's `MemoryInjectionPass` — which lived entirely inside the conflicting hunks, with no reader
+outside this file — goes with it. Two smaller repairs came out of the same pass: v1.3.7's
+`ConversationRowsCompanion(injectedMemoryHash: Value(null))` and `return updated != 0` (unit 4's own
+text ends in a dangling `),` `),` `);` there — **the unit's source tree does not parse**), and
+`_pageFor`'s removal from the desktop shell.
+
+After that the analyzer went **1470 → 93**, and the 93 are the finding:
+
+| symbol the unit's own tests use | where its definition actually is |
+| --- | --- |
+| `lib/core/models/backup_target.dart` | **unit 14** (`12a27ca36`) |
+| `ChatDatabaseRepository.syncConversationDigest` | **unit 18** (`41274d5e9`) |
+| `ChatDatabaseRepository.syncLocalExtrasKeys` | **unit 18** |
+| `DesktopNavRail(activeTab:, onSelectTool:)` | **unit 15** (`ec023dab9`) |
+
+Unit 4's commit imports or calls all four. So the compressed series is **not self-consistent unit by
+unit**: it was verified as a tree at the tip, and the fold that produced the units (`git commit-tree`
+over path sets) moved some definitions into the unit that last *touched* them rather than the unit
+that first *needed* them. `syncConversationDigest` is the clearest case — a sync method whose
+definition lands in the assistant unit, four features later.
+
+**This changes the per-unit gate.** "Each unit ends at analyze 0" is achievable for units 1–3, which
+is why it looked safe; it is not achievable for unit 4 without pulling four later units' content
+forward. Two ways out, and the choice is a doctrinal one:
+
+- **Stack the units and gate at the tip.** Replay 5–18 in order over this now-red tree, resolve each
+  conflict the same way, and run analyze + the full suite once at unit 18 — which is the state the
+  series was actually verified in. Cheap, and it reproduces the only tree anyone has measured.
+- **Repair the series first.** Move each definition back to the unit that needs it (four edits to the
+  `rebase/series-18-base` line, then re-cut the units), so that every unit is green again. Expensive,
+  and it rewrites the record the compression produced.
+
+The worktree holds unit 4 applied and staged, red at 93.
+
 ## Procedure for this attempt
 
 ```bash

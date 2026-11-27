@@ -682,12 +682,16 @@ class _RecycleEntryDetailPageState extends State<RecycleEntryDetailPage> {
     RecycleEntryType.conversation => l10n.recycleBinKindConversation,
     RecycleEntryType.preference => l10n.recycleBinKindPreference,
     RecycleEntryType.workspaceFile => l10n.recycleBinKindWorkspaceFile,
+    RecycleEntryType.skillBody => l10n.recycleBinKindSkill,
     RecycleEntryType.businessEntity => switch (_entry.kindWire) {
       'assistant_rows' => l10n.recycleBinKindAssistant,
       'provider_rows' || 'provider_group_rows' => l10n.recycleBinKindProvider,
       'world_book_rows' => l10n.recycleBinKindWorldBook,
       'assistant_memory_rows' ||
       'memory_entry_rows' => l10n.recycleBinKindMemory,
+      'conversationContext' => l10n.recycleBinKindCompressionHistory,
+      'conversationImageContext' => l10n.recycleBinKindImageContext,
+      'conversationCompression' => l10n.recycleBinKindCompressionSettings,
       _ => l10n.recycleBinKindConfig,
     },
   };

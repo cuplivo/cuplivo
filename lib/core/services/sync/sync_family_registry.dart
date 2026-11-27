@@ -1,0 +1,969 @@
+import '../../database/schema_columns.dart';
+
+/// Which way a family of rows regards the other device.
+enum SyncFamilyOwnership {
+  /// Travels: the rows are part of what this device publishes and applies.
+  synced,
+
+  /// Stays here, and says why. A `deviceLocal` family is never read for a
+  /// manifest, never offered in a payload and never indexed for a blob — the
+  /// reason is what keeps that a decision instead of an omission.
+  deviceLocal,
+}
+
+/// Who applies a conversation family's rows.
+enum SyncFamilyApply {
+  /// The merge body's own rules: the message union with its order
+  /// re-derivation, the binding set replace. These are the families whose
+  /// content is the conversation's text, and no row-level rule can express them.
+  specialised,
+
+  /// Row-level last-write-wins over the family's rows: the D-7 rule for a family
+  /// stored as one document per conversation, and the rule for the provider
+  /// artifacts, which are a row set keyed by revision. A local copy that loses
+  /// is replaced; the report counts the conversation when the row was a
+  /// document, and says nothing about an artifact.
+  rowLastWriteWins,
+}
+
+/// What a family belongs to.
+enum SyncFamilyScope {
+  /// Hung off one conversation: it rides (or refuses to ride) that
+  /// conversation's subtree.
+  conversation,
+
+  /// A row of the shared library — assistants, world books, templates — which
+  /// travels on the business face by kind and id, never inside a subtree.
+  business,
+}
+
+/// How a family's content enters a conversation's identity.
+///
+/// This is the question the plan asks when it plans a session, so the answer
+/// lives beside the family rather than inside one SQL statement: a family whose
+/// content changed must be visible to the plan even when the conversation row
+/// and its messages did not move.
+enum SyncIdentityContribution {
+  /// Contributes nothing.
+  none,
+
+  /// The conversation row's own clock, which the manifest entry already carries
+  /// as `u`. Exactly one family claims this: the conversation itself.
+  conversationClock,
+
+  /// One `key:clock` line per row, where the clock is the row's `updated_at`
+  /// against its `timestamp`. Cheap to aggregate in SQL, and sensitive to
+  /// insert, edit and delete.
+  rowClocks,
+
+  /// One `key:value…` line per row, for a family that has no clock column — its
+  /// values *are* its state.
+  rowValues,
+}
+
+/// One family of rows, registered once.
+///
+/// Both ends of sync read this registration — what to read for a subtree, what
+/// to apply, what enters the identity, which columns may carry a blob URI — so a
+/// new family is one entry here and no change to the wire struct. `ownership` is
+/// the only field that decides whether the rest is acted on; `identity` and
+/// `blobColumns` describe what the family contributes *when it travels*, which
+/// is why a `deviceLocal` family may still name them.
+class SyncFamily {
+  const SyncFamily({
+    required this.name,
+    required this.table,
+    this.kind,
+    this.wireKey,
+    this.conversationColumn = 'conversation_id',
+    this.messageRevisionColumn,
+    this.orderBy,
+    this.conflictTarget = const [],
+    this.isSubtreeRoot = false,
+    this.apply = SyncFamilyApply.rowLastWriteWins,
+    required this.ownership,
+    this.deviceLocalReason,
+    required this.scope,
+    this.identity = SyncIdentityContribution.none,
+    this.identityColumns = const [],
+    this.clockColumn,
+    this.fallbackClockColumn,
+    this.blobColumns = const [],
+    this.isWholeDocument = false,
+  });
+
+  /// Stable name, used in failure messages and tests. Not a wire value.
+  final String name;
+
+  /// The table the rows live in.
+  final String table;
+
+  /// `extension_entity_rows.kind` filter, for a family that shares that table
+  /// with others. Null for every family that owns its table outright.
+  final String? kind;
+
+  /// The key this family's rows travel under inside a conversation subtree.
+  ///
+  /// It is spelled here so that adding a family is adding an entry: the payload
+  /// is a map of these keys, not a struct whose fields somebody has to grow.
+  /// Required for a synced conversation family, and unique among them.
+  final String? wireKey;
+
+  /// The column that names the conversation a row belongs to. `conversation_id`
+  /// almost everywhere; `id` for the conversation itself and for the
+  /// `extension_entity_rows` documents, which are keyed by the conversation's
+  /// own id.
+  final String conversationColumn;
+
+  /// The column naming a `message_rows` row this family's row hangs off, for a
+  /// family the generic apply writes. Null for a family that hangs off nothing
+  /// but its conversation.
+  ///
+  /// A row is written only when that revision survives the merge. The schema's
+  /// `revision_id -> message_rows.id` foreign key is deferred to COMMIT, so a
+  /// row for a revision the version-group rule dropped would insert cleanly and
+  /// then fail the whole transaction — and since the checkpoint never advances
+  /// past a failed apply, every later session would fail the same way. It is
+  /// also what keeps a crafted row from re-homing another conversation's row:
+  /// the revisions this conversation keeps are the only ones in the set.
+  final String? messageRevisionColumn;
+
+  /// `ORDER BY` clause for this family's rows, so a sender and a sender's peer
+  /// read the same order. Null when the family has one row per conversation.
+  final String? orderBy;
+
+  /// The columns that identify one row of [table] — the `ON CONFLICT` target the
+  /// applier writes through.
+  ///
+  /// It belongs to the registration because the applier is its second reader: a
+  /// family the merge body does not know still has to say how a row of its table
+  /// is keyed, or the first peer apply throws a `StateError` on a user's device
+  /// rather than a test failing. The guard requires it for every synced
+  /// conversation family and checks each column against the schema.
+  final List<String> conflictTarget;
+
+  /// Whether this family *is* the subtree root: one row, travelling as the
+  /// payload's `conversation` rather than as a list. Exactly one synced
+  /// conversation family claims it.
+  final bool isSubtreeRoot;
+
+  /// Who applies this family's rows when they arrive.
+  ///
+  /// Defaults to [SyncFamilyApply.rowLastWriteWins] on purpose. The other value
+  /// means "one of the four tables the merge body has a rule for", and a family
+  /// that asked for it by accident would be read, sent and digested while nothing
+  /// ever wrote its rows — convergeless and silent. A family that gets the
+  /// row-level rule by accident fails the other way: the applier asks for a
+  /// conflict target and finds none, which is a `StateError` on the first
+  /// session. The guard refuses the explicit form of the mistake too.
+  final SyncFamilyApply apply;
+
+  final SyncFamilyOwnership ownership;
+
+  /// Why this family stays on this device. Required for [deviceLocal] and
+  /// forbidden for [synced].
+  final String? deviceLocalReason;
+
+  final SyncFamilyScope scope;
+
+  /// What this family contributes to its conversation's identity.
+  ///
+  /// Conversation families only. A business row's digest is fixed —
+  /// `entityRowDigest(payload, sort_order)`, read by the business manifest in
+  /// `business_repository` — so a business family declares nothing here, and
+  /// [syncFamilyProblems] refuses one that tries.
+  final SyncIdentityContribution identity;
+
+  /// The columns that name a row inside an [SyncIdentityContribution.rowClocks]
+  /// or [SyncIdentityContribution.rowValues] line, in order.
+  final List<String> identityColumns;
+
+  /// The column a row's clock is read from, for
+  /// [SyncIdentityContribution.rowClocks]. [fallbackClockColumn] is what a row
+  /// that has no clock of its own is read as, so the two readers — the SQL
+  /// aggregate and the Dart re-read — cannot disagree about what a clock is.
+  final String? clockColumn;
+  final String? fallbackClockColumn;
+
+  /// The columns that may embed a `kelivo-file` URI, which is what the blob
+  /// plane scans. Declared rather than guessed, so "which strings can reference
+  /// a file" is answered once.
+  final List<String> blobColumns;
+
+  bool get isSynced => ownership == SyncFamilyOwnership.synced;
+
+  /// Whether this family's row *is* a whole document (D-7): one row per
+  /// conversation whose payload is the document itself. The report counts a
+  /// conversation once when one of these was replaced, and the applier requires
+  /// such a row to carry a `payload`. A family of keyed rows — the provider
+  /// artifacts — is not one, however it is applied.
+  ///
+  /// It is a field rather than "identity == payloadDigest" because the identity
+  /// is now the row clock: the manifest used to SHA-256 every document payload on
+  /// every session (6.5 ms/MB, on the app isolate), while the clock the LWW
+  /// comparison already reads is what actually decides the document's version.
+  final bool isWholeDocument;
+}
+
+/// Every family of rows this build knows about.
+///
+/// The guard test (`test/core/services/sync/sync_family_registry_test.dart`)
+/// fails when the source grows a kind that is not here, or when a table that
+/// hangs off a conversation is here neither. Adding a family is adding an entry.
+const List<SyncFamily> kSyncFamilies = [
+  // ---- the conversation subtree -------------------------------------------
+  SyncFamily(
+    name: 'conversation',
+    table: 'conversation_rows',
+    wireKey: 'conversation',
+    conversationColumn: 'id',
+    isSubtreeRoot: true,
+    conflictTarget: ['id'],
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.conversation,
+    identity: SyncIdentityContribution.conversationClock,
+    apply: SyncFamilyApply.specialised,
+    blobColumns: [
+      'title',
+      'summary',
+      'extras_json',
+      'chat_suggestions_json',
+      'version_selections_json',
+    ],
+  ),
+  SyncFamily(
+    name: 'mcpBindings',
+    table: 'conversation_mcp_server_rows',
+    wireKey: 'mcpServers',
+    orderBy: 'ordinal',
+    conflictTarget: ['conversation_id', 'server_id'],
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.conversation,
+    // No clock column: the binding *is* its (server, ordinal) pair.
+    identity: SyncIdentityContribution.rowValues,
+    identityColumns: ['server_id', 'ordinal'],
+    apply: SyncFamilyApply.specialised,
+  ),
+  SyncFamily(
+    name: 'messages',
+    table: 'message_rows',
+    wireKey: 'messages',
+    orderBy: 'message_order, id',
+    conflictTarget: ['id'],
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.conversation,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['id'],
+    clockColumn: 'updated_at',
+    fallbackClockColumn: 'timestamp',
+    blobColumns: ['translation', 'reasoning_segments_json', 'extras_json'],
+    apply: SyncFamilyApply.specialised,
+  ),
+  SyncFamily(
+    name: 'messageParts',
+    table: 'message_part_rows',
+    wireKey: 'parts',
+    orderBy: 'revision_id, ordinal',
+    conflictTarget: ['revision_id', 'ordinal'],
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.conversation,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['revision_id', 'ordinal'],
+    clockColumn: 'updated_at',
+    fallbackClockColumn: 'created_at',
+    blobColumns: ['payload'],
+    apply: SyncFamilyApply.specialised,
+  ),
+
+  // ---- the conversation's own documents, and the artifacts it needs --------
+  SyncFamily(
+    name: 'providerArtifacts',
+    table: 'provider_artifact_rows',
+    wireKey: 'artifacts',
+    messageRevisionColumn: 'revision_id',
+    conflictTarget: ['revision_id', 'kind'],
+    orderBy: 'revision_id, kind',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.conversation,
+    apply: SyncFamilyApply.rowLastWriteWins,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['revision_id', 'kind'],
+    clockColumn: 'updated_at',
+    fallbackClockColumn: 'created_at',
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'conversationContext',
+    table: 'extension_entity_rows',
+    kind: 'conversationContext',
+    wireKey: 'context',
+    conversationColumn: 'id',
+    conflictTarget: ['kind', 'id'],
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.conversation,
+    apply: SyncFamilyApply.rowLastWriteWins,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['id'],
+    clockColumn: 'updated_at',
+    isWholeDocument: true,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'conversationImageContext',
+    table: 'extension_entity_rows',
+    kind: 'conversationImageContext',
+    wireKey: 'imageContext',
+    conversationColumn: 'id',
+    conflictTarget: ['kind', 'id'],
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.conversation,
+    apply: SyncFamilyApply.rowLastWriteWins,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['id'],
+    clockColumn: 'updated_at',
+    isWholeDocument: true,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'conversationCompression',
+    table: 'extension_entity_rows',
+    kind: 'conversationCompression',
+    wireKey: 'compression',
+    conversationColumn: 'id',
+    conflictTarget: ['kind', 'id'],
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.conversation,
+    apply: SyncFamilyApply.rowLastWriteWins,
+    identity: SyncIdentityContribution.rowClocks,
+    identityColumns: ['id'],
+    clockColumn: 'updated_at',
+    isWholeDocument: true,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'compressionTemplate',
+    table: 'extension_entity_rows',
+    kind: 'compressionTemplate',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'compressionRecipe',
+    table: 'extension_entity_rows',
+    kind: 'compressionRecipe',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+
+  // ---- never leaves this device, and says why ------------------------------
+  SyncFamily(
+    name: 'compressionMigration',
+    table: 'extension_entity_rows',
+    kind: 'compressionMigration',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'This device has already imported the pre-template compress prompt. The '
+        'templates it produced travel as `compressionTemplate` rows, so the peer '
+        'has nothing to learn from the marker — and re-running the import there '
+        'is its own decision, made against its own settings.',
+    scope: SyncFamilyScope.business,
+  ),
+  SyncFamily(
+    name: 'compressionTask',
+    table: 'extension_entity_rows',
+    kind: 'contextCompressionTask',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'A compression that is running on *this* device. The result lands on the '
+        'rows it writes, which do travel; sending the task would ask the peer to '
+        'repeat work it has no model call for.',
+    scope: SyncFamilyScope.conversation,
+  ),
+  SyncFamily(
+    name: 'composerDraft',
+    table: 'extension_entity_rows',
+    kind: 'composerDraft',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason: 'What this device has typed but not sent.',
+    scope: SyncFamilyScope.business,
+  ),
+  SyncFamily(
+    name: 'composerNewEntry',
+    table: 'extension_entity_rows',
+    kind: 'composerNewEntry',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason: 'A conversation opened but not yet created here.',
+    scope: SyncFamilyScope.business,
+  ),
+  SyncFamily(
+    name: 'composerShareReceipt',
+    table: 'extension_entity_rows',
+    kind: 'composerShareReceipt',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'A record of a share *this* device performed; the peer performed none.',
+    scope: SyncFamilyScope.business,
+  ),
+  SyncFamily(
+    name: 'composerPrivateFile',
+    table: 'extension_entity_rows',
+    kind: 'composerPrivateFile',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason: 'A file this device holds outside the managed roots.',
+    scope: SyncFamilyScope.business,
+  ),
+  SyncFamily(
+    name: 'composerPublishedFile',
+    table: 'extension_entity_rows',
+    kind: 'composerPublishedFile',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'A published artefact of this device, named by a path only it has.',
+    scope: SyncFamilyScope.business,
+  ),
+  SyncFamily(
+    name: 'externalMounts',
+    table: 'extension_entity_rows',
+    kind: 'externalMounts',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'A directory on this machine\'s filesystem. The peer has its own '
+        'mounts, and a copied path would point at nothing.',
+    scope: SyncFamilyScope.business,
+  ),
+  SyncFamily(
+    name: 'generationRuns',
+    table: 'generation_run_rows',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'Bookkeeping for a generation streaming here. The message it writes '
+        'travels; a peer adopting the run would hold a stream nothing feeds.',
+    scope: SyncFamilyScope.conversation,
+  ),
+  SyncFamily(
+    name: 'messagePrompts',
+    table: 'message_prompt_rows',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'The exact prompt each revision was sent with, kept for inspection. It '
+        'is derived from rows that do travel, so a peer rebuilds it instead of '
+        'receiving it.',
+    scope: SyncFamilyScope.conversation,
+  ),
+  SyncFamily(
+    name: 'messageAssets',
+    table: 'message_asset_rows',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'Which asset a revision references, re-derived here from the parts that '
+        'arrive. The bytes travel on the blob plane by content hash.',
+    scope: SyncFamilyScope.conversation,
+  ),
+  SyncFamily(
+    name: 'genUiSurfaces',
+    table: 'gen_ui_surface_state_rows',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'Rendered surface state derived from the message it renders, rebuilt '
+        'when that message arrives.',
+    scope: SyncFamilyScope.conversation,
+  ),
+  SyncFamily(
+    name: 'assetReferenceWorklist',
+    table: 'asset_reference_dirty_rows',
+    ownership: SyncFamilyOwnership.deviceLocal,
+    deviceLocalReason:
+        'A local worklist: these revisions\' asset references need re-deriving. '
+        'It names work this device owes itself, not state a peer could use.',
+    scope: SyncFamilyScope.conversation,
+  ),
+
+  // ---- the business face ---------------------------------------------------
+  SyncFamily(
+    name: 'assistants',
+    table: 'assistant_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'providers',
+    table: 'provider_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'providerGroups',
+    table: 'provider_group_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'mcpServers',
+    table: 'mcp_server_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'worldBooks',
+    table: 'world_book_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'assistantMemories',
+    table: 'assistant_memory_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'quickPhrases',
+    table: 'quick_phrase_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'searchServices',
+    table: 'search_service_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'ttsServices',
+    table: 'tts_service_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'instructionInjections',
+    table: 'instruction_injection_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'assistantTags',
+    table: 'assistant_tag_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'memoryEntries',
+    table: 'memory_entry_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'userProfileFields',
+    table: 'user_profile_field_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'workspaces',
+    table: 'extension_entity_rows',
+    kind: 'workspace',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'skills',
+    table: 'extension_entity_rows',
+    kind: 'skill',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'groupChats',
+    table: 'extension_entity_rows',
+    kind: 'groupChat',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['payload'],
+  ),
+  SyncFamily(
+    name: 'preferences',
+    table: 'preference_rows',
+    ownership: SyncFamilyOwnership.synced,
+    scope: SyncFamilyScope.business,
+    blobColumns: ['value'],
+  ),
+];
+
+/// The family that owns [table] outright — the one with no kind filter.
+SyncFamily syncFamilyOfTable(String table) {
+  for (final family in kSyncFamilies) {
+    if (family.table == table && family.kind == null) return family;
+  }
+  throw StateError('unregistered family: $table');
+}
+
+/// The registered kind names, for the guard that compares them with the source.
+Set<String> get registeredSyncKinds => {
+  for (final family in kSyncFamilies)
+    if (family.kind != null) family.kind!,
+};
+
+/// The families a conversation subtree carries, in wire order.
+///
+/// This list *is* what `readSubtree` reads and what a payload's JSON holds: a
+/// family that is `synced` and conversation-scoped appears here without anyone
+/// editing the read path.
+List<SyncFamily> get syncedConversationFamilies => [
+  for (final family in kSyncFamilies)
+    if (family.isSynced && family.scope == SyncFamilyScope.conversation) family,
+];
+
+/// The families the business face carries.
+List<SyncFamily> get syncedBusinessFamilies => [
+  for (final family in kSyncFamilies)
+    if (family.isSynced && family.scope == SyncFamilyScope.business) family,
+];
+
+/// The tables a conversation hangs rows off: the conversation itself, and every
+/// table carrying `conversation_id` or `revision_id`.
+///
+/// Derived from the schema the sync writer trusts, so a table that starts
+/// hanging off a conversation joins the guard without anyone remembering to add
+/// it.
+Set<String> get conversationAttachedTables => {
+  'conversation_rows',
+  for (final table in currentSchemaColumns.keys)
+    if (table != 'conversation_rows' &&
+        (currentSchemaColumns[table]!.contains('conversation_id') ||
+            currentSchemaColumns[table]!.contains('revision_id')))
+      table,
+};
+
+/// Kinds that belong to a table-owning family, and so are nobody's extension
+/// kind.
+///
+/// `provider_artifact_rows` is registered as one family with no kind filter: it
+/// syncs every row of its table whatever its `kind` column says, so its values
+/// need no registration — but a declaration that names one
+/// (`static const String imageOcrArtifactKind = 'image_ocr_v1'`) is shaped
+/// exactly like an extension-kind declaration. Claiming it would demand a family
+/// that must not exist, and a guard whose answer is sometimes "register
+/// this kind that is not a kind" is a guard the next person routes around.
+/// Today the one value is `image_ocr_v1`, declared independently by the
+/// repository and the OCR service.
+const _kindsOfATableOwningFamily = {'image_ocr_v1'};
+
+/// Kinds declared in the same `kindXxx` shape that are not rows at all: the blob
+/// plane's entry kinds. `SyncBlobEntry.kindFile` / `kindSkillDir` are compared
+/// and persisted as [SyncBlobEntry] values and never written to
+/// `extension_entity_rows`, so asking for a family for one would be asking for a
+/// family over nothing. The shape is the price of claiming the store's own
+/// `kindWorkspace`; the alternative was leaving the shape the tree teaches
+/// claimed by nothing.
+const _kindsOfTheBlobPlane = {'file', 'skill-dir'};
+
+/// Every kind literal that means an `extension_entity_rows.kind` in [source],
+/// with the line it appears on.
+///
+/// A literal is claimed in one of two ways, because the two are not equally
+/// informative:
+///
+/// * A *declaration* — `entityKind = '…'`, `extensionKind: '…'`,
+///   `static const kind = '…'`, `static const conversationKind = '…'` — is a
+///   kind whatever its casing, so it is claimed as written. The identifier may
+///   end in `kind`/`Kind` rather than be exactly `kind`: the one document kind
+///   this tree already had was declared as `conversationKind`, and a pattern
+///   that knew only `kind` could not see it — the family would go unregistered
+///   while this guard stayed green.
+///
+///   The literal starts at its first letter and runs to the closing quote, so a
+///   declaration is claimed whatever its casing: nothing constrains it to
+///   camelCase, and a capture that stopped at the first non-letter would drop
+///   `composer_draft` or `composerDraft2` silently — the same green guard, the
+///   same unregistered family. It cannot be `[^']+` alone, because a doc comment
+///   quoting the shape (`static const kind = '…'`) reads as a declaration and
+///   would ask for a kind named `…`. Every pattern here is anchored to a
+///   declaration; the camelCase test lives on the *use* patterns below, where it
+///   separates an extension kind from the word-shaped kinds of the other tables.
+/// * A *use* — `kind = '…'`, `kind: '…'`, `kind.equals('…')`, `kind IN (…)` —
+///   is claimed only when the literal is camelCase. That test is what separates
+///   an extension kind from the snake_case/word-shaped kinds of the other
+///   tables in the same files (`message_part_rows.kind` is `text`, `image`,
+///   `tool_call`); without it the guard would ask for a registration for every
+///   enum member in the codebase.
+/// * A *positional call* — `store.upsert('…', id, payload)`,
+///   `store.get('…', id)`, `listByKind('…')`, `delete('…')`, `watchKind('…')` —
+///   is claimed under the same camelCase test. `ExtensionEntityStore` takes the
+///   kind as its first argument, so a kind written that way is neither a
+///   declaration nor a `kind`-named use: `compressionMigration` was registered
+///   nowhere while this guard stayed green, the third time a literal walked past
+///   a pattern that promised to see every kind. The camelCase test is also what
+///   keeps a store that keys by hash (`delete('a1b2…')`) from being read as a
+///   kind nobody registered.
+/// * A *quote* is either spelling. Every pattern here reads `'…'` and `"…"`: Dart
+///   has two, the formatter does not normalise them, and this repo does not
+///   enable `prefer_single_quotes` — so a pattern anchored on one quote would
+///   leave a kind written as `static const kind = "…"` claimed by nothing while
+///   the guard stayed green, which is the fifth time a literal walked past a
+///   pattern that promised to see every kind. Reading both spellings does not
+///   make the scan total (an interpolated kind is still invisible); what would is
+///   the store taking a registered token instead of a string.
+Map<String, List<String>> extensionKindsInSource(String source) {
+  final declarations = [
+    RegExp(r"""\bentityKind\s*=\s*['"]([A-Za-z][^'"]*)['"]"""),
+    RegExp(r"""\bextensionKind\s*:\s*['"]([A-Za-z][^'"]*)['"]"""),
+    RegExp(
+      // `kind`, `…Kind` and the front form `kindWorkspace` — the last is the
+      // convention `extension_entity_store.dart` itself declares its shared
+      // kinds with, so it is the shape a contributor copies. A pattern that knew
+      // only the two suffix forms would leave that kind claimed by nothing.
+      r"""static\s+const\s+(?:String\s+)?(?:\w*[Kk]ind|[Kk]ind[A-Z]\w*)\s*=\s*['"]([A-Za-z][^'"]*)['"]""",
+    ),
+  ];
+  final uses = [
+    RegExp(r"""\bkind\s*=\s*['"]([A-Za-z]\w*)['"]"""),
+    RegExp(r"""\bkind\s*:\s*['"]([A-Za-z]\w*)['"]"""),
+    RegExp(r"""kind\.equals\(\s*['"]([A-Za-z]\w*)['"]\s*\)"""),
+  ];
+  final inList = RegExp(r"""\bkind\s+IN\s*\(([^)]*)\)""");
+  final quoted = RegExp(r"""['"]([A-Za-z]\w*)['"]""");
+  final calls = RegExp(
+    r"""\.(?:upsert|get|delete|listByKind|watchKind)\(\s*['"]([A-Za-z]\w*)['"]""",
+  );
+  final found = <String, List<String>>{};
+  final lines = source.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    void claim(String literal) {
+      if (_kindsOfATableOwningFamily.contains(literal) ||
+          _kindsOfTheBlobPlane.contains(literal)) {
+        return;
+      }
+      final locations = found[literal] ??= [];
+      final location = 'line ${i + 1}';
+      // One line can match two declaration patterns — `static const entityKind`
+      // is both an `entityKind` declaration and a `…Kind` one — and the location
+      // is worth reporting once.
+      if (!locations.contains(location)) locations.add(location);
+    }
+
+    for (final pattern in declarations) {
+      for (final match in pattern.allMatches(line)) {
+        claim(match.group(1)!);
+      }
+    }
+    for (final pattern in uses) {
+      for (final match in pattern.allMatches(line)) {
+        final literal = match.group(1)!;
+        if (literal.contains(RegExp('[A-Z]'))) claim(literal);
+      }
+    }
+    for (final match in inList.allMatches(line)) {
+      for (final literal
+          in quoted.allMatches(match.group(1)!).map((m) => m.group(1)!)) {
+        if (literal.contains(RegExp('[A-Z]'))) claim(literal);
+      }
+    }
+    for (final match in calls.allMatches(line)) {
+      final literal = match.group(1)!;
+      if (literal.contains(RegExp('[A-Z]'))) claim(literal);
+    }
+  }
+  return found;
+}
+
+/// The tables the merge body applies by rules of its own: the message union with
+/// its order re-derivation, the parts written with their revision, the binding
+/// set replace, and the conversation row itself.
+///
+/// This is the other half of [SyncFamily.apply]'s default. A family that says
+/// nothing gets the row-level rule, which either works or asks the applier for a
+/// conflict target the table does not have — a `StateError` on the first session.
+/// Asking for `specialised` is therefore the one way to get a family that is read,
+/// sent and digested while nothing ever writes its rows, and this set is what the
+/// guard measures that request against: the body looks its three non-root
+/// families up by table, so a fourth table has no rule and no way to acquire one
+/// by registering.
+const _specialisedTables = {
+  'conversation_rows',
+  'message_rows',
+  'message_part_rows',
+  'conversation_mcp_server_rows',
+};
+
+/// Everything wrong with [families], as one list of sentences. Empty means the
+/// registry holds.
+///
+/// A pure function over the list rather than a check on the constant, so the
+/// guard test can feed it the violations it is supposed to catch and watch it
+/// answer.
+List<String> syncFamilyProblems(
+  List<SyncFamily> families, {
+  Map<String, List<String>> schema = currentSchemaColumns,
+  Set<String> conversationTables = const {},
+}) {
+  final problems = <String>[];
+  final names = <String>{};
+  for (final family in families) {
+    final where = family.name;
+    if (!names.add(family.name)) {
+      problems.add('$where: registered twice');
+    }
+    final columns = schema[family.table];
+    if (columns == null) {
+      problems.add('$where: table ${family.table} is not in the schema map');
+      continue;
+    }
+    if (family.kind != null && family.table != 'extension_entity_rows') {
+      problems.add(
+        '$where: names a kind but its table is ${family.table}, which has none',
+      );
+    }
+    if (family.table == 'extension_entity_rows' && family.kind == null) {
+      problems.add('$where: shares extension_entity_rows without a kind');
+    }
+    switch (family.ownership) {
+      case SyncFamilyOwnership.deviceLocal:
+        if ((family.deviceLocalReason ?? '').trim().isEmpty) {
+          problems.add('$where: deviceLocal without a reason');
+        }
+      case SyncFamilyOwnership.synced:
+        if (family.deviceLocalReason != null) {
+          problems.add('$where: synced but carries a device-local reason');
+        }
+        // A conversation's identity is composed from its families, so each has
+        // to say what it contributes. A business row's identity is fixed —
+        // `entityRowDigest(payload, sort_order)` in `business_repository` — and
+        // nothing reads this field for one, so declaring an identity there would
+        // be a lie, and the guard refuses it.
+        if (family.scope == SyncFamilyScope.business) {
+          if (family.identity != SyncIdentityContribution.none) {
+            problems.add(
+              '$where: a business family declares an identity, which nothing '
+              'reads — its digest is entityRowDigest',
+            );
+          }
+        } else if (family.identity == SyncIdentityContribution.none) {
+          problems.add('$where: synced but contributes nothing to an identity');
+        }
+        if (family.scope == SyncFamilyScope.conversation) {
+          // The applier writes a conversation family's rows through this target.
+          // A family that does not name one is registered, read, sent and
+          // digested, and then throws on the first peer apply — on a device,
+          // not in a test, which is what this guard exists to prevent.
+          if (family.conflictTarget.isEmpty) {
+            problems.add(
+              '$where: a synced conversation family must name its conflict '
+              'target — the applier writes its rows through it',
+            );
+          }
+          for (final column in family.conflictTarget) {
+            if (!columns.contains(column)) {
+              problems.add(
+                '$where: conflict target column $column is not in '
+                '${family.table}',
+              );
+            }
+          }
+        }
+        if (family.isWholeDocument && !columns.contains('payload')) {
+          problems.add(
+            '$where: a whole document, but ${family.table} has no payload '
+            'column — the applier would silently drop every row it reads',
+          );
+        }
+        if (family.scope == SyncFamilyScope.conversation &&
+            family.apply == SyncFamilyApply.specialised &&
+            !_specialisedTables.contains(family.table)) {
+          problems.add(
+            '$where: specialised, but the merge body has no rule for '
+            '${family.table} — its rows would be read, sent and digested, and '
+            'never applied',
+          );
+        }
+    }
+    final keyed =
+        family.identity == SyncIdentityContribution.rowClocks ||
+        family.identity == SyncIdentityContribution.rowValues;
+    if (family.identity == SyncIdentityContribution.rowClocks &&
+        family.clockColumn == null) {
+      problems.add('$where: rowClocks without a clock column');
+    }
+    if (keyed && family.identityColumns.isEmpty) {
+      problems.add('$where: ${family.identity.name} without identity columns');
+    }
+    if (!keyed && family.identityColumns.isNotEmpty) {
+      problems.add(
+        '$where: identity columns declared for ${family.identity.name}',
+      );
+    }
+    for (final column in [
+      ...family.identityColumns,
+      ...family.blobColumns,
+      if (family.messageRevisionColumn != null) family.messageRevisionColumn!,
+    ]) {
+      if (!columns.contains(column)) {
+        problems.add('$where: column $column is not in ${family.table}');
+      }
+    }
+    if (family.isSynced && family.scope == SyncFamilyScope.conversation) {
+      if ((family.wireKey ?? '').trim().isEmpty) {
+        problems.add('$where: travels in a subtree without a wire key');
+      }
+      if (!columns.contains(family.conversationColumn)) {
+        problems.add(
+          '$where: ${family.table} has no ${family.conversationColumn} column',
+        );
+      }
+    }
+    // Only a family that owns its table is checkable this way. A family living
+    // in `extension_entity_rows` hangs off whatever its `owner_id` names, which
+    // the schema map cannot say per kind — that attachment is the registration
+    // itself.
+    if (family.kind == null &&
+        family.scope == SyncFamilyScope.conversation &&
+        !conversationTables.contains(family.table)) {
+      problems.add(
+        '$where: conversation-scoped, but ${family.table} hangs off no '
+        'conversation',
+      );
+    }
+  }
+  for (final table in conversationTables) {
+    final covered = families.any((family) => family.table == table);
+    if (!covered) {
+      problems.add(
+        '$table: hangs off a conversation but is registered nowhere',
+      );
+    }
+  }
+  final roots = families.where((family) => family.isSubtreeRoot).length;
+  if (roots != 1) {
+    problems.add('a subtree needs exactly one root family, found $roots');
+  }
+  // Two families writing the same key of one payload would trade rows: the
+  // reader of the second would find the first's.
+  final wireKeys = <String>{};
+  for (final family in families) {
+    if (!family.isSynced || family.scope != SyncFamilyScope.conversation) {
+      continue;
+    }
+    final key = family.wireKey;
+    if (key == null || key.isEmpty) continue;
+    if (!wireKeys.add(key)) {
+      problems.add('${family.name}: wire key $key is used twice');
+    }
+  }
+  return problems;
+}

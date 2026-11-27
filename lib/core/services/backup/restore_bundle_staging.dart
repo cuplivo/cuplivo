@@ -21,6 +21,7 @@ import 'backup_cancel_token.dart';
 import 'backup_file_digest.dart';
 import 'backup_archive_limits.dart';
 import 'backup_isolate_runner.dart';
+import 'backup_archive_format.dart';
 import 'backup_settings_validator.dart';
 import 'backup_task_progress.dart';
 import 'restore_durability.dart';
@@ -85,7 +86,19 @@ final class RestoreBundleStaging {
   static const workspaceRootName = RestoreWorkspaceLock.workspaceRootName;
   static const _backupFormat = 'kelivo-backup';
   // Candidates explicitly bind the asset roots selected for cutover.
-  static const _backupFormatVersion = 3;
+  static const _backupFormatVersion = BackupArchiveFormat.current;
+
+  /// Formats a staged candidate may carry and still be resumable.
+  ///
+  /// A candidate is written by whichever build staged the restore, so an upgrade
+  /// in the middle of one leaves an older number on disk — which is why 2 was
+  /// already accepted here. The archive format reached 4 with the export's
+  /// vocabulary, so "the previous format" is now a real case rather than a
+  /// historical one, and it is derived from the one place that decides formats.
+  static const _resumableCandidateFormats = {
+    ...BackupArchiveFormat.legacyReadable,
+    BackupArchiveFormat.current,
+  };
 
   /// The source archive's declaration key. DataSync depends on this file, so
   /// importing its definition here would introduce a cycle.
@@ -470,7 +483,7 @@ final class RestoreBundleStaging {
     final formatVersion = manifest['formatVersion'];
     if (manifest['format'] != _backupFormat ||
         formatVersion is! int ||
-        (formatVersion != 2 && formatVersion != _backupFormatVersion) ||
+        !_resumableCandidateFormats.contains(formatVersion) ||
         includeChats != true ||
         includeFiles is! bool ||
         payloadKind != 'sqlite' ||
@@ -486,7 +499,9 @@ final class RestoreBundleStaging {
       'appVersion',
       'includeChats',
       'includeFiles',
-      if (formatVersion == _backupFormatVersion) 'assetRoots',
+      // Every format from 3 on binds its asset roots explicitly; 2 did not and
+      // implied the full set.
+      if (formatVersion != 2) 'assetRoots',
       'database',
       'entries',
     };
@@ -1066,10 +1081,16 @@ final class RestoreBundleStaging {
         detail: 'candidate-revalidate',
       ),
     );
-    ctx.throwIfCancelled();
+    // The hang is deliberately *before* the first cancel check. It is how a test
+    // holds this isolate provably alive: the native sleep ignores signals, so
+    // nothing can cut it short, whereas with the check first a cancel that
+    // crosses the port quickly lets the isolate exit before the host's abandon
+    // timer fires - which is what made the "isolate has not exited" assertions in
+    // restore_bundle_staging_test.dart flake under load. Keep the order.
     if (args.hangSeconds > 0) {
       debugNativeSleepIgnoringKill(args.hangSeconds);
     }
+    ctx.throwIfCancelled();
     if (args.stallMs > 0) {
       final until = DateTime.now().add(Duration(milliseconds: args.stallMs));
       while (DateTime.now().isBefore(until)) {
@@ -1121,10 +1142,13 @@ final class RestoreBundleStaging {
         detail: 'candidate-db',
       ),
     );
-    ctx.throwIfCancelled();
+    // Same load-bearing order as the revalidation entry above: the hang keeps the
+    // isolate alive past the host's abandon timer, so it must precede the first
+    // cancel check.
     if (args.hangSeconds > 0) {
       debugNativeSleepIgnoringKill(args.hangSeconds);
     }
+    ctx.throwIfCancelled();
     if (args.stallMs > 0) {
       final until = DateTime.now().add(Duration(milliseconds: args.stallMs));
       while (DateTime.now().isBefore(until)) {

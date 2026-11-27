@@ -54,6 +54,14 @@ class S3BackupProvider extends ChangeNotifier {
     return path;
   }
 
+  /// The selection *and* the export target, from this call's own S3 config.
+  ///
+  /// DataSync uses the same selection for local, WebDAV and S3 backups, and the
+  /// same export target: an S3 upload that carried the scope but not the target
+  /// would silently write an archive for the wrong reader.
+  WebDavConfig _scopeAsWebdavConfig(S3Config cfg) =>
+      WebDavConfig(scope: cfg.scope, target: cfg.target);
+
   Future<void> cleanPartials(S3Config cfg) => _client.cleanPartials(cfg);
 
   Future<void> test(S3Config cfg) async {
@@ -83,7 +91,7 @@ class S3BackupProvider extends ChangeNotifier {
     File? file;
     try {
       file = await _dataSync.prepareBackupFile(
-        WebDavConfig(scope: cfg.scope),
+        _scopeAsWebdavConfig(cfg),
         password: password,
         onProgress: onProgress,
         cancelToken: cancelToken,
@@ -150,7 +158,7 @@ class S3BackupProvider extends ChangeNotifier {
       );
       await _dataSync.restoreFromLocalFile(
         file,
-        WebDavConfig(scope: cfg.scope),
+        _scopeAsWebdavConfig(cfg),
         mode: mode,
         onProgress: onProgress,
         cancelToken: cancelToken,

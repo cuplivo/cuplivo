@@ -264,6 +264,11 @@ class LocalSnapshotProvider extends ChangeNotifier {
   }
 
   /// A file name a person can recognise once it leaves the app.
+  ///
+  /// Named for this build, not for the release the copy came from: the name is
+  /// minted at hand-over and read back by nothing, while the on-disk
+  /// `kelivo-snapshot-*` keeps its prefix as a recovery contract with older
+  /// builds.
   String exportFileNameFor(LocalCopy copy) {
     final at = (copy.createdAt ?? DateTime.now()).toLocal();
     String two(int value) => value.toString().padLeft(2, '0');
@@ -271,7 +276,7 @@ class LocalSnapshotProvider extends ChangeNotifier {
         '${at.year}${two(at.month)}${two(at.day)}'
         '-${two(at.hour)}${two(at.minute)}${two(at.second)}';
     final kind = copy.kind == LocalCopyKind.snapshot ? 'snapshot' : 'recovered';
-    return 'kelivo-$kind-$stamp.zip';
+    return 'cuplivo-$kind-$stamp.zip';
   }
 
   /// The interval currently in force, resolving the automatic setting against

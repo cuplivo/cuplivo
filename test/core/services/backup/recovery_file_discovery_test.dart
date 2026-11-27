@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/services/backup/local_copy_catalog.dart';
-import 'package:Kelivo/core/services/backup/recovery_file_discovery.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
+import 'package:Cuplivo/core/services/backup/recovery_file_discovery.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +10,38 @@ void main() {
     root = await Directory.systemTemp.createTemp('recovery-discovery-');
   });
   tearDown(() => root.delete(recursive: true));
+
+  test('discovers archives from both naming eras', () async {
+    for (final name in [
+      'cuplivo_backup_2026-11-19T12-31-05.123456.zip',
+      'kelivo_backup_2026-11-19T12-31-05.123456.zip',
+      // A case-insensitive store can hand the name back upper-cased.
+      'CUPLIVO_BACKUP_2026-11-20T00-00-00.000001.ZIP',
+      'backup.zip',
+      'kelivo_auto_x_2026-11-19T12-31-05.123456.zip',
+    ]) {
+      File('${root.path}/$name').writeAsStringSync('archive');
+    }
+
+    final names = (await RecoveryFileDiscovery.archives(
+      root,
+    )).map((file) => file.uri.pathSegments.last).toSet();
+    expect(
+      names,
+      containsAll([
+        'cuplivo_backup_2026-11-19T12-31-05.123456.zip',
+        'kelivo_backup_2026-11-19T12-31-05.123456.zip',
+        'CUPLIVO_BACKUP_2026-11-20T00-00-00.000001.ZIP',
+      ]),
+    );
+    // Not every .zip in the data directory is a backup this build wrote.
+    expect(names, isNot(contains('backup.zip')));
+    expect(
+      names,
+      isNot(contains('kelivo_auto_x_2026-11-19T12-31-05.123456.zip')),
+    );
+    expect(await RecoveryFileDiscovery.hasPriorData(root), isTrue);
+  });
 
   test('trash traversal never follows links outside the data root', () async {
     final outside = await Directory.systemTemp.createTemp('outside-recovery-');

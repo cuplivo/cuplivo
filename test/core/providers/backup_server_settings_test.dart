@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/models/backup.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -94,6 +94,21 @@ void main() {
       expect(
         await business.repository.getPreference('s3_config_v1'),
         s3.copyWith(scope: updated).toJsonString(),
+      );
+
+      // The reader travels the same way the scope does: a backup is addressed
+      // to a person, so a destination that still believes it writes for the
+      // other reader must not be left behind.
+      await settings.setBackupTarget(BackupTarget.kelivo);
+      expect(
+        await business.repository.getPreference('webdav_config_v1'),
+        dav
+            .copyWith(scope: updated, target: BackupTarget.kelivo)
+            .toJsonString(),
+      );
+      expect(
+        await business.repository.getPreference('s3_config_v1'),
+        s3.copyWith(scope: updated, target: BackupTarget.kelivo).toJsonString(),
       );
     },
   );

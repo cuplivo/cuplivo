@@ -121,6 +121,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.4.1"
+  barcode:
+    dependency: transitive
+    description:
+      name: barcode
+      sha256: "7b6729c37e3b7f34233e2318d866e8c48ddb46c1f7ad01ff7bb2a8de1da2b9f4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.9"
+  basic_utils:
+    dependency: "direct main"
+    description:
+      name: basic_utils
+      sha256: "548047bef0b3b697be19fa62f46de54d99c9019a69fb7db92c69e19d87f633c7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.8.2"
+  bidi:
+    dependency: transitive
+    description:
+      name: bidi
+      sha256: "77f475165e94b261745cf1032c751e2032b8ed92ccb2bf5716036db79320637d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.13"
   bitsdojo_window:
     dependency: "direct main"
     description:
@@ -269,10 +293,10 @@ packages:
     dependency: transitive
     description:
       name: code_assets
-      sha256: bf394f466ba9205f1812a0433b392d6af280f155f56651eda7c18cc32ed493b8
+      sha256: "1ef22a0be3af9370bd9481ac76db114db92bfe75d5ca2b2d7bc911764478a4d9"
       url: "https://pub.dev"
     source: hosted
-    version: "1.2.1"
+    version: "2.2.0"
   collection:
     dependency: "direct main"
     description:
@@ -349,10 +373,10 @@ packages:
     dependency: "direct main"
     description:
       name: cupertino_http
-      sha256: d57188b07349a373bec9a78997a80c00e1de08dab0fe454b3f86c84661ac457c
+      sha256: "9eb9a41b1e2c442d530be7aeb537b21b02060c6df5e36b8e8975db23dc7d8371"
       url: "https://pub.dev"
     source: hosted
-    version: "3.1.0"
+    version: "3.1.1"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -402,7 +426,7 @@ packages:
     source: hosted
     version: "0.7.1"
   device_info_plus:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: device_info_plus
       sha256: "98f28b42168cc509abc92f88518882fd58061ea372d7999aecc424345c7bff6a"
@@ -1173,6 +1197,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  libtailcat:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: e2384d3024c64e669498d03e4593f353758fc341
+      resolved-ref: e2384d3024c64e669498d03e4593f353758fc341
+      url: "https://github.com/cuplivo/libtailcat.git"
+    source: git
+    version: "1.1.0"
   lints:
     dependency: transitive
     description:
@@ -1270,10 +1303,10 @@ packages:
     dependency: transitive
     description:
       name: native_toolchain_c
-      sha256: f9c168717100ae6d9fee9ffb0be379bf1f8b26b0f6bcbd4fdddcd931993a6a72
+      sha256: "120b6fc66acd8a5ddeaeb1e59b78836bb3ec9919bd9d9dfb1e2401985710c2c0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.19.2"
+    version: "0.19.6"
   nested:
     dependency: transitive
     description:
@@ -1294,10 +1327,10 @@ packages:
     dependency: transitive
     description:
       name: objective_c
-      sha256: b7fb95a6d9a4f009edd63dc5ac69f07420b23a16161c6dd8660290b59c602e8e
+      sha256: c965d264fd4b0b4dd402dce9d049b70656bf98d3ca108b9bc55d2544ceadbe5e
       url: "https://pub.dev"
     source: hosted
-    version: "9.5.0"
+    version: "9.6.4"
   open_filex:
     dependency: "direct main"
     description:
@@ -1394,6 +1427,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  pdf:
+    dependency: "direct main"
+    description:
+      name: pdf
+      sha256: e47a275b267873d5944ad5f5ff0dcc7ac2e36c02b3046a0ffac9b72fd362c44b
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.12.0"
   permission_handler:
     dependency: "direct main"
     description:

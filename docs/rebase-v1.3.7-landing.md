@@ -464,6 +464,24 @@ record in the unit, with `verifyPayload`/`assetRootPaths` only on our side; `bac
 sides are versions of one flow, and the next pass has to pick v1.3.7's flow and re-express the
 reader-target on top of it. The unit was reverted; the branch sits at unit 13.
 
+**The port's shopping list, measured.** The unit's pane is written against a *single* backup-config
+model and three setters; v1.3.7 split the model in two and renamed every setter:
+
+| the unit calls | v1.3.7 has |
+| --- | --- |
+| `settings.setWebDavConfig(cfg)` | `settings.updateWebDavConfig((cfg) => cfg)` |
+| `settings.setS3Config(cfg)` | `settings.updateS3Config((cfg) => cfg)` |
+| `backupProvider.updateConfig(...)` | nothing — the pane writes through `SettingsProvider`; the provider reads `DataSync` |
+| one `BackupConfig` carrying `target` | `webDavConfig` + `s3Config`, each carrying `target` |
+
+And in `data_sync.dart` the unit's `_buildBackupManifestJson` now *requires* `formatVersion` and
+`target` at every call site while v1.3.7's packing path calls it twice without them; the unit adds a
+second `_packAndVerifyInIsolate` (ours returns `BackupProgress`, theirs a record) and a
+`libraryInSettings` argument our `sanitizeDatabase` does not take. `s3_backup_provider.dart`'s new
+helper reads `_cfg`, which is not this tree's field name. Unit 14's second attempt measured
+**279 errors + 79 warnings** with those names unresolved, so the pass is a port of four files and a
+dozen call sites, not a merge.
+
 
 ### Unit 13, parked with its measurement
 

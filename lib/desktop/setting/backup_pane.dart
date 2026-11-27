@@ -1,7 +1,7 @@
 import '../widgets/desktop_labeled_control.dart';
 import 'dart:io';
 
-import 'package:Kelivo/shared/widgets/ios_time_picker.dart';
+import 'package:Cuplivo/shared/widgets/ios_time_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -32,14 +32,15 @@ import '../../features/backup/widgets/backup_progress_dialog.dart';
 import '../../features/backup/backup_restart_dialog.dart';
 import '../../features/backup/widgets/backup_reminder_helpers.dart';
 import '../../features/backup/widgets/backup_scope_tile.dart';
+import '../../features/backup/widgets/backup_target_tile.dart';
 import '../../features/backup/widgets/backup_encryption_tile.dart';
 import '../../features/backup/widgets/storage_migration_notice_button.dart';
 import '../../features/backup/pages/local_snapshots_page.dart';
 import '../../core/database/startup_failure_report.dart' show formatBytes;
 import '../widgets/desktop_select_dropdown.dart';
 import '../../theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
 
 class DesktopBackupPane extends StatefulWidget {
   const DesktopBackupPane({super.key});
@@ -209,6 +210,15 @@ class _DesktopBackupPaneState extends State<DesktopBackupPane> {
                       desktop: true,
                       scope: dav.scope,
                       onChanged: busy ? null : settings.setBackupScope,
+                    ),
+                    // Which reader the archive is written for. Both settings
+                    // halves move together, because an archive addressed to one
+                    // reader must not be produced by a destination that still
+                    // believes it is talking to the other.
+                    BackupTargetTile(
+                      desktop: true,
+                      target: dav.target,
+                      onChanged: busy ? null : settings.setBackupTarget,
                     ),
                     BackupEncryptionTile(busy: busy),
                   ],

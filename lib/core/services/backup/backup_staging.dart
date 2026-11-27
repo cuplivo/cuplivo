@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../../utils/app_directories.dart';
+import 'backup_archive_naming.dart';
 import 'restore_durability.dart';
 
 /// Working files only. User exports and published snapshots live elsewhere.
@@ -11,6 +13,14 @@ abstract final class BackupStaging {
   static const directoryName = 'kelivo_backup_staging';
   static final _live = <String>{};
   static final _legacySwept = <String>{};
+
+  /// Replaces the staging root when set, so a test can inject the failure a
+  /// full or read-only volume produces: a real directory cannot be made to
+  /// fail on demand, and `IOOverrides` does not intercept `Directory.create`.
+  /// Only [root] without an explicit parent consults it, so the sweep keeps
+  /// looking at the real staging root.
+  @visibleForTesting
+  static Future<Directory> Function()? debugRootOverride;
 
   static void register(String path) => _live.add(p.normalize(p.absolute(path)));
   static void release(String path) =>
@@ -34,6 +44,10 @@ abstract final class BackupStaging {
       Directory(p.join((temporary ?? await _parent()).path, directoryName));
 
   static Future<Directory> root({Directory? temporary}) async {
+    if (temporary == null) {
+      final override = debugRootOverride;
+      if (override != null) return override();
+    }
     final dir = await resolveRoot(temporary: temporary);
     if (await FileSystemEntity.type(dir.path, followLinks: false) ==
         FileSystemEntityType.link) {
@@ -73,11 +87,12 @@ abstract final class BackupStaging {
   static bool _legacy(FileSystemEntity entry, String name) {
     if (name == directoryName) return false;
     if (entry is Directory) {
-      return name.startsWith('kelivo_backup_') ||
+      // A crashed run's working directory carries the archive prefix.
+      return BackupArchiveNaming.isReadable(name) ||
           name.startsWith('kelivo_decrypted_');
     }
     return entry is File &&
-        (RegExp(r'^kelivo_backup_.+\.(zip|kbackup)$').hasMatch(name) ||
+        (BackupArchiveNaming.isArchiveName(name) ||
             RegExp(r'^kelivo_restore_.+\.zip$').hasMatch(name) ||
             const {
               '_bk_settings.json',

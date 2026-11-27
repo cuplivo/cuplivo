@@ -1,5 +1,5 @@
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
@@ -15,39 +15,42 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/startup_recovery_service.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/business_restore_service.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/schema_migrations.dart';
-import 'package:Kelivo/core/models/backup.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/utils/kelivo_file_uri.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
-import 'package:Kelivo/core/providers/backup_provider.dart';
-import 'package:Kelivo/core/providers/s3_backup_provider.dart';
-import 'package:Kelivo/core/services/backup/backup_encryption.dart';
-import 'package:Kelivo/core/services/backup/backup_archive_limits.dart';
-import 'package:Kelivo/core/services/backup/backup_file_export.dart';
-import 'package:Kelivo/core/services/backup/backup_cancel_token.dart';
-import 'package:Kelivo/core/services/backup/backup_task_progress.dart';
-import 'package:Kelivo/core/services/backup/backup_staging.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/backup/restore_business_lease.dart';
-import 'package:Kelivo/core/services/backup/restore_workspace_lock.dart';
-import 'package:Kelivo/core/services/backup/restore_previous_plan.dart';
-import 'package:Kelivo/core/services/backup/restore_receipt.dart';
-import 'package:Kelivo/core/services/backup/restore_startup_gate.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/storage/storage_usage_service.dart';
-import 'package:Kelivo/core/services/workspace/workspace_file_coordinator.dart';
-import 'package:Kelivo/core/services/instruction_injection_store.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/startup_recovery_service.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/business_restore_service.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/schema_migrations.dart';
+import 'package:Cuplivo/core/services/backup/backup_archive_format.dart';
+import 'package:Cuplivo/core/services/backup/backup_archive_naming.dart';
+import 'package:Cuplivo/core/models/backup.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/compression_config.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/utils/kelivo_file_uri.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/providers/backup_provider.dart';
+import 'package:Cuplivo/core/providers/s3_backup_provider.dart';
+import 'package:Cuplivo/core/services/backup/backup_encryption.dart';
+import 'package:Cuplivo/core/services/backup/backup_archive_limits.dart';
+import 'package:Cuplivo/core/services/backup/backup_file_export.dart';
+import 'package:Cuplivo/core/services/backup/backup_cancel_token.dart';
+import 'package:Cuplivo/core/services/backup/backup_task_progress.dart';
+import 'package:Cuplivo/core/services/backup/backup_staging.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/backup/restore_business_lease.dart';
+import 'package:Cuplivo/core/services/backup/restore_workspace_lock.dart';
+import 'package:Cuplivo/core/services/backup/restore_previous_plan.dart';
+import 'package:Cuplivo/core/services/backup/restore_receipt.dart';
+import 'package:Cuplivo/core/services/backup/restore_startup_gate.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/storage/storage_usage_service.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_file_coordinator.dart';
+import 'package:Cuplivo/core/services/instruction_injection_store.dart';
 
 const _withoutAssets = WebDavConfig(
   scope: BackupScope(
@@ -894,7 +897,11 @@ void main() {
         final preserved = root
             .listSync(recursive: true, followLinks: false)
             .whereType<File>()
-            .where((f) => f.path.endsWith('/previous/preserved.txt'))
+            .where(
+              (f) =>
+                  p.basename(f.path) == 'preserved.txt' &&
+                  p.basename(f.parent.path) == 'previous',
+            )
             .single;
         expect(await preserved.readAsString(), 'previous data evidence');
         expect(
@@ -2818,6 +2825,18 @@ void main() {
             items.map((item) => item.displayName),
             contains(p.basename(archivePath)),
           );
+          if (!useS3) {
+            // This PROPFIND returns no getlastmodified, so the listing has to
+            // fall back to the timestamp in the archive's name. Pinned here
+            // rather than at the parser: dropping the call in the listing is
+            // the regression, and it would leave the file sorting as undated.
+            expect(
+              items
+                  .singleWhere((i) => i.displayName.endsWith('.kbackup'))
+                  .lastModified,
+              isNotNull,
+            );
+          }
           if (useS3) {
             denyBucketListing = true;
             final manifestItems = await s3.listRemote(s3Config);
@@ -3262,7 +3281,7 @@ void main() {
             jsonDecode(utf8.decode(manifestEntry!.readBytes()!))
                 as Map<String, dynamic>;
         expect(manifest['format'], 'kelivo-backup');
-        expect(manifest['formatVersion'], 3);
+        expect(manifest['formatVersion'], BackupArchiveFormat.current);
         expect(manifest['payloadKind'], 'sqlite');
         expect(manifest['includeChats'], isTrue);
         expect(manifest['appVersion'], '1.0.0-test+1');
@@ -3525,7 +3544,9 @@ void main() {
         root: root,
         prefix: 'forward_format_only',
         settings: const {},
-        formatVersionOverride: 4,
+        // "Newer" is derived, not restated: this case is about a format one
+        // step ahead of what this build writes, whatever that number is.
+        formatVersionOverride: BackupArchiveFormat.current + 1,
         minimumReadableFormatOverride: 2,
         extraEntries: const {'stickers/future.bin': 'ignorable'},
         extraManifestFields: const {'futureTopLevel': 'ignored'},
@@ -3547,7 +3568,7 @@ void main() {
               as Map<String, dynamic>;
       // Reduced to this build's format, so the staged candidate is an ordinary
       // one that the single-version validators accept unchanged.
-      expect(candidateManifest['formatVersion'], 3);
+      expect(candidateManifest['formatVersion'], BackupArchiveFormat.current);
       expect(candidateManifest.keys, isNot(contains('futureTopLevel')));
       expect(
         candidateManifest.keys,
@@ -3565,7 +3586,7 @@ void main() {
         root: root,
         prefix: 'forward_format_undeclared',
         settings: const {},
-        formatVersionOverride: 4,
+        formatVersionOverride: BackupArchiveFormat.current + 1,
       );
 
       await expectLater(
@@ -3588,8 +3609,8 @@ void main() {
         root: root,
         prefix: 'forward_format_too_new',
         settings: const {},
-        formatVersionOverride: 4,
-        minimumReadableFormatOverride: 4,
+        formatVersionOverride: BackupArchiveFormat.current + 1,
+        minimumReadableFormatOverride: BackupArchiveFormat.current + 1,
       );
 
       await expectLater(
@@ -3605,6 +3626,45 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('refuses a format that declares a scope but carries none', () async {
+      // Spelled "equals the format this build writes", this check covered format
+      // 3 only while 3 *was* current: moving to 4 would have left every backup
+      // written before this release unvalidated, and an absent block reads as
+      // *everything included* — environment variables included.
+      const invalidScopes = <String, Object>{
+        'empty': <String, Object>{},
+        'nonbool': <String, Object>{'chats': 'yes'},
+      };
+      for (final format in BackupArchiveFormat.declaresScope) {
+        for (final invalid in invalidScopes.entries) {
+          final zipFile = await _createSqliteBackupFixture(
+            root: root,
+            prefix: 'scope_${format}_${invalid.key}',
+            settings: const {},
+            formatVersionOverride: format,
+            extraManifestFields: {'scope': invalid.value},
+          );
+          await expectLater(
+            DataSync(
+              businessRepository: businessRepository,
+              chatService: ChatService(),
+            ).restoreFromLocalFile(zipFile, _withoutAssets),
+            throwsA(
+              isA<FormatException>().having(
+                (e) => e.message,
+                'message',
+                'manifest_scope',
+              ),
+            ),
+            reason: 'format $format declares a scope block',
+          );
+        }
+      }
+      // Format 2 predates the block and stays tolerated; every other test in
+      // this file restores a format-2 fixture without one.
+      expect(BackupArchiveFormat.declaresScope, isNot(contains(2)));
     });
 
     test('every backup this build writes declares its readers', () async {
@@ -3623,14 +3683,131 @@ void main() {
               )
               as Map<String, dynamic>;
 
-      expect(manifest['formatVersion'], 3);
-      expect(manifest['minimumReadableFormatVersion'], 3);
+      expect(manifest['formatVersion'], BackupArchiveFormat.current);
+      expect(
+        manifest['minimumReadableFormatVersion'],
+        BackupArchiveFormat.minimumReadable,
+      );
       expect(
         manifest['minimumReadableFormatVersion'],
         lessThanOrEqualTo(manifest['formatVersion'] as int),
         reason:
             'declaring a minimum above our own version tells every future '
             'build we are unreadable',
+      );
+    });
+
+    test('a Kelivo-target export names no entity key that release lacks', () async {
+      // The reverse direction, which every other test in this tree leaves out:
+      // Cuplivo restores its own archives, so a key the fork adds round-trips
+      // perfectly and only breaks on the older reader. Kelivo v1.3.2 throws
+      // FormatException on `group_chats_v1` in its row-id routing, after every
+      // compatibility check on the archive has passed.
+      final forThisBuild = await DataSync.exportBusinessSettingsFrom(
+        businessRepository,
+      );
+      final forKelivo = await DataSync.exportBusinessSettingsFrom(
+        businessRepository,
+        target: BackupTarget.kelivo,
+      );
+
+      // The guard is only a guard if the key is really there without it.
+      expect(forThisBuild.entityRowIds.keys, contains('group_chats_v1'));
+      expect(
+        jsonDecode(forThisBuild.settingsJson) as Map<String, dynamic>,
+        contains('group_chats_v1'),
+      );
+
+      expect(forKelivo.entityRowIds.keys, isNot(contains('group_chats_v1')));
+      expect(
+        (jsonDecode(forKelivo.settingsJson) as Map<String, dynamic>).keys,
+        isNot(contains('group_chats_v1')),
+      );
+      // Narrower, not emptier: everything that release knows still travels, and
+      // no key outside its vocabulary is written.
+      expect(forKelivo.entityRowIds.keys, contains('assistants_v1'));
+      expect(
+        forKelivo.entityRowIds.keys.toSet().difference(
+          KelivoVocabulary.v1_3_2.entitySourceKeys,
+        ),
+        isEmpty,
+      );
+    });
+
+    test(
+      'a Kelivo-target archive declares the format that release reads',
+      () async {
+        final zipFile =
+            await DataSync(
+              businessRepository: businessRepository,
+              chatService: ChatService(),
+            ).exportToFile(
+              _withoutChatsOrAssets.copyWith(target: BackupTarget.kelivo),
+            );
+        // The name carries the reader too: a departing user picks the file they
+        // can take back, and the extension is all either app lists by.
+        expect(
+          p.basename(zipFile.path),
+          startsWith(BackupArchiveNaming.kelivoPrefix),
+        );
+        final archive = ZipDecoder().decodeBytes(await zipFile.readAsBytes());
+        final manifest =
+            jsonDecode(
+                  utf8.decode(
+                    archive.findFile('manifest.json')!.content as List<int>,
+                  ),
+                )
+                as Map<String, dynamic>;
+
+        expect(manifest['formatVersion'], 3);
+        expect(manifest['minimumReadableFormatVersion'], 3);
+        // Readable by this build too: a backup it produced must never be one it
+        // refuses.
+        expect(
+          BackupArchiveFormat.legacyReadable,
+          contains(manifest['formatVersion']),
+        );
+      },
+    );
+
+    test('a Kelivo-target manifest carries no key the floor release refuses', () {
+      // That reader stages the candidate and then compares the root key set
+      // exactly. `skippedEntries` is newer than the floor (upstream added it
+      // after v1.3.5), and the reader's unknown-key trim only runs for a
+      // manifest that declares a newer build — so an omission recorded here
+      // would surface as a refusal after the user consented to the restore.
+      final forKelivo = DataSync.debugBuildManifestJson(
+        target: BackupTarget.kelivo,
+        skippedEntries: const ['upload/omitted.bin'],
+      );
+      expect(
+        forKelivo.keys.toSet().difference(
+          KelivoVocabulary.v1_3_2.manifestRootKeys,
+        ),
+        isEmpty,
+        reason:
+            'A root key the floor release does not accept is refused by its '
+            'exact candidate check, not ignored.',
+      );
+      expect(forKelivo, isNot(contains('skippedEntries')));
+
+      // This build's own archive keeps the diagnostic; its reader knows the key.
+      final forThisBuild = DataSync.debugBuildManifestJson(
+        target: BackupTarget.cuplivo,
+        skippedEntries: const ['upload/omitted.bin'],
+      );
+      expect(forThisBuild['skippedEntries'], ['upload/omitted.bin']);
+    });
+
+    test('a Cuplivo-target export is named for this build', () async {
+      final zipFile = await DataSync(
+        businessRepository: businessRepository,
+        chatService: ChatService(),
+      ).exportToFile(_withoutChatsOrAssets);
+      addTearDown(() => DataSync.cleanupTemporaryBackupFile(zipFile));
+      expect(
+        p.basename(zipFile.path),
+        startsWith(BackupArchiveNaming.cuplivoPrefix),
       );
     });
 
@@ -3649,7 +3826,7 @@ void main() {
       await manifestFile.writeAsString(
         jsonEncode({
           'format': 'kelivo-backup',
-          'formatVersion': 4,
+          'formatVersion': BackupArchiveFormat.current + 1,
           'minimumReadableFormatVersion': 2,
           'payloadKind': 'settings-only',
           'createdAtUtc': '2026-07-09T00:00:00.000Z',
@@ -3789,6 +3966,48 @@ void main() {
             BusinessPreferences(businessRepository),
           ).getAll(),
           isEmpty,
+        );
+      },
+    );
+
+    test(
+      'versioned settings-only overwrite keeps a library the archive never names',
+      () async {
+        // A pre-promotion archive carries the compression library in its
+        // snapshot database and no key for it in settings.json. A settings-only
+        // restore reads only the settings half, so the missing key must keep the
+        // live library instead of erasing it.
+        await ExtensionEntityStore(businessDatabase).upsert(
+          CompressionTemplate.entityKind,
+          'custom',
+          const CompressionTemplate(
+            id: 'custom',
+            name: 'My RP',
+            prompt: 'Keep secrets separate {content}',
+          ).toJson(),
+        );
+        final zipFile = await _createSqliteBackupFixture(
+          root: root,
+          prefix: 'unstated_library_overwrite',
+          settings: const {'theme_mode_v1': 'dark'},
+        );
+
+        await DataSync(
+          businessRepository: businessRepository,
+          chatService: ChatService(),
+        ).restoreFromLocalFile(zipFile, _withoutChatsOrAssets);
+
+        expect(
+          (await BusinessRestoreService(
+            businessRepository,
+          ).exportSettings())['theme_mode_v1'],
+          'dark',
+        );
+        expect(
+          await ExtensionEntityStore(
+            businessDatabase,
+          ).get(CompressionTemplate.entityKind, 'custom'),
+          isNotNull,
         );
       },
     );
@@ -4710,7 +4929,7 @@ void main() {
         await manifestFile.writeAsString(
           jsonEncode({
             'format': 'kelivo-backup',
-            'formatVersion': 4,
+            'formatVersion': BackupArchiveFormat.current + 1,
             'payloadKind': 'settings-only',
             'createdAtUtc': '2026-07-09T00:00:00.000Z',
             'appVersion': 'future',
@@ -6808,7 +7027,10 @@ void main() {
       expect(before.parts.whereType<ImagePart>().single.uri, uri);
 
       final resolved = SandboxPathResolver.fix(uri);
-      expect(resolved, '${rootB.path}/upload/pic.png');
+      expect(
+        p.equals(resolved, p.join(rootB.path, 'upload', 'pic.png')),
+        isTrue,
+      );
       expect(File(resolved).existsSync(), isTrue);
 
       // Path-migration pass with the production rewriteUri must leave URI intact.

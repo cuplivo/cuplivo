@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../database/business_preferences.dart';
+import 'backup_archive_naming.dart';
 
 /// A marker names an object within one destination. It contains no credentials
 /// and is usable only for deleting that partial, never for resuming a transfer.
@@ -22,8 +23,18 @@ class BackupPartials {
 
   static const preferenceKey = 'backup_outstanding_partial_v1';
   static final _live = <String>{};
+
+  /// The `.partial` an upload leaves behind, for either archive prefix.
+  ///
+  /// Built from the naming rule so a prefix the writer can produce is never
+  /// missing here: an unrecognised partial is debris the sweep will not
+  /// reclaim, and nothing reports it. Case-insensitive for the same reason the
+  /// naming rule is — a store that changes a name's case must not hand the
+  /// sweep an object it refuses to own.
   static final _remoteName = RegExp(
-    r'^kelivo_backup_[\w.-]+\.(?:zip|kbackup)\.partial$',
+    '^(?:${BackupArchiveNaming.readablePrefixes.map(RegExp.escape).join('|')})'
+    r'[\w.-]+\.(?:zip|kbackup)\.partial$',
+    caseSensitive: false,
   );
 
   static bool isRemoteName(String name) => _remoteName.hasMatch(name);

@@ -1,14 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Kelivo/core/models/image_context.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
-import 'package:Kelivo/core/services/tools/view_image_tool.dart';
-import 'package:Kelivo/core/services/tools/tool_schema_overrides.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/core/models/tool_schema_override.dart';
-import 'package:Kelivo/features/home/services/context_assembly.dart';
-import 'package:Kelivo/utils/mcp_structured_image.dart';
+import 'package:Cuplivo/core/models/image_context.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/services/tools/view_image_tool.dart';
+import 'package:Cuplivo/core/services/tools/tool_schema_overrides.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/core/models/tool_schema_override.dart';
+import 'package:Cuplivo/features/home/services/context_assembly.dart';
+import 'package:Cuplivo/utils/mcp_structured_image.dart';
 
 const _recall = {
   'type': 'function',
@@ -29,6 +29,40 @@ final _image = ChatContextImage(
 );
 
 void main() {
+  test('an assistant picture is recallable without being sent', () async {
+    final chart = ChatContextImage(
+      identity: const ContextImageIdentity('assistant', 'part:0'),
+      uri: 'data:image/png;base64,YWJj',
+      source: ContextImageSource.assistant,
+      label: 'chart',
+    );
+    // Recall is opt-in since the image-context rework: a request that wants the
+    // tool advertised has to say so, which is what this case is about.
+    final context = RequestImageContext(
+      settings: const ImageContextSettings(allowRecall: true),
+      images: [chart],
+      latestUserId: 'user',
+    );
+
+    // Not replayed on any turn, so the recall tool stays advertised.
+    final request = await context.project({
+      'tools': [ViewImageTool.withHistory()],
+      'messages': [
+        {'role': 'user', 'content': 'draw it'},
+        {'role': 'assistant', 'content': 'done'},
+        {'role': 'user', 'content': 'what was in it?'},
+      ],
+    });
+    expect(request['tools'], isNotNull);
+    expect(jsonEncode(request), isNot(contains('data:image/png')));
+
+    // And the model can still list it and read it back.
+    final listed = jsonDecode(context.readImage('').content) as Map;
+    expect(listed['images'].single['image_id'], chart.handle);
+    expect(listed['images'].single['source'], 'assistant');
+    expect(context.readImage(chart.handle).metadata, isNotNull);
+  });
+
   test(
     'current images need no recall tool; missing history can still be read',
     () async {

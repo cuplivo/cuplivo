@@ -1,5 +1,5 @@
-import 'package:Kelivo/utils/protected_text.dart';
-import 'package:Kelivo/utils/source_text_map.dart';
+import 'package:Cuplivo/utils/protected_text.dart';
+import 'package:Cuplivo/utils/source_text_map.dart';
 import 'package:markstream/markstream_core.dart' show SourceSpan;
 import 'dart:convert';
 
@@ -418,8 +418,15 @@ String timelineToolStepKey({
 }
 
 /// Whether an image part starts a new render block, matching the renderer.
-bool timelineImagePartFlushesBlock(ImagePart part) =>
-    !part.unavailable && part.uri.trim().isNotEmpty;
+///
+/// An unavailable *picture* is hidden: there is nothing to show. An unavailable
+/// *promise* is still a promise — restore and LAN sync stamp `unavailable` on a
+/// part whose file was never written — and skipping it leaves the reply with a
+/// hole where the illustration was announced.
+bool timelineImagePartFlushesBlock(ImagePart part) {
+  if (part.uri.trim().isEmpty) return false;
+  return part.hasBytes ? !part.unavailable : true;
+}
 
 /// Project assistant timeline blocks using the same rules as the renderer:
 /// structured parts, or mixed reasoning+tool order with content-split fallback.

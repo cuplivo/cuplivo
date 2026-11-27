@@ -100,7 +100,6 @@ class SettingsProvider extends ChangeNotifier {
     'Gemini',
     'STA1N API',
     'OpenRouter',
-    'KelivoIN',
     '10dian-API',
     'DeepSeek',
     'SiliconFlow',
@@ -128,6 +127,7 @@ class SettingsProvider extends ChangeNotifier {
   static const String _selectedModelKey = 'selected_model_v1';
   static const String _perChatModelEnabledKey = 'per_chat_model_enabled_v1';
   static const String _titleModelKey = 'title_model_v1';
+  static const String _imageModelKey = 'image_model_v1';
   static const String _titleGenerationEnabledKey =
       'title_generation_enabled_v1';
   static const String _titlePromptKey = 'title_prompt_v1';
@@ -286,6 +286,8 @@ class SettingsProvider extends ChangeNotifier {
       'display_keep_sidebar_open_on_topic_tap_v1';
   static const String _displayKeepAssistantListExpandedOnSidebarCloseKey =
       'display_keep_assistant_list_expanded_on_sidebar_close_v1';
+  static const String _displaySeparateChatOwnersKey =
+      'display_separate_chat_owners_v1';
   static const String _displayNewChatOnAssistantSwitchKey =
       'display_new_chat_on_assistant_switch_v1';
   static const String _displayNewChatOnLaunchKey =
@@ -414,6 +416,24 @@ class SettingsProvider extends ChangeNotifier {
   static const String _translateModelKey = 'translate_model_v1';
   static const String _translatePromptKey = 'translate_prompt_v1';
   static const String _translateTargetLangKey = 'translate_target_lang_v1';
+  static const String _translateVisibleLanguagesKey =
+      'translate_visible_languages_v1';
+
+  /// Languages offered in the translate target selector when the user has not
+  /// customized the list. This is the historical fixed list; newly added
+  /// catalog languages are opt-in. A const set so the getter can return a
+  /// stable instance (required for `context.select` to compare by identity).
+  static const Set<String> defaultTranslateVisibleLanguages = <String>{
+    'zh-CN',
+    'en',
+    'zh-TW',
+    'ja',
+    'ko',
+    'fr',
+    'de',
+    'it',
+    'es',
+  };
   static const String _ocrEnabledKey = 'ocr_enabled_v1';
   static const String _learningModeEnabledKey = 'learning_mode_enabled_v1';
   static const String _learningModePromptKey = 'learning_mode_prompt_v1';
@@ -658,6 +678,16 @@ class SettingsProvider extends ChangeNotifier {
         .contains(ReasoningLevel.max);
   }
 
+  /// Whether `provider + model` can actually draw a picture.
+  ///
+  /// The same rule the pickers filter by and the job refuses by, so a value that
+  /// arrived from a sync or an import cannot smuggle a text model into the
+  /// drawing row by skipping the picker.
+  static bool canDrawPictures(ProviderConfig config, String modelId) {
+    final spec = ModelSpecResolver.instance.spec(config, modelId);
+    return spec.type == ModelType.image || spec.output.contains(Modality.image);
+  }
+
   // Explicitly ensure a provider config exists in memory (without persisting to storage).
   // Useful for seeding first-run defaults.
   ProviderConfig ensureProviderConfig(String key, {String? defaultName}) {
@@ -735,6 +765,16 @@ class SettingsProvider extends ChangeNotifier {
   final Future<void> Function(String providerKey)? onProviderModelsRetired;
   late final Future<void> _loaded;
   Future<void> get loaded => _loaded;
+
+  /// Re-reads every synced setting after LAN sync wrote them outside this
+  /// provider (ADR-0003 apply → reload). Providers that derive their own state
+  /// from settings (ASR, for one) listen to this notify and refresh too, so
+  /// this runs first in the reloader's order.
+  Future<void> reloadAfterExternalChange() async {
+    _appLocaleTag = _readAppLocaleTag(_preferences);
+    await _load();
+    notifyListeners();
+  }
 
   Future<void> _load() async {
     final prefs = _preferences;
@@ -841,6 +881,33 @@ class SettingsProvider extends ChangeNotifier {
         _titleModelId = parts.sublist(1).join('::');
       }
     }
+    // load image model
+    final imageSel = prefs.getString(_imageModelKey);
+    if (imageSel != null && imageSel.contains('::')) {
+      final parts = imageSel.split('::');
+      if (parts.length >= 2) {
+        _imageModelProvider = parts[0];
+        _imageModelId = parts.sublist(1).join('::');
+      }
+    }
+    // load proactive care decision model
+    final careSel = prefs.getString(_proactiveCareDecisionModelKey);
+    if (careSel != null && careSel.contains('::')) {
+      final parts = careSel.split('::');
+      if (parts.length >= 2) {
+        _proactiveCareDecisionModelProvider = parts[0];
+        _proactiveCareDecisionModelId = parts.sublist(1).join('::');
+      }
+    }
+    // load group-chat director model
+    final directorSel = prefs.getString(_directorModelKey);
+    if (directorSel != null && directorSel.contains('::')) {
+      final parts = directorSel.split('::');
+      if (parts.length >= 2) {
+        _directorModelProvider = parts[0];
+        _directorModelId = parts.sublist(1).join('::');
+      }
+    }
     _perChatModelEnabled = prefs.getBool(_perChatModelEnabledKey) ?? false;
     _titleGenerationEnabled = prefs.getBool(_titleGenerationEnabledKey) ?? true;
     // load title prompt
@@ -865,6 +932,22 @@ class SettingsProvider extends ChangeNotifier {
     if (targetLang != null && targetLang.trim().isNotEmpty) {
       _translateTargetLang = targetLang.trim();
     }
+    // load translate visible languages
+    final visibleLangs = prefs.getStringList(_translateVisibleLanguagesKey);
+    if (visibleLangs != null) {
+      final cleaned = visibleLangs
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toSet();
+      _translateVisibleLanguages = cleaned.isEmpty
+          ? defaultTranslateVisibleLanguages
+          : Set.unmodifiable(cleaned);
+    }
+    // The target is loaded verbatim, even when the visible set excludes it:
+    // `effectiveTranslateLanguage` (the single owner of the target in effect)
+    // renders the fallback, and keeping the code here is what lets re-enabling
+    // the language restore the user's choice — in this session and after a
+    // restart.
     // load OCR model
     final ocrSel = prefs.getString(_ocrModelKey);
     if (ocrSel != null && ocrSel.contains('::')) {
@@ -1161,6 +1244,7 @@ class SettingsProvider extends ChangeNotifier {
     _keepAssistantListExpandedOnSidebarClose =
         prefs.getBool(_displayKeepAssistantListExpandedOnSidebarCloseKey) ??
         false;
+    _separateChatOwners = prefs.getBool(_displaySeparateChatOwnersKey) ?? false;
     _requestLogEnabled = prefs.getBool(_requestLogEnabledKey) ?? true;
     await RequestLogger.setEnabled(_requestLogEnabled);
     _contextLogEnabled = prefs.getBool(_contextLogEnabledKey) ?? true;
@@ -1583,7 +1667,6 @@ class SettingsProvider extends ChangeNotifier {
     if (_providerConfigs.isEmpty) {
       // Seed a couple of sensible defaults on first launch, but do not recreate
       // providers implicitly during later reads (e.g., when switching chats).
-      ensureProviderConfig('KelivoIN', defaultName: 'KelivoIN');
       ensureProviderConfig('Tensdaq', defaultName: 'Tensdaq');
       ensureProviderConfig('SiliconFlow', defaultName: 'SiliconFlow');
       ensureProviderConfig('AIhubmix', defaultName: 'AIhubmix');
@@ -1593,22 +1676,7 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.setString(_providerConfigsKey, jsonEncode(seededConfigs));
     }
 
-    final kelivo = _providerConfigs['KelivoIN'];
-    final kelivoHost = Uri.tryParse(kelivo?.baseUrl ?? '')?.host.toLowerCase();
-    if (kelivo != null &&
-        (kelivoHost == 'pollinations.ai' ||
-            (kelivoHost?.endsWith('.pollinations.ai') ?? false))) {
-      // The retired service cannot be used anymore. Drop its saved credentials,
-      // models and selections before installing the current built-in provider.
-      await onProviderModelsRetired?.call('KelivoIN');
-      await removeProviderConfig('KelivoIN');
-      await setProviderConfig(
-        'KelivoIN',
-        ProviderConfig.defaultsFor(
-          'KelivoIN',
-        ).copyWith(enabled: kelivo.enabled),
-      );
-    }
+    await _retireDeadBuiltInProviderConfig();
 
     // kick off a one-time connectivity test for services (exclude local Bing)
     if (_searchAutoTestOnLaunch) {
@@ -1634,6 +1702,49 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Hosts an earlier build of this fork wrote into the retired built-in
+  /// provider.
+  ///
+  /// Both are our mistakes, never a user's choice: `pollinations.ai` is the free
+  /// backend upstream retired, and `api.cuplivoas.top` is what an identity sweep
+  /// made of upstream's own host — a domain with no records at all. A config
+  /// pointing at either can never answer, so it leaves together with every
+  /// assistant and conversation reference to it.
+  ///
+  /// The key stays spelled `KelivoIN`: it is a persisted provider key, not a
+  /// brand string, and a sweep that rewrites it makes this repair match nothing
+  /// (see `79696e6f6`).
+  static const List<String> _retiredProviderHosts = [
+    'pollinations.ai',
+    'api.cuplivoas.top',
+  ];
+
+  static bool _isRetiredProviderHost(String? host) {
+    if (host == null || host.isEmpty) return false;
+    return _retiredProviderHosts.any(
+      (retired) => host == retired || host.endsWith('.$retired'),
+    );
+  }
+
+  /// Drops the built-in provider config when it points at a host that cannot
+  /// answer, and every selection that names it.
+  ///
+  /// Decided from the persisted state on every load rather than from a one-shot
+  /// flag, so the rule stays idempotent and a restored backup meets it again.
+  /// A config on any other host is a user's choice and is left alone — including
+  /// upstream's own free-service host, which is external infrastructure this
+  /// fork has no business deleting.
+  Future<void> _retireDeadBuiltInProviderConfig() async {
+    final config = _providerConfigs['KelivoIN'];
+    if (config == null) return;
+    final host = Uri.tryParse(config.baseUrl)?.host.toLowerCase();
+    if (!_isRetiredProviderHost(host)) return;
+    // Selections first: a config removed while an assistant still names it
+    // comes back as an empty default on the next read.
+    await onProviderModelsRetired?.call('KelivoIN');
+    await removeProviderConfig('KelivoIN');
   }
 
   Future<void> setGlobalProxyEnabled(bool v) async {
@@ -1859,6 +1970,15 @@ class SettingsProvider extends ChangeNotifier {
   String? get codeFontFamily => _effectiveCodeFontAlias ?? _codeFontFamily;
   String? get appFontLocalAlias => _appFontLocalAlias;
   String? get codeFontLocalAlias => _codeFontLocalAlias;
+
+  /// The local font file the user picked, or null when the chosen font is a
+  /// system family.
+  ///
+  /// A family name is not something every renderer can use: the PDF export
+  /// embeds a font's bytes, so it needs this path (or a downloaded one) rather
+  /// than the alias Flutter registers.
+  String? get appFontLocalPath => _appFontLocalPath;
+  String? get codeFontLocalPath => _codeFontLocalPath;
 
   // Use alias if a local font is set and successfully registered
   String? get _effectiveAppFontAlias =>
@@ -2574,6 +2694,13 @@ class SettingsProvider extends ChangeNotifier {
     s3: (cfg) => cfg.copyWith(scope: scope),
   );
 
+  /// The reader the archive is written for. Both destinations carry it, the way
+  /// they carry the scope: a backup is addressed to a person, not a transport.
+  Future<void> setBackupTarget(BackupTarget target) => _updateBackupConfigs(
+    webDav: (cfg) => cfg.copyWith(target: target),
+    s3: (cfg) => cfg.copyWith(target: target),
+  );
+
   Future<void> _updateBackupConfigs({
     WebDavConfig Function(WebDavConfig)? webDav,
     S3Config Function(S3Config)? s3,
@@ -2606,7 +2733,7 @@ class SettingsProvider extends ChangeNotifier {
     final services = List<SearchServiceOptions>.from(_searchServices);
     final common = _searchCommonOptions;
     for (final s in services) {
-      if (s is BingLocalOptions || s is KelivoOptions) {
+      if (s is BingLocalOptions) {
         _searchConnection[s.id] = null;
         continue;
       }
@@ -3676,9 +3803,9 @@ class SettingsProvider extends ChangeNotifier {
       final old = getProviderConfig(key);
       if (old.avatarType == 'file' && (old.avatarValue ?? '').isNotEmpty) {
         try {
-          final oldFile = File(old.avatarValue!);
+          final oldFile = File(SandboxPathResolver.fix(old.avatarValue!));
           if ((oldFile.path.contains('/avatars/') ||
-                  oldFile.path.contains('\\\\avatars\\\\')) &&
+                  oldFile.path.contains('\\avatars\\')) &&
               await oldFile.exists()) {
             await oldFile.delete();
           }
@@ -3687,14 +3814,20 @@ class SettingsProvider extends ChangeNotifier {
 
       await setProviderConfig(
         key,
-        old.copyWith(avatarType: 'file', avatarValue: dest.path),
+        old.copyWith(
+          avatarType: 'file',
+          avatarValue: SandboxPathResolver.canonicalStorage(dest.path),
+        ),
       );
     } catch (_) {
       // Fallback: still save original path
       final old = getProviderConfig(key);
       await setProviderConfig(
         key,
-        old.copyWith(avatarType: 'file', avatarValue: fixedInput),
+        old.copyWith(
+          avatarType: 'file',
+          avatarValue: SandboxPathResolver.canonicalStorage(fixedInput),
+        ),
       );
     }
   }
@@ -3730,21 +3863,20 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> resetProviderAvatar(String key) async {
     final old = getProviderConfig(key);
-    // Attempt to remove old local file if we managed it
-    if (old.avatarType == 'file' && (old.avatarValue ?? '').isNotEmpty) {
-      try {
-        final f = File(old.avatarValue!);
-        if ((f.path.contains('/avatars/') ||
-                f.path.contains('\\\\avatars\\\\')) &&
-            await f.exists()) {
-          await f.delete();
-        }
-      } catch (_) {}
-    }
     // Best-effort: evict cached URL avatar
     if (old.avatarType == 'url' && (old.avatarValue ?? '').isNotEmpty) {
       try {
         await AvatarCache.evict(old.avatarValue!);
+      } catch (_) {}
+    }
+    // Remove old local file if we managed it (dual-form: URI or legacy path).
+    if (old.avatarType == 'file' && (old.avatarValue ?? '').isNotEmpty) {
+      try {
+        final f = File(SandboxPathResolver.fix(old.avatarValue!));
+        if ((f.path.contains('/avatars/') || f.path.contains('\\avatars\\')) &&
+            await f.exists()) {
+          await f.delete();
+        }
       } catch (_) {}
     }
     await setProviderConfig(
@@ -3782,6 +3914,16 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.remove(_translateModelKey);
       changed = true;
     }
+    // The drawing model: dropped like every other per-task model, so a stale
+    // pair cannot keep a tool "configured". This inline rule is the only copy —
+    // the assistant-level tier is swept by
+    // `AssistantProvider.clearModelSelectionsForProvider`.
+    if (_imageModelProvider == providerKey) {
+      _imageModelProvider = null;
+      _imageModelId = null;
+      await prefs.remove(_imageModelKey);
+      changed = true;
+    }
     if (_ocrModelProvider == providerKey) {
       _ocrModelProvider = null;
       _ocrModelId = null;
@@ -3814,6 +3956,18 @@ class SettingsProvider extends ChangeNotifier {
       _memoryModelProvider = null;
       _memoryModelId = null;
       await prefs.remove(_memoryModelKey);
+      changed = true;
+    }
+    if (_proactiveCareDecisionModelProvider == providerKey) {
+      _proactiveCareDecisionModelProvider = null;
+      _proactiveCareDecisionModelId = null;
+      await prefs.remove(_proactiveCareDecisionModelKey);
+      changed = true;
+    }
+    if (_directorModelProvider == providerKey) {
+      _directorModelProvider = null;
+      _directorModelId = null;
+      await prefs.remove(_directorModelKey);
       changed = true;
     }
     if (changed) notifyListeners();
@@ -3885,6 +4039,20 @@ class SettingsProvider extends ChangeNotifier {
       changed = true;
     }
     // Disabling hides a model temporarily; deleting also removes its preferences.
+    if (_proactiveCareDecisionModelProvider == providerKey &&
+        _proactiveCareDecisionModelId == modelId) {
+      _proactiveCareDecisionModelProvider = null;
+      _proactiveCareDecisionModelId = null;
+      await prefs.remove(_proactiveCareDecisionModelKey);
+      changed = true;
+    }
+    if (_directorModelProvider == providerKey && _directorModelId == modelId) {
+      _directorModelProvider = null;
+      _directorModelId = null;
+      await prefs.remove(_directorModelKey);
+      changed = true;
+    }
+    // Also remove from pinned if applicable
     final pinKey = '$providerKey::$modelId';
     if (!preserveModelPreferences && _pinnedModels.contains(pinKey)) {
       _pinnedModels.remove(pinKey);
@@ -3920,6 +4088,16 @@ class SettingsProvider extends ChangeNotifier {
       _currentModelProvider = null;
       _currentModelId = null;
       await prefs.remove(_selectedModelKey);
+    }
+    if (_proactiveCareDecisionModelProvider == key) {
+      _proactiveCareDecisionModelProvider = null;
+      _proactiveCareDecisionModelId = null;
+      await prefs.remove(_proactiveCareDecisionModelKey);
+    }
+    if (_directorModelProvider == key) {
+      _directorModelProvider = null;
+      _directorModelId = null;
+      await prefs.remove(_directorModelKey);
     }
     if (_titleModelProvider == key) {
       _titleModelProvider = null;
@@ -4049,6 +4227,41 @@ class SettingsProvider extends ChangeNotifier {
   bool _titleGenerationEnabled = true;
   String? get titleModelProvider => _titleModelProvider;
   String? get titleModelId => _titleModelId;
+
+  // Image (drawing) model: the fallback every assistant falls through to.
+  // Nothing else picks it — not the conversation, and never the text model.
+  String? _imageModelProvider;
+  String? _imageModelId;
+  String? get imageModelProvider => _imageModelProvider;
+  String? get imageModelId => _imageModelId;
+  bool get hasImageModel =>
+      (_imageModelProvider?.trim().isNotEmpty ?? false) &&
+      (_imageModelId?.trim().isNotEmpty ?? false);
+
+  Future<void> setImageModel(String providerKey, String modelId) async {
+    if (!isValidImageModelSelection(providerKey, modelId)) {
+      throw ArgumentError('An image model needs both a provider and a model.');
+    }
+    if (!canDrawPictures(getProviderConfig(providerKey), modelId)) {
+      throw ArgumentError('That model cannot draw pictures.');
+    }
+    _imageModelProvider = providerKey;
+    _imageModelId = modelId;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setString(_imageModelKey, '$providerKey::$modelId');
+  }
+
+  Future<void> resetImageModel() async {
+    _imageModelProvider = null;
+    _imageModelId = null;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.remove(_imageModelKey);
+  }
+
+  static bool isValidImageModelSelection(String providerKey, String modelId) =>
+      providerKey.trim().isNotEmpty && modelId.trim().isNotEmpty;
   String? get titleModelKey =>
       (_titleModelProvider != null && _titleModelId != null)
       ? '${_titleModelProvider!}::${_titleModelId!}'
@@ -4109,7 +4322,69 @@ You need to summarize the conversation between user and assistant into a short t
     await prefs.setString(_titlePromptKey, _titlePrompt);
   }
 
+  // Proactive care ("Ta的来信") decision model
+  static const String _proactiveCareDecisionModelKey =
+      'proactive_care_decision_model_v1';
+  String? _proactiveCareDecisionModelProvider;
+  String? _proactiveCareDecisionModelId;
+  String? get proactiveCareDecisionModelProvider =>
+      _proactiveCareDecisionModelProvider;
+  String? get proactiveCareDecisionModelId => _proactiveCareDecisionModelId;
+  String? get proactiveCareDecisionModelKey =>
+      (_proactiveCareDecisionModelProvider != null &&
+          _proactiveCareDecisionModelId != null)
+      ? '${_proactiveCareDecisionModelProvider!}::${_proactiveCareDecisionModelId!}'
+      : null;
+
+  Future<void> setProactiveCareDecisionModel(
+    String providerKey,
+    String modelId,
+  ) async {
+    _proactiveCareDecisionModelProvider = providerKey;
+    _proactiveCareDecisionModelId = modelId;
+    notifyListeners();
+    await _preferences.setString(
+      _proactiveCareDecisionModelKey,
+      '$providerKey::$modelId',
+    );
+  }
+
+  Future<void> resetProactiveCareDecisionModel() async {
+    _proactiveCareDecisionModelProvider = null;
+    _proactiveCareDecisionModelId = null;
+    notifyListeners();
+    await _preferences.remove(_proactiveCareDecisionModelKey);
+  }
+
   Future<void> resetTitlePrompt() async => setTitlePrompt(defaultTitlePrompt);
+
+  // Group-chat director model: the model that picks who speaks next.
+  //
+  // Global on purpose — it is a property of "how this app runs a group", not of
+  // one group — and it falls back to the global default model when unset.
+  static const String _directorModelKey = 'group_director_model_v1';
+  String? _directorModelProvider;
+  String? _directorModelId;
+  String? get directorModelProvider => _directorModelProvider;
+  String? get directorModelId => _directorModelId;
+  String? get directorModelKey =>
+      (_directorModelProvider != null && _directorModelId != null)
+      ? '${_directorModelProvider!}::${_directorModelId!}'
+      : null;
+
+  Future<void> setDirectorModel(String providerKey, String modelId) async {
+    _directorModelProvider = providerKey;
+    _directorModelId = modelId;
+    notifyListeners();
+    await _preferences.setString(_directorModelKey, '$providerKey::$modelId');
+  }
+
+  Future<void> resetDirectorModel() async {
+    _directorModelProvider = null;
+    _directorModelId = null;
+    notifyListeners();
+    await _preferences.remove(_directorModelKey);
+  }
 
   // Translate model and prompt
   String? _translateModelProvider;
@@ -4175,6 +4450,28 @@ Please translate the <source_text> section:
     notifyListeners();
     final prefs = _preferences;
     await prefs.remove(_translateTargetLangKey);
+  }
+
+  /// Immutable and referentially stable between mutations, so consumers can
+  /// `context.select` it without rebuilding on unrelated notifications.
+  Set<String> _translateVisibleLanguages = defaultTranslateVisibleLanguages;
+  Set<String> get translateVisibleLanguages => _translateVisibleLanguages;
+
+  Future<void> setTranslateVisibleLanguages(Set<String> codes) async {
+    final cleaned = codes
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    // Never persist an empty set: the selector must always offer something.
+    if (cleaned.isEmpty) return;
+    // Unchanged selections do not notify: every open selector would otherwise
+    // rebuild for a write that changes nothing.
+    if (setEquals(cleaned, _translateVisibleLanguages)) return;
+    _translateVisibleLanguages = Set.unmodifiable(cleaned);
+    notifyListeners();
+    final prefs = _preferences;
+    final sorted = cleaned.toList()..sort();
+    await prefs.setStringList(_translateVisibleLanguagesKey, sorted);
   }
 
   // OCR model, prompt and toggle
@@ -4314,6 +4611,18 @@ Generate or update a brief summary of the user's questions and intentions.
   String? get suggestionModelProvider => _suggestionModelProvider;
   String? get suggestionModelId => _suggestionModelId;
   bool get isSuggestionGenerationEnabled => _suggestionGenerationEnabled;
+
+  /// The one gate shared by generation and rendering: the global switch is the
+  /// master, an assistant can only opt out of it.
+  bool isSuggestionGenerationAllowedFor(Assistant? assistant) =>
+      _suggestionGenerationEnabled && (assistant?.suggestionsEnabled ?? true);
+
+  /// True when the assistant allows suggestions but the global master is off,
+  /// so its opt-out cannot take effect yet and the row says why. Both the
+  /// mobile tab and the desktop dialog read this, so the explanation cannot
+  /// drift between the two layouts.
+  bool isSuggestionOptOutInactiveFor(Assistant? assistant) =>
+      (assistant?.suggestionsEnabled ?? false) && !_suggestionGenerationEnabled;
   String? get suggestionModelKey =>
       (_suggestionModelProvider != null && _suggestionModelId != null)
       ? '${_suggestionModelProvider!}::${_suggestionModelId!}'
@@ -6166,6 +6475,18 @@ Requirements:
     await prefs.setBool(_displayKeepAssistantListExpandedOnSidebarCloseKey, v);
   }
 
+  // Display: assistants and groups as two sections instead of one mixed list.
+  // The sidebar and Settings › Assistants and groups read this one value.
+  bool _separateChatOwners = false;
+  bool get separateChatOwners => _separateChatOwners;
+  Future<void> setSeparateChatOwners(bool v) async {
+    if (_separateChatOwners == v) return;
+    _separateChatOwners = v;
+    notifyListeners();
+    final prefs = _preferences;
+    await prefs.setBool(_displaySeparateChatOwnersKey, v);
+  }
+
   // Network: request logging (debug)
   bool _requestLogEnabled = true;
   bool get requestLogEnabled => _requestLogEnabled;
@@ -6267,15 +6588,6 @@ Requirements:
   }
 
   // Search service settings
-  Future<bool> unlockKelivoSearch() async {
-    if (_searchServices.any((s) => s is KelivoOptions)) return false;
-    await setSearchServices([
-      ..._searchServices,
-      KelivoOptions(id: KelivoOptions.builtInId),
-    ]);
-    return true;
-  }
-
   Future<void> updateSearchService(
     SearchServiceOptions service, {
     required AvatarConfig? avatar,
@@ -6425,8 +6737,12 @@ Requirements:
     copy._perChatModelEnabled = _perChatModelEnabled;
     copy._titleModelProvider = _titleModelProvider;
     copy._titleModelId = _titleModelId;
+    copy._imageModelProvider = _imageModelProvider;
+    copy._imageModelId = _imageModelId;
     copy._titleGenerationEnabled = _titleGenerationEnabled;
     copy._titlePrompt = _titlePrompt;
+    copy._directorModelProvider = _directorModelProvider;
+    copy._directorModelId = _directorModelId;
     copy._summaryModelProvider = _summaryModelProvider;
     copy._summaryModelId = _summaryModelId;
     copy._summaryPrompt = _summaryPrompt;
@@ -6448,6 +6764,7 @@ Requirements:
     copy._translateModelId = _translateModelId;
     copy._translatePrompt = _translatePrompt;
     copy._translateTargetLang = _translateTargetLang;
+    copy._translateVisibleLanguages = _translateVisibleLanguages;
     copy._ocrModelProvider = _ocrModelProvider;
     copy._ocrModelId = _ocrModelId;
     copy._ocrPrompt = _ocrPrompt;
@@ -6532,6 +6849,7 @@ Requirements:
     copy._keepSidebarOpenOnTopicTap = _keepSidebarOpenOnTopicTap;
     copy._keepAssistantListExpandedOnSidebarClose =
         _keepAssistantListExpandedOnSidebarClose;
+    copy._separateChatOwners = _separateChatOwners;
     copy._requestLogEnabled = _requestLogEnabled;
     copy._contextLogEnabled = _contextLogEnabled;
     copy._flutterLogEnabled = _flutterLogEnabled;
@@ -7307,7 +7625,6 @@ class ProviderConfig {
   static String _defaultBase(String key) {
     final k = key.toLowerCase();
     if (k.contains('tensdaq')) return 'https://tensdaq-api.x-aio.com/v1';
-    if (k.contains('kelivoin')) return 'https://api.psycheas.top/v1';
     if (k.contains('openrouter')) return 'https://openrouter.ai/api/v1';
     if (k.contains('vercel')) return 'https://ai-gateway.vercel.sh/v1';
     if (k.contains('aihubmix')) return 'https://aihubmix.com/v1';
@@ -7352,7 +7669,6 @@ class ProviderConfig {
       if (s.contains('gemini') || s.contains('google')) return true;
       if (s.contains('silicon')) return true;
       if (s.contains('openrouter')) return true;
-      if (s.contains('kelivoin')) return true;
       return false; // others disabled by default
     }
 
@@ -7412,62 +7728,6 @@ class ProviderConfig {
           claudePromptCachingEnabled: false,
         );
       case ProviderKind.openai:
-        // Special-case KelivoIN default models and overrides
-        if (lowerKey.contains('kelivoin')) {
-          return ProviderConfig(
-            id: key,
-            enabled: defaultEnabled(key),
-            name: displayName ?? key,
-            apiKey: '',
-            baseUrl: _defaultBase(key),
-            providerType: ProviderKind.openai,
-            chatPath: '/chat/completions',
-            useResponseApi: false,
-            models: const [
-              'Qwen/Qwen3-8B',
-              'Qwen/Qwen3.5-4B',
-              'THUDM/GLM-4-9B-0414',
-              'auto',
-            ],
-            modelOverrides: const {
-              'Qwen/Qwen3-8B': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool', 'reasoning'],
-              },
-              'Qwen/Qwen3.5-4B': {
-                'abilities': ['tool', 'reasoning'],
-              },
-              'THUDM/GLM-4-9B-0414': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool'],
-              },
-              'auto': {
-                'type': 'chat',
-                'input': ['text'],
-                'output': ['text'],
-                'abilities': ['tool', 'reasoning'],
-                'reasoning': {'dialect': 'openaiReasoningEffort'},
-              },
-            },
-            proxyEnabled: false,
-            proxyHost: '',
-            proxyPort: '8080',
-            proxyUsername: '',
-            proxyPassword: '',
-            multiKeyEnabled: false,
-            apiKeys: const [],
-            keyManagement: const KeyManagementConfig(),
-            aihubmixAppCodeEnabled: false,
-            balanceEnabled: false,
-            balanceApiPath: _defaultBalanceApiPath(key),
-            balanceResultPath: _defaultBalanceResultPath(key),
-            claudePromptCachingEnabled: false,
-          );
-        }
         return ProviderConfig(
           id: key,
           enabled: defaultEnabled(key),

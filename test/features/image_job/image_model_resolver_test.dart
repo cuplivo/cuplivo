@@ -1,0 +1,98 @@
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:Cuplivo/features/image_job/services/image_model_resolver.dart';
+
+void main() {
+  test('the assistant wins when it names both halves', () {
+    final resolved = resolveModelBinding(
+      assistantProviderId: 'openai',
+      assistantModelId: 'gpt-image-1',
+      globalProviderId: 'openrouter',
+      globalModelId: 'flux',
+    );
+
+    expect(resolved.source, ModelSource.assistant);
+    expect(
+      resolved.binding,
+      const ModelBinding(providerId: 'openai', modelId: 'gpt-image-1'),
+    );
+  });
+
+  test('an unset assistant falls through to the global default', () {
+    final resolved = resolveModelBinding(
+      globalProviderId: 'openai',
+      globalModelId: 'gpt-image-1',
+    );
+
+    expect(resolved.source, ModelSource.global);
+    expect(resolved.binding?.modelId, 'gpt-image-1');
+  });
+
+  test('a half-configured assistant does not win over a complete global', () {
+    final resolved = resolveModelBinding(
+      assistantProviderId: 'openai',
+      assistantModelId: '   ',
+      globalProviderId: 'openrouter',
+      globalModelId: 'flux',
+    );
+
+    expect(resolved.source, ModelSource.global);
+    expect(resolved.binding?.providerId, 'openrouter');
+  });
+
+  test('nothing configured resolves to none, not to a guess', () {
+    final resolved = resolveModelBinding(
+      assistantProviderId: '',
+      globalModelId: '   ',
+    );
+
+    expect(resolved.source, ModelSource.none);
+    expect(resolved.binding, isNull);
+    expect(resolved.isConfigured, false);
+  });
+
+  test(
+    'a stored pair whose provider is gone falls through to the global one',
+    () {
+      // The assistant's pair is stored on the assistant and can outlive its
+      // provider. Letting it win resolved to a guessed base URL with an empty key,
+      // and the card showed the provider's 401 instead of "not configured".
+      final resolved = resolveModelBinding(
+        assistantProviderId: 'deleted-provider',
+        assistantModelId: 'gpt-image-1',
+        globalProviderId: 'openai',
+        globalModelId: 'gpt-image-1',
+        isValid: (binding) => binding.providerId == 'openai',
+      );
+
+      expect(resolved.source, ModelSource.global);
+      expect(resolved.binding?.providerId, 'openai');
+    },
+  );
+
+  test(
+    'a stored pair the caller rejects does not stop the fall-through chain',
+    () {
+      final resolved = resolveModelBinding(
+        assistantProviderId: 'deleted-provider',
+        assistantModelId: 'gpt-image-1',
+        isValid: (_) => false,
+      );
+
+      expect(resolved.source, ModelSource.none);
+      expect(resolved.binding, isNull);
+    },
+  );
+
+  test('ids are trimmed so a stray space cannot look configured', () {
+    final resolved = resolveModelBinding(
+      globalProviderId: '  openai ',
+      globalModelId: ' gpt-image-1 ',
+    );
+
+    expect(
+      resolved.binding,
+      const ModelBinding(providerId: 'openai', modelId: 'gpt-image-1'),
+    );
+  });
+}

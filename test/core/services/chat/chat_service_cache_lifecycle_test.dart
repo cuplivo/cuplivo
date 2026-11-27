@@ -5,8 +5,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_history.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_history.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -216,6 +216,37 @@ void main() {
         );
       },
     );
+
+    test('a message that left the cache is still readable by id', () async {
+      // The cache is bounded and drops finished replies. A writer that runs
+      // later — an image job finishing after its reply was finalized — has to
+      // find the row anyway, or its write becomes a silent no-op.
+      final service = createService();
+      await service.init();
+      final conversation = await service.createConversation(title: 'Evicted');
+      final first = await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'x' * (3 * 1024 * 1024),
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'y' * (6 * 1024 * 1024),
+      );
+      await service.loadMessages(conversation.id);
+
+      // 9MB against an 8MB budget: the tail survives, the first message does not.
+      expect(
+        service.getMessages(conversation.id).map((message) => message.id),
+        isNot(contains(first.id)),
+      );
+
+      final stored = await service.getMessageById(first.id);
+
+      expect(stored?.id, first.id);
+      expect(stored?.content.length, first.content.length);
+    });
 
     test(
       'oversized conversation is tail-trimmed without evicting others',
@@ -448,6 +479,35 @@ void main() {
         expect(source, 'User: hello\n\nAssistant: new answer');
       },
     );
+
+    test('a custom line renderer replaces the role labels', () async {
+      final service = createService();
+      await service.init();
+      final conversation = await service.createConversation(
+        title: 'Topic',
+        groupChatId: 'g1',
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'user',
+        content: 'hello',
+      );
+      await service.addMessage(
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: 'answer',
+        senderId: 'a1',
+      );
+
+      final source = await service.generateTitleSource(
+        conversation.id,
+        line: (message) => message.role == 'assistant'
+            ? '[Lin]: ${message.content}'
+            : '用户：${message.content}',
+      );
+
+      expect(source, '用户：hello\n\n[Lin]: answer');
+    });
 
     test('honors a logical truncateIndex after regeneration', () async {
       final service = createService();

@@ -1,9 +1,9 @@
-import 'package:Kelivo/features/intelligent_ui/host/ui_host_scope.dart';
+import 'package:Cuplivo/features/intelligent_ui/host/ui_host_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/shared/widgets/export_capture_scope.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
 
 import 'citation_syntax.dart';
 import 'highlight_adapter.dart';
@@ -28,6 +28,8 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
     this.highlightColor,
     this.uiHost,
     this.detailsStateKey,
+    this.jobImageBuilder,
+    this.documentStart = -1,
   });
   final String text;
   final UiHostBinding? uiHost;
@@ -45,6 +47,28 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
   final String? conversationId;
   final List<SourceSpan> highlightRanges;
   final Color? highlightColor;
+
+  /// Draws this application's own block in place of an image the model only
+  /// promised: a generated picture renders where its Markdown placeholder is,
+  /// not at the end of the reply. Return null for an ordinary image.
+  ///
+  /// The last argument is the document this image belongs to, and the offset is
+  /// the node's position in it. Both matter: a reply is rendered as several
+  /// documents (one per block, or one per paragraph when the split option is on),
+  /// and a node's offset only means something inside the document that produced
+  /// it.
+  final Widget? Function(
+    BuildContext context,
+    String destination,
+    int offset,
+    String document,
+    int documentStart,
+  )?
+  jobImageBuilder;
+
+  /// Where this document starts in the reply, in reply coordinates.
+  final int documentStart;
+
   @override
   State<MarkdownWithCodeHighlight> createState() =>
       _MarkdownWithCodeHighlightState();
@@ -53,10 +77,23 @@ class MarkdownWithCodeHighlight extends StatefulWidget {
 class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
   late String _source;
 
+  /// One builder for the life of this document.
+  ///
+  /// A fresh builder on every build made the markdown view rebuild its whole
+  /// tree on each token, which threw away the identity streaming relies on
+  /// (completed citation chips stay put because their subtrees stay identical).
+  /// The callback is a method tear-off, so it compares equal across builds.
+  late KelivoImageBuilder _imageBuilder;
+
   @override
   void initState() {
     super.initState();
     _source = UnicodeSanitizer.sanitize(widget.text);
+    _imageBuilder = KelivoImageBuilder(
+      jobImageBuilder: widget.jobImageBuilder,
+      document: () => _source,
+      documentStart: widget.documentStart,
+    );
   }
 
   @override
@@ -64,6 +101,14 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text) {
       _source = UnicodeSanitizer.sanitize(widget.text);
+    }
+    if (oldWidget.jobImageBuilder != widget.jobImageBuilder ||
+        oldWidget.documentStart != widget.documentStart) {
+      _imageBuilder = KelivoImageBuilder(
+        jobImageBuilder: widget.jobImageBuilder,
+        document: () => _source,
+        documentStart: widget.documentStart,
+      );
     }
   }
 
@@ -82,7 +127,7 @@ class _MarkdownWithCodeHighlightState extends State<MarkdownWithCodeHighlight> {
       extensions: markdownExtensionsFor(context),
       codeHighlighter: KelivoCodeHighlighter.forTheme(theme),
       mathRenderer: const KelivoMathRenderer(),
-      imageBuilder: const KelivoImageBuilder(),
+      imageBuilder: _imageBuilder,
       linkHandler: const KelivoLinkHandler(),
       codeOptions: markdownCodeOptions(settings),
       detailsExpansionState: markdownDetailsExpansionState,

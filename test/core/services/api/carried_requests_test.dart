@@ -1,18 +1,18 @@
-import 'package:Kelivo/core/models/provider_oauth.dart';
-import 'package:Kelivo/core/services/api/native_compaction_context.dart';
+import 'package:Cuplivo/core/models/provider_oauth.dart';
+import 'package:Cuplivo/core/services/api/native_compaction_context.dart';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:Kelivo/core/models/carried_original.dart';
-import 'package:Kelivo/core/models/native_compaction.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/api/providers/openai/responses_request.dart';
-import 'package:Kelivo/core/services/api/providers/openai/native_compaction.dart';
-import 'package:Kelivo/core/services/api/providers/claude_official.dart';
-import 'package:Kelivo/core/services/api/providers/google_gemini.dart';
-import 'package:Kelivo/core/services/api/request_history_context.dart';
-import 'package:Kelivo/core/services/api/request_image_context.dart';
+import 'package:Cuplivo/core/models/carried_original.dart';
+import 'package:Cuplivo/core/models/native_compaction.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/responses_request.dart';
+import 'package:Cuplivo/core/services/api/providers/openai/native_compaction.dart';
+import 'package:Cuplivo/core/services/api/providers/claude_official.dart';
+import 'package:Cuplivo/core/services/api/providers/google_gemini.dart';
+import 'package:Cuplivo/core/services/api/request_history_context.dart';
+import 'package:Cuplivo/core/services/api/request_image_context.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -93,6 +93,39 @@ void main() {
       expect(none.payload.output, [compact]);
     },
   );
+  test('a compaction window cannot replay an image payload', () async {
+    final payload = NativeCompactionPayload(
+      protocol: NativeCompactionProtocol.codex,
+      scope: nativeCompactionScope(nativeConfig),
+      modelId: 'test',
+      output: [
+        compact,
+        {
+          'type': 'image_generation_call',
+          'id': 'ig_1',
+          'status': 'completed',
+          'result': 'iVBORw0KGgo=',
+        },
+      ],
+    );
+    final body = await buildOpenAIResponsesBody(
+      nativeResponsesConfig(nativeConfig),
+      'test',
+      RequestHistoryContext.identify([
+        {'role': 'user', 'content': 'tail'},
+        {
+          'role': 'user',
+          'content': '',
+          nativeCompactionMessageKey: payload.toJson(),
+        },
+      ]),
+    );
+    final input = RequestHistoryContext.stripSources(body)['input'] as List;
+    final item = input.cast<Map>().firstWhere((item) => item['id'] == 'ig_1');
+    expect(item.containsKey('result'), isFalse);
+    expect(jsonEncode(body), isNot(contains('iVBORw0KGgo')));
+  });
+
   for (final kind in [ProviderKind.claude, ProviderKind.google]) {
     test(
       '$kind keeps consecutive carried user, summary and tail in order',

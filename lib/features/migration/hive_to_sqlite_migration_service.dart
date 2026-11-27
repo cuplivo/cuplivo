@@ -2037,14 +2037,10 @@ List<MessagePart> _normalizeAttachmentPartUris(List<MessagePart> parts) {
       final uri = SandboxPathResolver.canonicalize(part.uri);
       if (uri != part.uri) {
         changed = true;
-        out.add(
-          ImagePart(
-            uri: uri,
-            mime: part.mime,
-            assetId: part.assetId,
-            unavailable: part.unavailable,
-          ),
-        );
+        // `copyWith`, like every other path rewrite: rebuilding the part field by
+        // field is what used to drop the image-job fields (and `state` decides
+        // whether there are bytes to send at all).
+        out.add(part.copyWith(uri: uri));
       } else {
         out.add(part);
       }

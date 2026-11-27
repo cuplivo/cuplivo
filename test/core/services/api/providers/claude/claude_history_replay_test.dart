@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:Kelivo/core/services/api/builtin_tools.dart';
-import 'package:Kelivo/core/utils/multimodal_input_utils.dart';
+import 'package:Cuplivo/core/services/api/builtin_tools.dart';
+import 'package:Cuplivo/core/utils/multimodal_input_utils.dart';
 import '../../../../../support/claude_test_api.dart';
 import '../../../../../support/collect_generation.dart';
 
@@ -598,7 +598,7 @@ void main() {
       expect(jsonEncode(requestBodies[1]), isNot(contains('[image:')));
     });
 
-    test('an image the assistant produced opens the next user turn', () async {
+    test('an image the assistant produced is not replayed', () async {
       final dir = await Directory.systemTemp.createTemp(
         'kelivo_claude_assistant_img_',
       );
@@ -625,19 +625,53 @@ void main() {
       );
 
       final messages = (body['messages'] as List).cast<Map>();
-      // The API rejects an image block in an assistant turn outright.
+      // The API rejects an image block in an assistant turn outright, and
+      // handing it to the next user turn made the model read its own old work
+      // as a fresh upload. The picture stays a recallable asset instead.
       expect(messages[1]['content'], '画好了');
-      final followUp = (messages[2]['content'] as List).cast<Map>();
-      expect(followUp.map((part) => part['type']).toList(), [
-        'text',
-        'image',
-        'text',
-      ]);
-      expect(followUp[1]['source']['data'], 'AQIDBA==');
-      expect(followUp.last['text'], '哪根柱子最高');
+      expect(messages[2]['content'], '哪根柱子最高');
+      expect(jsonEncode(body), isNot(contains('"image"')));
     });
 
-    test('an image on the last assistant turn has nowhere to go', () async {
+    test('a picture-only assistant turn is dropped, not emptied', () async {
+      final dir = await Directory.systemTemp.createTemp(
+        'kelivo_claude_assistant_img_only_',
+      );
+      addTearDown(() async {
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
+      });
+      final file = File('${dir.path}/chart.png');
+      await file.writeAsBytes(const [1, 2, 3, 4]);
+
+      final body = await captureClaudeRequestBody(
+        config: claudeConfig(baseUrl: officialBaseUrl),
+        modelId: 'claude-sonnet-4-6',
+        messages: [
+          {'role': 'user', 'content': '画个图'},
+          {
+            'role': 'assistant',
+            'content': '',
+            multimodalInternalMediaPathsKey: [file.path],
+          },
+          {'role': 'user', 'content': '哪根柱子最高'},
+        ],
+      );
+
+      final messages = (body['messages'] as List).cast<Map>();
+      // The reply said nothing once its picture was dropped, and Anthropic
+      // rejects an empty text block.
+      expect(messages.map((message) => message['role']).toList(), [
+        'user',
+        'user',
+      ]);
+      expect(messages.first['content'], '画个图');
+      expect(messages.last['content'], '哪根柱子最高');
+      expect(jsonEncode(body), isNot(contains('"image"')));
+    });
+
+    test('an image on the last assistant turn is not replayed', () async {
       final dir = await Directory.systemTemp.createTemp(
         'kelivo_claude_assistant_img_',
       );
@@ -666,7 +700,7 @@ void main() {
     });
 
     test(
-      'a chart from a persisted code execution turn opens the next user turn',
+      'a chart from a persisted code execution turn is not replayed',
       () async {
         final dir = await Directory.systemTemp.createTemp(
           'kelivo_claude_assistant_img_',
@@ -758,18 +792,12 @@ void main() {
           'text',
         ]);
         expect(jsonEncode(turn), isNot(contains('"image"')));
-        final followUp = (messages[2]['content'] as List).cast<Map>();
-        expect(followUp.map((part) => part['type']).toList(), [
-          'text',
-          'image',
-          'text',
-        ]);
-        expect(followUp[1]['source']['data'], 'AQIDBA==');
-        expect(followUp.last['text'], '哪根柱子最高');
+        expect(messages[2]['content'], '哪根柱子最高');
+        expect(jsonEncode(body), isNot(contains('"image"')));
       },
     );
 
-    test('an assistant image in Markdown moves on without its link', () async {
+    test('an assistant image in Markdown is dropped with its link', () async {
       final dir = await Directory.systemTemp.createTemp(
         'kelivo_claude_assistant_md_',
       );
@@ -792,15 +820,11 @@ void main() {
       );
 
       final messages = (body['messages'] as List).cast<Map>();
-      // The image is carried into the next user turn; the assistant keeps
-      // only its words, not a path the model cannot open.
+      // The image is dropped; the assistant keeps only its words, not a path
+      // the model cannot open. No user turn picks the picture up.
       expect(messages[1]['content'], '画好了  请看');
-      final followUp = (messages[2]['content'] as List).cast<Map>();
-      expect(followUp.map((part) => part['type']).toList(), [
-        'text',
-        'image',
-        'text',
-      ]);
+      expect(messages[2]['content'], '哪根柱子最高');
+      expect(jsonEncode(body), isNot(contains('"image"')));
     });
 
     test(

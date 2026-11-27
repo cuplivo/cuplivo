@@ -427,8 +427,43 @@ Rules that apply at every stop:
 | unit 10 pdf | **committed**: no conflict, 41 paths |
 | unit 11 translate | **committed**: 3 of 10 paths conflicted (the shared language helpers vs v1.3.7's per-page spellings), 79 |
 | unit 12 suggestions | **committed**: no conflict, 3 paths |
-| unit 13 group-chat | **parked**: auto-merged cleanly in lib but the merged tree does not parse — 540 errors in 7 files, all of them ones this unit edits |
-| units 14–18 | not started |
+| unit 13 group-chat | **committed** `369e2d1a3`: **10** conflicts of 170 paths (not 3 — see below), 79 errors, count unchanged |
+| unit 14 backup-reader | **parked**: 4 conflicts, two small and resolved, two structural |
+| units 15–18 | not started |
+
+### Unit 13 landed, and the 540 was my own reading error
+
+The first two passes reported "3 conflicts" because I only ever read the **tail** of git's list; the
+seven lib files were conflicted all along and kept their markers, which is what the 540 errors
+measured — the markers, not a corrupted merge. With all ten resolved by hand the tree sits at **79**,
+the same count it had before the unit.
+
+The resolutions, hunk by hunk: `compress_context_options` keeps v1.3.7's summary branch *and* takes
+this unit's speaker line (a group summary now carries `senderId`, because "to the compressor every
+roster member is an assistant, and a summary of a group that flattened them into one voice is a
+summary of a different conversation"); `home_view_model` takes the unit's whole-round cancellation
+with v1.3.7's `userRequested: true` on the plain stop; `world_book_popover` keeps v1.3.7's panel
+nesting and takes the unit's scoped `_targetId`/`_scopeId` and roster header; the rest are both-sides
+insertions (the group-round machinery, group imports, `groupSearch`/`supportsReasoning` beside
+`showResponseSpeedAction`, `title`/`group`/`onOpenGroupMembers` beside `documentRoute`).
+
+### Unit 14, parked: the first real structural pause
+
+`backup-reader` conflicts on four paths. Two resolve cleanly and were done:
+
+- `backup.dart` — v1.3.7 parses config through a `_BackupConfigFields` helper (`fields.trimmed`,
+  `fields.scope`), the unit parses `json[...]` by hand and adds `target:`. Ours' helper stays and the
+  target is read through it: `BackupTarget.fromName(fields.read<String>('target')) ?? …cuplivo`.
+- `s3_backup_provider.dart` — the unit's `_scopeAsWebdavConfig()` helper, ours had nothing there.
+
+The other two are not insertions: `data_sync.dart`'s packing path is `runBackupIsolate<BackupProgress,
+…>` returning a `BackupProgress` in v1.3.7 and a `({int verifiedBytes, List<String> skippedEntries})`
+record in the unit, with `verifyPayload`/`assetRootPaths` only on our side; `backup_pane.dart` gains a
+150-line `BackupTarget` picker and a retargeted `initState` from the unit, against v1.3.7's rewritten
+`_saveServerEdit`. "Keep both" there produced 515 issues, so it is the wrong instrument: the two
+sides are versions of one flow, and the next pass has to pick v1.3.7's flow and re-express the
+reader-target on top of it. The unit was reverted; the branch sits at unit 13.
+
 
 ### Unit 13, parked with its measurement
 

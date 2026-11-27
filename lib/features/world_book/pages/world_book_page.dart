@@ -1,4 +1,4 @@
-import 'package:Kelivo/features/world_book/widgets/world_book_entry_widgets.dart';
+import 'package:Cuplivo/features/world_book/widgets/world_book_entry_widgets.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -14,6 +14,7 @@ import '../../../core/services/haptics.dart';
 import '../utils/world_book_import.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../shared/utils/file_name.dart';
 import '../../../shared/widgets/ios_form_text_field.dart';
 import '../../../shared/widgets/ios_checkbox.dart';
 import '../../../shared/widgets/ios_switch.dart';
@@ -26,7 +27,7 @@ import '../widgets/world_book_entry_actions.dart';
 import '../widgets/world_book_library.dart';
 import '../widgets/world_book_editor.dart';
 import '../widgets/world_book_card_header.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 class WorldBookPage extends StatefulWidget {
   const WorldBookPage({super.key});
@@ -165,9 +166,7 @@ class _WorldBookPageState extends State<WorldBookPage> {
   Future<void> _exportBook(WorldBook book) async {
     final l10n = AppLocalizations.of(context)!;
     try {
-      final fileName = _safeFileName(
-        book.name.trim().isEmpty ? 'lorebook' : book.name.trim(),
-      );
+      final fileName = safeFileName(book.name, fallback: 'lorebook');
       final exportName = '$fileName.json';
       final json = jsonEncode(_toRikkaHubExportJson(book));
 
@@ -219,15 +218,6 @@ class _WorldBookPageState extends State<WorldBookPage> {
   Map<String, dynamic> _toRikkaHubExportJson(WorldBook book) {
     final data = book.toJson();
     return <String, dynamic>{'version': 1, 'type': 'lorebook', 'data': data};
-  }
-
-  String _safeFileName(String name) {
-    final cleaned = name
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (cleaned.isEmpty) return 'lorebook';
-    return cleaned.length > 80 ? cleaned.substring(0, 80) : cleaned;
   }
 
   Future<bool> _confirmDeleteBook(WorldBook book) async {

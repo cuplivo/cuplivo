@@ -418,6 +418,17 @@ Rules that apply at every stop:
 | unit 2 baseline-repair | **committed**: 181 → 23 suite failures, analyze 0, l10n pass ×4 at 5752 messages, native digests back to the released line's values |
 | baseline census | 23 → 13 → **9**: 7 are this machine's (5 proxy, 2 font metrics), 2 are real and open |
 | unit 3 recycle | **committed** `3a3f32467`: 1 conflict of 30 paths, analyze 0, format 0, its own 8 test files 65 passed |
-| units 4–18 | not started |
+| unit 4 sync-lan | **committed** `52e154de1`: 6 conflicts of 206 paths, unit's own text repaired twice, tree 93 |
+| unit 5 recycle-docs | **committed** `4c5e85fb7`: no conflict, 4 paths, 93 → 82 |
+| unit 6 tailcat infra | **committed**: no conflict, 13 paths, `pubspec.lock` in the same commit, stays 82 |
+| unit 7 tailcat feature | **committed**: no conflict, 21 paths, 82 → 76 |
+| units 8–18 | not started |
+
+**The gate moved to the tip.** Units 1–3 ended at analyze 0; unit 4 cannot, because the compressed
+series moves four definitions into later units (see "Unit 4 is not self-contained" above). From unit
+5 on the units are **stacked**: conflicts resolved faithfully, `dart format` on the touched files,
+and the analyze count recorded per unit as the running measurement. The zero, the full suite and the
+l10n pass happen at unit 18 — the only state this series was ever measured in. If the stacked tree is
+red at the tip, the next step is a bisect against the per-unit counts recorded here, not a re-replay.
 | gates | analyze per unit; tests on units 1 and 2; l10n at the tip |
 

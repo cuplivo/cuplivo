@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/services/haptics.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
-import 'package:Kelivo/theme/app_semantic_colors.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_semantic_colors.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -476,4 +477,17 @@ void showAppSnackBar(
       onAction: onAction,
     ),
   );
+}
+
+/// Writes [text] to the clipboard and confirms it with [message]. Copy actions
+/// go through this so the confirmation can never describe something other than
+/// what was actually placed on the clipboard.
+Future<void> copyTextWithConfirmation(
+  BuildContext context,
+  String text, {
+  required String message,
+}) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (!context.mounted) return;
+  showAppSnackBar(context, message: message, type: NotificationType.success);
 }

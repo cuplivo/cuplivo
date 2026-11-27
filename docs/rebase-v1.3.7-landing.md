@@ -547,6 +547,16 @@ next census:
 
 So of the 40, **7 are the two proven machine classes** and **33 are the tree's**, in five clusters.
 
+**The world-book cluster is behavioural, not a missing file.** Measured before touching it: the group
+UI exists in this tree (`world_book_group_actions.dart`, `world_book_library.dart`,
+`world_book_editor.dart`'s `groups[_groupId] ?? l10n.worldBookGroupUngrouped`), `createGroup` is on the
+provider, and `dart analyze` is clean — the page compiles with all of it. So the eighteen cases are
+about *what the UI does*, not what is absent: v1.3.7 rewrote `world_book_page.dart` (584 lines deleted,
+114 added against v1.3.6) and this fork's group surface was written against the older page. That is a
+per-test read of the new page against the group widgets, which is where the next pass starts — with
+`desktop selects multiple entries and moves them` ("0 selected") and the two `SillyTavern` imports
+("length 2, got 1") as the first two symptoms to explain.
+
 
 ### Unit 13, parked with its measurement
 

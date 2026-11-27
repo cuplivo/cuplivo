@@ -13,10 +13,24 @@ enum ExportImageStage { preparing, diagrams, capturing, processing, saving }
 
 @immutable
 class ExportImageProgress {
-  const ExportImageProgress(this.stage, {this.completed = 0, this.total = 0});
+  const ExportImageProgress(
+    this.stage, {
+    this.completed = 0,
+    this.total = 0,
+    this.label,
+  });
   final ExportImageStage stage;
   final int completed;
   final int total;
+
+  /// What the card says instead of the stage's own wording.
+  ///
+  /// The stages name picture work — "Preparing image…", "Saving image…" — and a
+  /// document laid out through them is not a picture. A caller that reuses a
+  /// stage for work of its own names that work here rather than adding a stage
+  /// every export has to switch on.
+  final String? label;
+
   double? get fraction =>
       total > 0 ? (completed / total).clamp(0.0, 1.0) : null;
 }

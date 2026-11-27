@@ -18,6 +18,7 @@ import '../../features/world_book/widgets/world_book_card_header.dart';
 import '../../shared/widgets/section_card.dart';
 import '../../icons/lucide_adapter.dart' as lucide;
 import '../../l10n/app_localizations.dart';
+import '../../shared/utils/file_name.dart';
 import '../../shared/widgets/ios_switch.dart';
 import '../../shared/widgets/ios_checkbox.dart';
 import '../../shared/widgets/snackbar.dart';
@@ -40,15 +41,6 @@ class _DesktopWorldBookPaneState extends State<DesktopWorldBookPane> {
       if (!mounted) return;
       context.read<WorldBookProvider>().initialize();
     });
-  }
-
-  String _safeFileName(String name) {
-    final cleaned = name
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (cleaned.isEmpty) return 'lorebook';
-    return cleaned.length > 80 ? cleaned.substring(0, 80) : cleaned;
   }
 
   String _baseName(String path) {
@@ -157,9 +149,7 @@ class _DesktopWorldBookPaneState extends State<DesktopWorldBookPane> {
   Future<void> _exportBook(WorldBook book) async {
     final l10n = AppLocalizations.of(context)!;
     try {
-      final fileName = _safeFileName(
-        book.name.trim().isEmpty ? 'lorebook' : book.name.trim(),
-      );
+      final fileName = safeFileName(book.name, fallback: 'lorebook');
       final exportName = '$fileName.json';
       final json = jsonEncode(_toRikkaHubExportJson(book));
 

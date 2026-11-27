@@ -4203,6 +4203,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
 
   // Keep callbacks stable while only the streamed text changes. A new lookup
   // changes the resolver identity so cached citation widgets refresh their labels.
+  // The rule itself lives in `citation_index.dart`, which the PDF export reads too,
+  // so the number a capsule shows is decided once — the map shape here is only the
+  // identity the widget cache compares.
   String? Function(String) _buildCitationIndexResolver(
     List<Map<String, dynamic>> items,
   ) {
@@ -4284,8 +4287,9 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     }
   }
 
-  // Extract items from all search_web or builtin_search tool results for this assistant message.
-  // We scan from end to start so "latest" items win when there are duplicates.
+  // The items are scanned from end to start so "latest" wins on duplicates,
+  // and the scan is memoized on the parts list identity: the timeline asks for
+  // them on every rebuild of a streaming reply.
   List<Map<String, dynamic>> _allSearchItems() {
     final parts = widget.toolParts ?? const <ToolUIPart>[];
     if (identical(parts, _searchItemsParts) && _searchItemsCache != null) {

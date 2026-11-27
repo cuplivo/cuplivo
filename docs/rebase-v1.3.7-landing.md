@@ -282,11 +282,36 @@ Two causes, both found by reading the chain instead of the assertion:
 
 **9 remain, and 7 of them are not the tree's**: the five proxy cases and the two font-metric cases
 above. **2 are real** — `storage_space_images`' "image filters, counts and protected selection", in
-both desktop variants: the page's delete dialog is confirmed, the row counts and the selection all
-match, and the success snackbar never appears, so the wait for `已删除 1 个项目` times out. The
-service returns a count and the page picks `partial` versus `done` on `deleted < count`, so either
-the delete reports 0 or the flow never reaches it; that question is where the next pass starts, and
-it is the last one in the census that is the tree's to answer.
+both desktop variants. Measured with a probe inside the delete branch rather than guessed at: the
+page calls `deleteUploadFiles` with exactly one path, and the service throws
+
+```
+PathAccessException: Cannot delete file, path = '…\storage_images_76e81bfe\avatars\unused.png'
+  (OS Error: 另一个程序正在使用此文件, errno = 32)
+```
+
+so the catch branch shows the *error* snackbar and the wait for `已删除 1 个项目` times out. The
+handle is the tile's own thumbnail: each row renders
+`SafeResizeImage.wrap(FileImage(File(entry.path)), …)`, and on Windows the unlink loses to it while
+the row is still on screen. Clearing `ImageCache` before the delete does **not** help — the mounted
+row re-decodes and re-opens the file inside the same frame — so the fix is a product one (drop the
+rows before deleting, or let the delete wait for the reader), not a test tolerance. This is upstream's
+code, its own CI is `ubuntu-latest` only, and a POSIX unlink succeeds with an open handle, which is
+why the defect only exists here. It is the one item in the census that is the tree's, and it is
+Windows-only.
+
+### Unit 3: one conflict, and it was the two units' shapes meeting
+
+`recycle` replayed with **30 paths and one conflict** — `storage_space_page.dart`'s upload-manager
+branch. v1.3.7 hands a precomputed `uploads` list to `_UploadManager`; this unit wraps that widget
+in the section chrome (`title`, `subtitle`, `hintLine`, `Expanded`). Neither side is a version of the
+other, so the resolution is both at once: this unit's `Column`, with `uploads: uploads` handed down
+inside it. The other 29 paths merged on their own — the schema, `recycle_service`/`recycle_store`,
+the two recycle pages, `workspace_paths` and `app_directories` (both still carrying the identity
+unit's rename), and `main.dart`.
+
+No ARB in the diff, so this unit costs no l10n pass: `dart analyze` 0, `dart format` 0 changed, its
+own eight test files 65 passed.
 
 ## Procedure for this attempt
 
@@ -321,6 +346,7 @@ Rules that apply at every stop:
 | unit 1 identity | **committed**: analyze 0, format 0 changed, l10n pass ×4, its own 3 suite failures fixed |
 | unit 2 baseline-repair | **committed**: 181 → 23 suite failures, analyze 0, l10n pass ×4 at 5752 messages, native digests back to the released line's values |
 | baseline census | 23 → 13 → **9**: 7 are this machine's (5 proxy, 2 font metrics), 2 are real and open |
-| units 3–18 | not started |
+| unit 3 recycle | **committed** `3a3f32467`: 1 conflict of 30 paths, analyze 0, format 0, its own 8 test files 65 passed |
+| units 4–18 | not started |
 | gates | analyze per unit; tests on units 1 and 2; l10n at the tip |
 

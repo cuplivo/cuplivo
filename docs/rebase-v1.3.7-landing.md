@@ -428,8 +428,12 @@ Rules that apply at every stop:
 | unit 11 translate | **committed**: 3 of 10 paths conflicted (the shared language helpers vs v1.3.7's per-page spellings), 79 |
 | unit 12 suggestions | **committed**: no conflict, 3 paths |
 | unit 13 group-chat | **committed** `369e2d1a3`: **10** conflicts of 170 paths (not 3 — see below), 79 errors, count unchanged |
-| unit 14 backup-reader | **parked**: 4 conflicts, two small and resolved, two structural |
-| units 15–18 | not started |
+| unit 14 backup-reader | **committed** `80344aa7d`: data path ported (4 conflicts), picker UI deferred |
+| unit 15 markdown-image | **committed**: 2 conflicts (the desktop shell), the `DesktopTab` model wins whole, 86 |
+| unit 16 image-job | **committed**: 1 conflict (both added a test), 86 |
+| unit 17 subagent | **committed**: 1 conflict (both added a test) |
+| unit 18 assistant | **committed** `87a94457c`: 1 conflict (the conversation-row write, the sync clock), **analyze 0** |
+| gate | **analyze 0 · format 0 · l10n pass ×4 at 5752 messages** |
 
 ### Unit 13 landed, and the 540 was my own reading error
 
@@ -504,6 +508,32 @@ one of them a later unit's definition.
 **Remaining half: the pane's picker.** Its 153-line block targets `setWebDavConfig` / `updateConfig`
 and a single `BackupConfig`; porting it means rewriting that UI against `updateWebDavConfig` /
 `updateS3Config` and two configs. That is where the next pass starts.
+
+### Units 15–18, and the tree goes green
+
+Four units, four conflicts, and the analyzer fell from 86 to **0**:
+
+| unit | conflicts | the collision |
+| --- | --- | --- |
+| 15 `markdown-image` | 2, both the desktop shell | v1.3.7's `int _tabIndex` + `_visitedTabs` against the `DesktopTab` model arriving whole. The unit wins: `_pageFor`, the `DesktopTab.values` stack, `DesktopTabVisibility` + `ExcludeFocus` (a hidden tab must not take focus or answer a drop). v1.3.7's `TickerMode` is subsumed by that, and its `dismissNavigation` flag had only the two call sites the unit replaces with inline `setState`. |
+| 16 `image-job` | 1, a test file | both sides added a case at the same point; both kept. The unit's own comment is the reason it exists: "a writer that runs later — an image job finishing after its reply was finalized — has to find the row anyway, or its write becomes a silent no-op." |
+| 17 `subagent` | 1, a test file | same shape, both kept. |
+| 18 `assistant` | 1, the conversation-row write | the unit that finally brings the sync clock, which is why `clock`/`stored`/`syncConversationDigest` had been red since unit 4. Its write reads the row, takes `_nextConversationClock`, and writes the clock back through `_extrasWithSyncClock`; v1.3.7's `injectedMemoryHash: const Value(null)` reset rides in the same companion. |
+
+**The stack's shape is the record's most useful single fact**: 79 → 86 → 86 → 86 → 38 → 0. The
+per-unit gate could not hold because the compressed series assigns definitions to the unit that last
+touched them; the *tip* gate holds, and the trajectory shows the references closing as their owners
+arrive.
+
+**Two residues were mine, not the series'.** `chat_message_widget` and `message_export_sheet` had
+**conflict markers inside committed code** — two per file, swept in by unit 17's `git add -A` while the
+file was only half resolved. Both are resolved in unit 18's commit: the subagent divider/mail branches
+sit ahead of v1.3.7's `ChatBubbleStyleTarget` switch, and the export sheet keeps the unit's divider
+chain with the bubble flags v1.3.7 added. Lesson for the next replay: after resolving a *file*, add
+that file — not the tree.
+
+**Remaining gate: the full suite.** `analyze 0`, `format 0` and the l10n pass (5752 messages ×4) are
+green; unit 14's picker and the full `flutter test` run are what the next pass picks up.
 
 
 ### Unit 13, parked with its measurement

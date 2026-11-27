@@ -357,11 +357,6 @@ void main() {
   testWidgets('mobile retry does not export an already saved backup again', (
     tester,
   ) async {
-    // The page branches on the platform, and the host answers `windows`; the
-    // case is about the mobile backup saver, so it names the platform it needs
-    // instead of inheriting whatever ran before it in this file.
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(800, 1000);
     addTearDown(tester.view.resetPhysicalSize);

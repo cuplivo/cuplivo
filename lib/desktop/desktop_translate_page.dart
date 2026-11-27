@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:Kelivo/theme/app_font_weights.dart';
+import 'package:Cuplivo/theme/app_font_weights.dart';
 
 import 'macos_window_drag_area.dart';
 import '../icons/lucide_adapter.dart' as lucide;
@@ -21,9 +21,10 @@ import '../features/model/widgets/model_select_sheet.dart'
 import '../features/settings/widgets/language_select_sheet.dart'
     show
         LanguageOption,
-        buildLanguageFlag,
-        languageDisplayName,
-        supportedLanguages;
+        effectiveTranslateLanguage,
+        supportedLanguages,
+        translateLanguageDisplayName,
+        visibleTranslateLanguages;
 
 class DesktopTranslatePage extends StatefulWidget {
   const DesktopTranslatePage({super.key});
@@ -64,13 +65,12 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
     final settings = context.read<SettingsProvider>();
     final assistant = context.read<AssistantProvider>().currentAssistant;
 
-    final savedLang = _languageForCode(settings.translateTargetLang);
-    final locale = Localizations.localeOf(context).languageCode.toLowerCase();
-    final localeLang = locale.startsWith('zh')
-        ? _languageForCode('zh-CN')
-        : _languageForCode(locale) ?? _languageForCode('en');
     setState(() {
-      _targetLang = savedLang ?? localeLang ?? supportedLanguages.first;
+      _targetLang = effectiveTranslateLanguage(
+        visible: visibleTranslateLanguages(settings.translateVisibleLanguages),
+        persistedCode: settings.translateTargetLang,
+        localeLanguageCode: Localizations.localeOf(context).languageCode,
+      );
     });
 
     // Default model: translate model -> assistant's chat model -> global default
@@ -86,15 +86,6 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
       _modelProviderKey = providerKey;
       _modelId = modelId;
     });
-  }
-
-  LanguageOption? _languageForCode(String? code) {
-    if (code == null || code.isEmpty) return null;
-    try {
-      return supportedLanguages.firstWhere((e) => e.code == code);
-    } catch (_) {
-      return null;
-    }
   }
 
   Future<void> _onLanguageChanged(LanguageOption? lang) async {
@@ -142,10 +133,17 @@ class _DesktopTranslatePageState extends State<DesktopTranslatePage> {
 
     final cfg = settings.getProviderConfig(providerKey);
 
-    final lang = _targetLang ?? supportedLanguages.first;
+    final lang = effectiveTranslateLanguage(
+      visible: visibleTranslateLanguages(settings.translateVisibleLanguages),
+      persistedCode: settings.translateTargetLang,
+      localeLanguageCode: Localizations.localeOf(context).languageCode,
+    );
     final prompt = settings.translatePrompt
         .replaceAll('{source_text}', text)
-        .replaceAll('{target_lang}', languageDisplayName(l10n, lang.code));
+        .replaceAll(
+          '{target_lang}',
+          translateLanguageDisplayName(l10n, lang.code),
+        );
 
     setState(() {
       _translating = true;
@@ -500,7 +498,7 @@ class _LanguageDropdownState extends State<_LanguageDropdown> {
     final borderColor = _open || _hover ? hoverBorder : baseBorder;
 
     final selected = widget.value ?? supportedLanguages.first;
-    final label = languageDisplayName(l10n, selected.code);
+    final label = _displayNameFor(l10n, selected.code);
 
     return CompositedTransformTarget(
       link: _link,
@@ -536,7 +534,10 @@ class _LanguageDropdownState extends State<_LanguageDropdown> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    buildLanguageFlag(selected, size: 16, lineHeight: 1),
+                    Text(
+                      selected.flag,
+                      style: TextStyle(fontSize: 16, height: 1),
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: ConstrainedBox(
@@ -575,6 +576,31 @@ class _LanguageDropdownState extends State<_LanguageDropdown> {
         ),
       ),
     );
+  }
+
+  String _displayNameFor(AppLocalizations l10n, String code) {
+    switch (code) {
+      case 'zh-CN':
+        return l10n.languageDisplaySimplifiedChinese;
+      case 'en':
+        return l10n.languageDisplayEnglish;
+      case 'zh-TW':
+        return l10n.languageDisplayTraditionalChinese;
+      case 'ja':
+        return l10n.languageDisplayJapanese;
+      case 'ko':
+        return l10n.languageDisplayKorean;
+      case 'fr':
+        return l10n.languageDisplayFrench;
+      case 'de':
+        return l10n.languageDisplayGerman;
+      case 'it':
+        return l10n.languageDisplayItalian;
+      case 'es':
+        return l10n.languageDisplaySpanish;
+      default:
+        return code;
+    }
   }
 }
 
@@ -632,7 +658,9 @@ class _LangDropdownOverlayState extends State<_LangDropdownOverlay>
     final borderColor = cs.outlineVariant.withValues(alpha: 0.12);
     // divider removed
 
-    final filtered = supportedLanguages;
+    final filtered = visibleTranslateLanguages(
+      context.read<SettingsProvider>().translateVisibleLanguages,
+    );
 
     return FadeTransition(
       opacity: _opacity,
@@ -747,11 +775,14 @@ class _LangOptionTileState extends State<_LangOptionTile> {
             ),
             child: Row(
               children: [
-                buildLanguageFlag(widget.option, size: 16, lineHeight: 1),
+                Text(
+                  widget.option.flag,
+                  style: TextStyle(fontSize: 16, height: 1),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    languageDisplayName(
+                    _localizedLabel(
                       AppLocalizations.of(context)!,
                       widget.option.code,
                     ),
@@ -777,6 +808,31 @@ class _LangOptionTileState extends State<_LangOptionTile> {
         ),
       ),
     );
+  }
+
+  String _localizedLabel(AppLocalizations l10n, String code) {
+    switch (code) {
+      case 'zh-CN':
+        return l10n.languageDisplaySimplifiedChinese;
+      case 'en':
+        return l10n.languageDisplayEnglish;
+      case 'zh-TW':
+        return l10n.languageDisplayTraditionalChinese;
+      case 'ja':
+        return l10n.languageDisplayJapanese;
+      case 'ko':
+        return l10n.languageDisplayKorean;
+      case 'fr':
+        return l10n.languageDisplayFrench;
+      case 'de':
+        return l10n.languageDisplayGerman;
+      case 'it':
+        return l10n.languageDisplayItalian;
+      case 'es':
+        return l10n.languageDisplaySpanish;
+      default:
+        return code;
+    }
   }
 }
 

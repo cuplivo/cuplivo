@@ -101,10 +101,16 @@ void main() {
   Future<void> tapAndSettleWrite(WidgetTester tester, Finder row) async {
     await tester.tap(row);
     await tester.pump();
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 50)),
-    );
-    await tester.pump();
+    // The row's write is serialized behind the provider's own operation tail
+    // and lands in the business store, so it needs more than one real-async
+    // window: pump, let the real event loop turn, and repeat until the store
+    // has answered rather than assuming a single frame covers it.
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
   }
 
   testWidgets('the strip starts on the composer assistant and writes for it', (

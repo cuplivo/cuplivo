@@ -13,7 +13,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:markstream/markstream.dart';
 import 'package:provider/provider.dart';
@@ -137,16 +136,15 @@ void main() {
 
           await tester.tap(find.text('English'));
           await tester.pumpAndSettle();
-          final bangla = find.text('Bangla');
-          final flag = find.byWidgetPredicate(
-            (widget) =>
-                widget is SvgPicture &&
-                widget.bytesLoader ==
-                    const SvgAssetLoader('assets/icons/bangladesh-flag.svg'),
-          );
+          // The picker offers the user's own visible set, and the fork's
+          // Bengali sits behind "Manage Languages" in it; Italian is in the
+          // default set and carries no SVG asset, so it stands in for the
+          // language choice this case is not actually about.
+          final italian = find.text('Italian');
+          final flag = find.text('🇮🇹');
           if (desktop) {
             await tester.scrollUntilVisible(
-              bangla,
+              italian,
               150,
               scrollable: find.descendant(
                 of: find.byType(ListView),
@@ -154,14 +152,14 @@ void main() {
               ),
             );
           } else {
-            await tester.ensureVisible(bangla);
+            await tester.ensureVisible(italian);
           }
           expect(flag, findsOneWidget);
-          await tester.tap(bangla);
+          await tester.tap(italian);
           await tester.pumpAndSettle();
-          expect(bangla, findsOneWidget);
+          expect(italian, findsOneWidget);
           expect(flag, findsOneWidget);
-          expect(settings.translateTargetLang, 'bn');
+          expect(settings.translateTargetLang, 'it');
 
           final output = find.byType(TranslationOutput);
           final markdown = find.descendant(
@@ -209,7 +207,7 @@ void main() {
               reason: 'Tapping Translate must start the request.',
             );
             await _pumpUntil(tester, () => response != null);
-            expect(prompt, contains('translate it into Bangla,'));
+            expect(prompt, contains('translate it into Italian,'));
             return response!;
           }
 

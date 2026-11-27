@@ -662,6 +662,10 @@ final class BusinessKeyRegistry {
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,
     ),
+    'display_desktop_full_width_chat_v1': KeyRule(
+      KeyPolicy.backupOnly,
+      PolicyReason.deviceViewState,
+    ),
     'display_auto_collapse_code_block_lines_v1': KeyRule(
       KeyPolicy.backupOnly,
       PolicyReason.deviceViewState,

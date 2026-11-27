@@ -4,15 +4,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/storage/windows_data_directory.dart';
-import 'package:Kelivo/desktop/windows_paste_fix.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/utils/image_compressor.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/storage/windows_data_directory.dart';
+import 'package:Cuplivo/desktop/windows_paste_fix.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/utils/image_compressor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -26,6 +26,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // ignore: depend_on_referenced_packages, implementation_imports
 import 'package:super_native_extensions/src/native/context.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -882,7 +883,9 @@ void main() {
     await tester.runAsync(() async {
       source = await writeUserImage('user_photo.png');
     });
-    final product = File('${appSupportDir.path}/upload/user_photo.png');
+    final product = File(
+      p.join(appSupportDir.path, 'upload', 'user_photo.png'),
+    );
     final controller = TextEditingController(text: 'with image');
     final focusNode = FocusNode();
     final mediaController = ChatInputBarController();
@@ -918,7 +921,7 @@ void main() {
     await tester.tap(find.byIcon(Lucide.ArrowUp));
     await tester.pumpAndSettle();
 
-    expect(submitted?.imagePaths.single, product.path);
+    expect(p.equals(submitted!.imagePaths.single, product.path), isTrue);
     expect(await fileExists(tester, source), isTrue);
 
     controller.dispose();
@@ -1133,9 +1136,9 @@ void main() {
         'inflight_user.png',
         byteCount: 8 * 1024 * 1024,
       );
-      final uploadDir = Directory('${appSupportDir.path}/upload');
+      final uploadDir = Directory(p.join(appSupportDir.path, 'upload'));
       await uploadDir.create(recursive: true);
-      final product = File('${uploadDir.path}/inflight_user.png');
+      final product = File(p.join(uploadDir.path, 'inflight_user.png'));
       var sawProductCreated = false;
       final productDeleted = Completer<void>();
       final subscription = uploadDir
@@ -1353,7 +1356,7 @@ Future<void> _forceDelete(Directory dir) async {
   try {
     if (await dir.exists()) {
       await Process.run('chmod', ['-R', '0755', dir.path]);
-      await dir.delete(recursive: true);
+      await deleteDirectoryWhenReleased(dir, keepLockedLeftovers: true);
     }
   } catch (_) {}
 }

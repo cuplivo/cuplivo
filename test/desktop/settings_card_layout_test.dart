@@ -1,21 +1,21 @@
-import 'package:Kelivo/core/providers/external_backup_auto_provider.dart';
-import 'package:Kelivo/desktop/setting/hotkeys_pane.dart';
-import 'package:Kelivo/core/providers/hotkey_provider.dart';
+import 'package:Cuplivo/core/providers/external_backup_auto_provider.dart';
+import 'package:Cuplivo/desktop/setting/hotkeys_pane.dart';
+import 'package:Cuplivo/core/providers/hotkey_provider.dart';
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/backup_provider.dart';
-import 'package:Kelivo/core/providers/backup_reminder_provider.dart';
-import 'package:Kelivo/core/providers/local_snapshot_provider.dart';
-import 'package:Kelivo/core/providers/s3_backup_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/desktop/setting/backup_pane.dart';
-import 'package:Kelivo/desktop/setting/network_proxy_pane.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/ios_switch.dart';
-import 'package:Kelivo/shared/widgets/section_card.dart';
-import 'package:Kelivo/theme/palettes.dart';
-import 'package:Kelivo/theme/theme_factory.dart';
+import 'package:Cuplivo/core/providers/backup_provider.dart';
+import 'package:Cuplivo/core/providers/backup_reminder_provider.dart';
+import 'package:Cuplivo/core/providers/local_snapshot_provider.dart';
+import 'package:Cuplivo/core/providers/s3_backup_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/desktop/setting/backup_pane.dart';
+import 'package:Cuplivo/desktop/setting/network_proxy_pane.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/ios_switch.dart';
+import 'package:Cuplivo/shared/widgets/section_card.dart';
+import 'package:Cuplivo/theme/palettes.dart';
+import 'package:Cuplivo/theme/theme_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -180,6 +180,17 @@ void main() {
           l10n.backupPageWebDavServerSettings,
           l10n.backupPageS3ServerSettings,
         ]) {
+          // Start from the top for every heading. `scrollUntilVisible` only
+          // ever drags one way, and a section that has been scrolled past
+          // leaves the tree, so a heading that now renders *above* the current
+          // position can never be reached. Resetting makes this loop
+          // independent of the order the pane renders its sections in, which
+          // the backup pane has already changed once (local actions moved up).
+          await tester.drag(
+            find.byType(Scrollable).first,
+            const Offset(0, 4000),
+          );
+          await tester.pumpAndSettle();
           await tester.scrollUntilVisible(
             find.text(title),
             300,

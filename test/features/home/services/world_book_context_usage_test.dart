@@ -1,4 +1,4 @@
-import 'package:Kelivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,30 +8,47 @@ import 'package:provider/provider.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/models/assistant.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation_prompt_settings.dart';
-import 'package:Kelivo/core/models/token_usage.dart';
-import 'package:Kelivo/core/models/world_book.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/core/providers/instruction_injection_provider.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/user_provider.dart';
-import 'package:Kelivo/core/providers/world_book_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/mcp/mcp_tool_service.dart';
-import 'package:Kelivo/core/services/world_book_activation.dart';
-import 'package:Kelivo/core/services/workspace/workspace_tools_service.dart';
-import 'package:Kelivo/features/home/controllers/generation_controller.dart';
-import 'package:Kelivo/features/home/controllers/stream_controller.dart'
+import 'package:Cuplivo/core/models/assistant.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation_prompt_settings.dart';
+import 'package:Cuplivo/core/models/token_usage.dart';
+import 'package:Cuplivo/core/models/world_book.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/core/providers/instruction_injection_provider.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/user_provider.dart';
+import 'package:Cuplivo/core/providers/world_book_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/logging/context_logger.dart';
+import 'package:Cuplivo/core/services/logging/flutter_logger.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_tool_service.dart';
+import 'package:Cuplivo/core/services/network/request_logger.dart';
+import 'package:Cuplivo/core/services/world_book_activation.dart';
+import 'package:Cuplivo/core/services/workspace/workspace_tools_service.dart';
+import 'package:Cuplivo/features/home/controllers/generation_controller.dart';
+import 'package:Cuplivo/features/home/controllers/stream_controller.dart'
     as stream_ctrl;
-import 'package:Kelivo/features/home/services/context_usage_service.dart';
-import 'package:Kelivo/features/home/services/message_builder_service.dart';
-import 'package:Kelivo/features/home/services/message_generation_service.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/features/home/services/context_usage_service.dart';
+import 'package:Cuplivo/features/home/services/message_builder_service.dart';
+import 'package:Cuplivo/features/home/services/message_generation_service.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 import '../../../support/business_test_harness.dart';
 import '../../../support/claude_test_api.dart' show FakePathProviderPlatform;
+
+/// Close the process-global log sinks, so this test's app-data directory can be
+/// removed.
+///
+/// Each logger holds a static `IOSink` opened on first write under
+/// `<appData>/logs/` and keeps it until that logger is disabled — past the end
+/// of this test, which makes `delete(recursive: true)` fail on Windows with
+/// errno 32 (ERROR_SHARING_VIOLATION) and leaves the directory behind even
+/// though the test body passed. The next test's settings load re-enables them.
+Future<void> _closeLogSinks() async {
+  await ContextLogger.setEnabled(false);
+  await RequestLogger.setEnabled(false);
+  await FlutterLogger.setEnabled(false);
+}
 
 class _Chat extends ChatService {
   Future<void> Function()? afterHistoryRead;
@@ -180,6 +197,7 @@ void main() {
     await chat.close();
     await Hive.close();
     SandboxPathResolver.debugSetDirs(docsDir: null, supportDir: null);
+    await _closeLogSinks();
     await directory.delete(recursive: true);
   });
 

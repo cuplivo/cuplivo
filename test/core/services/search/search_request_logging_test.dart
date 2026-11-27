@@ -1,13 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/services/network/request_logger.dart';
-import 'package:Kelivo/core/services/search/providers/tavily_search_service.dart';
-import 'package:Kelivo/core/services/search/search_service.dart';
-import 'package:Kelivo/core/services/search/search_service_usage_service.dart';
+import 'package:Cuplivo/core/services/network/request_logger.dart';
+import 'package:Cuplivo/core/services/search/providers/tavily_search_service.dart';
+import 'package:Cuplivo/core/services/search/search_service.dart';
+import 'package:Cuplivo/core/services/search/search_service_usage_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+import '../../../support/temp_directory_cleanup.dart';
 
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.path);
@@ -40,9 +42,11 @@ void main() {
   tearDown(() async {
     await RequestLogger.setEnabled(false);
     PathProviderPlatform.instance = previousPathProvider;
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    // Disabling the logger stops the next write, not one already in flight, so
+    // the log file can still be open here for a moment. POSIX unlinks it anyway;
+    // Windows answers `errno = 32` and the failure lands in `tearDown` after a
+    // test that passed.
+    await deleteDirectoryWhenReleased(tempDir);
   });
 
   test(

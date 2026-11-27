@@ -1,26 +1,53 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/chat_database_gateway.dart';
-import 'package:Kelivo/core/database/empty_database_recovery_guard.dart';
-import 'package:Kelivo/core/services/backup/local_copy_catalog.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/backup/local_snapshot_schedule.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/chat_database_gateway.dart';
+import 'package:Cuplivo/core/database/empty_database_recovery_guard.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/backup/local_snapshot_schedule.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import '../../support/recovery_snapshot_fixture.dart';
+
+class _Paths extends PathProviderPlatform {
+  _Paths(this.root);
+
+  final String root;
+
+  @override
+  Future<String?> getApplicationDocumentsPath() async => root;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => p.join(root, 'tmp');
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpRecoverySnapshotPaths();
   late Directory root;
+  late PathProviderPlatform previousPaths;
   setUp(() async {
     root = await Directory.systemTemp.createTemp('kelivo-loss-recovery-');
+    // Inspecting a snapshot stages a working copy through `BackupStaging`,
+    // which asks path_provider for a data root; a host without the plugin is
+    // not a product state, so point it at this test's directory.
+    previousPaths = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _Paths(root.path);
   });
-  tearDown(() async => root.delete(recursive: true));
+  tearDown(() async {
+    PathProviderPlatform.instance = previousPaths;
+    await root.delete(recursive: true);
+  });
   for (final location in [
     '',
     'snapshots',
@@ -39,7 +66,7 @@ void main() {
         final catalog = LocalCopyCatalog(appDataDirectory: root);
         final copies = await catalog.list();
         expect(copies, hasLength(1));
-        expect(copies.single.file.path, archive.path);
+        expect(p.equals(copies.single.file.path, archive.path), isTrue);
         final info = await DataSync.inspectRecoverySnapshot(copies.single.file);
         expect(info.conversationCount, 2);
         expect(info.messageCount, 42);
@@ -97,7 +124,7 @@ void main() {
       }
       final copies = await LocalCopyCatalog(appDataDirectory: root).list();
       expect(copies, hasLength(1));
-      expect(copies.single.file.path, base);
+      expect(p.equals(copies.single.file.path, base), isTrue);
       for (final suffix in ['', '-wal', '-shm', '-journal']) {
         expect(await File('$base$suffix').readAsString(), 'retained $suffix');
       }

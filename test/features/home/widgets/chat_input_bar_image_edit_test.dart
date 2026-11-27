@@ -1,12 +1,12 @@
 import 'dart:async';
-import 'package:Kelivo/utils/image_compressor.dart';
+import 'package:Cuplivo/utils/image_compressor.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:drift/native.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/composer_draft_store.dart';
-import 'package:Kelivo/core/models/image_edit_document.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/composer_draft_store.dart';
+import 'package:Cuplivo/core/models/image_edit_document.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,16 +14,17 @@ import 'package:provider/provider.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:image/image.dart' as image;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:Kelivo/core/models/chat_input_data.dart';
-import 'package:Kelivo/core/models/composer_draft.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/assistant_provider.dart';
-import 'package:Kelivo/features/home/widgets/chat_input_bar.dart';
-import 'package:Kelivo/features/home/services/file_upload_service.dart';
-import 'package:Kelivo/features/chat/pages/image_editor_page.dart';
-import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/core/models/chat_input_data.dart';
+import 'package:Cuplivo/core/models/composer_draft.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/assistant_provider.dart';
+import 'package:Cuplivo/features/home/widgets/chat_input_bar.dart';
+import 'package:Cuplivo/features/home/services/file_upload_service.dart';
+import 'package:Cuplivo/features/chat/pages/image_editor_page.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
 import '../../../support/business_test_harness.dart';
+import '../../../support/temp_directory_cleanup.dart';
 
 class _Picker extends ImagePickerPlatform {
   _Picker(this.gallery, this.camera);
@@ -78,7 +79,7 @@ void main() {
   });
   tearDown(() async {
     PathProviderPlatform.instance = previous;
-    await dir.delete(recursive: true);
+    await deleteDirectoryWhenReleased(dir, keepLockedLeftovers: true);
   });
   Future<void> drain(WidgetTester tester, {bool Function()? done}) async {
     for (var i = 0; i < 80; i++) {

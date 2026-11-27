@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:Kelivo/core/providers/mcp_provider.dart';
-import 'package:Kelivo/core/services/auth/oauth_callback.dart';
-import 'package:Kelivo/core/services/mcp/mcp_oauth_service.dart';
+import 'package:Cuplivo/core/providers/mcp_provider.dart';
+import 'package:Cuplivo/core/services/auth/oauth_callback.dart';
+import 'package:Cuplivo/core/services/mcp/mcp_oauth_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -1782,8 +1782,19 @@ class _MockMcpServer {
     for (final response in _openStreams) {
       unawaited(response.close());
     }
-    await _server.close(force: true);
-    await _serving.timeout(const Duration(seconds: 1), onTimeout: () {});
+    // A client still reading an SSE response when the case ends makes the
+    // forced close surface `Connection closed while receiving data`. That is
+    // this harness shutting down, not a statement about the provider, and it
+    // was the whole of `docs/flaky-tests.md` §4's entry for this file: it fails
+    // only under full-suite load, where the client is slower than the teardown.
+    try {
+      await _server.close(force: true);
+      await _serving.timeout(const Duration(seconds: 1), onTimeout: () {});
+    } on HttpException {
+      // The socket went away mid-response; the port is released either way.
+    } on SocketException {
+      // Same condition, one layer lower in dart:io.
+    }
   }
 
   Future<void> _serve() async {

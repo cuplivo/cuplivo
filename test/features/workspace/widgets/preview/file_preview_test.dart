@@ -2,23 +2,24 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:markstream/markstream.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/extension_entity_store.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/workspace_binding.dart';
-import 'package:Kelivo/core/providers/settings_provider.dart';
-import 'package:Kelivo/core/providers/workspace_provider.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/workspace/file_link_resolver.dart';
-import 'package:Kelivo/features/chat/pages/image_viewer_page.dart';
-import 'package:Kelivo/features/settings/widgets/custom_theme_widgets.dart';
-import 'package:Kelivo/features/workspace/widgets/preview/code_file_preview.dart';
-import 'package:Kelivo/features/workspace/widgets/preview/file_preview.dart';
-import 'package:Kelivo/icons/lucide_adapter.dart';
-import 'package:Kelivo/l10n/app_localizations.dart';
-import 'package:Kelivo/shared/widgets/custom_bottom_sheet.dart';
-import 'package:Kelivo/shared/widgets/ios_tile_button.dart';
-import 'package:Kelivo/shared/markdown/markdown_with_code_highlight.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/extension_entity_store.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/workspace_binding.dart';
+import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/core/providers/workspace_provider.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/workspace/file_link_resolver.dart';
+import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
+import 'package:Cuplivo/features/settings/widgets/custom_theme_widgets.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/code_file_preview.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/file_preview.dart';
+import 'package:Cuplivo/features/workspace/widgets/preview/preview_text_document.dart';
+import 'package:Cuplivo/icons/lucide_adapter.dart';
+import 'package:Cuplivo/l10n/app_localizations.dart';
+import 'package:Cuplivo/shared/widgets/custom_bottom_sheet.dart';
+import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -167,6 +168,28 @@ Future<void> _loadImagePreview(WidgetTester tester) async {
   await tester.pump();
 }
 
+/// Unmounts the preview and waits until its file handle is released.
+///
+/// The paged text view keeps the file open for random access while it is
+/// mounted, and Windows refuses to delete a tree that still has that handle
+/// (`errno 32`). The close chain is created inside the fake-async test zone, so
+/// it needs both a real event-loop turn (the OS close) and a pump (the zone's
+/// own microtasks). Poll the reader's own signal — never a fixed sleep.
+Future<void> _releasePreview(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  for (var i = 0; i < 50; i++) {
+    if (PreviewTextReader.debugPendingCloseCount == 0) {
+      await tester.pump();
+      return;
+    }
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+  }
+  await tester.pump();
+}
+
 List<int> _png2x2Bytes() {
   final image = image_lib.Image(width: 2, height: 2, numChannels: 4)
     ..clear(image_lib.ColorRgba8(255, 80, 160, 255));
@@ -297,6 +320,10 @@ void main() {
     expect(find.byKey(CodeFilePreview.codeKey), findsNothing);
     expect(find.byType(SelectableText).evaluate().length, lessThan(10));
     expect(tester.takeException(), isNull);
+
+    // The paged view holds its file open for random access until it is
+    // disposed, and the shared tearDown deletes the tree: release it here.
+    await _releasePreview(tester);
   });
 
   testWidgets('showFilePreview opens markdown with a source/rendered toggle', (

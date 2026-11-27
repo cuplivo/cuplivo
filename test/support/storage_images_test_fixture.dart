@@ -2,18 +2,21 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
+
+import 'temp_directory_cleanup.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/models/chat_message.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/models/message_part.dart';
-import 'package:Kelivo/utils/app_directories.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/models/chat_message.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/models/message_part.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 
 class StorageImagesFixture {
   StorageImagesFixture._(this.root, this.database, this.previousPaths)
@@ -42,7 +45,9 @@ class StorageImagesFixture {
   }
 
   Future<File> file(String path, [List<int> bytes = const [1, 2, 3]]) async {
-    final file = File('${root.path}/$path');
+    // The page lists the directories it scans, so a row's path carries the
+    // host's separator; a '/' here made every key comparison miss on Windows.
+    final file = File(p.normalize(p.join(root.path, path)));
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes);
     return file;
@@ -68,7 +73,9 @@ class StorageImagesFixture {
     await database.close();
     PathProviderPlatform.instance = previousPaths;
     SandboxPathResolver.debugSetDirs();
-    await root.delete(recursive: true);
+    // The harness keeps a decoded image handle past the test on Windows, so
+    // the unlink cannot be won there; the directory is per-test and disposable.
+    await deleteDirectoryWhenReleased(root, keepLockedLeftovers: true);
   }
 }
 

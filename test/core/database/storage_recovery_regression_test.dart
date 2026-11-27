@@ -8,23 +8,23 @@ import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:Kelivo/core/database/app_database.dart';
-import 'package:Kelivo/core/services/storage/storage_space.dart';
+import 'package:Cuplivo/core/database/app_database.dart';
+import 'package:Cuplivo/core/services/storage/storage_space.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
-import 'package:Kelivo/core/database/business_preferences.dart';
-import 'package:Kelivo/core/database/business_repository.dart';
-import 'package:Kelivo/core/database/chat_database_repository.dart';
-import 'package:Kelivo/core/database/database_installation_gate.dart';
-import 'package:Kelivo/core/database/private_data_storage.dart';
-import 'package:Kelivo/core/models/conversation.dart';
-import 'package:Kelivo/core/providers/local_snapshot_provider.dart';
-import 'package:Kelivo/core/services/backup/data_sync.dart';
-import 'package:Kelivo/core/services/backup/local_copy_catalog.dart';
-import 'package:Kelivo/core/services/backup/recovery_file_discovery.dart';
-import 'package:Kelivo/core/services/chat/chat_service.dart';
-import 'package:Kelivo/core/services/storage/device_storage_probe.dart';
-import 'package:Kelivo/utils/app_directories.dart';
-import 'package:Kelivo/utils/sandbox_path_resolver.dart';
+import 'package:Cuplivo/core/database/business_preferences.dart';
+import 'package:Cuplivo/core/database/business_repository.dart';
+import 'package:Cuplivo/core/database/chat_database_repository.dart';
+import 'package:Cuplivo/core/database/database_installation_gate.dart';
+import 'package:Cuplivo/core/database/private_data_storage.dart';
+import 'package:Cuplivo/core/models/conversation.dart';
+import 'package:Cuplivo/core/providers/local_snapshot_provider.dart';
+import 'package:Cuplivo/core/services/backup/data_sync.dart';
+import 'package:Cuplivo/core/services/backup/local_copy_catalog.dart';
+import 'package:Cuplivo/core/services/backup/recovery_file_discovery.dart';
+import 'package:Cuplivo/core/services/chat/chat_service.dart';
+import 'package:Cuplivo/core/services/storage/device_storage_probe.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
+import 'package:Cuplivo/utils/sandbox_path_resolver.dart';
 import '../../support/recovery_fault_durability.dart';
 import '../../support/recovery_snapshot_fixture.dart';
 
@@ -237,12 +237,18 @@ void main() {
           ),
         ),
       );
-      final snapshotHash = await digest(snapshot);
-      await PrivateDataStorage.prepare(source: documents, target: private);
       expect(
         (await DataSync.inspectRecoverySnapshot(snapshot)).messageCount,
         42,
       );
+      final snapshotHash = await digest(snapshot);
+      // On a desktop host `BackupStaging` keeps its working directory inside
+      // the iOS private data directory, so inspecting the copy above created
+      // that directory. A device stages in temp and leaves it absent; restore
+      // that state, because the retention step refuses a private directory it
+      // did not create itself.
+      if (await private.exists()) await private.delete(recursive: true);
+      await PrivateDataStorage.prepare(source: documents, target: private);
       final copies = await LocalCopyCatalog(appDataDirectory: private).list();
       expect(
         copies.map((c) => c.file.path),

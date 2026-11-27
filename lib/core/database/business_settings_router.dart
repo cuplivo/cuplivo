@@ -476,6 +476,7 @@ final class BusinessKeyRegistry {
     'translate_visible_languages_v1': KeyRule(
       KeyPolicy.synced,
       PolicyReason.newDeviceConfiguration,
+      'The languages the translate page may offer. Without it a new device inherits the target language but not the set allowed to show it, and silently falls back to its own locale.',
     ),
     'tts_pitch_v1': KeyRule(
       KeyPolicy.synced,

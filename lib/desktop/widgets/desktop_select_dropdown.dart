@@ -6,20 +6,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../icons/lucide_adapter.dart' as lucide;
-import '../../shared/responsive/screen_type_helper.dart';
 import '../../theme/app_semantic_colors.dart';
-import '../../utils/platform_utils.dart';
 
 class DesktopSelectOption<T> {
   const DesktopSelectOption({
     required this.value,
     required this.label,
     this.subtitle,
+    this.leading,
   });
 
   final T value;
   final String label;
   final String? subtitle;
+
+  /// Optional leading glyph rendered before the label (e.g. a flag emoji).
+  final String? leading;
 }
 
 bool _optionHasSubtitle<T>(DesktopSelectOption<T> option) {
@@ -43,7 +45,9 @@ class DesktopSelectDropdown<T> extends StatefulWidget {
     this.triggerForegroundColor,
     this.menuBackgroundColor,
     this.embedded = false,
+    this.footer,
     this.enabled = true,
+    this.focusable = false,
     this.focusNode,
     this.placeholder = '',
     this.semanticLabel,
@@ -64,6 +68,11 @@ class DesktopSelectDropdown<T> extends StatefulWidget {
   final Color? triggerForegroundColor;
   final Color? menuBackgroundColor;
   final bool enabled;
+
+  /// Join keyboard focus traversal. Off by default so a dropdown embedded in a
+  /// toolbar is reached with the mouse and does not add a tab stop; a dropdown
+  /// that is the page's primary control opts in.
+  final bool focusable;
   final FocusNode? focusNode;
   final String placeholder;
   final String? semanticLabel, semanticHint;
@@ -71,6 +80,11 @@ class DesktopSelectDropdown<T> extends StatefulWidget {
   /// Hide the trigger chrome so a parent field (for example
   /// [InputDecorator]) can supply the border and fill.
   final bool embedded;
+
+  /// Optional footer widget rendered below the option list, after a divider
+  /// (e.g. a "Manage…" action). Tapping it closes the menu before its own
+  /// action runs, so it never launches a modal underneath an open menu.
+  final Widget? footer;
 
   @override
   State<DesktopSelectDropdown<T>> createState() =>
@@ -86,6 +100,19 @@ class _DesktopSelectDropdownState<T> extends State<DesktopSelectDropdown<T>> {
   final LayerLink _link = LayerLink();
   final GlobalKey _triggerKey = GlobalKey();
   OverlayEntry? _entry;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyFocusable();
+  }
+
+  /// A trigger built with `focusable: false` stays out of the tab order but
+  /// still answers pointer taps.
+  void _applyFocusable() {
+    _ownFocus.canRequestFocus = widget.focusable;
+    _ownFocus.skipTraversal = !widget.focusable;
+  }
 
   @override
   void dispose() {
@@ -120,6 +147,7 @@ class _DesktopSelectDropdownState<T> extends State<DesktopSelectDropdown<T>> {
   @override
   void didUpdateWidget(DesktopSelectDropdown<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusable != widget.focusable) _applyFocusable();
     final sameOptions =
         oldWidget.options.length == widget.options.length &&
         List.generate(
@@ -127,7 +155,8 @@ class _DesktopSelectDropdownState<T> extends State<DesktopSelectDropdown<T>> {
           (i) =>
               oldWidget.options[i].value == widget.options[i].value &&
               oldWidget.options[i].label == widget.options[i].label &&
-              oldWidget.options[i].subtitle == widget.options[i].subtitle,
+              oldWidget.options[i].subtitle == widget.options[i].subtitle &&
+              oldWidget.options[i].leading == widget.options[i].leading,
         ).every((same) => same);
     if (_open && (!widget.enabled || !sameOptions)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -142,11 +171,11 @@ class _DesktopSelectDropdownState<T> extends State<DesktopSelectDropdown<T>> {
     }
   }
 
-  String _labelForValue(T v) {
+  DesktopSelectOption<T>? _optionForValue(T v) {
     for (final opt in widget.options) {
-      if (opt.value == v) return opt.label;
+      if (opt.value == v) return opt;
     }
-    return widget.placeholder;
+    return null;
   }
 
   Color _defaultMenuBackground(BuildContext context) {
@@ -160,40 +189,23 @@ class _DesktopSelectDropdownState<T> extends State<DesktopSelectDropdown<T>> {
     final triggerSize = rb.size;
     final triggerWidth = triggerSize.width;
     final hasSubtitles = widget.options.any(_optionHasSubtitle);
-    final desktop =
-        PlatformUtils.isDesktopTarget || ResponsiveHelper.isDesktop(context);
     var overlayWidth = triggerWidth;
-    if (!hasSubtitles || desktop) {
-      final labelStyle = DefaultTextStyle.of(context).style.merge(
-        TextStyle(fontSize: 14, fontWeight: AppFontWeights.semibold),
-      );
-      var labelWidth = 0.0;
-      for (final option in widget.options) {
-        final painter = TextPainter(
-          text: TextSpan(text: option.label, style: labelStyle),
-          textDirection: Directionality.of(context),
-          textScaler: MediaQuery.textScalerOf(context),
-        )..layout();
-        labelWidth = math.max(labelWidth, painter.width);
-        painter.dispose();
-      }
-      // Include item padding and the checkmark, even for a narrow trigger.
-      final contentWidth = math.max(
-        labelWidth + 60,
-        hasSubtitles ? 360.0 : 0.0,
-      );
-      overlayWidth = math.max(triggerWidth, math.min(contentWidth, 440));
+    var overlayDx = 0.0;
+    if (hasSubtitles) {
+      overlayWidth = triggerWidth < 360 ? 360.0 : triggerWidth;
+      if (overlayWidth > 440) overlayWidth = 440.0;
+      overlayDx = triggerWidth - overlayWidth;
     }
     final overlay = Overlay.of(context);
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
     final origin = rb.localToGlobal(Offset.zero, ancestor: overlayBox);
     final size = overlayBox.size;
     overlayWidth = overlayWidth.clamp(0, math.max(0, size.width - 16));
-    final left = (origin.dx + triggerWidth - overlayWidth).clamp(
+    final left = (origin.dx + overlayDx).clamp(
       8.0,
       math.max(8, size.width - overlayWidth - 8),
     );
-    final overlayDx = left - origin.dx;
+    overlayDx = left - origin.dx;
     final below = size.height - origin.dy - triggerSize.height - 14;
     final above = origin.dy - 14;
     final upward = below < 180 && above > below;
@@ -225,6 +237,7 @@ class _DesktopSelectDropdownState<T> extends State<DesktopSelectDropdown<T>> {
                 backgroundColor: bgColor,
                 options: widget.options,
                 selected: widget.value,
+                footer: widget.footer,
                 onSelected: (v) async {
                   _close();
                   await widget.onSelected(v);
@@ -243,7 +256,9 @@ class _DesktopSelectDropdownState<T> extends State<DesktopSelectDropdown<T>> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final label = _labelForValue(widget.value);
+    final selected = _optionForValue(widget.value);
+    final label = selected?.label ?? widget.placeholder;
+    final leading = selected?.leading;
 
     final baseBorder = widget.embedded
         ? Colors.transparent
@@ -326,12 +341,25 @@ class _DesktopSelectDropdownState<T> extends State<DesktopSelectDropdown<T>> {
                           final availableWidth = constraints.hasBoundedWidth
                               ? constraints.maxWidth
                               : widget.maxLabelWidth + 24;
-                          final labelMaxWidth = (availableWidth - 24)
-                              .clamp(0.0, widget.maxLabelWidth)
-                              .toDouble();
+                          final labelMaxWidth =
+                              (availableWidth -
+                                      24 -
+                                      (leading == null ? 0.0 : 24.0))
+                                  .clamp(0.0, widget.maxLabelWidth)
+                                  .toDouble();
                           return Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              if (leading != null) ...[
+                                Text(
+                                  leading,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    height: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
                               ConstrainedBox(
                                 constraints: BoxConstraints(
                                   maxWidth: labelMaxWidth,
@@ -397,6 +425,7 @@ class _DesktopSelectOverlay<T> extends StatefulWidget {
     required this.options,
     required this.selected,
     required this.onSelected,
+    this.footer,
   });
 
   final double width;
@@ -406,6 +435,7 @@ class _DesktopSelectOverlay<T> extends StatefulWidget {
   final List<DesktopSelectOption<T>> options;
   final T selected;
   final ValueChanged<T> onSelected;
+  final Widget? footer;
 
   @override
   State<_DesktopSelectOverlay<T>> createState() =>
@@ -527,10 +557,24 @@ class _DesktopSelectOverlayState<T> extends State<_DesktopSelectOverlay<T>>
                     focusNode: _focus[i],
                     onFocused: () => _active = i,
                     label: widget.options[i].label,
+                    leading: widget.options[i].leading,
                     subtitle: widget.options[i].subtitle,
                     selected: widget.selected == widget.options[i].value,
                     onTap: () => widget.onSelected(widget.options[i].value),
                   ),
+                if (widget.footer != null) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Listener(
+                      behavior: HitTestBehavior.translucent,
+                      // Close before the footer's own action runs, so a launched
+                      // modal never sits under an open menu.
+                      onPointerDown: (_) => widget.onClose(),
+                      child: widget.footer!,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -554,10 +598,12 @@ class _DesktopSelectOptionTile extends StatefulWidget {
     required this.selected,
     required this.onTap,
     this.subtitle,
+    this.leading,
   });
 
   final String label;
   final String? subtitle;
+  final String? leading;
   final bool selected;
   final VoidCallback onTap;
   final FocusNode focusNode;
@@ -576,6 +622,8 @@ class _DesktopSelectOptionTileState extends State<_DesktopSelectOptionTile> {
   Widget _labelColumn(ColorScheme cs) {
     final label = Text(
       widget.label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: TextStyle(
         fontSize: 14,
         color: cs.onSurface.withValues(alpha: 0.88),
@@ -674,6 +722,13 @@ class _DesktopSelectOptionTileState extends State<_DesktopSelectOptionTile> {
                   ),
                   child: Row(
                     children: [
+                      if (widget.leading != null) ...[
+                        Text(
+                          widget.leading!,
+                          style: const TextStyle(fontSize: 16, height: 1),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       Expanded(child: _labelColumn(cs)),
                       const SizedBox(width: 8),
                       Icon(

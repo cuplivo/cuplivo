@@ -8,6 +8,7 @@ import '../../../core/services/api/chat_api_service.dart';
 import '../../../core/services/api/retry_policy.dart';
 import '../../../core/services/api/stream/stream_chunk.dart';
 import '../../../core/services/chat/chat_service.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../settings/widgets/language_select_sheet.dart';
 
 /// 翻译结果类型
@@ -98,6 +99,7 @@ class TranslationService {
     // Resolve a fresh context per call to avoid holding on to a stale BuildContext.
     final context = _getContext();
     final settings = context.read<SettingsProvider>();
+    final l10n = AppLocalizations.of(context)!;
     final assistant = context.read<AssistantProvider>().currentAssistant;
 
     // 显示语言选择器
@@ -144,7 +146,10 @@ class TranslationService {
       // 构建翻译 prompt
       String prompt = settings.translatePrompt
           .replaceAll('{source_text}', textToTranslate)
-          .replaceAll('{target_lang}', language.displayName);
+          .replaceAll(
+            '{target_lang}',
+            translateLanguageDisplayName(l10n, language.code),
+          );
 
       // 创建翻译请求
       final provider = settings.getProviderConfig(translateProvider);

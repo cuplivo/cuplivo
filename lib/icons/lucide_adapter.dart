@@ -47,6 +47,7 @@ class Lucide {
   static const IconData Monitor = lucide.LucideIcons.monitor;
   static const IconData Heart = lucide.LucideIcons.heart;
   static const IconData Boxes = lucide.LucideIcons.boxes;
+  static const IconData LayoutGrid = lucide.LucideIcons.layoutGrid;
   static const IconData Volume2 = lucide.LucideIcons.volume2;
   static const IconData Terminal = lucide.LucideIcons.terminal;
   static const IconData Database = lucide.LucideIcons.database;
@@ -71,6 +72,7 @@ class Lucide {
   static const IconData Wrench = lucide.LucideIcons.wrench;
   static const IconData Minus = lucide.LucideIcons.minus;
   static const IconData Type = lucide.LucideIcons.type;
+  static const IconData Smile = lucide.LucideIcons.smile;
   static const IconData ChevronRight = lucide.LucideIcons.chevronRight;
   static const IconData Copy = lucide.LucideIcons.copy;
   static const IconData RefreshCw = lucide.LucideIcons.refreshCw;
@@ -78,6 +80,9 @@ class Lucide {
   static const IconData MoreVertical = lucide.LucideIcons.ellipsis;
   static const IconData Languages = lucide.LucideIcons.languages;
   static const IconData User = lucide.LucideIcons.user;
+  static const IconData Users = lucide.LucideIcons.users;
+  static const IconData UserPlus = lucide.LucideIcons.userPlus;
+  static const IconData Circle = lucide.LucideIcons.circle;
   static const IconData Hammer = lucide.LucideIcons.hammer;
   static const IconData ToolCase = lucide.LucideIcons.toolCase;
   static const IconData Brain = lucide.LucideIcons.brain;
@@ -128,6 +133,8 @@ class Lucide {
   static const IconData chevronDown = lucide.LucideIcons.chevronDown;
   static const IconData panelLeft = lucide.LucideIcons.panelLeft;
   static const IconData panelRight = lucide.LucideIcons.panelRight;
+  static const IconData PanelLeftClose = lucide.LucideIcons.panelLeftClose;
+  static const IconData PanelLeftOpen = lucide.LucideIcons.panelLeftOpen;
   static const IconData Square = lucide.LucideIcons.square;
   static const IconData Download = lucide.LucideIcons.download;
   static const IconData ZoomIn = lucide.LucideIcons.zoomIn;
@@ -137,6 +144,7 @@ class Lucide {
   static const IconData Map = lucide.LucideIcons.map;
   static const IconData MapPin = lucide.LucideIcons.mapPin;
   static const IconData CloudSun = lucide.LucideIcons.cloudSun;
+  static const IconData CloudOff = lucide.LucideIcons.cloudOff;
   static const IconData ListTodo = lucide.LucideIcons.listTodo;
   static const IconData ListPlus = lucide.LucideIcons.listPlus;
   static const IconData SquarePen = lucide.LucideIcons.squarePen;

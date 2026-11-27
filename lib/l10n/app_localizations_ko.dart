@@ -2340,7 +2340,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '이 백업은 Cherry Studio 형식 버전 $version을(를) 사용하며, Cuplivo에서는 아직 가져올 수 없습니다. Cherry Studio v1에서 내보내거나 Cherry Studio v2 백업을 지원하는 Cuplivo 업데이트를 기다리세요.';
+    return 'Cherry Studio 2.x 백업(형식 버전 $version)으로, 앱에서 직접 가져올 수 없습니다. 공식 도구 상자에서 Kelivo 백업으로 변환한 뒤 \'백업 파일 가져오기\'에서 \'병합\'을 선택하세요. 변환은 브라우저에서 로컬로 이루어지며 파일은 업로드되지 않습니다.';
   }
 
   @override

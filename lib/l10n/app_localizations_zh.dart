@@ -2287,7 +2287,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此备份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
+    return '这是 Cherry Studio 2.x 备份（格式版本 $version），App 里暂时不能直接导入。请到官方工具箱转换成 Kelivo 备份，再回到「备份文件导入」，并选择「合并」。转换在浏览器本地完成，文件不会上传。';
   }
 
   @override
@@ -21060,7 +21060,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此备份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚无法导入。请改用 Cherry Studio v1 导出备份，或等待后续版本支持 Cherry Studio v2。';
+    return '这是 Cherry Studio 2.x 备份（格式版本 $version），App 里暂时不能直接导入。请到官方工具箱转换成 Kelivo 备份，再回到「备份文件导入」，并选择「合并」。转换在浏览器本地完成，文件不会上传。';
   }
 
   @override
@@ -39839,7 +39839,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return '此備份使用 Cherry Studio 格式版本 $version，Cuplivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。';
+    return '這是 Cherry Studio 2.x 備份（格式版本 $version），App 裡暫時無法直接匯入。請到官方工具箱轉換成 Kelivo 備份，再回到「備份檔案匯入」，並選擇「合併」。轉換在瀏覽器本機完成，檔案不會上傳。';
   }
 
   @override

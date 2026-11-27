@@ -2428,7 +2428,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return 'Эта резервная копия использует версию формата Cherry Studio $version, которую Cuplivo пока не может импортировать. Экспортируйте резервную копию из Cherry Studio v1 или дождитесь обновления Cuplivo с поддержкой резервных копий Cherry Studio v2.';
+    return 'Это резервная копия Cherry Studio 2.x (версия формата $version), её нельзя импортировать в приложение напрямую. Конвертируйте её официальными инструментами в резервную копию Kelivo, затем откройте «Импорт файла резервной копии» и выберите «Объединение». Конвертация выполняется локально в браузере, файл не загружается.';
   }
 
   @override

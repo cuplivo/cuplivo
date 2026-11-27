@@ -720,7 +720,7 @@
   "backupPageLocalBackup": "本機備份",
   "backupPageIosSystemBackupNote": "Cuplivo 的本機資料不參與 iCloud 系統備份。更換裝置或解除安裝 App 前，請將備份儲存到 iCloud 雲碟或 Cuplivo 以外的資料夾。「我的 iPhone > Cuplivo」中的檔案會隨 App 解除安裝而刪除。",
   "backupPageImportFromCherryStudio": "從 Cherry Studio 匯入",
-  "backupPageCherryStudioUnsupportedBackupVersion": "此備份使用 Cherry Studio 格式版本 {version}，Cuplivo 目前尚無法匯入。請改用 Cherry Studio v1 匯出備份，或等待後續版本支援 Cherry Studio v2。",
+  "backupPageCherryStudioUnsupportedBackupVersion": "這是 Cherry Studio 2.x 備份（格式版本 {version}），App 裡暫時無法直接匯入。請到官方工具箱轉換成 Kelivo 備份，再回到「備份檔案匯入」，並選擇「合併」。轉換在瀏覽器本機完成，檔案不會上傳。",
   "backupPageImportFromChatbox": "從 Chatbox 匯入",
   "backupReminderSectionTitle": "備份提醒",
   "backupReminderEnableTitle": "定期提醒我備份",

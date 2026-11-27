@@ -237,6 +237,30 @@ The four Windows cases were repairable on the spot and are repaired (23 → 17):
 The 17 that remain are the string/seam classes (2–4 above) — they belong to the units whose subjects
 they name, and the tip's gate is where they close.
 
+### The second pass: 23 → 13, and three of the classes are not the tree's
+
+- **4 repaired.** `backupPageCherryStudioUnsupportedBackupVersion` now takes upstream's value. The
+  fork's text told the reader to export an older Cherry Studio format, which stopped being true the
+  moment this tree gained upstream's toolbox — and upstream's new tests assert the toolbox wording,
+  so the earlier "both sides changed, keep ours" was right for v1.3.6 and wrong here. The key joins
+  the ARB whitelist beside the two other toolbox strings, because all three describe the same
+  `Kelivo` archive. Two more are path spellings: `data_sync_backup_file_test` compared `fix()`'s
+  result with `'${root}/upload/pic.png'`; it uses `p.join` now.
+- **5 are this machine's, not the tree's.** This shell exports `HTTP_PROXY`/`HTTPS_PROXY`, and
+  `workspace_image_download`'s guard — upstream's file, byte-identical to `v1.3.7` — refuses when
+  `HttpClient.findProxyFromEnvironment` is anything but DIRECT. A one-file probe settles it:
+  `findProxyFromEnvironment('http://127.0.0.1:9/x')` is DIRECT, `('https://example.com/x')` is
+  `PROXY 127.0.0.1:10808`. The five `view_image` cases stub *public* URLs, so they trip a guard that
+  is doing exactly what it says. CI has no proxy; nothing here should change for them.
+- **2 are font metrics.** `world_book_page` measures a label and a badge 49 px apart at text scale
+  1.4 with a CJK-bearing title — the same rasteriser difference that made the golden layer a
+  per-platform registration, and not something a test-side tolerance should paper over.
+
+**6 remain real**: `storage_space_images` ×2 (the deletion snackbar never appears), `data_sync` ×1
+(the startup snapshot retry), `tool_handler_skills_refresh` ×3 (a renamed skill shows twice — the
+visible list gains the new name without dropping the old). None of them is identity or l10n; all
+three are behaviour the new baseline moved, and each is worth its own look rather than a guess.
+
 ## Procedure for this attempt
 
 ```bash

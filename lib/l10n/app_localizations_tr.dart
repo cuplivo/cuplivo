@@ -2403,7 +2403,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String backupPageCherryStudioUnsupportedBackupVersion(String version) {
-    return 'Bu yedek, Cuplivo\'nun henüz içe aktaramadığı Cherry Studio biçim sürümü $version kullanıyor. Bunun yerine Cherry Studio v1\'den dışa aktarın veya Cherry Studio v2 yedeklerini destekleyen bir Cuplivo güncellemesini bekleyin.';
+    return 'Bu bir Cherry Studio 2.x yedeği (biçim sürümü $version) ve uygulamada doğrudan içe aktarılamaz. Resmi araç kutusuyla Kelivo yedeğine dönüştürün, ardından Yedek Dosyasını İçe Aktar\'ı kullanıp Birleştir\'i seçin. Dönüştürme tarayıcınızda gerçekleşir; dosya yüklenmez.';
   }
 
   @override

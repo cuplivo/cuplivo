@@ -46,7 +46,8 @@
       "backupPageTargetKelivo",
       "backupPageTargetKelivoNote",
       "backupPageChatboxUnsupportedBackupVersion",
-      "backupPageImportFromOtherAppsSubtitle"
+      "backupPageImportFromOtherAppsSubtitle",
+      "backupPageCherryStudioUnsupportedBackupVersion"
     ],
     "why": "the keys whose string names the other application because it describes *that* product: the two backup-target labels, and the two v1.3.7 strings that walk a reader through the official toolbox converting a foreign backup into a Kelivo archive. The archive those strings describe really is Kelivo's, so renaming it would make the string false — the same reasoning the protected list uses for `kelivo.psycheas.top`"
   },

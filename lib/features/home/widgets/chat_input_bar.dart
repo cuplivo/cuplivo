@@ -384,6 +384,22 @@ class ChatInputBarController {
   }
 
   void clearImages() => _state?._clearImages();
+
+  /// Whether every long paste this controller started has finished writing, and
+  /// released its file if the draft no longer wanted it.
+  ///
+  /// The write tail already serialises pastes; this mirrors its state so a test
+  /// can observe it after the widget that started the paste is gone.
+  bool _textPasteWriteSettled = true;
+
+  void _trackTextPasteWrite(Future<void> write) {
+    _textPasteWriteSettled = false;
+    unawaited(write.whenComplete(() => _textPasteWriteSettled = true));
+  }
+
+  @visibleForTesting
+  bool get debugTextPasteWriteSettled => _textPasteWriteSettled;
+
   void addFiles(List<DocumentAttachment> docs) {
     if (_currentTarget) {
       _root._state?._addFiles(docs);
@@ -3214,6 +3230,7 @@ class _ChatInputBarState extends State<ChatInputBar>
     final previousWrite = _textPasteWriteTail;
     final writeDone = Completer<void>();
     _textPasteWriteTail = writeDone.future;
+    (target ?? widget.mediaController)?._trackTextPasteWrite(writeDone.future);
 
     try {
       await previousWrite;
@@ -3238,10 +3255,18 @@ class _ChatInputBarState extends State<ChatInputBar>
         );
       } catch (_) {}
 
+      // An attachment cannot outlive the composer that owns it. A draft keeps
+      // text, not files, so adopting a file into a composer that is already gone
+      // leaves a file nobody will ever release — the superseded-paste leak the
+      // cleanup test pins, and the reason the `retained` path below inserts the
+      // *text* instead. A live composer still adopts the attachment; the two
+      // `mounted` uses here are the whole decision, and there is exactly one
+      // adoption site for a pasted text file in this file.
       if (attachment != null &&
+          mounted &&
           ((retained && target.isValid) ||
-              (mounted && _pendingTextPasteIds.contains(pasteId)))) {
-        if (mounted) setState(() => _pendingTextPasteIds.remove(pasteId));
+              _pendingTextPasteIds.contains(pasteId))) {
+        setState(() => _pendingTextPasteIds.remove(pasteId));
         if (target != null) {
           target.addFiles([attachment]);
         } else {

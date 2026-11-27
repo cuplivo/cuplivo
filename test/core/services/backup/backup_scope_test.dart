@@ -5,6 +5,7 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -252,19 +253,27 @@ void main() {
               entry.value,
             );
           }
+          // The archive is staged inside the app's own data root on a desktop
+          // host, and this test deletes that root to simulate an uninstall. A
+          // real user's copy lives wherever they saved it, so keep one outside
+          // the container being removed.
+          final keptBackup = File('${root.path}/saved-backup.zip');
+          await backup.copy(keptBackup.path);
           // Simulate uninstalling the old app: original absolute paths no longer exist.
           await oldContent.delete(recursive: true);
           PathProviderPlatform.instance = _Paths(
-            '${root.path}/new-container',
+            p.join(root.path, 'new-container'),
             separateDirectories: true,
           );
           await SandboxPathResolver.init();
           await importer.restoreFromLocalFile(
-            backup,
+            keptBackup,
             WebDavConfig(scope: scope),
             mode: mode,
           );
           final newContent = await AppDirectories.getContentDirectory();
+          // AppDirectories joins with '/', so compare against a canonical root.
+          final newRoot = p.normalize(newContent.path);
           for (final entry in assets.entries) {
             expect(
               await File('${newContent.path}/${entry.key}').readAsString(),
@@ -279,14 +288,14 @@ void main() {
           final assistant = assistants.assistants.singleWhere(
             (a) => a.id == 'source',
           );
-          expect(assistant.avatar, '${newContent.path}/avatars/assistant.png');
+          expect(assistant.avatar, p.join(newRoot, 'avatars', 'assistant.png'));
           expect(
             assistant.background,
-            '${newContent.path}/images/background.png',
+            p.join(newRoot, 'images', 'background.png'),
           );
           expect(
             SandboxPathResolver.fix(preferences.getString('avatar_value')!),
-            '${newContent.path}/avatars/user.png',
+            p.join(newRoot, 'avatars', 'user.png'),
           );
           final providers =
               jsonDecode(preferences.getString('provider_configs_v1')!) as Map;
@@ -294,14 +303,14 @@ void main() {
             SandboxPathResolver.fix(
               providers['source']['avatarValue'] as String,
             ),
-            '${newContent.path}/avatars/provider.png',
+            p.join(newRoot, 'avatars', 'provider.png'),
           );
           expect(
             SandboxPathResolver.fix(
               providers['source']['modelOverrides']['model']['avatar']['value']
                   as String,
             ),
-            '${newContent.path}/avatars/model.png',
+            p.join(newRoot, 'avatars', 'model.png'),
           );
         },
       );
@@ -771,7 +780,9 @@ void main() {
       final candidate =
           (await workspace
                   .list(recursive: true)
-                  .where((e) => e is Directory && e.path.endsWith('/candidate'))
+                  .where(
+                    (e) => e is Directory && p.basename(e.path) == 'candidate',
+                  )
                   .toList())
               .single;
       expect(await Directory('${candidate.path}/upload').exists(), isFalse);

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -21,6 +22,7 @@ import 'package:Cuplivo/features/settings/pages/storage_space_page.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/ios_checkbox.dart';
 import 'package:Cuplivo/shared/widgets/ios_tile_button.dart';
+import 'package:Cuplivo/utils/app_directories.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
 
 import '../../../support/storage_images_test_fixture.dart';
@@ -479,7 +481,14 @@ void main() {
         );
         await filter('头像与背景');
         expect(find.text('共 2 项'), findsOneWidget);
-        final activeTile = find.byKey(ValueKey('storage-image-${active.path}'));
+        final avatars = await AppDirectories.getAvatarsDirectory();
+        // The directory itself may spell '/', so the row the page keys by is
+        // the normalised path (AppDirectories builds '<root>/avatars').
+        final activeTile = find.byKey(
+          ValueKey(
+            'storage-image-${p.normalize(p.join(avatars.path, 'active.png'))}',
+          ),
+        );
         expect(
           find.descendant(of: activeTile, matching: find.byType(IosCheckbox)),
           findsNothing,

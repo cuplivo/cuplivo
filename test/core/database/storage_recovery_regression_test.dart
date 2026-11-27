@@ -237,12 +237,18 @@ void main() {
           ),
         ),
       );
-      final snapshotHash = await digest(snapshot);
-      await PrivateDataStorage.prepare(source: documents, target: private);
       expect(
         (await DataSync.inspectRecoverySnapshot(snapshot)).messageCount,
         42,
       );
+      final snapshotHash = await digest(snapshot);
+      // On a desktop host `BackupStaging` keeps its working directory inside
+      // the iOS private data directory, so inspecting the copy above created
+      // that directory. A device stages in temp and leaves it absent; restore
+      // that state, because the retention step refuses a private directory it
+      // did not create itself.
+      if (await private.exists()) await private.delete(recursive: true);
+      await PrivateDataStorage.prepare(source: documents, target: private);
       final copies = await LocalCopyCatalog(appDataDirectory: private).list();
       expect(
         copies.map((c) => c.file.path),

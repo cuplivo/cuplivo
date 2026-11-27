@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../desktop/macos_window_drag_area.dart';
 import '../../../core/database/business_repository.dart';
@@ -2618,7 +2619,9 @@ class _UploadManagerState extends State<_UploadManager> {
                 final e = entries[index];
                 final selected = _selectMode && _selected.contains(e.path);
                 return _ImageTile(
-                  key: ValueKey('storage-image-${e.path}'),
+                  // The scanned directory may spell '/' (AppDirectories), so
+                  // the row's test key is the file's own native path.
+                  key: ValueKey('storage-image-${p.normalize(e.path)}'),
                   entry: e,
                   selected: selected,
                   onToggle: () => _toggleSelect(e.path),

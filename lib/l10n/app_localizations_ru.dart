@@ -1065,6 +1065,20 @@ class AppLocalizationsRu extends AppLocalizations {
   String get assistantEditMaxTokensHint => 'Без ограничений';
 
   @override
+  String get assistantEditDescriptionTitle => 'Описание';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      'Читается только при планировании групповых чатов и делегировании. Оставьте пустым, если этим не пользуетесь.';
+
+  @override
+  String get assistantEditDescriptionHint =>
+      'напр. Писать SQL по запросу и объяснять план запроса';
+
+  @override
+  String get assistantEditDescriptionSet => 'Заполнено';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Фон чата';
 
   @override
@@ -1085,6 +1099,71 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get desktopNavStorageTooltip => 'Хранилище';
+
+  @override
+  String get toolsMenuTooltip => 'Инструменты';
+
+  @override
+  String get markdownExportTitle => 'Markdown-изображение';
+
+  @override
+  String get markdownExportEditTab => 'Редактирование';
+
+  @override
+  String get markdownExportPreviewTab => 'Предпросмотр';
+
+  @override
+  String get markdownExportHint =>
+      'Вставьте Markdown или импортируйте файл .md';
+
+  @override
+  String get markdownExportPreviewEmpty => 'Пока нечего просматривать';
+
+  @override
+  String get markdownExportImport => 'Импорт';
+
+  @override
+  String get markdownExportPaste => 'Вставить';
+
+  @override
+  String get markdownExportTextSize => 'Размер текста';
+
+  @override
+  String get markdownExportTextSizeSmall => 'Мелкий';
+
+  @override
+  String get markdownExportTextSizeStandard => 'Стандартный';
+
+  @override
+  String get markdownExportTextSizeLarge => 'Крупный';
+
+  @override
+  String get markdownExportHideSource => 'Скрыть исходник';
+
+  @override
+  String get markdownExportShowSource => 'Показать исходник';
+
+  @override
+  String get markdownExportReducedResolution =>
+      'Длинный документ: отрисован в пониженном разрешении, чтобы уместиться в одно изображение';
+
+  @override
+  String get markdownExportExportImage => 'Экспортировать изображение';
+
+  @override
+  String get markdownExportDropHint =>
+      'Отпустите, чтобы импортировать Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile =>
+      'Поддерживаются только текстовые файлы Markdown';
+
+  @override
+  String get markdownExportReadFailed => 'Не удалось прочитать этот файл';
+
+  @override
+  String get markdownExportNothingToPaste =>
+      'В буфере обмена нет подходящего содержимого';
 
   @override
   String get desktopNavGlobalSearchTooltip => 'Глобальный поиск';
@@ -1748,6 +1827,25 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => 'Цель резервной копии';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote =>
+      'Всё, что эта версия может восстановить, включая групповые чаты';
+
+  @override
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
+
+  @override
+  String get backupPageTargetKelivoNote =>
+      'Импортируется в Kelivo, но групповые чаты теряются';
+
+  @override
   String get backupPageBackupManagementDescription =>
       'Выберите, что копировать и импортировать. Применяется к локальным, WebDAV и S3 резервным копиям. Невыбранное содержимое при импорте остаётся без изменений. Навыки и рабочие области включают собственные файлы.';
 
@@ -1776,7 +1874,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Быстрые фразы';
 
   @override
-  String get backupPageInstructionsLabel => 'Внедрения промптов';
+  String get backupPageInstructionsLabel => 'Библиотека промптов';
 
   @override
   String get backupPageWorkspacesLabel => 'Рабочие области';
@@ -2620,6 +2718,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get bottomToolsSheetOcr => 'OCR изображений';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools =>
+      'Модель этого участника не поддерживает вызов инструментов.';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled =>
+      'У этого участника не включено ни одного инструмента.';
+
+  @override
   String get messageMoreSheetTitle => 'Другие действия';
 
   @override
@@ -2857,6 +2963,103 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String chatMessageWidgetWebFetch(String target) {
     return 'Чтение страницы: $target';
+  }
+
+  @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Поручить субагенту: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return 'Делегировать $assistant: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Субагент завершил';
+
+  @override
+  String get subagentResultFailed => 'Субагент не справился';
+
+  @override
+  String get subagentResultCancelled => 'Субагент отменён';
+
+  @override
+  String get subagentResultInterrupted => 'Субагент прерван';
+
+  @override
+  String get subagentMailLabel => 'Сообщение субагента';
+
+  @override
+  String get subagentMailDelegatorLabel => 'Сообщение делегатора';
+
+  @override
+  String get subagentMailOpenConversation => 'Открыть чат';
+
+  @override
+  String get subagentMailCopy => 'Копировать';
+
+  @override
+  String get subagentMailCopied => 'Скопировано';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Субагент работает ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Субагентов работает: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Субагент ждёт вашего ответа · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return 'Субагентов: $count ($running работают)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Субагенту нужно разрешение · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Субагенты';
+
+  @override
+  String get subagentPanelEmpty => 'В этом разговоре пока нет субагентов.';
+
+  @override
+  String get subagentTag => 'Субагент';
+
+  @override
+  String get subagentPanelRunning => 'Работает';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Ждёт ответа';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Ждёт разрешения';
+
+  @override
+  String get subagentPanelCompleted => 'Завершено';
+
+  @override
+  String get subagentPanelFailed => 'Ошибка';
+
+  @override
+  String get subagentPanelCancelled => 'Отменено';
+
+  @override
+  String get subagentPanelInterrupted => 'Прервано';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes мин $seconds с';
   }
 
   @override
@@ -3404,6 +3607,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatInputBarMoreTooltip => 'Добавить';
 
   @override
+  String get chatInputBarOverflowTooltip => 'Другие действия';
+
+  @override
   String get chatInputBarVoiceInputTooltip => 'Голосовой ввод';
 
   @override
@@ -3651,6 +3857,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mcpServerEditSheetEnabledLabel => 'Включено';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'Только это устройство';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Сохранено, но этот сервер не удалось оставить только на этом устройстве.';
 
   @override
   String get mcpServerEditSheetNameLabel => 'Название';
@@ -3935,6 +4148,32 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Эмбеддинг';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Решение';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'API решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Адрес решений';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Пусто — дополняется к адресу провайдера';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Некоторые провайдеры дают доступ к моделям решений по отдельному адресу — укажите путь, чтобы переопределить адрес по умолчанию.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Заполнить';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Текущий';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Байлянь';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Режимы ввода';
@@ -12119,6 +12358,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backgroundGenerating => 'Генерация ответа';
 
   @override
+  String get backgroundCareLetter => 'Пишем письмо';
+
+  @override
+  String get backgroundCareWorking => 'Готовим ваше письмо';
+
+  @override
   String get backgroundThinking => 'Размышление';
 
   @override
@@ -16158,6 +16403,68 @@ class AppLocalizationsRu extends AppLocalizations {
   String get retry => 'Повторить';
 
   @override
+  String get imageJobTitle => 'Иллюстрация';
+
+  @override
+  String get imageJobFailed => 'Не удалось создать иллюстрацию';
+
+  @override
+  String get imageJobInterrupted => 'Иллюстрация прервана';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Рисование';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => 'Субагент';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Ожидание задачи';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => 'Отправить сообщение';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Остановить субагента';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Модель изображений';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'Модель, которая рисует картинки в ответе; если не задана, рисование отключено.';
+
+  @override
+  String get imageJobPanelCopy => 'Копировать';
+
+  @override
+  String get imageJobPanelPromptLabel => 'Запрос';
+
+  @override
+  String get imageJobPanelModelLabel => 'Модель';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Размер';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Затраченное время';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Использование';
+
+  @override
+  String get imageJobPanelAuto => 'Авто';
+
+  @override
+  String get imageJobPanelOneImage => '1 изображение';
+
+  @override
+  String get imageJobNotConfigured => 'Не настроено · Выбрать';
+
+  @override
+  String get imageModelFollowGlobal =>
+      'Использовать модель изображений по умолчанию';
+
+  @override
   String get recoveryGuideTitle => 'Восстановим ваши чаты';
 
   @override
@@ -17179,9 +17486,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chatMessageWidgetReplySelection => 'Ответить';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => 'Пользователь';
 
   @override
@@ -17299,6 +17603,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => 'Готово';
+
+  @override
+  String get pdfExportResultSave => 'Сохранить PDF';
 
   @override
   String get sideDrawerMenuCopyLink => 'Копировать ссылку';
@@ -17503,6 +17810,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => 'Файл рабочей области';
 
   @override
+  String get recycleBinKindSkill => 'Навык';
+
+  @override
+  String get recycleBinKindCompressionHistory => 'История сжатия';
+
+  @override
+  String get recycleBinKindImageContext => 'Контекст изображений';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Настройки сжатия';
+
+  @override
   String get recycleBinKindConfig => 'Конфигурация';
 
   @override
@@ -17549,6 +17868,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get recycleBinRestoreNoWorkspace =>
       'Рабочая область этого файла удалена, возвращать его некуда.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      'Диалог, к которому относится эта запись, удалён — возвращать её некуда.';
 
   @override
   String get recycleBinRestoreFailed => 'Не удалось восстановить запись';
@@ -17655,7 +17978,7 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => 'Синхронизация по локальной сети';
+  String get settingsPageSync => 'Удобная синхронизация';
 
   @override
   String get lanSyncThisDevice => 'Это устройство';
@@ -17736,6 +18059,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Не удалось связаться с устройством. Проверьте адрес и порт, а также что оба устройства в одной сети.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'Другое устройство занято другим запросом на сопряжение. Повторите попытку через минуту.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'Другое устройство не подтвердило свою личность. Сопряжение прервано.';
 
@@ -17794,7 +18121,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      'Папки контроля версий и зависимостей/сборки пропускаются ради экономии времени. Рабочие области с более чем 2000 файлов или 200 МБ свои файлы не синхронизируют. Запись рабочей области синхронизируется всегда — переключатель управляет только её файлами: папка с выключенным переключателем не отправляется, и синхронизация никогда её не удаляет.';
+      'Папки контроля версий и зависимостей/сборки пропускаются ради экономии времени. Рабочие области с более чем 2000 файлов свои файлы не синхронизируют. Запись рабочей области синхронизируется всегда — переключатель управляет только её файлами: папка с выключенным переключателем не отправляется, и синхронизация никогда её не удаляет.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -17906,6 +18233,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => 'Сравнение данных…';
+
+  @override
+  String get lanSyncPhasePreparing => 'Подготовка…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return 'Отправка $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return 'Получение $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => 'Отправка изменений…';
@@ -18049,12 +18389,22 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return 'Сохранено папок (переключатель выкл.): $count';
+    return 'Папок рабочей области сохранено на диске: $count (синхронизация выключена или в папке есть несинхронизированные файлы)';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return 'Пропущено удалений: $count (локальная копия изменилась)';
   }
 
   @override
   String lanSyncReportRowsLost(Object n) {
     return 'Заменено более новыми записями с другого устройства: $n (можно вернуть в корзине)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return 'Заменено более новой версией с другого устройства: история сжатия, настройки контекста изображений или настройки сжатия $n диалогов';
   }
 
   @override
@@ -18905,11 +19255,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      'Не удаётся записать в выбранную папку. Проверьте, доступна ли она, или выберите другую. Cuplivo не изменит сохранённое расположение самостоятельно.';
+      'Не удаётся записать в выбранную папку. Проверьте, что она по-прежнему доступна, или выберите другую. Cuplivo не изменит сохранённое расположение самостоятельно.';
 
   @override
   String get backupAutoLocalDirPermission =>
-      'У вас нет разрешения на запись в выбранную папку. Выберите папку снова. Cuplivo не изменит сохранённое расположение самостоятельно.';
+      'Нет разрешения на запись в выбранную папку. Выберите папку заново. Cuplivo не изменит сохранённое расположение самостоятельно.';
 
   @override
   String get backupAutoLocalDirFull =>
@@ -18917,7 +19267,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupAutoLocalBookmarkLost =>
-      'Cuplivo не может получить доступ к выбранной папке. Выберите её снова. Сохранённое расположение не будет изменено автоматически.';
+      'Cuplivo не может получить доступ к выбранной папке. Выберите её заново. Сохранённое расположение не будет изменено автоматически.';
 
   @override
   String get backupAutoNextTitle =>
@@ -18943,7 +19293,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupAutoKeychainUnavailable =>
-      'Cuplivo не может получить доступ к системной связке ключей для пароля резервной копии. Вы по-прежнему можете создать резервную копию вручную.';
+      'Cuplivo не может получить доступ к системному хранилищу ключей для пароля резервной копии. Вы по-прежнему можете создать резервную копию вручную.';
 
   @override
   String get backupAutoSucceeded =>
@@ -18988,14 +19338,517 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS не удалось разблокировать связку ключей «login». Откройте «Связка ключей» (Keychain Access), разблокируйте «login», затем повторите попытку в Cuplivo.';
+      'macOS не удалось разблокировать связку ключей входа. Откройте «Связка ключей», разблокируйте «login», затем повторите попытку в Cuplivo.';
 
   @override
   String get backupMacOpenKeychainAccess => 'Открыть «Связку ключей»';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS запретила доступ к паролю резервной копии. Если появится системный запрос, разрешите Cuplivo доступ к нему. Также можно проверить связку ключей по умолчанию и разрешения элемента пароля в «Связке ключей».';
+      'macOS запретила доступ к паролю резервной копии. Если появится системный запрос, разрешите Cuplivo доступ. Также можно проверить связку ключей по умолчанию и права элемента пароля в «Связке ключей».';
+
+  @override
+  String get settingsPageChatOwners => 'Ассистенты и группы';
+
+  @override
+  String get settingsPageChatOwnersCreate => 'Создать';
+
+  @override
+  String get chatOwnersSeparate => 'Показывать отдельно';
+
+  @override
+  String get chatOwnersSectionAssistants => 'Ассистенты';
+
+  @override
+  String get chatOwnersSectionGroups => 'Группы';
+
+  @override
+  String get chatOwnerCreateAssistant => 'Новый ассистент';
+
+  @override
+  String get recycleBinKindGroup => 'Группа';
+
+  @override
+  String get recycleBinFilterGroups => 'Группы';
+
+  @override
+  String get groupChatTitle => 'Групповой чат';
+
+  @override
+  String get groupChatCreate => 'Новый групповой чат';
+
+  @override
+  String get groupChatCreateHint => 'Выберите хотя бы одного ассистента';
+
+  @override
+  String get groupChatNameHint => 'Название группы';
+
+  @override
+  String get groupChatChangeAvatar => 'Сменить аватар группы';
+
+  @override
+  String get groupChatMembers => 'Участники';
+
+  @override
+  String get groupChatMembersEmpty => 'Участников пока нет';
+
+  @override
+  String get groupChatInvite => 'Пригласить ассистентов';
+
+  @override
+  String get groupChatNoAssistantToInvite => 'Все ассистенты уже в этой группе';
+
+  @override
+  String get groupChatSave => 'Сохранить';
+
+  @override
+  String get groupChatCancel => 'Отмена';
+
+  @override
+  String get groupChatSettingsTitle => 'Настройки группы';
+
+  @override
+  String get groupChatBack => 'Назад';
+
+  @override
+  String get groupChatOrchestration => 'Кто говорит';
+
+  @override
+  String get groupChatDirectorTitle => 'Модель-режиссёр';
+
+  @override
+  String get groupChatDirectorSubtitle =>
+      'Модель, которая выбирает следующего говорящего. Лучше выбрать быструю и недорогую модель.';
+
+  @override
+  String get groupChatDirectorFollowDefault =>
+      'Используется модель по умолчанию';
+
+  @override
+  String get groupChatMaxTurnsTitle => 'Ответов за раунд';
+
+  @override
+  String get groupChatMaxTurnsSubtitle =>
+      'Сколько участников могут ответить на одно сообщение';
+
+  @override
+  String get groupChatRemoveMember => 'Удалить';
+
+  @override
+  String get groupChatRemoveMemberTitle => 'Удалить ассистента';
+
+  @override
+  String get groupChatRemoveMemberContent =>
+      'Этот ассистент больше не будет участвовать в этой группе.';
+
+  @override
+  String get groupChatDelete => 'Удалить групповой чат';
+
+  @override
+  String get groupChatDeleteTitle => 'Удалить этот групповой чат?';
+
+  @override
+  String get groupChatDeleteContent =>
+      'Группа и все её темы вместе переместятся в корзину.';
+
+  @override
+  String get groupChatDeleted => 'Групповой чат перемещён в корзину';
+
+  @override
+  String get groupChatUnavailable =>
+      'Настройки этого группового чата недоступны. Восстановите его из корзины.';
+
+  @override
+  String get groupChatNewTopic => 'Новая тема';
+
+  @override
+  String get groupChatRemovedMember => 'Удалённый ассистент';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      'Модель-режиссёр недоступна, поэтому первый участник ответил один раз. Проверьте настройки модели по умолчанию.';
+
+  @override
+  String get groupChatUnavailableWarning =>
+      'В этом групповом чате нет доступных участников.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => 'Модель режиссёра';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      'Определяет, кто говорит следующим в групповом чате. Лучше всего подойдёт быстрая и недорогая модель.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Выполнить одну задачу в копии этого чата, в том же рабочем пространстве.';
+
+  @override
+  String get subagentConfigDepth => 'Глубина';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'Сколько уровней подагентов может делегировать дальше';
+
+  @override
+  String get subagentConfigDepthOne => 'Субагент не может делегировать дальше';
+
+  @override
+  String get subagentConfigDepthTwo =>
+      'Субагент может делегировать ещё один уровень';
+
+  @override
+  String get subagentConfigDepthThree =>
+      'Субагент может делегировать ещё два уровня';
+
+  @override
+  String get subagentConfigModel => 'Модель';
+
+  @override
+  String get subagentConfigModelDescription =>
+      'Какая модель выполняет подагента';
+
+  @override
+  String get subagentConfigModelInherit => 'Как у этого ассистента';
+
+  @override
+  String get subagentConfigTargets => 'Цели делегирования';
+
+  @override
+  String get subagentConfigTargetsDescription =>
+      'Помощники, которые могут работать как подагенты';
+
+  @override
+  String get subagentConfigTargetsSelf => 'Этот помощник';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return 'Этот помощник + $count';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection =>
+      'Поручить своему помощнику можно всегда';
+
+  @override
+  String get subagentConfigTargetsSelfCaption =>
+      'Тот же помощник, та же модель, те же инструменты';
+
+  @override
+  String get subagentConfigTargetsAlways => 'Всегда';
+
+  @override
+  String get subagentConfigTargetsOthersSection =>
+      'Также можно указать по имени';
+
+  @override
+  String get subagentConfigTargetsFooter =>
+      'Если никого не отметить, задачи будет выполнять только ваш помощник.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · целей $targets · глубина $depth';
+  }
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · глубина $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'К родительскому чату · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Полномочия подагента';
+
+  @override
+  String get subagentEscalationAsk => 'Спрашивать';
+
+  @override
+  String get subagentEscalationDeny => 'Всегда запрещать';
+
+  @override
+  String get subagentEscalationAllow => 'Всегда разрешать';
+
+  @override
+  String get remoteSyncTabLan => 'Синхронизация по локальной сети';
+
+  @override
+  String get remoteSyncTabRemote =>
+      'Удалённая синхронизация (экспериментальная)';
+
+  @override
+  String get remoteSyncThisDevice => 'Это устройство';
+
+  @override
+  String get remoteSyncStatusRunning => 'Работает';
+
+  @override
+  String get remoteSyncStatusStarting => 'Запуск…';
+
+  @override
+  String get remoteSyncStatusStopped => 'Не запущена';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return 'Не удалось запустить: $error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => 'Сопряжение устройства';
+
+  @override
+  String get remoteSyncPairIntro =>
+      'Два устройства в любой сети: одно показывает QR-код удалённого сопряжения, другое сканирует его или вставляет адрес.';
+
+  @override
+  String get remoteSyncShowCode => 'Показать QR удалённого сопряжения';
+
+  @override
+  String get remoteSyncEnterCode => 'Сканировать или вставить код';
+
+  @override
+  String get remoteSyncPairingCode => 'Код удалённого сопряжения';
+
+  @override
+  String get remoteSyncAddressLabel => 'Удалённый адрес';
+
+  @override
+  String get remoteSyncAddressHint =>
+      'Вставьте удалённый адрес, показанный на другом устройстве';
+
+  @override
+  String get remoteSyncAddressNote =>
+      'Удалённый адрес — длинная строка символов, поэтому проще отсканировать QR-код. Если сканирование недоступно, скопируйте адрес на другом устройстве и вставьте его здесь.';
+
+  @override
+  String get remoteSyncShowAddress => 'Показать адрес';
+
+  @override
+  String get remoteSyncCopyAddress => 'Копировать адрес';
+
+  @override
+  String get remoteSyncAddressCopied => 'Удалённый адрес скопирован';
+
+  @override
+  String get remoteSyncAddressEmpty =>
+      'Удалённый адрес этого устройства пока недоступен. Подождите немного и повторите попытку.';
+
+  @override
+  String get remoteSyncPhaseConnecting =>
+      'Подключение через удалённый туннель…';
+
+  @override
+  String get remoteSyncPairedDevices => 'Сопряжённые устройства';
+
+  @override
+  String get remoteSyncNoDevices =>
+      'Устройств, сопряжённых через удалённую синхронизацию, пока нет.';
+
+  @override
+  String get remoteSyncEndpointRemote => 'Удалённое (tailcat)';
+
+  @override
+  String get remoteSyncKeySection => 'Удалённый ключ';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      'Удалённая синхронизация использует фиксированную удалённую идентичность, поэтому удалённый адрес этого устройства не меняется между перезапусками. Сброс ключа заменяет этот адрес; устройства, сопряжённые удалённо, потребуется сопрячь заново. На синхронизацию по локальной сети это не влияет.';
+
+  @override
+  String get remoteSyncResetKey => 'Сбросить ключ';
+
+  @override
+  String get remoteSyncResetTitle => 'Сбросить удалённый ключ?';
+
+  @override
+  String get remoteSyncResetBody =>
+      'Это устройство получит новый удалённый адрес. Устройства, сопряжённые удалённо, потребуется сопрячь заново. Синхронизация по локальной сети не затрагивается.';
+
+  @override
+  String get remoteSyncResetDone => 'Удалённый ключ сброшен';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return 'Не удалось сбросить удалённый ключ: $error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => 'Об удалённой синхронизации';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      'Удалённая синхронизация построена на tailcat. Данные между устройствами передаются в зашифрованном виде с помощью WireGuard.';
+
+  @override
+  String get remoteSyncLearnMore => 'Подробнее';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      'В большинстве случаев устройства соединяются напрямую через пробивание NAT, и разницы с синхронизацией по локальной сети почти нет. Если это не удаётся, данные проходят через публичные DERP-серверы Tailscale, но по-прежнему остаются зашифрованными WireGuard. У Cuplivo пока нет собственных DERP-серверов; если вы можете предоставить соответствующий требованиям DERP-сервер, свяжитесь с нами.';
+
+  @override
+  String get remoteSyncContactUs => 'Связаться с нами';
+
+  @override
+  String get remoteSyncMetadataNote =>
+      'DERP-ретрансляторы видят только метаданные соединения и не могут расшифровать синхронизируемые данные.';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress =>
+      'Введите корректный удалённый адрес.';
+
+  @override
+  String get remoteSyncPairErrorUnavailable =>
+      'Удалённая синхронизация сейчас недоступна. Повторите попытку позже.';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return 'Не удалось выполнить удалённое сопряжение: $error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat =>
+      'Это не QR-код удалённого сопряжения.';
+
+  @override
+  String get remoteSyncQrErrorBadVersion =>
+      'Этот QR-код удалённого сопряжения создан более новой версией. Обновите приложение и повторите попытку.';
+
+  @override
+  String get remoteSyncQrErrorMalformed =>
+      'Не удалось прочитать QR-код удалённого сопряжения.';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => 'Удалённый DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'Введите ссылку доступа к DeepSeek Harness WebUI';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'Используйте, если DeepSeek Harness находится в той же локальной сети или доступен через интернет.';
+
+  @override
+  String get assistantHarnessConfirm => 'Подтвердить';
+
+  @override
+  String get assistantHarnessConnected => 'Подключено';
+
+  @override
+  String get assistantHarnessChecking => 'Подключение…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      'Не удалось подключиться. Проверьте ссылку и сеть, затем повторите попытку.';
+
+  @override
+  String get assistantHarnessInvalidUrl =>
+      'Введите действительную ссылку доступа к WebUI.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      'В ссылке отсутствует токен. Вставьте полную ссылку доступа, которую выводит dsh web.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness отклонил эту ссылку. Проверьте, действителен ли ещё её токен.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      'Не удалось получить доступ к этой ссылке. Проверьте адрес и сеть.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness не ответил на запрос к своему API.';
+
+  @override
+  String get assistantHarnessLoadFailed =>
+      'Не удалось загрузить DeepSeek Harness.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      'На этой платформе встроенный WebView не поддерживается.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => 'Открыть в браузере';
+
+  @override
+  String get assistantHarnessRetry => 'Повторить';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Способ подключения';
+
+  @override
+  String get assistantHarnessMethodLink => 'Публичная ссылка';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'Плагин ds-hu';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'Введите адрес tailcat';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'В боковой панели DeepSeek Harness откройте «Удалённый доступ» и скопируйте адрес tailcat или команду сопряжения.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Введите адрес tailcat или команду сопряжения, показанные в разделе «Удалённый доступ».';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'Не удалось открыть туннель tailcat. Проверьте адрес и сеть.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'Подключения tailcat не поддерживаются на этой платформе.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'Открываем туннель tailcat…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'Сканировать QR-код';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'Публичный ключ этого устройства (список разрешённых)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Добавьте этот ключ в разделе «Remote access → Security» DeepSeek Harness, чтобы подключались только устройства из списка. Если список пуст, достаточно адреса.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Подготовка ключа этого устройства…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Не удалось подготовить ключ этого устройства.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Публичный ключ скопирован';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Удалённый доступ через плагин. Установите @ds-hu/dsh-tailcat-remote на DeepSeek Harness, и Cuplivo сможет открыть его WebUI, не открывая порты.';
 
   @override
   String get storageSpaceCopyErrorDetails => 'Копировать сведения об ошибке';

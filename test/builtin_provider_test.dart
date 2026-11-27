@@ -12,9 +12,7 @@ import 'package:Cuplivo/core/services/api/chat_api_service.dart';
 
 void main() {
   test('explicit keys and multi-key selection take precedence', () {
-    final config = ProviderConfig.defaultsFor(
-      'TestProvider',
-    ).copyWith(apiKey: 'user-key');
+    final config = ProviderConfig.defaultsFor('TestProvider').copyWith(apiKey: 'user-key');
     expect(effectiveApiKey(config), 'user-key');
     final multiKey = config.copyWith(
       multiKeyEnabled: true,
@@ -49,66 +47,82 @@ void main() {
     expect(config.baseUrl, isNot('https://api.cuplivoas.top/v1'));
   });
 
-  test('chat requests send tools and OpenAI reasoning controls', () async {
-    final requests = <Map<String, dynamic>>[];
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    addTearDown(() => server.close(force: true));
-    server.listen((request) async {
-      expect(request.uri.path, '/v1/chat/completions');
-      expect(request.headers.value('authorization'), 'Bearer user-key');
-      requests.add(
-        jsonDecode(await utf8.decoder.bind(request).join())
-            as Map<String, dynamic>,
-      );
-      request.response.headers.contentType = ContentType(
-        'text',
-        'event-stream',
-      );
-      request.response.write(
-        'data: ${jsonEncode({
-          'choices': [
-            {
-              'index': 0,
-              'delta': {'content': 'OK'},
-              'finish_reason': 'stop',
-            },
-          ],
-        })}\n\ndata: [DONE]\n\n',
-      );
-      await request.response.close();
-    });
-    final config = ProviderConfig.defaultsFor('OpenAI').copyWith(
-      apiKey: 'user-key',
-      baseUrl: 'http://${server.address.address}:${server.port}/v1',
-    );
-    const tools = [
-      {
-        'type': 'function',
-        'function': {
-          'name': 'echo',
-          'description': 'Echo the input',
-          'parameters': {'type': 'object', 'properties': <String, dynamic>{}},
+  test(
+    'chat requests send tools and OpenAI reasoning controls',
+    () async {
+      final requests = <Map<String, dynamic>>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        expect(request.uri.path, '/v1/chat/completions');
+        expect(request.headers.value('authorization'), 'Bearer user-key');
+        requests.add(
+          jsonDecode(await utf8.decoder.bind(request).join())
+              as Map<String, dynamic>,
+        );
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.write(
+          'data: ${jsonEncode({
+            'choices': [
+              {
+                'index': 0,
+                'delta': {'content': 'OK'},
+                'finish_reason': 'stop',
+              },
+            ],
+          })}\n\ndata: [DONE]\n\n',
+        );
+        await request.response.close();
+      });
+      final config = ProviderConfig.defaultsFor('OpenAI').copyWith(
+        apiKey: 'user-key',
+        baseUrl: 'http://${server.address.address}:${server.port}/v1',
+        models: const ['auto'],
+        // The reasoning controls this test asserts come from the model's
+        // declared spec, so it states that spec itself instead of relying on a
+        // built-in provider's model prefill, which Cuplivo does not ship.
+        modelOverrides: const {
+          'auto': {
+            'type': 'chat',
+            'input': ['text'],
+            'output': ['text'],
+            'abilities': ['tool', 'reasoning'],
+            'reasoning': {'dialect': 'openaiReasoningEffort'},
+          },
         },
-      },
-    ];
-    for (final level in [ReasoningLevel.high, ReasoningLevel.off]) {
-      await ChatApiService.sendMessageStream(
-        config: config,
-        modelId: 'gpt-5.1',
-        messages: const [
-          {'role': 'user', 'content': 'Hello'},
-        ],
-        tools: tools,
-        reasoning: ReasoningRequest(level),
-      ).toList();
-    }
-    expect(requests, hasLength(2));
-    expect(requests[0]['reasoning_effort'], 'high');
-    expect(requests[1]['reasoning_effort'], 'none');
-    for (final request in requests) {
-      expect(request['model'], 'gpt-5.1');
-      expect(request['tools'], tools);
-      expect(request['stream'], isTrue);
-    }
-  });
+      );
+      const tools = [
+        {
+          'type': 'function',
+          'function': {
+            'name': 'echo',
+            'description': 'Echo the input',
+            'parameters': {'type': 'object', 'properties': <String, dynamic>{}},
+          },
+        },
+      ];
+      for (final level in [ReasoningLevel.high, ReasoningLevel.off]) {
+        await ChatApiService.sendMessageStream(
+          config: config,
+          modelId: 'gpt-5.1',
+          messages: const [
+            {'role': 'user', 'content': 'Hello'},
+          ],
+          tools: tools,
+          reasoning: ReasoningRequest(level),
+        ).toList();
+      }
+      expect(requests, hasLength(2));
+      expect(requests[0]['reasoning_effort'], 'high');
+      expect(requests[1]['reasoning_effort'], 'none');
+      for (final request in requests) {
+        expect(request['model'], 'gpt-5.1');
+        expect(request['tools'], tools);
+        expect(request['stream'], isTrue);
+      }
+    },
+  );
 }

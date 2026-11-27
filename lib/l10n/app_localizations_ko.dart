@@ -1017,6 +1017,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get assistantEditMaxTokensHint => '무제한';
 
   @override
+  String get assistantEditDescriptionTitle => '설명';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      '그룹 채팅과 하위 에이전트 조정 시에만 참고됩니다. 이 기능을 쓰지 않으면 비워 두세요.';
+
+  @override
+  String get assistantEditDescriptionHint => '예: 요구 사항을 SQL로 작성하고 실행 계획 설명';
+
+  @override
+  String get assistantEditDescriptionSet => '작성됨';
+
+  @override
   String get assistantEditChatBackgroundTitle => '채팅 배경';
 
   @override
@@ -1036,6 +1049,67 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get desktopNavStorageTooltip => '저장소';
+
+  @override
+  String get toolsMenuTooltip => '도구';
+
+  @override
+  String get markdownExportTitle => 'Markdown 이미지';
+
+  @override
+  String get markdownExportEditTab => '편집';
+
+  @override
+  String get markdownExportPreviewTab => '미리보기';
+
+  @override
+  String get markdownExportHint => 'Markdown을 붙여넣거나 .md 파일을 가져오세요';
+
+  @override
+  String get markdownExportPreviewEmpty => '아직 미리 볼 내용이 없습니다';
+
+  @override
+  String get markdownExportImport => '가져오기';
+
+  @override
+  String get markdownExportPaste => '붙여넣기';
+
+  @override
+  String get markdownExportTextSize => '글자 크기';
+
+  @override
+  String get markdownExportTextSizeSmall => '작게';
+
+  @override
+  String get markdownExportTextSizeStandard => '표준';
+
+  @override
+  String get markdownExportTextSizeLarge => '크게';
+
+  @override
+  String get markdownExportHideSource => '소스 숨기기';
+
+  @override
+  String get markdownExportShowSource => '소스 표시';
+
+  @override
+  String get markdownExportReducedResolution =>
+      '문서가 길어 한 장의 이미지에 담기도록 해상도를 낮췄습니다';
+
+  @override
+  String get markdownExportExportImage => '이미지 내보내기';
+
+  @override
+  String get markdownExportDropHint => '놓아서 Markdown 가져오기';
+
+  @override
+  String get markdownExportUnsupportedFile => 'Markdown 텍스트 파일만 지원합니다';
+
+  @override
+  String get markdownExportReadFailed => '이 파일을 읽을 수 없습니다';
+
+  @override
+  String get markdownExportNothingToPaste => '클립보드에 이 도구에서 사용할 수 있는 내용이 없습니다';
 
   @override
   String get desktopNavGlobalSearchTooltip => '전체 검색';
@@ -1683,6 +1757,24 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => '백업 대상';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote => '이 버전에서 복원할 수 있는 모든 항목, 그룹 채팅 포함';
+
+  @override
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
+
+  @override
+  String get backupPageTargetKelivoNote =>
+      'Kelivo에서 가져올 수 있지만 그룹 채팅 데이터는 사라집니다';
+
+  @override
   String get backupPageBackupManagementDescription =>
       '백업 및 가져올 내용을 선택하세요. 로컬, WebDAV 및 S3 백업에 적용됩니다. 선택하지 않은 내용은 가져오기 시 변경되지 않습니다. 스킬과 작업 공간은 각자의 파일을 포함합니다.';
 
@@ -1711,7 +1803,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => '빠른 문구';
 
   @override
-  String get backupPageInstructionsLabel => '프롬프트 주입';
+  String get backupPageInstructionsLabel => '프롬프트 라이브러리';
 
   @override
   String get backupPageWorkspacesLabel => '작업 공간';
@@ -2528,6 +2620,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get bottomToolsSheetOcr => '이미지 OCR';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools => '이 멤버의 모델은 도구를 호출할 수 없습니다.';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => '이 멤버는 활성화된 도구가 없습니다.';
+
+  @override
   String get messageMoreSheetTitle => '추가 작업';
 
   @override
@@ -2754,6 +2852,103 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String chatMessageWidgetWebFetch(String target) {
     return '페이지 읽기: $target';
+  }
+
+  @override
+  String chatMessageWidgetDelegate(String label) {
+    return '서브에이전트 파견: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '$assistant에게 위임: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => '서브에이전트 완료';
+
+  @override
+  String get subagentResultFailed => '서브에이전트 실패';
+
+  @override
+  String get subagentResultCancelled => '서브에이전트 취소됨';
+
+  @override
+  String get subagentResultInterrupted => '서브에이전트 중단됨';
+
+  @override
+  String get subagentMailLabel => '서브에이전트 메시지';
+
+  @override
+  String get subagentMailDelegatorLabel => '위임자 메시지';
+
+  @override
+  String get subagentMailOpenConversation => '대화 열기';
+
+  @override
+  String get subagentMailCopy => '복사';
+
+  @override
+  String get subagentMailCopied => '복사됨';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '서브에이전트 실행 중 ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '서브에이전트 $count개 실행 중';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '서브에이전트가 답변을 기다립니다 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '서브에이전트 $count개 ($running개 실행 중)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '서브에이전트가 승인을 기다립니다 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '서브에이전트';
+
+  @override
+  String get subagentPanelEmpty => '이 대화에는 아직 서브에이전트가 없습니다.';
+
+  @override
+  String get subagentTag => '서브에이전트';
+
+  @override
+  String get subagentPanelRunning => '실행 중';
+
+  @override
+  String get subagentPanelWaitingAnswer => '답변 대기';
+
+  @override
+  String get subagentPanelWaitingApproval => '승인 대기';
+
+  @override
+  String get subagentPanelCompleted => '완료';
+
+  @override
+  String get subagentPanelFailed => '실패';
+
+  @override
+  String get subagentPanelCancelled => '취소됨';
+
+  @override
+  String get subagentPanelInterrupted => '중단됨';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes분 $seconds초';
   }
 
   @override
@@ -3279,6 +3474,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get chatInputBarMoreTooltip => '추가';
 
   @override
+  String get chatInputBarOverflowTooltip => '더 많은 작업';
+
+  @override
   String get chatInputBarVoiceInputTooltip => '음성 입력';
 
   @override
@@ -3521,6 +3719,13 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get mcpServerEditSheetEnabledLabel => '사용';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => '이 기기에서만';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      '저장했지만 이 서버를 이 기기에서만 쓰도록 설정하지 못했습니다.';
 
   @override
   String get mcpServerEditSheetNameLabel => '이름';
@@ -3790,6 +3995,31 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => '임베딩';
+
+  @override
+  String get modelDetailSheetDecisionType => '결정';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '결정 API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '결정 주소';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '비워 두면 provider 주소 뒤에 붙습니다';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      '일부 공급자의 결정 모델은 별도 인터페이스를 사용하므로 기본 주소를 덮어써야 합니다.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '채우기';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '현재';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '바이리안';
 
   @override
   String get modelDetailSheetInputModesLabel => '입력 모드';
@@ -11602,6 +11832,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get backgroundGenerating => '답변 생성 중';
 
   @override
+  String get backgroundCareLetter => '편지 작성 중';
+
+  @override
+  String get backgroundCareWorking => '편지를 준비하는 중';
+
+  @override
   String get backgroundThinking => '생각 중';
 
   @override
@@ -15397,6 +15633,67 @@ class AppLocalizationsKo extends AppLocalizations {
   String get retry => '다시 시도';
 
   @override
+  String get imageJobTitle => '일러스트';
+
+  @override
+  String get imageJobFailed => '일러스트 생성 실패';
+
+  @override
+  String get imageJobInterrupted => '일러스트 중단됨';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '그리기';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '서브에이전트';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '작업 대기';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '메시지 보내기';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '하위 에이전트 중지';
+
+  @override
+  String get defaultModelPageImageModelTitle => '이미지 모델';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      '답변 안에서 그림을 그리는 모델입니다. 설정하지 않으면 그리기가 꺼집니다.';
+
+  @override
+  String get imageJobPanelCopy => '복사';
+
+  @override
+  String get imageJobPanelPromptLabel => '프롬프트';
+
+  @override
+  String get imageJobPanelModelLabel => '모델';
+
+  @override
+  String get imageJobPanelSizeLabel => '크기';
+
+  @override
+  String get imageJobPanelElapsedLabel => '소요 시간';
+
+  @override
+  String get imageJobPanelUsageLabel => '사용량';
+
+  @override
+  String get imageJobPanelAuto => '자동';
+
+  @override
+  String get imageJobPanelOneImage => '이미지 1장';
+
+  @override
+  String get imageJobNotConfigured => '설정되지 않음 · 선택';
+
+  @override
+  String get imageModelFollowGlobal => '기본 이미지 모델 사용';
+
+  @override
   String get recoveryGuideTitle => '채팅을 복구해 보겠습니다';
 
   @override
@@ -16374,9 +16671,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get chatMessageWidgetReplySelection => '답장';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '사용자';
 
   @override
@@ -16491,6 +16785,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => '완료';
+
+  @override
+  String get pdfExportResultSave => 'PDF 저장';
 
   @override
   String get sideDrawerMenuCopyLink => '링크 복사';
@@ -16689,6 +16986,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => '작업 공간 파일';
 
   @override
+  String get recycleBinKindSkill => '스킬';
+
+  @override
+  String get recycleBinKindCompressionHistory => '압축 기록';
+
+  @override
+  String get recycleBinKindImageContext => '이미지 컨텍스트';
+
+  @override
+  String get recycleBinKindCompressionSettings => '압축 설정';
+
+  @override
   String get recycleBinKindConfig => '구성';
 
   @override
@@ -16729,6 +17038,10 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get recycleBinRestoreNoWorkspace => '이 파일의 작업 공간이 삭제되어 되돌릴 폴더가 없어요.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      '이 항목의 대화가 삭제되어 되돌려 놓을 곳이 없습니다.';
 
   @override
   String get recycleBinRestoreFailed => '이 항목을 복원하지 못했어요';
@@ -16834,7 +17147,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => 'LAN 동기화';
+  String get settingsPageSync => '편리한 동기화';
 
   @override
   String get lanSyncThisDevice => '이 기기';
@@ -16912,6 +17225,10 @@ class AppLocalizationsKo extends AppLocalizations {
       '기기에 연결하지 못했어요. 주소와 포트, 두 기기가 같은 네트워크에 있는지 확인하세요.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      '다른 기기에서 다른 페어링 요청을 처리 중입니다. 잠시 후 다시 시도하세요.';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '상대 기기가 신원을 제시하지 않아 페어링을 중단했어요.';
 
   @override
@@ -16965,7 +17282,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '시간을 아끼려고 버전 관리와 의존성/빌드 폴더는 건너뛰어요. 파일이 2,000개를 넘거나 200 MB가 넘는 작업 공간은 파일을 동기화하지 않아요. 작업 공간 기록은 항상 동기화되며 스위치는 파일만 제어해요. 스위치가 꺼진 폴더는 전송되지 않고 동기화로 삭제되지도 않아요.';
+      '시간을 아끼려고 버전 관리와 의존성/빌드 폴더는 건너뛰어요. 파일이 2,000개를 넘는 작업 공간은 파일을 동기화하지 않아요. 작업 공간 기록은 항상 동기화되며 스위치는 파일만 제어해요. 스위치가 꺼진 폴더는 전송되지 않고 동기화로 삭제되지도 않아요.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -17074,6 +17391,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => '데이터 비교 중…';
+
+  @override
+  String get lanSyncPhasePreparing => '준비 중…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '보내는 중 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '받는 중 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '변경 사항 보내는 중…';
@@ -17217,12 +17547,22 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '작업 공간 폴더 $count개 보관(스위치 꺼짐)';
+    return '작업 공간 폴더 $count개를 디스크에 유지했습니다(동기화가 꺼져 있거나 동기화되지 않은 파일 포함)';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '삭제 $count건을 건너뛰었습니다(로컬 사본이 변경됨)';
   }
 
   @override
   String lanSyncReportRowsLost(Object n) {
     return '상대 기기의 최신 버전으로 대체된 로컬 기록 $n개(휴지통에서 복원 가능)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '상대 기기의 최신 버전으로 대체된 대화 $n개의 압축 기록, 이미지 컨텍스트 설정 또는 압축 설정';
   }
 
   @override
@@ -17977,7 +18317,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupAutoEnableHint =>
-      '예정된 시각이 되면 앱이 포그라운드에 있을 때 Cuplivo가 백업합니다. 앱이 닫히거나 종료되면 백업이 계속 실행되지 않으며 이어서 진행되지도 않습니다. 앱을 다시 열었을 때 아직 예정 시각이 지났다면 전체 백업을 한 번만 실행합니다.';
+      '예약 시간이 되면 앱이 포그라운드에 있을 때 Cuplivo가 백업합니다. 앱이 닫히거나 종료되면 백업이 계속 실행되지 않으며 이어서 진행되지도 않습니다. 다음에 앱을 열었을 때 아직 기한이 지났다면 전체 백업을 한 번 실행합니다.';
 
   @override
   String get backupAutoDestinationTitle => '자동 백업 위치';
@@ -18026,11 +18366,11 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      '선택한 폴더에 쓸 수 없습니다. 폴더가 여전히 사용 가능한지 확인하거나 다른 폴더를 선택하세요. Cuplivo는 저장된 위치를 임의로 변경하지 않습니다.';
+      '선택한 폴더에 쓸 수 없습니다. 폴더가 여전히 사용 가능한지 확인하거나 다른 폴더를 선택하세요. 저장된 위치는 자동으로 변경되지 않습니다.';
 
   @override
   String get backupAutoLocalDirPermission =>
-      '선택한 폴더에 쓸 권한이 없습니다. 폴더를 다시 선택하세요. Cuplivo는 저장된 위치를 임의로 변경하지 않습니다.';
+      '선택한 폴더에 쓸 권한이 없습니다. 폴더를 다시 선택하세요. 저장된 위치는 자동으로 변경되지 않습니다.';
 
   @override
   String get backupAutoLocalDirFull =>
@@ -18038,7 +18378,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupAutoLocalBookmarkLost =>
-      'Cuplivo가 선택한 폴더에 접근할 수 없습니다. 폴더를 다시 선택하세요. 저장된 위치는 자동으로 변경되지 않습니다.';
+      '선택한 폴더에 접근할 수 없습니다. 폴더를 다시 선택하세요. 저장된 위치는 자동으로 변경되지 않습니다.';
 
   @override
   String get backupAutoNextTitle => '다음 자동 백업';
@@ -18101,14 +18441,489 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS에서 로그인 키체인을 잠금 해제하지 못했습니다. 키체인 접근을 열어 \'로그인\'을 잠금 해제한 후 Cuplivo에서 다시 시도하세요.';
+      'macOS가 로그인 키체인을 잠금 해제하지 못했습니다. \'키체인 접근\'을 열어 \'로그인\'을 잠금 해제한 뒤 Cuplivo에서 다시 시도하세요.';
 
   @override
   String get backupMacOpenKeychainAccess => '키체인 접근 열기';
 
   @override
   String get backupMacKeychainAccessDenied =>
-      'macOS에서 백업 비밀번호 접근이 거부되었습니다. 시스템 프롬프트가 나타나면 Cuplivo의 접근을 허용해 주세요. 키체인 접근에서 기본 키체인과 비밀번호 항목의 권한을 확인할 수도 있습니다.';
+      'macOS에서 백업 비밀번호 접근을 거부했습니다. 시스템 프롬프트가 나타나면 Cuplivo의 접근을 허용해 주세요. 키체인 접근에서 기본 키체인과 비밀번호 항목의 권한을 확인할 수도 있습니다.';
+
+  @override
+  String get settingsPageChatOwners => '어시스턴트 및 그룹';
+
+  @override
+  String get settingsPageChatOwnersCreate => '만들기';
+
+  @override
+  String get chatOwnersSeparate => '별도로 표시';
+
+  @override
+  String get chatOwnersSectionAssistants => '어시스턴트';
+
+  @override
+  String get chatOwnersSectionGroups => '그룹';
+
+  @override
+  String get chatOwnerCreateAssistant => '새 어시스턴트';
+
+  @override
+  String get recycleBinKindGroup => '그룹';
+
+  @override
+  String get recycleBinFilterGroups => '그룹';
+
+  @override
+  String get groupChatTitle => '그룹 채팅';
+
+  @override
+  String get groupChatCreate => '새 그룹 채팅';
+
+  @override
+  String get groupChatCreateHint => '어시스턴트를 하나 이상 선택하세요';
+
+  @override
+  String get groupChatNameHint => '그룹 이름';
+
+  @override
+  String get groupChatChangeAvatar => '그룹 아바타 변경';
+
+  @override
+  String get groupChatMembers => '멤버';
+
+  @override
+  String get groupChatMembersEmpty => '아직 멤버가 없습니다';
+
+  @override
+  String get groupChatInvite => '어시스턴트 초대';
+
+  @override
+  String get groupChatNoAssistantToInvite => '모든 어시스턴트가 이미 이 그룹에 있습니다';
+
+  @override
+  String get groupChatSave => '저장';
+
+  @override
+  String get groupChatCancel => '취소';
+
+  @override
+  String get groupChatSettingsTitle => '그룹 설정';
+
+  @override
+  String get groupChatBack => '뒤로';
+
+  @override
+  String get groupChatOrchestration => '발언자 선택';
+
+  @override
+  String get groupChatDirectorTitle => '디렉터 모델';
+
+  @override
+  String get groupChatDirectorSubtitle =>
+      '다음 발언자를 선택하는 모델입니다. 빠르고 비용이 낮은 모델을 권장합니다.';
+
+  @override
+  String get groupChatDirectorFollowDefault => '기본 모델을 따름';
+
+  @override
+  String get groupChatMaxTurnsTitle => '라운드당 최대 답변 수';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '한 메시지에 최대 몇 명의 멤버가 답변할 수 있는지';
+
+  @override
+  String get groupChatRemoveMember => '내보내기';
+
+  @override
+  String get groupChatRemoveMemberTitle => '어시스턴트 내보내기';
+
+  @override
+  String get groupChatRemoveMemberContent => '이 어시스턴트는 더 이상 이 그룹에 참여하지 않습니다.';
+
+  @override
+  String get groupChatDelete => '그룹 채팅 삭제';
+
+  @override
+  String get groupChatDeleteTitle => '이 그룹 채팅을 삭제할까요?';
+
+  @override
+  String get groupChatDeleteContent => '그룹과 모든 토픽이 함께 휴지통으로 이동합니다.';
+
+  @override
+  String get groupChatDeleted => '그룹 채팅이 휴지통으로 이동했습니다';
+
+  @override
+  String get groupChatUnavailable => '이 그룹 채팅의 설정을 찾을 수 없습니다. 휴지통에서 복원하세요.';
+
+  @override
+  String get groupChatNewTopic => '새 토픽';
+
+  @override
+  String get groupChatRemovedMember => '삭제된 어시스턴트';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '디렉터 모델을 사용할 수 없어 첫 번째 멤버가 한 번 답변했습니다. 기본 모델 설정을 확인하세요.';
+
+  @override
+  String get groupChatUnavailableWarning => '이 그룹 채팅에 사용 가능한 멤버가 없습니다.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '디렉터 모델';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '그룹 채팅에서 다음 발언자를 선택합니다. 빠르고 저렴한 모델이 가장 적합합니다.';
+
+  @override
+  String get subagentConfigSubtitle => '이 대화의 복제본에서 같은 작업 공간으로 한 가지 작업을 실행합니다.';
+
+  @override
+  String get subagentConfigDepth => '깊이';
+
+  @override
+  String get subagentConfigDepthDescription => '하위 에이전트가 다시 위임할 수 있는 단계 수';
+
+  @override
+  String get subagentConfigDepthOne => '서브에이전트는 더 이상 위임할 수 없습니다';
+
+  @override
+  String get subagentConfigDepthTwo => '서브에이전트가 한 단계 더 위임할 수 있습니다';
+
+  @override
+  String get subagentConfigDepthThree => '서브에이전트가 최대 두 단계 더 위임할 수 있습니다';
+
+  @override
+  String get subagentConfigModel => '모델';
+
+  @override
+  String get subagentConfigModelDescription => '하위 에이전트를 실행할 모델';
+
+  @override
+  String get subagentConfigModelInherit => '이 어시스턴트 따르기';
+
+  @override
+  String get subagentConfigTargets => '위임 대상';
+
+  @override
+  String get subagentConfigTargetsDescription => '하위 에이전트로 활동할 수 있는 어시스턴트';
+
+  @override
+  String get subagentConfigTargetsSelf => '이 어시스턴트';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '이 어시스턴트 + $count개';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '이 어시스턴트에게 맡기는 것은 항상 가능합니다';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '같은 어시스턴트, 같은 모델, 같은 도구';
+
+  @override
+  String get subagentConfigTargetsAlways => '항상';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '이름으로 지정할 수도 있음';
+
+  @override
+  String get subagentConfigTargetsFooter => '아무도 선택하지 않으면 이 어시스턴트에게만 맡깁니다.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 대상 $targets개 · 깊이 $depth';
+  }
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 깊이 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '상위 대화 보기 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '하위 에이전트 권한 위임';
+
+  @override
+  String get subagentEscalationAsk => '묻기';
+
+  @override
+  String get subagentEscalationDeny => '항상 거부';
+
+  @override
+  String get subagentEscalationAllow => '항상 허용';
+
+  @override
+  String get remoteSyncTabLan => 'LAN 동기화';
+
+  @override
+  String get remoteSyncTabRemote => '원격 동기화(실험적)';
+
+  @override
+  String get remoteSyncThisDevice => '이 기기';
+
+  @override
+  String get remoteSyncStatusRunning => '실행 중';
+
+  @override
+  String get remoteSyncStatusStarting => '시작 중…';
+
+  @override
+  String get remoteSyncStatusStopped => '실행 안 됨';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return '시작 실패: $error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => '기기 페어링';
+
+  @override
+  String get remoteSyncPairIntro =>
+      '어느 네트워크에서나 두 기기를 페어링할 수 있어요. 한 기기가 원격 페어링 QR 코드를 보여주면 다른 기기가 스캔하거나 주소를 붙여넣습니다.';
+
+  @override
+  String get remoteSyncShowCode => '원격 페어링 QR 표시';
+
+  @override
+  String get remoteSyncEnterCode => '코드 스캔 또는 붙여넣기';
+
+  @override
+  String get remoteSyncPairingCode => '원격 페어링 코드';
+
+  @override
+  String get remoteSyncAddressLabel => '원격 주소';
+
+  @override
+  String get remoteSyncAddressHint => '다른 기기에 표시된 원격 주소를 붙여넣으세요';
+
+  @override
+  String get remoteSyncAddressNote =>
+      '원격 주소는 긴 문자열이라 스캔하는 것이 더 간편해요. 스캔할 수 없으면 다른 기기에서 복사해 여기에 붙여넣으세요.';
+
+  @override
+  String get remoteSyncShowAddress => '주소 표시';
+
+  @override
+  String get remoteSyncCopyAddress => '주소 복사';
+
+  @override
+  String get remoteSyncAddressCopied => '원격 주소를 복사했어요';
+
+  @override
+  String get remoteSyncAddressEmpty =>
+      '아직 이 기기의 원격 주소를 가져올 수 없어요. 잠시 후 다시 시도하세요.';
+
+  @override
+  String get remoteSyncPhaseConnecting => '원격 터널로 연결하는 중…';
+
+  @override
+  String get remoteSyncPairedDevices => '페어링된 기기';
+
+  @override
+  String get remoteSyncNoDevices => '아직 원격 동기화로 페어링한 기기가 없어요.';
+
+  @override
+  String get remoteSyncEndpointRemote => '원격(tailcat)';
+
+  @override
+  String get remoteSyncKeySection => '원격 키';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      '원격 동기화는 고정된 원격 신원을 사용하므로 이 기기의 원격 주소는 앱을 다시 시작해도 바뀌지 않습니다. 키를 재설정하면 이 주소가 바뀌며, 원격으로 페어링한 기기를 다시 페어링해야 합니다. LAN 동기화에는 영향이 없습니다.';
+
+  @override
+  String get remoteSyncResetKey => '키 재설정';
+
+  @override
+  String get remoteSyncResetTitle => '원격 키를 재설정할까요?';
+
+  @override
+  String get remoteSyncResetBody =>
+      '이 기기에 새 원격 주소가 발급됩니다. 원격으로 페어링한 기기는 다시 페어링해야 하며, LAN 동기화에는 영향이 없습니다.';
+
+  @override
+  String get remoteSyncResetDone => '원격 키를 재설정했어요';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return '원격 키를 재설정하지 못했어요: $error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => '원격 동기화 정보';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      '원격 동기화는 tailcat을 사용하며, 기기 간에 전송되는 데이터는 WireGuard로 암호화됩니다.';
+
+  @override
+  String get remoteSyncLearnMore => '자세히 알아보기';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      '대부분의 경우 기기가 P2P 홀 펀칭으로 직접 연결되어 LAN 동기화와 거의 차이가 없습니다. 연결에 실패하면 데이터가 Tailscale 공식 DERP 서버를 거쳐 중계되지만 여전히 WireGuard로 암호화됩니다. Cuplivo는 아직 자체 DERP 서버를 운영하지 않습니다. 규정을 준수하는 DERP 서버를 제공해 주실 수 있다면 문의해 주세요.';
+
+  @override
+  String get remoteSyncContactUs => '문의하기';
+
+  @override
+  String get remoteSyncMetadataNote =>
+      'DERP 중계 서버는 연결 메타데이터만 볼 수 있으며 동기화 내용은 복호화할 수 없습니다.';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress => '올바른 원격 주소를 입력하세요.';
+
+  @override
+  String get remoteSyncPairErrorUnavailable =>
+      '지금은 원격 동기화를 사용할 수 없어요. 잠시 후 다시 시도하세요.';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return '원격 페어링에 실패했어요: $error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat => '원격 페어링 QR 코드가 아니에요.';
+
+  @override
+  String get remoteSyncQrErrorBadVersion =>
+      '이 원격 페어링 QR 코드는 더 새로운 버전에서 만들어졌어요. 앱을 업데이트한 후 다시 시도하세요.';
+
+  @override
+  String get remoteSyncQrErrorMalformed => '원격 페어링 QR 코드를 읽을 수 없어요.';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '원격 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'DeepSeek Harness WebUI 접속 링크를 입력하세요';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'DeepSeek Harness가 같은 LAN에 있거나 인터넷에서 접근할 수 있을 때 사용하세요.';
+
+  @override
+  String get assistantHarnessConfirm => '확인';
+
+  @override
+  String get assistantHarnessConnected => '연결됨';
+
+  @override
+  String get assistantHarnessChecking => '연결 중…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      '연결에 실패했습니다. 링크와 네트워크를 확인한 후 다시 시도하세요.';
+
+  @override
+  String get assistantHarnessInvalidUrl => '유효한 WebUI 접속 링크를 입력하세요.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '링크에 토큰이 없습니다. dsh web이 출력한 전체 접속 링크를 붙여넣으세요.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness가 이 링크를 거부했습니다. 토큰이 아직 유효한지 확인하세요.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      '해당 링크에 접속할 수 없습니다. 주소와 네트워크를 확인하세요.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness의 API가 응답하지 않았습니다.';
+
+  @override
+  String get assistantHarnessLoadFailed => 'DeepSeek Harness를 불러오지 못했습니다.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      '이 플랫폼에서는 내장 WebView를 지원하지 않습니다.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '브라우저에서 열기';
+
+  @override
+  String get assistantHarnessRetry => '다시 시도';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '연결 방식';
+
+  @override
+  String get assistantHarnessMethodLink => '공용 링크';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 플러그인';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'tailcat 주소 입력';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'DeepSeek Harness 사이드바에서 \'원격 액세스\'를 열고 tailcat 주소 또는 페어링 명령을 복사하세요.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '\'원격 액세스\'에 표시된 tailcat 주소 또는 페어링 명령을 입력하세요.';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'tailcat 터널을 열지 못했습니다. 주소와 네트워크를 확인하세요.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      '이 플랫폼은 tailcat 연결을 지원하지 않습니다.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'tailcat 터널을 여는 중…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'QR 코드 스캔';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '이 기기의 공개 키 (허용 목록)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'DeepSeek Harness의 \"Remote access → Security\"에서 이 공개 키를 추가하면 목록에 있는 기기만 연결할 수 있습니다. 허용 목록을 비워 두면 주소만으로도 연결됩니다.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '이 기기의 키를 준비하는 중…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '이 기기의 키를 준비하지 못했습니다.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '공개 키를 복사했습니다';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '플러그인을 통한 원격 접속입니다. DeepSeek Harness에 @ds-hu/dsh-tailcat-remote를 설치하면 포트를 열지 않고도 Cuplivo에서 WebUI를 열 수 있습니다.';
 
   @override
   String get storageSpaceCopyErrorDetails => '오류 세부 정보 복사';

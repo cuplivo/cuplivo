@@ -104,7 +104,7 @@ void main() {
       'kelivo://workspace/',
     );
     for (final url in ['kelivo://workspace', 'kelivo://workspace/']) {
-      expect((await scope.file(Uri.parse(url))).path, endsWith('/index.html'));
+      expect((await scope.file(Uri.parse(url))).path, endsWith('index.html'));
     }
     await File('${bindings['chat-a']!.path}/index.html').delete();
     for (final url in ['kelivo://workspace', 'kelivo://workspace/']) {

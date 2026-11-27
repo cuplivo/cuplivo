@@ -169,6 +169,57 @@ Ten files, 28 cases, sit in **no** unit's patch: `workspace_file_navigation`, `v
 on v1.3.6 and fail on v1.3.7, so they are new baseline work rather than a replay miss: unit 2's scope
 has to grow by them, which is a change to this attempt's plan and not to this unit.
 
+## Unit 2: 181 → 23, and why not zero
+
+Unit 2 replayed onto this branch with **26 conflicted paths** and left the suite at **13144 passed,
+95 skipped, 23 failed** — the 158 cases it repairs, minus the 3 this attempt's unit 1 had already
+fixed at their root.
+
+The conflicts were three shapes, and the second is the one worth remembering:
+
+- **l10n, 17 paths** (7 ARBs, 6 generated, 4 state files). Unit 2's message says the case out loud:
+  *"the `lib/l10n` surface is settled here at the tip's content … the cost is that this unit's strings
+  describe features the later units have not built yet"*. So its ARB hunks are not the "v1.3.6-era
+  settle" the attempt-one table called them — they are the fork's whole key set, 247 of them, and
+  dropping them loses every string the later units' code calls. Re-merged per key with this unit's
+  tree as the fork side: 5752 messages, upstream's 94 additions kept, unit 1's five retired keys and
+  three orphan strings still gone, state fingerprints recomputed for all four locales.
+- **the native digest closes its loop.** Unit 2 adds `ios.NSLocalNetworkUsageDescription`, the three
+  `native_*.json` digests come back to the released line's exact values (`94c424c6…`, `510b9f15…`,
+  `0c236b51…`), and the `.lproj` files already carry the translations. Unit 1's note said this would
+  happen; it happened to the byte.
+- **code, 2 paths.** `backup_staging.dart`: upstream's non-creating `resolveRoot()` split stays, this
+  unit's `debugRootOverride` seam rides in front of it. `sandbox_path_resolver.dart`: this unit's
+  `normalizeForMatch`/`_nativeForIo` work stays, and v1.3.7's query/fragment handling in
+  `tryDecodeLocalFileUri` is restored on top — the only baseline-move hunk in that file.
+- **tests, 7 paths.** Three take this unit's version (its repair, its model spec). Two take the
+  branch's, because v1.3.7's rework already did what this unit was doing — it replaced the hardcoded
+  `…/tmp/kelivo_backup_staging` with `BackupStaging.resolveRoot()` and a `stagingDirectory` local
+  (rule 7). One is a rename/rename collision: upstream **moved** `test/core/services/mcp/mcp_icon_cache_test.dart`
+  to `test/utils/icon_cache_test.dart` and renamed `McpIconCache` → `IconCache` in this window, so the
+  fork's file has no subject; upstream's test stays, with this unit's `p.equals` path comparison
+  re-applied.
+
+**The 23 that remain are not the same class as the 158.** They split four ways, and only the first is
+this unit's:
+
+1. **Windows platform, 4.** Mixed separators in one expectation (`storage_image_usage`), and two
+   teardown `PathAccessException`s (`chat_send_race`, `storage_space_images`).
+2. **A string this unit settles but a later unit makes true, 1.** `backup_restore_error_message_test`
+   wants the toolbox's "Import Backup File" wording, which is unit 14's flow; the message it reads is
+   the settled ARB's Cherry Studio one.
+3. **Behaviour v1.3.7 changed under a v1.3.6 test, 8.** `view_image`'s five redirect/download cases
+   record no requests at all, and `import_toolbox` (2) plus `tool_handler_skills_refresh` (3) exercise
+   seams the new baseline moved.
+4. **Layout numbers that moved with the strings, 2.** `world_book_page` measures a label 49 px
+   narrower than v1.3.6 did — the same reason as (2), a settled string, not a broken widget.
+
+So a mid-series commit **cannot** be test-green once the l10n surface is settled at the tip's
+content: its strings describe features whose code arrives eleven units later, and the tests that read
+them land in between. Unit 2's job was the floor, and the floor is what it is: 181 → 23. The
+remaining work is either the last tip-only repairs or the units whose subjects those tests name, and
+the plan's "gate units 1 and 2" line should be read as *run the suite there*, not *zero it there*.
+
 ## Procedure for this attempt
 
 ```bash
@@ -199,7 +250,8 @@ Rules that apply at every stop:
 | --- | --- |
 | backup of attempt one | `backup/v1.3.7-attempt1` |
 | attempt two branch | `landing-137`, cut from `v1.3.7` |
-| unit 1 identity | **committed**: analyze 0, format 0 changed, l10n pass ×4, its own 3 suite failures fixed; the other 178 are later units' payload (154 of them unit 2's) |
-| units 2–17 | not started — unit 2 also owns the 10 files, 28 cases, that no unit's patch covers |
+| unit 1 identity | **committed**: analyze 0, format 0 changed, l10n pass ×4, its own 3 suite failures fixed |
+| unit 2 baseline-repair | **committed**: 181 → 23 suite failures, analyze 0, l10n pass ×4 at 5752 messages, native digests back to the released line's values |
+| units 3–18 | not started |
 | gates | analyze per unit; tests on units 1 and 2; l10n at the tip |
 

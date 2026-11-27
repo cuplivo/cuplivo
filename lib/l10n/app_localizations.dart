@@ -1978,6 +1978,30 @@ abstract class AppLocalizations {
   /// **'Unlimited'**
   String get assistantEditMaxTokensHint;
 
+  /// Label of the row that holds what this assistant is for. Read by delegation targets and the group chat director, never shown in the chat itself.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get assistantEditDescriptionTitle;
+
+  /// Says who reads the description and that it is optional. Shown behind the row's help icon and under the field.
+  ///
+  /// In en, this message translates to:
+  /// **'Only read when scheduling group chats and subagents. Leave it empty if you use neither.'**
+  String get assistantEditDescriptionTip;
+
+  /// Placeholder inside the description field; teaches what to write (what it does, not who it is).
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Write SQL from a request and explain the query plan'**
+  String get assistantEditDescriptionHint;
+
+  /// Value of the description row when one is written; the row does not preview the text because any useful preview would push the label off a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get assistantEditDescriptionSet;
+
   /// Label for the per-assistant chat background image setting.
   ///
   /// In en, this message translates to:
@@ -2019,6 +2043,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Storage'**
   String get desktopNavStorageTooltip;
+
+  /// Tooltip of the tools icon in the desktop navigation rail; opens the app's tool list, where the Markdown image tool lives.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get toolsMenuTooltip;
+
+  /// Title of the page that renders Markdown text into one picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown image'**
+  String get markdownExportTitle;
+
+  /// Tab label for the Markdown source editor in the Markdown image tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get markdownExportEditTab;
+
+  /// Tab label for the rendered preview in the Markdown image tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get markdownExportPreviewTab;
+
+  /// Placeholder in the empty Markdown editor: what the user can do.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Markdown, or import a .md file'**
+  String get markdownExportHint;
+
+  /// Preview pane's empty state before there is any Markdown to render.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to preview yet'**
+  String get markdownExportPreviewEmpty;
+
+  /// Button that imports a .md file into the Markdown image tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get markdownExportImport;
+
+  /// Button that pastes the clipboard into the Markdown editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get markdownExportPaste;
+
+  /// Label above the text-size choice for the rendered picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get markdownExportTextSize;
+
+  /// Text-size option: small.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get markdownExportTextSizeSmall;
+
+  /// Text-size option: standard (the default).
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get markdownExportTextSizeStandard;
+
+  /// Text-size option: large.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get markdownExportTextSizeLarge;
+
+  /// Tooltip on the preview's toggle while the source is shown; pressing it hides the editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide source'**
+  String get markdownExportHideSource;
+
+  /// Tooltip on the preview's toggle while the source is hidden; pressing it shows the editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Show source'**
+  String get markdownExportShowSource;
+
+  /// Notice shown when a long document is captured below the normal 3x scale so it still fits in one image.
+  ///
+  /// In en, this message translates to:
+  /// **'Long document: drawn at a lower resolution so it still fits one picture'**
+  String get markdownExportReducedResolution;
+
+  /// Button that captures the preview and saves it as one image.
+  ///
+  /// In en, this message translates to:
+  /// **'Export image'**
+  String get markdownExportExportImage;
+
+  /// Overlay shown while a file is dragged over the Markdown image tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop to import Markdown'**
+  String get markdownExportDropHint;
+
+  /// Error when the dropped or picked file is not a Markdown text file.
+  ///
+  /// In en, this message translates to:
+  /// **'Only Markdown text files are supported'**
+  String get markdownExportUnsupportedFile;
+
+  /// Error when an imported file could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be read'**
+  String get markdownExportReadFailed;
+
+  /// Message when the clipboard holds nothing the Markdown editor can paste.
+  ///
+  /// In en, this message translates to:
+  /// **'The clipboard has nothing this tool can use'**
+  String get markdownExportNothingToPaste;
 
   /// Tooltip on the desktop nav rail's global search icon button.
   ///
@@ -3244,6 +3388,36 @@ abstract class AppLocalizations {
   /// **'{selected}/{total}'**
   String backupPageScopeSelectedCount(int selected, int total);
 
+  /// Section label above the backup-target choice: which app the archive is written for.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup target'**
+  String get backupPageTargetTitle;
+
+  /// Backup target option: a Cuplivo archive, restorable here with every kind.
+  ///
+  /// In en, this message translates to:
+  /// **'Cuplivo'**
+  String get backupPageTargetCuplivo;
+
+  /// One-line explanation under the Cuplivo backup target.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything this version can restore, group chats included'**
+  String get backupPageTargetCuplivoNote;
+
+  /// Backup target option: an archive every Kelivo release from {version} on can import.
+  ///
+  /// In en, this message translates to:
+  /// **'Kelivo {version}+'**
+  String backupPageTargetKelivo(String version);
+
+  /// One-line explanation under the Kelivo backup target: it imports there, but group chats are not in it.
+  ///
+  /// In en, this message translates to:
+  /// **'Imports into Kelivo, but group chats are lost'**
+  String get backupPageTargetKelivoNote;
+
   /// Explanatory text under the backup scope selector describing that the choice applies to local, WebDAV and S3 backups and that unselected content is preserved on import.
   ///
   /// In en, this message translates to:
@@ -3298,10 +3472,10 @@ abstract class AppLocalizations {
   /// **'Quick phrases'**
   String get backupPageQuickPhrasesLabel;
 
-  /// Backup category label for prompt injections (instruction snippets).
+  /// Backup category label for the prompt material it carries: Instruction Injection cards, and the compression library’s summary templates and recipes. It must name the material, not one of the two features that write it.
   ///
   /// In en, this message translates to:
-  /// **'Prompt injections'**
+  /// **'Prompt library'**
   String get backupPageInstructionsLabel;
 
   /// Backup category label for workspaces.
@@ -4786,6 +4960,18 @@ abstract class AppLocalizations {
   /// **'Image OCR'**
   String get bottomToolsSheetOcr;
 
+  /// Shown in the tools panel when the member on show runs a model that cannot call tools.
+  ///
+  /// In en, this message translates to:
+  /// **'This member\'s model cannot call tools.'**
+  String get chatToolsEmptyModelCannotUseTools;
+
+  /// Shown in the tools panel when the member on show has no tools switched on.
+  ///
+  /// In en, this message translates to:
+  /// **'This member has no tools switched on.'**
+  String get chatToolsEmptyNoToolsEnabled;
+
   /// Title and tooltip for the 'more actions' menu on a message or scheduled task tile.
   ///
   /// In en, this message translates to:
@@ -5205,6 +5391,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Read page: {target}'**
   String chatMessageWidgetWebFetch(String target);
+
+  /// Tool-call title for a delegation; {label} is the model's short name for the job.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegate: {label}'**
+  String chatMessageWidgetDelegate(String label);
+
+  /// Tool-call title for a delegation the model handed to another assistant; {assistant} is that assistant's name and {label} the short name for the job.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegate {assistant}: {label}'**
+  String chatMessageWidgetDelegateTo(String assistant, String label);
+
+  /// Divider label where a finished subagent's result appears in the parent conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent finished'**
+  String get subagentResultCompleted;
+
+  /// Divider label for a subagent whose run ended in an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent failed'**
+  String get subagentResultFailed;
+
+  /// Divider label for a subagent the user stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent cancelled'**
+  String get subagentResultCancelled;
+
+  /// Divider label for a subagent whose run the app stopped (for example a restart).
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent interrupted'**
+  String get subagentResultInterrupted;
+
+  /// Divider label for a message the subagent sent in its parent conversation; the sender's conversation title follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent message'**
+  String get subagentMailLabel;
+
+  /// Divider label for a message the delegator sent into a subagent conversation; the sender's conversation title follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegator message'**
+  String get subagentMailDelegatorLabel;
+
+  /// Button in a subagent message dialog; opens the conversation the message came from.
+  ///
+  /// In en, this message translates to:
+  /// **'Open conversation'**
+  String get subagentMailOpenConversation;
+
+  /// Button in a subagent message dialog; copies the message text.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get subagentMailCopy;
+
+  /// Confirmation shown after a subagent message is copied to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get subagentMailCopied;
+
+  /// Progress line above the composer while one subagent works; {elapsed} is like 13.3s, {label} is the job's short name.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent running ({elapsed}) {label}'**
+  String subagentStripRunning(String elapsed, String label);
+
+  /// Progress line above the composer while several subagents work and none of them needs the user.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagents running: {count}'**
+  String subagentStripRunningMany(int count);
+
+  /// Progress line while one subagent is parked on a question or approval in its own conversation; {label} is the job's short name.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent waiting for you · {label}'**
+  String subagentStripWaiting(String label);
+
+  /// Progress line while several subagents exist and at least one waits for the user; {count} is the total, {running} how many are still working.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} subagents ({running} running)'**
+  String subagentStripCounts(int count, int running);
+
+  /// Progress line while one subagent is blocked on a tool approval in its own conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent waiting for approval · {label}'**
+  String subagentStripWaitingApproval(String label);
+
+  /// Title of the panel listing the subagents of this conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagents'**
+  String get subagentPanelTitle;
+
+  /// Shown in the subagent panel when this process has never delegated anything here.
+  ///
+  /// In en, this message translates to:
+  /// **'No subagents in this conversation yet.'**
+  String get subagentPanelEmpty;
+
+  /// Short tag beside a conversation's title in the sidebar, saying this chat is a delegated task rather than one the user started.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent'**
+  String get subagentTag;
+
+  /// State word for a subagent that is still working, shown at the right of its row in the panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get subagentPanelRunning;
+
+  /// State word for a subagent whose question is waiting for the user to answer it.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for you'**
+  String get subagentPanelWaitingAnswer;
+
+  /// State word for a subagent whose tool call is waiting for the user's approval.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval'**
+  String get subagentPanelWaitingApproval;
+
+  /// State word for a subagent that finished successfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get subagentPanelCompleted;
+
+  /// State word for a subagent whose run ended in an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get subagentPanelFailed;
+
+  /// State word for a subagent the user stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get subagentPanelCancelled;
+
+  /// State word for a subagent whose run the app stopped, for example when the app restarts.
+  ///
+  /// In en, this message translates to:
+  /// **'Interrupted'**
+  String get subagentPanelInterrupted;
+
+  /// How long one subagent ran, shown at the end of its row in the panel.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m {seconds}s'**
+  String subagentPanelElapsed(int minutes, int seconds);
 
   /// Tool-call title for the model's built-in search tool.
   ///
@@ -6148,6 +6496,12 @@ abstract class AppLocalizations {
   /// **'Add'**
   String get chatInputBarMoreTooltip;
 
+  /// Tooltip of the composer's overflow button, which holds the actions that did not fit.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get chatInputBarOverflowTooltip;
+
   /// Tooltip on the mic icon in the chat input bar, indicating the button starts voice input.
   ///
   /// In en, this message translates to:
@@ -6621,6 +6975,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enabled'**
   String get mcpServerEditSheetEnabledLabel;
+
+  /// Label for the toggle switch that keeps an MCP server on this device: a held row is neither offered to a paired device nor overwritten by one.
+  ///
+  /// In en, this message translates to:
+  /// **'This device only'**
+  String get mcpServerEditSheetLocalOnlyLabel;
+
+  /// Warning shown after saving an MCP server whose "this device only" switch could not be written. The server itself was saved; the message says what did not happen, so the user knows the server is still shared.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved, but this server could not be held on this device.'**
+  String get mcpServerEditSheetLocalOnlySaveFailed;
 
   /// Label for the text field entering an MCP server's display name.
   ///
@@ -7104,6 +7470,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Embedding'**
   String get modelDetailSheetEmbeddingType;
+
+  /// Model type segment and model tag for a decision model: it answers typed yes/no or choice questions with probabilities and never generates chat text.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision'**
+  String get modelDetailSheetDecisionType;
+
+  /// Label of the segmented control that picks which decision protocol a decision model speaks (System One or OpenAI decisions).
+  ///
+  /// In en, this message translates to:
+  /// **'Decision API'**
+  String get modelDetailSheetDecisionDialectLabel;
+
+  /// Label of the optional field that overrides the endpoint address of a decision model.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision URL'**
+  String get modelDetailSheetDecisionUrlLabel;
+
+  /// Placeholder of the decision address field: leaving it empty appends the dialect's default path to the provider URL.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty: appended to the provider URL'**
+  String get modelDetailSheetDecisionUrlHint;
+
+  /// First paragraph of the help sheet behind the info icon next to the decision address field: some providers serve decision models on a separate endpoint, so the default address has to be overridden.
+  ///
+  /// In en, this message translates to:
+  /// **'Some providers serve decision models on their own endpoint; enter the path to override the default address.'**
+  String get modelDetailSheetDecisionUrlHelp;
+
+  /// Button in the decision address help sheet that writes the shown example path into the address field.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill'**
+  String get modelDetailSheetDecisionUrlFill;
+
+  /// Small tag in the decision address help sheet marking the example row that matches the current provider's host.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get modelDetailSheetDecisionUrlCurrent;
+
+  /// Name of Alibaba's Bailian model platform, used as the provider name of a decision address example.
+  ///
+  /// In en, this message translates to:
+  /// **'Bailian'**
+  String get modelDetailSheetDecisionUrlBailian;
 
   /// Section header and field label for supported input modalities (text/image/audio) in the model spec form.
   ///
@@ -21315,6 +21729,18 @@ abstract class AppLocalizations {
   /// **'Generating reply'**
   String get backgroundGenerating;
 
+  /// Notification title while a proactive-care letter is being written, shown on the platform notification.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing a letter'**
+  String get backgroundCareLetter;
+
+  /// Notification body while a proactive-care letter is being generated in the background.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your letter'**
+  String get backgroundCareWorking;
+
   /// Background task phase label shown while the model is thinking.
   ///
   /// In en, this message translates to:
@@ -27978,6 +28404,126 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// Header of the card that holds a picture the assistant is generating inside its reply; the UI appends the elapsed time.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration'**
+  String get imageJobTitle;
+
+  /// Header of the same card when the picture could not be generated; a sentence explaining why follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration failed'**
+  String get imageJobFailed;
+
+  /// Header of the same card when the app closed before the picture arrived; nothing is retried automatically.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration interrupted'**
+  String get imageJobInterrupted;
+
+  /// Name of the drawing capability in the assistant's local-tool list.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing'**
+  String get assistantEditLocalToolImageTitle;
+
+  /// Name of the delegation capability in the assistant's local-tool list.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent'**
+  String get assistantEditLocalToolDelegateTitle;
+
+  /// Name of the capability that blocks until a delegated task finishes.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for task'**
+  String get assistantEditLocalToolAwaitJobTitle;
+
+  /// Tool-call card title for a message one side of a delegation sends to the other.
+  ///
+  /// In en, this message translates to:
+  /// **'Send message'**
+  String get assistantEditLocalToolSendMessageTitle;
+
+  /// Tool-call card title for asking a subagent to stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop subagent'**
+  String get assistantEditLocalToolInterruptTitle;
+
+  /// Settings row for choosing the model that draws pictures.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Model'**
+  String get defaultModelPageImageModelTitle;
+
+  /// Explains that the drawing model is optional and that leaving it unset turns drawing off.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that draws pictures inside a reply; leave it unset to turn drawing off.'**
+  String get defaultModelPageImageModelSubtitle;
+
+  /// Button that copies the prompt to the clipboard; a confirmation toast follows.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get imageJobPanelCopy;
+
+  /// Label of the prompt that produced the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get imageJobPanelPromptLabel;
+
+  /// Label of the model that drew the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get imageJobPanelModelLabel;
+
+  /// Label of the picture's pixel size, or of the requested aspect ratio when the file cannot be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get imageJobPanelSizeLabel;
+
+  /// Label of how long the picture took to generate.
+  ///
+  /// In en, this message translates to:
+  /// **'Time taken'**
+  String get imageJobPanelElapsedLabel;
+
+  /// Label of what the picture consumed: today a count of pictures, later possibly a token count.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get imageJobPanelUsageLabel;
+
+  /// Value of the size row when the request left the aspect ratio to the model.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get imageJobPanelAuto;
+
+  /// Value of the usage row: this reply produced a single picture.
+  ///
+  /// In en, this message translates to:
+  /// **'1 image'**
+  String get imageJobPanelOneImage;
+
+  /// Shown when drawing is switched on but no image model is chosen; tapping it opens the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured · Choose'**
+  String get imageJobNotConfigured;
+
+  /// Row in the model picker that clears this assistant's own drawing model so it follows the global default in Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the default image model'**
+  String get imageModelFollowGlobal;
+
   /// Header title on the restore failure screen when local copies are being searched for recovery.
   ///
   /// In en, this message translates to:
@@ -29646,12 +30192,6 @@ abstract class AppLocalizations {
   /// **'Reply'**
   String get chatMessageWidgetReplySelection;
 
-  /// Action in the chat selection bar that exports the selected messages as a PDF document.
-  ///
-  /// In en, this message translates to:
-  /// **'PDF'**
-  String get chatSelectionExportPdf;
-
   /// Role label printed for the user's own messages in an exported transcript.
   ///
   /// In en, this message translates to:
@@ -29861,6 +30401,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get pdfExportResultDone;
+
+  /// Primary button on the panel that offers a finished PDF; it opens the system save picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Save PDF'**
+  String get pdfExportResultSave;
 
   /// Menu item in the conversation sidebar that copies a link to the conversation.
   ///
@@ -30228,6 +30774,30 @@ abstract class AppLocalizations {
   /// **'Workspace file'**
   String get recycleBinKindWorkspaceFile;
 
+  /// Kind label on a recycle-bin entry that is a skill — an installed skill's folder of files, deleted as one item.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill'**
+  String get recycleBinKindSkill;
+
+  /// Recycle-bin label for a conversation's record of context operations (compressions and clears), which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression history'**
+  String get recycleBinKindCompressionHistory;
+
+  /// Recycle-bin label for a conversation's pinned images and image-recall switches, which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Image context'**
+  String get recycleBinKindImageContext;
+
+  /// Recycle-bin label for a conversation's own compression configuration, which sync may replace with the peer's newer copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression settings'**
+  String get recycleBinKindCompressionSettings;
+
   /// Fallback kind label for a recycle-bin entry whose stored type is not otherwise recognised.
   ///
   /// In en, this message translates to:
@@ -30311,6 +30881,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This file\'s workspace was deleted, so there is no folder to put it back into.'**
   String get recycleBinRestoreNoWorkspace;
+
+  /// Toast explaining that the entry belongs to a conversation that no longer exists, so the record has nowhere to go back to. Restoring the conversation from the bin brings it back.
+  ///
+  /// In en, this message translates to:
+  /// **'This entry\'s conversation was deleted, so there is nothing to put it back into.'**
+  String get recycleBinRestoreNoConversation;
 
   /// Toast shown when restoring a recycle-bin entry failed for any other reason.
   ///
@@ -30492,11 +31068,11 @@ abstract class AppLocalizations {
   /// **'This conversation belonged to “{name}”, which is no longer on this device. After restoring it you will need to choose an assistant for it.'**
   String recycleBinDetailAssistantGone(Object name);
 
-  /// Settings entry and page title for syncing with other devices over the local network.
+  /// Settings entry and page title for syncing with other devices, over the local network or remotely.
   ///
   /// In en, this message translates to:
-  /// **'LAN Sync'**
-  String get settingsPageLanSync;
+  /// **'Convenient Sync'**
+  String get settingsPageSync;
 
   /// Section header in LAN sync settings for this device's own listener and addresses.
   ///
@@ -30630,6 +31206,12 @@ abstract class AppLocalizations {
   /// **'Could not reach the device. Check the address and port, and that both devices are on the same network.'**
   String get lanSyncPairErrorUnreachable;
 
+  /// Pairing error shown when the other device's pairing lane is full (four requests in flight), so this one was refused. The advice must not be about the address: the device answered.
+  ///
+  /// In en, this message translates to:
+  /// **'The other device is busy with another pairing request. Try again in a moment.'**
+  String get lanSyncPairErrorBusy;
+
   /// Pairing error shown when the other device did not present a certificate, so pairing was aborted.
   ///
   /// In en, this message translates to:
@@ -30723,7 +31305,7 @@ abstract class AppLocalizations {
   /// Help text for that section, explaining which folders are skipped, the size limits, and that the switch only governs files while the folder's record always syncs.
   ///
   /// In en, this message translates to:
-  /// **'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.'**
+  /// **'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.'**
   String get lanSyncWorkspaceTip;
 
   /// Trailing count in the workspaces section header; count is how many files are being sent right now.
@@ -30905,6 +31487,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Comparing data…'**
   String get lanSyncPhaseExchanging;
+
+  /// Progress line during a sync while this device reads its own rows and packs them into pages; no traffic is on the wire yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing…'**
+  String get lanSyncPhasePreparing;
+
+  /// Progress line while pages are pushed to the other device: done and total count conversations finished and planned, bytes is how much has been sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending {done}/{total} · {bytes}'**
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total);
+
+  /// Progress line while the other device's changes are fetched: done and total count conversations finished and requested, bytes is how much has arrived.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving {done}/{total} · {bytes}'**
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total);
 
   /// Progress line during a sync while local changes are being sent.
   ///
@@ -31098,17 +31698,29 @@ abstract class AppLocalizations {
   /// **'{count} workspaces not syncing files'**
   String lanSyncReportWorkspacesOmitted(Object count);
 
-  /// Sync report count of workspace folders kept on this device because their switch is off; count is that number.
+  /// Sync report count of workspace folders left on disk because the workspace's sync switch is off, or because the folder holds files the two devices never agreed on; count is that number.
   ///
   /// In en, this message translates to:
-  /// **'{count} workspace folders kept (switch off)'**
+  /// **'{count} workspace folders kept on disk (switched off, or holding unsynced files)'**
   String lanSyncReportWorkspacesKept(Object count);
+
+  /// Sync report count of deletions this device skipped because its own copy had changed since the two devices last agreed; count is that number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} deletions skipped (the local copy changed)'**
+  String lanSyncReportDeletesBlocked(Object count);
 
   /// Sync report count of local records replaced by newer versions from the other device, noting they can be recovered from the recycle bin; n is that count.
   ///
   /// In en, this message translates to:
   /// **'{n} local rows replaced by newer versions on the peer (recoverable in the recycle bin)'**
   String lanSyncReportRowsLost(Object n);
+
+  /// Sync report count of conversations whose compression history, image-context switches or compression settings the peer's newer copy replaced. Each of those is stored as one whole record per conversation, so a divergence is settled by replacing the record, never by merging it field by field; n is a count of conversations, not of records.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} conversations\' compression history, image-context switches or compression settings replaced by the peer\'s newer copy'**
+  String lanSyncReportDocumentsReplaced(Object n);
 
   /// Sync report warning that the two devices' clocks differ, so the times of the sync cannot be trusted; n is the difference in minutes.
   ///
@@ -32603,6 +33215,864 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'macOS denied access to the backup password. If a system prompt appears, allow Cuplivo to access it. You can also check the default keychain and the password item’s permissions in Keychain Access.'**
   String get backupMacKeychainAccessDenied;
+
+  /// Settings row that opens the list of assistants and group chats.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants and groups'**
+  String get settingsPageChatOwners;
+
+  /// Label of the create action in the assistants-and-groups list.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get settingsPageChatOwnersCreate;
+
+  /// Switch that lists assistants and group chats in separate sections instead of one mixed order.
+  ///
+  /// In en, this message translates to:
+  /// **'Show separately'**
+  String get chatOwnersSeparate;
+
+  /// Section header for assistants in the assistants-and-groups list.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants'**
+  String get chatOwnersSectionAssistants;
+
+  /// Section header for group chats in the assistants-and-groups list.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get chatOwnersSectionGroups;
+
+  /// Create action that makes a new assistant from the assistants-and-groups list.
+  ///
+  /// In en, this message translates to:
+  /// **'New assistant'**
+  String get chatOwnerCreateAssistant;
+
+  /// Recycle bin entry kind: a deleted group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get recycleBinKindGroup;
+
+  /// Recycle bin filter that shows only group chats.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get recycleBinFilterGroups;
+
+  /// Name of the group-chat feature, used as a page title and fallback label.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat'**
+  String get groupChatTitle;
+
+  /// Entry that starts creating a group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'New group chat'**
+  String get groupChatCreate;
+
+  /// Helper line under the group name field: a group needs at least one assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick at least one assistant'**
+  String get groupChatCreateHint;
+
+  /// Placeholder in the group name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupChatNameHint;
+
+  /// Row that opens the avatar picker for the group.
+  ///
+  /// In en, this message translates to:
+  /// **'Change group avatar'**
+  String get groupChatChangeAvatar;
+
+  /// Section label listing the assistants in a group.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get groupChatMembers;
+
+  /// Empty state of a group's member list.
+  ///
+  /// In en, this message translates to:
+  /// **'No members yet'**
+  String get groupChatMembersEmpty;
+
+  /// Action that opens the roster picker to add assistants to the group.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite assistants'**
+  String get groupChatInvite;
+
+  /// Shown when every assistant is already a member of the group.
+  ///
+  /// In en, this message translates to:
+  /// **'Every assistant is already in this group'**
+  String get groupChatNoAssistantToInvite;
+
+  /// Save action in the group editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get groupChatSave;
+
+  /// Cancel action in the group editor.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get groupChatCancel;
+
+  /// Title of the group settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Group settings'**
+  String get groupChatSettingsTitle;
+
+  /// Back action in the group settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get groupChatBack;
+
+  /// Section label for the settings that decide who speaks next in a group round.
+  ///
+  /// In en, this message translates to:
+  /// **'Who speaks'**
+  String get groupChatOrchestration;
+
+  /// Setting label: the model that picks the next speaker in a group round.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get groupChatDirectorTitle;
+
+  /// Explanation under the director model setting.
+  ///
+  /// In en, this message translates to:
+  /// **'The model that picks who speaks next. A fast, low-cost model is the right choice.'**
+  String get groupChatDirectorSubtitle;
+
+  /// Value shown when the director model follows the default model instead of a pinned one.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows default model'**
+  String get groupChatDirectorFollowDefault;
+
+  /// Setting label: the most member replies one round may produce.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies per round'**
+  String get groupChatMaxTurnsTitle;
+
+  /// Explanation under the replies-per-round setting.
+  ///
+  /// In en, this message translates to:
+  /// **'How many members may reply to one message'**
+  String get groupChatMaxTurnsSubtitle;
+
+  /// Action that removes an assistant from the group.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get groupChatRemoveMember;
+
+  /// Title of the confirmation that removes an assistant from the group.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove assistant'**
+  String get groupChatRemoveMemberTitle;
+
+  /// Body of the confirmation that removes an assistant from the group.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant will no longer take part in this group.'**
+  String get groupChatRemoveMemberContent;
+
+  /// Action that deletes the group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group chat'**
+  String get groupChatDelete;
+
+  /// Title of the confirmation that deletes a group chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this group chat?'**
+  String get groupChatDeleteTitle;
+
+  /// Body of the delete confirmation: the group and its topics move to the recycle bin together.
+  ///
+  /// In en, this message translates to:
+  /// **'The group and all of its topics move to the recycle bin together.'**
+  String get groupChatDeleteContent;
+
+  /// Snackbar after a group chat moved to the recycle bin.
+  ///
+  /// In en, this message translates to:
+  /// **'Group chat moved to the recycle bin'**
+  String get groupChatDeleted;
+
+  /// Shown when a conversation belongs to a group chat that no longer exists, with the recycle-bin hint.
+  ///
+  /// In en, this message translates to:
+  /// **'This group chat\'s settings are not available. Restore it from the recycle bin.'**
+  String get groupChatUnavailable;
+
+  /// Placeholder title of a group topic before it is named, and the action that starts one.
+  ///
+  /// In en, this message translates to:
+  /// **'New topic'**
+  String get groupChatNewTopic;
+
+  /// Author label for a reply whose member was deleted from the group.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted assistant'**
+  String get groupChatRemovedMember;
+
+  /// Notice after a round fell back because the director model is unavailable: the first member replied once.
+  ///
+  /// In en, this message translates to:
+  /// **'The director model is unavailable, so the first member replied once. Check the default model settings.'**
+  String get groupChatDirectorFallbackWarning;
+
+  /// Notice when a group chat has no available members.
+  ///
+  /// In en, this message translates to:
+  /// **'This group chat has no available members.'**
+  String get groupChatUnavailableWarning;
+
+  /// Title of the director model card in Default Models.
+  ///
+  /// In en, this message translates to:
+  /// **'Director model'**
+  String get defaultModelPageDirectorModelTitle;
+
+  /// Subtitle of the director model card: what the model does and which model suits it.
+  ///
+  /// In en, this message translates to:
+  /// **'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.'**
+  String get defaultModelPageDirectorModelSubtitle;
+
+  /// One sentence above the three settings, saying what delegating does in this conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Run one task in a copy of this chat, in the same workspace.'**
+  String get subagentConfigSubtitle;
+
+  /// Label of the row that states how deep delegation may go.
+  ///
+  /// In en, this message translates to:
+  /// **'Depth'**
+  String get subagentConfigDepth;
+
+  /// Explains the depth option itself, not its current value.
+  ///
+  /// In en, this message translates to:
+  /// **'How many levels of subagents may delegate again.'**
+  String get subagentConfigDepthDescription;
+
+  /// Depth choice 1: the chain stops at the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent cannot delegate again'**
+  String get subagentConfigDepthOne;
+
+  /// Depth choice 2: one further level below the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent may delegate once more'**
+  String get subagentConfigDepthTwo;
+
+  /// Depth choice 3: two further levels below the first subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'A subagent may delegate two more levels'**
+  String get subagentConfigDepthThree;
+
+  /// Label of the row that chooses the model delegations run on.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get subagentConfigModel;
+
+  /// Explains the model option itself, not its current value.
+  ///
+  /// In en, this message translates to:
+  /// **'Which model runs the subagent.'**
+  String get subagentConfigModelDescription;
+
+  /// The model value shown when delegations follow the assistant, and the matching choice in the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow this assistant'**
+  String get subagentConfigModelInherit;
+
+  /// Label of the row that picks which assistants a delegation may name, and the title of the picker it opens.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegation targets'**
+  String get subagentConfigTargets;
+
+  /// Explains the targets option itself, not its current value.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistants that can work as subagents.'**
+  String get subagentConfigTargetsDescription;
+
+  /// Value of the delegation targets row when no other assistant is selected; also the label of the fixed row in the picker.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant'**
+  String get subagentConfigTargetsSelf;
+
+  /// Value of the delegation targets row, counting the other assistants that may be named; the row never shows a single name because it would be clipped.
+  ///
+  /// In en, this message translates to:
+  /// **'This assistant + {count}'**
+  String subagentConfigTargetsSelfPlus(int count);
+
+  /// Heading above the fixed picker row that says delegating to your own assistant always works.
+  ///
+  /// In en, this message translates to:
+  /// **'Delegating to your own assistant is always possible'**
+  String get subagentConfigTargetsSelfSection;
+
+  /// Second line of the fixed picker row: what a copy of the delegating assistant inherits.
+  ///
+  /// In en, this message translates to:
+  /// **'Same assistant, same model, same tools'**
+  String get subagentConfigTargetsSelfCaption;
+
+  /// Trailing word on the fixed picker row, explaining why it cannot be unticked.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get subagentConfigTargetsAlways;
+
+  /// Heading above the selectable assistants in the delegation target picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Also available by name'**
+  String get subagentConfigTargetsOthersSection;
+
+  /// Bottom line of the delegation target picker: what an empty selection means.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody ticked means delegations go to yourself only.'**
+  String get subagentConfigTargetsFooter;
+
+  /// Second line of the subagent toolbox row when some assistants may be named.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} · targets {targets} · depth {depth}'**
+  String subagentConfigSummaryWithTargets(String model, int targets, int depth);
+
+  /// Second line of the toolbox row: what a delegation runs on and how deep it may go.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} · depth {depth}'**
+  String subagentConfigSummary(String model, int depth);
+
+  /// The row at the top and bottom of a delegated conversation that returns to the conversation that started it; {label} is that conversation's title.
+  ///
+  /// In en, this message translates to:
+  /// **'View parent chat · {label}'**
+  String subagentViewParent(String label);
+
+  /// Label of the row that decides how a delegated task may spend the user's permission.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagent escalation'**
+  String get subagentEscalation;
+
+  /// Escalation policy: ask the user, in the child conversation, whenever a tool call needs approval.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get subagentEscalationAsk;
+
+  /// Escalation policy: never ask; refuse the tool call inside a subagent.
+  ///
+  /// In en, this message translates to:
+  /// **'Always deny'**
+  String get subagentEscalationDeny;
+
+  /// Escalation policy: do not ask, but only up to what the delegating conversation already allows.
+  ///
+  /// In en, this message translates to:
+  /// **'Always allow'**
+  String get subagentEscalationAllow;
+
+  /// Tab label that switches the sync settings panel to local network sync.
+  ///
+  /// In en, this message translates to:
+  /// **'LAN Sync'**
+  String get remoteSyncTabLan;
+
+  /// Tab label that switches the sync settings panel to remote sync over tailcat; the feature is experimental.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote Sync (Experimental)'**
+  String get remoteSyncTabRemote;
+
+  /// Section header in remote sync settings showing this device and the status of its remote listener.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get remoteSyncThisDevice;
+
+  /// Remote listener status when it is running and peers can reach this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get remoteSyncStatusRunning;
+
+  /// Remote listener status while it is starting up.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting…'**
+  String get remoteSyncStatusStarting;
+
+  /// Remote listener status when it is not running.
+  ///
+  /// In en, this message translates to:
+  /// **'Not running'**
+  String get remoteSyncStatusStopped;
+
+  /// Remote listener status when starting failed; error is the reason reported by the service.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String remoteSyncStatusFailed(Object error);
+
+  /// Section header for pairing another device over remote sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair a device'**
+  String get remoteSyncPairSectionTitle;
+
+  /// Explanation under that header: two devices on any networks pair by showing a remote pairing QR code on one and scanning or pasting the address on the other.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices on any network can pair: one shows the remote pairing QR code, the other scans it or pastes the address.'**
+  String get remoteSyncPairIntro;
+
+  /// Button that opens the remote pairing dialog and shows this device's QR code.
+  ///
+  /// In en, this message translates to:
+  /// **'Show remote pairing QR'**
+  String get remoteSyncShowCode;
+
+  /// Button and dialog title for pairing remotely by scanning a QR code or pasting the other device's address and code.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan or paste pairing code'**
+  String get remoteSyncEnterCode;
+
+  /// Title of the dialog that displays this device's remote pairing code; also the label of the code field on the joining side.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote pairing code'**
+  String get remoteSyncPairingCode;
+
+  /// Label of the field where the other device's remote address is pasted, and of the address shown in this device's pairing dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote address'**
+  String get remoteSyncAddressLabel;
+
+  /// Hint text in the address field, telling the user to paste the remote address shown on the other device.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the remote address shown on the other device'**
+  String get remoteSyncAddressHint;
+
+  /// Note under the address field explaining that a remote address is a long string, so scanning is easier, and that it can be copied and pasted when scanning is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'A remote address is a long string, so scanning is easier. If you cannot scan, copy it on the other device and paste it here.'**
+  String get remoteSyncAddressNote;
+
+  /// Button that reveals this device's remote address in the pairing dialog; the address is hidden by default because it is a secret.
+  ///
+  /// In en, this message translates to:
+  /// **'Show address'**
+  String get remoteSyncShowAddress;
+
+  /// Tooltip and button label for copying this device's remote address in the pairing dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy address'**
+  String get remoteSyncCopyAddress;
+
+  /// Toast confirming that the remote address was copied to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote address copied'**
+  String get remoteSyncAddressCopied;
+
+  /// Shown in the remote pairing dialog when this device's remote address is not available yet.
+  ///
+  /// In en, this message translates to:
+  /// **'The remote address is not available yet. Wait a moment and try again.'**
+  String get remoteSyncAddressEmpty;
+
+  /// Progress text on a device card while a sync session is connecting over the remote tunnel instead of a local network address.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting over the remote tunnel…'**
+  String get remoteSyncPhaseConnecting;
+
+  /// Section header listing devices that have a remote sync pairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Paired devices'**
+  String get remoteSyncPairedDevices;
+
+  /// Empty state under that header when no device has been paired over remote sync.
+  ///
+  /// In en, this message translates to:
+  /// **'No devices are paired over remote sync yet.'**
+  String get remoteSyncNoDevices;
+
+  /// Label shown in a paired device's card for its remote endpoint, instead of the long remote address.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote (tailcat)'**
+  String get remoteSyncEndpointRemote;
+
+  /// Section header for the remote key that determines this device's remote address.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote key'**
+  String get remoteSyncKeySection;
+
+  /// Explanation that remote sync uses a fixed remote identity, so this device's remote address survives restarts, and that resetting the key changes that address and requires remote-paired devices to pair again while local network sync is unaffected.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sync uses a fixed remote identity, so this device\'s remote address stays the same across restarts. Resetting the key changes that address. Devices paired over remote sync must pair again; local network sync is not affected.'**
+  String get remoteSyncKeyIntro;
+
+  /// Button that resets this device's remote key.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset key'**
+  String get remoteSyncResetKey;
+
+  /// Confirmation dialog title shown before the remote key is reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset the remote key?'**
+  String get remoteSyncResetTitle;
+
+  /// Confirmation body explaining what resetting the remote key changes for remote pairings, and that local network sync is unaffected.
+  ///
+  /// In en, this message translates to:
+  /// **'This device gets a new remote address. Devices paired over remote sync must pair again; local network sync is not affected.'**
+  String get remoteSyncResetBody;
+
+  /// Toast confirming that the remote key was reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote key reset'**
+  String get remoteSyncResetDone;
+
+  /// Toast shown when resetting the remote key failed; error is the reason reported by the service.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reset the remote key: {error}'**
+  String remoteSyncResetFailed(Object error);
+
+  /// Section header explaining how remote sync works.
+  ///
+  /// In en, this message translates to:
+  /// **'About remote sync'**
+  String get remoteSyncAboutSection;
+
+  /// About-section paragraph saying remote sync is built on tailcat and data is encrypted with WireGuard in transit.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sync is built on tailcat. Everything sent between devices is encrypted with WireGuard.'**
+  String get remoteSyncAboutTailcat;
+
+  /// Link label that opens the tailcat website for more information.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more'**
+  String get remoteSyncLearnMore;
+
+  /// About-section paragraph explaining that devices usually connect directly through NAT traversal, fall back to Tailscale's public DERP relays when that fails, that content stays WireGuard-encrypted either way, and that Cuplivo runs no DERP servers of its own but welcomes offers.
+  ///
+  /// In en, this message translates to:
+  /// **'Most of the time devices connect directly through NAT traversal, just like local network sync. When that fails, data is relayed through Tailscale\'s public DERP servers, still encrypted with WireGuard. Cuplivo does not run its own DERP servers yet; if you can provide a compliant one, please reach out.'**
+  String get remoteSyncAboutTransport;
+
+  /// Link label that opens the Cuplivo GitHub repository so the user can contact the project.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact us'**
+  String get remoteSyncContactUs;
+
+  /// Small print under the remote sync explanation noting that DERP relays can only see connection metadata and cannot decrypt synced content.
+  ///
+  /// In en, this message translates to:
+  /// **'DERP relays only see connection metadata; they cannot decrypt synced content.'**
+  String get remoteSyncMetadataNote;
+
+  /// Remote pairing error shown when the pasted remote address is empty or not in the expected format.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid remote address.'**
+  String get remoteSyncPairErrorInvalidAddress;
+
+  /// Remote pairing error shown when this device's remote listener is not available, so pairing cannot start.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sync is not available right now. Try again in a moment.'**
+  String get remoteSyncPairErrorUnavailable;
+
+  /// Fallback remote pairing error carrying the underlying failure; error is that reason.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote pairing failed: {error}'**
+  String remoteSyncPairErrorUnknown(Object error);
+
+  /// Error shown when a scanned QR code is not a Cuplivo remote pairing code.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a remote pairing QR code.'**
+  String get remoteSyncQrErrorNotTailcat;
+
+  /// Error shown when a scanned remote pairing code comes from a newer app version.
+  ///
+  /// In en, this message translates to:
+  /// **'This remote pairing QR code is from a newer version. Update the app and try again.'**
+  String get remoteSyncQrErrorBadVersion;
+
+  /// Error shown when a scanned remote pairing code cannot be decoded.
+  ///
+  /// In en, this message translates to:
+  /// **'The remote pairing QR code could not be read.'**
+  String get remoteSyncQrErrorMalformed;
+
+  /// Default display name of the DeepSeek Harness assistant kind, shown in assistant lists and settings. DeepSeek Harness is a product name and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness'**
+  String get assistantHarnessDefaultName;
+
+  /// Subtitle under the DeepSeek Harness assistant kind explaining that it connects to a remote DeepSeek Harness WebUI instead of a model provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote DeepSeek Harness'**
+  String get assistantHarnessRemoteSubtitle;
+
+  /// Label of the field where the user enters the access link of a DeepSeek Harness WebUI. WebUI is a product term and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the DeepSeek Harness WebUI access link'**
+  String get assistantHarnessWebUiUrlLabel;
+
+  /// Sample placeholder inside the WebUI access link field on the DeepSeek Harness settings page. It is an example URL and must be kept unchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'https://dsh-e2e.example.com'**
+  String get assistantHarnessWebUiUrlHint;
+
+  /// Helper text below the WebUI access link field explaining that the link works when DeepSeek Harness runs on the same LAN or is reachable over the internet.
+  ///
+  /// In en, this message translates to:
+  /// **'Use when DeepSeek Harness is on the same LAN or reachable over the internet.'**
+  String get assistantHarnessWebUiUrlHelper;
+
+  /// Button that confirms the entered DeepSeek Harness WebUI access link and starts checking the connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get assistantHarnessConfirm;
+
+  /// Connection status shown when the DeepSeek Harness WebUI link has been verified and the assistant can reach it.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get assistantHarnessConnected;
+
+  /// Connection status shown while the app is checking the DeepSeek Harness WebUI link; the trailing ellipsis indicates an ongoing action.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get assistantHarnessChecking;
+
+  /// Connection status message shown when connecting to DeepSeek Harness fails for an unspecified reason; asks the user to check the link and network and try again.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed. Check the link and your network, then try again.'**
+  String get assistantHarnessConnectionFailed;
+
+  /// Validation error shown when the entered text is not a usable WebUI access link; asks the user to enter a valid link.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid WebUI access link.'**
+  String get assistantHarnessInvalidUrl;
+
+  /// Validation error shown when the WebUI access link has no token; asks the user to paste the complete link printed by the dsh web command. token and dsh web are technical terms.
+  ///
+  /// In en, this message translates to:
+  /// **'The link is missing its token. Paste the full access link printed by dsh web.'**
+  String get assistantHarnessMissingToken;
+
+  /// Error shown when DeepSeek Harness refuses the access link, for example because the token is no longer valid; asks the user to check that the token is still valid.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness rejected this link. Check that its token is still valid.'**
+  String get assistantHarnessRejected;
+
+  /// Error shown when the DeepSeek Harness address cannot be reached at all; asks the user to check the address and network.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach that link. Check the address and network.'**
+  String get assistantHarnessUnreachable;
+
+  /// Error shown when the DeepSeek Harness page answers but its API does not respond, so the connection cannot be used.
+  ///
+  /// In en, this message translates to:
+  /// **'DeepSeek Harness did not answer its API.'**
+  String get assistantHarnessApiUnavailable;
+
+  /// Error shown inside the embedded WebView when the DeepSeek Harness page cannot be loaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load DeepSeek Harness.'**
+  String get assistantHarnessLoadFailed;
+
+  /// Message shown instead of the embedded WebView on platforms that do not support an in-app WebView; the user can open the link in a browser instead.
+  ///
+  /// In en, this message translates to:
+  /// **'Embedded WebView is not supported on this platform.'**
+  String get assistantHarnessUnsupportedPlatform;
+
+  /// Button that opens the DeepSeek Harness WebUI link in the system browser instead of the embedded WebView.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get assistantHarnessOpenInBrowser;
+
+  /// Button that retries loading or connecting to DeepSeek Harness after a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get assistantHarnessRetry;
+
+  /// Title above the two-way selector on the DeepSeek Harness settings page; chooses how the app reaches the remote instance.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection method'**
+  String get assistantHarnessConnectionMethodLabel;
+
+  /// Selector option for reaching DeepSeek Harness through the access link printed by dsh web, which works on the same LAN or over the internet.
+  ///
+  /// In en, this message translates to:
+  /// **'Public link'**
+  String get assistantHarnessMethodLink;
+
+  /// Selector option for reaching DeepSeek Harness through the ds-hu remote-access plugin, which exposes a tailnet address instead of a public link. ds-hu is a product name and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'ds-hu plugin'**
+  String get assistantHarnessMethodTailcat;
+
+  /// Label of the field where the user pastes the tailcat address (or the pairing command) shown by the ds-hu plugin. tailcat is a product name and is not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the tailcat address'**
+  String get assistantHarnessTailcatAddressLabel;
+
+  /// Sample placeholder inside the tailcat address field; an example pairing command. It is a command with an abbreviated address and must be kept unchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'tailcat forward tc… 18080:13080'**
+  String get assistantHarnessTailcatAddressHint;
+
+  /// Helper text below the tailcat address field explaining where the user finds the address or pairing command in the remote DeepSeek Harness interface.
+  ///
+  /// In en, this message translates to:
+  /// **'In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.'**
+  String get assistantHarnessTailcatAddressHelper;
+
+  /// Validation error shown when the pasted text is not a tailcat address or pairing command; tells the user where to find the right text.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the tailcat address or pairing command shown under Remote access.'**
+  String get assistantHarnessTailcatInvalidAddress;
+
+  /// Error shown when a tailcat address is valid but the tunnel cannot be established; asks the user to check the address and network.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the tailcat tunnel. Check the address and network.'**
+  String get assistantHarnessTailcatUnavailable;
+
+  /// Error shown when a tailcat connection is attempted on a platform without a tailcat client (the web build).
+  ///
+  /// In en, this message translates to:
+  /// **'tailcat connections are not supported on this platform.'**
+  String get assistantHarnessTailcatUnsupported;
+
+  /// Loading message inside the DeepSeek Harness page while the tailcat tunnel is being established; the trailing ellipsis indicates an ongoing action.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the tailcat tunnel…'**
+  String get assistantHarnessTailcatOpening;
+
+  /// Label of the button that opens the camera to scan the ds-hu plugin pairing QR code; the scan fills the tailcat address field and confirms it.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR code'**
+  String get assistantHarnessTailcatScanButton;
+
+  /// Heading of the card that shows this device's tailcat public key, the value a user adds to the ds-hu plugin client allow-list.
+  ///
+  /// In en, this message translates to:
+  /// **'This device\'s public key (allow-list)'**
+  String get assistantHarnessTailcatKeyLabel;
+
+  /// Helper text below the client public key: where to add it in the ds-hu plugin, and that an empty allow-list admits any address holder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this key under Remote access → Security in DeepSeek Harness to allow only the devices you list. Without an allow-list, the address alone is enough.'**
+  String get assistantHarnessTailcatKeyHelper;
+
+  /// Loading message while this device's tailcat identity is generated or read from disk; the trailing ellipsis indicates an ongoing action.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing this device\'s key…'**
+  String get assistantHarnessTailcatKeyPreparing;
+
+  /// Error shown when this device's tailcat identity could not be prepared (for example the app support directory is unavailable).
+  ///
+  /// In en, this message translates to:
+  /// **'Could not prepare this device\'s key.'**
+  String get assistantHarnessTailcatKeyFailed;
+
+  /// Confirmation snackbar shown after the client public key was placed on the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Public key copied'**
+  String get assistantHarnessTailcatKeyCopied;
+
+  /// Note under the method selector explaining that the ds-hu plugin provides remote access to the DeepSeek Harness WebUI and only has to be installed on the Harness host.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote access through the plugin. Install @ds-hu/dsh-tailcat-remote on the DeepSeek Harness and Cuplivo can open its WebUI without exposing a port.'**
+  String get assistantHarnessTailcatPluginNote;
 
   /// Button on the Images and Files storage detail pages that copies the load error and its stack trace to the clipboard.
   ///

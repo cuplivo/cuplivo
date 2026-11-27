@@ -1041,6 +1041,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantEditMaxTokensHint => 'Unlimited';
 
   @override
+  String get assistantEditDescriptionTitle => 'Description';
+
+  @override
+  String get assistantEditDescriptionTip =>
+      'Only read when scheduling group chats and subagents. Leave it empty if you use neither.';
+
+  @override
+  String get assistantEditDescriptionHint =>
+      'e.g. Write SQL from a request and explain the query plan';
+
+  @override
+  String get assistantEditDescriptionSet => 'Set';
+
+  @override
   String get assistantEditChatBackgroundTitle => 'Chat Background';
 
   @override
@@ -1061,6 +1075,69 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get desktopNavStorageTooltip => 'Storage';
+
+  @override
+  String get toolsMenuTooltip => 'Tools';
+
+  @override
+  String get markdownExportTitle => 'Markdown image';
+
+  @override
+  String get markdownExportEditTab => 'Edit';
+
+  @override
+  String get markdownExportPreviewTab => 'Preview';
+
+  @override
+  String get markdownExportHint => 'Paste Markdown, or import a .md file';
+
+  @override
+  String get markdownExportPreviewEmpty => 'Nothing to preview yet';
+
+  @override
+  String get markdownExportImport => 'Import';
+
+  @override
+  String get markdownExportPaste => 'Paste';
+
+  @override
+  String get markdownExportTextSize => 'Text size';
+
+  @override
+  String get markdownExportTextSizeSmall => 'Small';
+
+  @override
+  String get markdownExportTextSizeStandard => 'Standard';
+
+  @override
+  String get markdownExportTextSizeLarge => 'Large';
+
+  @override
+  String get markdownExportHideSource => 'Hide source';
+
+  @override
+  String get markdownExportShowSource => 'Show source';
+
+  @override
+  String get markdownExportReducedResolution =>
+      'Long document: drawn at a lower resolution so it still fits one picture';
+
+  @override
+  String get markdownExportExportImage => 'Export image';
+
+  @override
+  String get markdownExportDropHint => 'Drop to import Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile =>
+      'Only Markdown text files are supported';
+
+  @override
+  String get markdownExportReadFailed => 'This file could not be read';
+
+  @override
+  String get markdownExportNothingToPaste =>
+      'The clipboard has nothing this tool can use';
 
   @override
   String get desktopNavGlobalSearchTooltip => 'Global Search';
@@ -1718,6 +1795,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => 'Backup target';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote =>
+      'Everything this version can restore, group chats included';
+
+  @override
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
+
+  @override
+  String get backupPageTargetKelivoNote =>
+      'Imports into Kelivo, but group chats are lost';
+
+  @override
   String get backupPageBackupManagementDescription =>
       'Choose what to back up and import. Applies to local, WebDAV and S3 backups. Unselected content stays unchanged on import. Skills and workspaces include their own files.';
 
@@ -1746,7 +1842,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => 'Quick phrases';
 
   @override
-  String get backupPageInstructionsLabel => 'Prompt injections';
+  String get backupPageInstructionsLabel => 'Prompt library';
 
   @override
   String get backupPageWorkspacesLabel => 'Workspaces';
@@ -2578,6 +2674,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bottomToolsSheetOcr => 'Image OCR';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools =>
+      'This member\'s model cannot call tools.';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled =>
+      'This member has no tools switched on.';
+
+  @override
   String get messageMoreSheetTitle => 'More Actions';
 
   @override
@@ -2813,6 +2917,103 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String chatMessageWidgetWebFetch(String target) {
     return 'Read page: $target';
+  }
+
+  @override
+  String chatMessageWidgetDelegate(String label) {
+    return 'Delegate: $label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return 'Delegate $assistant: $label';
+  }
+
+  @override
+  String get subagentResultCompleted => 'Subagent finished';
+
+  @override
+  String get subagentResultFailed => 'Subagent failed';
+
+  @override
+  String get subagentResultCancelled => 'Subagent cancelled';
+
+  @override
+  String get subagentResultInterrupted => 'Subagent interrupted';
+
+  @override
+  String get subagentMailLabel => 'Subagent message';
+
+  @override
+  String get subagentMailDelegatorLabel => 'Delegator message';
+
+  @override
+  String get subagentMailOpenConversation => 'Open conversation';
+
+  @override
+  String get subagentMailCopy => 'Copy';
+
+  @override
+  String get subagentMailCopied => 'Copied';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return 'Subagent running ($elapsed) $label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return 'Subagents running: $count';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return 'Subagent waiting for you · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count subagents ($running running)';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return 'Subagent waiting for approval · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => 'Subagents';
+
+  @override
+  String get subagentPanelEmpty => 'No subagents in this conversation yet.';
+
+  @override
+  String get subagentTag => 'Subagent';
+
+  @override
+  String get subagentPanelRunning => 'Running';
+
+  @override
+  String get subagentPanelWaitingAnswer => 'Waiting for you';
+
+  @override
+  String get subagentPanelWaitingApproval => 'Waiting for approval';
+
+  @override
+  String get subagentPanelCompleted => 'Finished';
+
+  @override
+  String get subagentPanelFailed => 'Failed';
+
+  @override
+  String get subagentPanelCancelled => 'Cancelled';
+
+  @override
+  String get subagentPanelInterrupted => 'Interrupted';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '${minutes}m ${seconds}s';
   }
 
   @override
@@ -3357,6 +3558,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatInputBarMoreTooltip => 'Add';
 
   @override
+  String get chatInputBarOverflowTooltip => 'More actions';
+
+  @override
   String get chatInputBarVoiceInputTooltip => 'Voice input';
 
   @override
@@ -3603,6 +3807,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mcpServerEditSheetEnabledLabel => 'Enabled';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => 'This device only';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed =>
+      'Saved, but this server could not be held on this device.';
 
   @override
   String get mcpServerEditSheetNameLabel => 'Name';
@@ -3881,6 +4092,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => 'Embedding';
+
+  @override
+  String get modelDetailSheetDecisionType => 'Decision';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => 'Decision API';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => 'Decision URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint =>
+      'Empty: appended to the provider URL';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp =>
+      'Some providers serve decision models on their own endpoint; enter the path to override the default address.';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => 'Fill';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => 'Current';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => 'Bailian';
 
   @override
   String get modelDetailSheetInputModesLabel => 'Input Modes';
@@ -11946,6 +12183,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundGenerating => 'Generating reply';
 
   @override
+  String get backgroundCareLetter => 'Writing a letter';
+
+  @override
+  String get backgroundCareWorking => 'Preparing your letter';
+
+  @override
   String get backgroundThinking => 'Thinking';
 
   @override
@@ -15880,6 +16123,67 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
+  String get imageJobTitle => 'Illustration';
+
+  @override
+  String get imageJobFailed => 'Illustration failed';
+
+  @override
+  String get imageJobInterrupted => 'Illustration interrupted';
+
+  @override
+  String get assistantEditLocalToolImageTitle => 'Drawing';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => 'Subagent';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => 'Wait for task';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => 'Send message';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => 'Stop subagent';
+
+  @override
+  String get defaultModelPageImageModelTitle => 'Image Model';
+
+  @override
+  String get defaultModelPageImageModelSubtitle =>
+      'The model that draws pictures inside a reply; leave it unset to turn drawing off.';
+
+  @override
+  String get imageJobPanelCopy => 'Copy';
+
+  @override
+  String get imageJobPanelPromptLabel => 'Prompt';
+
+  @override
+  String get imageJobPanelModelLabel => 'Model';
+
+  @override
+  String get imageJobPanelSizeLabel => 'Size';
+
+  @override
+  String get imageJobPanelElapsedLabel => 'Time taken';
+
+  @override
+  String get imageJobPanelUsageLabel => 'Usage';
+
+  @override
+  String get imageJobPanelAuto => 'Auto';
+
+  @override
+  String get imageJobPanelOneImage => '1 image';
+
+  @override
+  String get imageJobNotConfigured => 'Not configured · Choose';
+
+  @override
+  String get imageModelFollowGlobal => 'Use the default image model';
+
+  @override
   String get recoveryGuideTitle => 'Let’s recover your chats';
 
   @override
@@ -16885,9 +17189,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatMessageWidgetReplySelection => 'Reply';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => 'User';
 
   @override
@@ -17004,6 +17305,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => 'Done';
+
+  @override
+  String get pdfExportResultSave => 'Save PDF';
 
   @override
   String get sideDrawerMenuCopyLink => 'Copy Link';
@@ -17210,6 +17514,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => 'Workspace file';
 
   @override
+  String get recycleBinKindSkill => 'Skill';
+
+  @override
+  String get recycleBinKindCompressionHistory => 'Compression history';
+
+  @override
+  String get recycleBinKindImageContext => 'Image context';
+
+  @override
+  String get recycleBinKindCompressionSettings => 'Compression settings';
+
+  @override
   String get recycleBinKindConfig => 'Configuration';
 
   @override
@@ -17256,6 +17572,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get recycleBinRestoreNoWorkspace =>
       'This file\'s workspace was deleted, so there is no folder to put it back into.';
+
+  @override
+  String get recycleBinRestoreNoConversation =>
+      'This entry\'s conversation was deleted, so there is nothing to put it back into.';
 
   @override
   String get recycleBinRestoreFailed => 'Could not restore that entry';
@@ -17362,7 +17682,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => 'LAN Sync';
+  String get settingsPageSync => 'Convenient Sync';
 
   @override
   String get lanSyncThisDevice => 'This device';
@@ -17443,6 +17763,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not reach the device. Check the address and port, and that both devices are on the same network.';
 
   @override
+  String get lanSyncPairErrorBusy =>
+      'The other device is busy with another pairing request. Try again in a moment.';
+
+  @override
   String get lanSyncPairErrorNoCertificate =>
       'The other device did not identify itself. Pairing aborted.';
 
@@ -17501,7 +17825,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files or 200 MB don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.';
+      'Version-control and dependency/build folders are skipped to save time. Workspaces over 2,000 files don\'t sync their files. A workspace\'s record always syncs — the switch governs only its files: a folder with the switch off is never sent, and a sync never removes it.';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -17612,6 +17936,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => 'Comparing data…';
+
+  @override
+  String get lanSyncPhasePreparing => 'Preparing…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return 'Sending $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return 'Receiving $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => 'Sending changes…';
@@ -17755,12 +18092,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '$count workspace folders kept (switch off)';
+    return '$count workspace folders kept on disk (switched off, or holding unsynced files)';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count deletions skipped (the local copy changed)';
   }
 
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n local rows replaced by newer versions on the peer (recoverable in the recycle bin)';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n conversations\' compression history, image-context switches or compression settings replaced by the peer\'s newer copy';
   }
 
   @override
@@ -18683,6 +19030,502 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get backupMacKeychainAccessDenied =>
       'macOS denied access to the backup password. If a system prompt appears, allow Cuplivo to access it. You can also check the default keychain and the password item’s permissions in Keychain Access.';
+
+  @override
+  String get settingsPageChatOwners => 'Assistants and groups';
+
+  @override
+  String get settingsPageChatOwnersCreate => 'Create';
+
+  @override
+  String get chatOwnersSeparate => 'Show separately';
+
+  @override
+  String get chatOwnersSectionAssistants => 'Assistants';
+
+  @override
+  String get chatOwnersSectionGroups => 'Groups';
+
+  @override
+  String get chatOwnerCreateAssistant => 'New assistant';
+
+  @override
+  String get recycleBinKindGroup => 'Group';
+
+  @override
+  String get recycleBinFilterGroups => 'Groups';
+
+  @override
+  String get groupChatTitle => 'Group chat';
+
+  @override
+  String get groupChatCreate => 'New group chat';
+
+  @override
+  String get groupChatCreateHint => 'Pick at least one assistant';
+
+  @override
+  String get groupChatNameHint => 'Group name';
+
+  @override
+  String get groupChatChangeAvatar => 'Change group avatar';
+
+  @override
+  String get groupChatMembers => 'Members';
+
+  @override
+  String get groupChatMembersEmpty => 'No members yet';
+
+  @override
+  String get groupChatInvite => 'Invite assistants';
+
+  @override
+  String get groupChatNoAssistantToInvite =>
+      'Every assistant is already in this group';
+
+  @override
+  String get groupChatSave => 'Save';
+
+  @override
+  String get groupChatCancel => 'Cancel';
+
+  @override
+  String get groupChatSettingsTitle => 'Group settings';
+
+  @override
+  String get groupChatBack => 'Back';
+
+  @override
+  String get groupChatOrchestration => 'Who speaks';
+
+  @override
+  String get groupChatDirectorTitle => 'Director model';
+
+  @override
+  String get groupChatDirectorSubtitle =>
+      'The model that picks who speaks next. A fast, low-cost model is the right choice.';
+
+  @override
+  String get groupChatDirectorFollowDefault => 'Follows default model';
+
+  @override
+  String get groupChatMaxTurnsTitle => 'Replies per round';
+
+  @override
+  String get groupChatMaxTurnsSubtitle =>
+      'How many members may reply to one message';
+
+  @override
+  String get groupChatRemoveMember => 'Remove';
+
+  @override
+  String get groupChatRemoveMemberTitle => 'Remove assistant';
+
+  @override
+  String get groupChatRemoveMemberContent =>
+      'This assistant will no longer take part in this group.';
+
+  @override
+  String get groupChatDelete => 'Delete group chat';
+
+  @override
+  String get groupChatDeleteTitle => 'Delete this group chat?';
+
+  @override
+  String get groupChatDeleteContent =>
+      'The group and all of its topics move to the recycle bin together.';
+
+  @override
+  String get groupChatDeleted => 'Group chat moved to the recycle bin';
+
+  @override
+  String get groupChatUnavailable =>
+      'This group chat\'s settings are not available. Restore it from the recycle bin.';
+
+  @override
+  String get groupChatNewTopic => 'New topic';
+
+  @override
+  String get groupChatRemovedMember => 'Deleted assistant';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      'The director model is unavailable, so the first member replied once. Check the default model settings.';
+
+  @override
+  String get groupChatUnavailableWarning =>
+      'This group chat has no available members.';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => 'Director model';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      'Picks who speaks next in a group chat. A fast, low-cost model is the best fit.';
+
+  @override
+  String get subagentConfigSubtitle =>
+      'Run one task in a copy of this chat, in the same workspace.';
+
+  @override
+  String get subagentConfigDepth => 'Depth';
+
+  @override
+  String get subagentConfigDepthDescription =>
+      'How many levels of subagents may delegate again.';
+
+  @override
+  String get subagentConfigDepthOne => 'A subagent cannot delegate again';
+
+  @override
+  String get subagentConfigDepthTwo => 'A subagent may delegate once more';
+
+  @override
+  String get subagentConfigDepthThree =>
+      'A subagent may delegate two more levels';
+
+  @override
+  String get subagentConfigModel => 'Model';
+
+  @override
+  String get subagentConfigModelDescription => 'Which model runs the subagent.';
+
+  @override
+  String get subagentConfigModelInherit => 'Follow this assistant';
+
+  @override
+  String get subagentConfigTargets => 'Delegation targets';
+
+  @override
+  String get subagentConfigTargetsDescription =>
+      'Assistants that can work as subagents.';
+
+  @override
+  String get subagentConfigTargetsSelf => 'This assistant';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return 'This assistant + $count';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection =>
+      'Delegating to your own assistant is always possible';
+
+  @override
+  String get subagentConfigTargetsSelfCaption =>
+      'Same assistant, same model, same tools';
+
+  @override
+  String get subagentConfigTargetsAlways => 'Always';
+
+  @override
+  String get subagentConfigTargetsOthersSection => 'Also available by name';
+
+  @override
+  String get subagentConfigTargetsFooter =>
+      'Nobody ticked means delegations go to yourself only.';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · targets $targets · depth $depth';
+  }
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · depth $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return 'View parent chat · $label';
+  }
+
+  @override
+  String get subagentEscalation => 'Subagent escalation';
+
+  @override
+  String get subagentEscalationAsk => 'Ask';
+
+  @override
+  String get subagentEscalationDeny => 'Always deny';
+
+  @override
+  String get subagentEscalationAllow => 'Always allow';
+
+  @override
+  String get remoteSyncTabLan => 'LAN Sync';
+
+  @override
+  String get remoteSyncTabRemote => 'Remote Sync (Experimental)';
+
+  @override
+  String get remoteSyncThisDevice => 'This device';
+
+  @override
+  String get remoteSyncStatusRunning => 'Running';
+
+  @override
+  String get remoteSyncStatusStarting => 'Starting…';
+
+  @override
+  String get remoteSyncStatusStopped => 'Not running';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return 'Failed: $error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => 'Pair a device';
+
+  @override
+  String get remoteSyncPairIntro =>
+      'Devices on any network can pair: one shows the remote pairing QR code, the other scans it or pastes the address.';
+
+  @override
+  String get remoteSyncShowCode => 'Show remote pairing QR';
+
+  @override
+  String get remoteSyncEnterCode => 'Scan or paste pairing code';
+
+  @override
+  String get remoteSyncPairingCode => 'Remote pairing code';
+
+  @override
+  String get remoteSyncAddressLabel => 'Remote address';
+
+  @override
+  String get remoteSyncAddressHint =>
+      'Paste the remote address shown on the other device';
+
+  @override
+  String get remoteSyncAddressNote =>
+      'A remote address is a long string, so scanning is easier. If you cannot scan, copy it on the other device and paste it here.';
+
+  @override
+  String get remoteSyncShowAddress => 'Show address';
+
+  @override
+  String get remoteSyncCopyAddress => 'Copy address';
+
+  @override
+  String get remoteSyncAddressCopied => 'Remote address copied';
+
+  @override
+  String get remoteSyncAddressEmpty =>
+      'The remote address is not available yet. Wait a moment and try again.';
+
+  @override
+  String get remoteSyncPhaseConnecting => 'Connecting over the remote tunnel…';
+
+  @override
+  String get remoteSyncPairedDevices => 'Paired devices';
+
+  @override
+  String get remoteSyncNoDevices =>
+      'No devices are paired over remote sync yet.';
+
+  @override
+  String get remoteSyncEndpointRemote => 'Remote (tailcat)';
+
+  @override
+  String get remoteSyncKeySection => 'Remote key';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      'Remote sync uses a fixed remote identity, so this device\'s remote address stays the same across restarts. Resetting the key changes that address. Devices paired over remote sync must pair again; local network sync is not affected.';
+
+  @override
+  String get remoteSyncResetKey => 'Reset key';
+
+  @override
+  String get remoteSyncResetTitle => 'Reset the remote key?';
+
+  @override
+  String get remoteSyncResetBody =>
+      'This device gets a new remote address. Devices paired over remote sync must pair again; local network sync is not affected.';
+
+  @override
+  String get remoteSyncResetDone => 'Remote key reset';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return 'Could not reset the remote key: $error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => 'About remote sync';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      'Remote sync is built on tailcat. Everything sent between devices is encrypted with WireGuard.';
+
+  @override
+  String get remoteSyncLearnMore => 'Learn more';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      'Most of the time devices connect directly through NAT traversal, just like local network sync. When that fails, data is relayed through Tailscale\'s public DERP servers, still encrypted with WireGuard. Cuplivo does not run its own DERP servers yet; if you can provide a compliant one, please reach out.';
+
+  @override
+  String get remoteSyncContactUs => 'Contact us';
+
+  @override
+  String get remoteSyncMetadataNote =>
+      'DERP relays only see connection metadata; they cannot decrypt synced content.';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress =>
+      'Enter a valid remote address.';
+
+  @override
+  String get remoteSyncPairErrorUnavailable =>
+      'Remote sync is not available right now. Try again in a moment.';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return 'Remote pairing failed: $error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat =>
+      'This is not a remote pairing QR code.';
+
+  @override
+  String get remoteSyncQrErrorBadVersion =>
+      'This remote pairing QR code is from a newer version. Update the app and try again.';
+
+  @override
+  String get remoteSyncQrErrorMalformed =>
+      'The remote pairing QR code could not be read.';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => 'Remote DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      'Enter the DeepSeek Harness WebUI access link';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      'Use when DeepSeek Harness is on the same LAN or reachable over the internet.';
+
+  @override
+  String get assistantHarnessConfirm => 'Confirm';
+
+  @override
+  String get assistantHarnessConnected => 'Connected';
+
+  @override
+  String get assistantHarnessChecking => 'Connecting…';
+
+  @override
+  String get assistantHarnessConnectionFailed =>
+      'Connection failed. Check the link and your network, then try again.';
+
+  @override
+  String get assistantHarnessInvalidUrl => 'Enter a valid WebUI access link.';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      'The link is missing its token. Paste the full access link printed by dsh web.';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness rejected this link. Check that its token is still valid.';
+
+  @override
+  String get assistantHarnessUnreachable =>
+      'Could not reach that link. Check the address and network.';
+
+  @override
+  String get assistantHarnessApiUnavailable =>
+      'DeepSeek Harness did not answer its API.';
+
+  @override
+  String get assistantHarnessLoadFailed => 'Could not load DeepSeek Harness.';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform =>
+      'Embedded WebView is not supported on this platform.';
+
+  @override
+  String get assistantHarnessOpenInBrowser => 'Open in browser';
+
+  @override
+  String get assistantHarnessRetry => 'Retry';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => 'Connection method';
+
+  @override
+  String get assistantHarnessMethodLink => 'Public link';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu plugin';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => 'Enter the tailcat address';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      'In the DeepSeek Harness sidebar, open Remote access and copy its tailcat address or pairing command.';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      'Enter the tailcat address or pairing command shown under Remote access.';
+
+  @override
+  String get assistantHarnessTailcatUnavailable =>
+      'Could not open the tailcat tunnel. Check the address and network.';
+
+  @override
+  String get assistantHarnessTailcatUnsupported =>
+      'tailcat connections are not supported on this platform.';
+
+  @override
+  String get assistantHarnessTailcatOpening => 'Opening the tailcat tunnel…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => 'Scan QR code';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel =>
+      'This device\'s public key (allow-list)';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      'Add this key under Remote access → Security in DeepSeek Harness to allow only the devices you list. Without an allow-list, the address alone is enough.';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing =>
+      'Preparing this device\'s key…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed =>
+      'Could not prepare this device\'s key.';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => 'Public key copied';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      'Remote access through the plugin. Install @ds-hu/dsh-tailcat-remote on the DeepSeek Harness and Cuplivo can open its WebUI without exposing a port.';
 
   @override
   String get storageSpaceCopyErrorDetails => 'Copy error details';

@@ -992,6 +992,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantEditMaxTokensHint => '无限制';
 
   @override
+  String get assistantEditDescriptionTitle => '描述';
+
+  @override
+  String get assistantEditDescriptionTip => '只作为群聊、子代理调度时参考，不使用这两个功能就无需填写。';
+
+  @override
+  String get assistantEditDescriptionHint => '例如：把需求写成 SQL 并解释执行计划';
+
+  @override
+  String get assistantEditDescriptionSet => '已填写';
+
+  @override
   String get assistantEditChatBackgroundTitle => '聊天背景';
 
   @override
@@ -1011,6 +1023,66 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get desktopNavStorageTooltip => '存储';
+
+  @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出图';
+
+  @override
+  String get markdownExportEditTab => '编辑';
+
+  @override
+  String get markdownExportPreviewTab => '预览';
+
+  @override
+  String get markdownExportHint => '粘贴 Markdown，或导入 .md 文件';
+
+  @override
+  String get markdownExportPreviewEmpty => '还没有可以预览的内容';
+
+  @override
+  String get markdownExportImport => '导入文件';
+
+  @override
+  String get markdownExportPaste => '粘贴';
+
+  @override
+  String get markdownExportTextSize => '字号';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '标准';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源码';
+
+  @override
+  String get markdownExportShowSource => '显示源码';
+
+  @override
+  String get markdownExportReducedResolution => '文档较长，已降低分辨率以保证仍然是一张图';
+
+  @override
+  String get markdownExportExportImage => '导出图片';
+
+  @override
+  String get markdownExportDropHint => '松开以导入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '只支持 Markdown 文本文件';
+
+  @override
+  String get markdownExportReadFailed => '无法读取这个文件';
+
+  @override
+  String get markdownExportNothingToPaste => '剪贴板里没有可用的内容';
 
   @override
   String get desktopNavGlobalSearchTooltip => '全局搜索';
@@ -1644,6 +1716,23 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get backupPageTargetTitle => '备份目标';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
+
+  @override
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
+
+  @override
+  String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
+
+  @override
   String get backupPageBackupManagementDescription =>
       '选择备份和导入的内容，适用于本地、WebDAV 和 S3。导入时保留未选中的内容。技能和工作区包含各自的文件。';
 
@@ -1672,7 +1761,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupPageQuickPhrasesLabel => '快捷短语';
 
   @override
-  String get backupPageInstructionsLabel => '提示词注入';
+  String get backupPageInstructionsLabel => '提示词库';
 
   @override
   String get backupPageWorkspacesLabel => '工作区';
@@ -2472,6 +2561,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bottomToolsSheetOcr => 'OCR 文字识别';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools => '这位成员的模型不能调用工具。';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => '这位成员没有启用任何工具。';
+
+  @override
   String get messageMoreSheetTitle => '更多操作';
 
   @override
@@ -2697,6 +2792,103 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String chatMessageWidgetWebFetch(String target) {
     return '读取网页: $target';
+  }
+
+  @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '派遣 $assistant：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失败';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中断';
+
+  @override
+  String get subagentMailLabel => '子代理消息';
+
+  @override
+  String get subagentMailDelegatorLabel => '委派方消息';
+
+  @override
+  String get subagentMailOpenConversation => '打开对话';
+
+  @override
+  String get subagentMailCopy => '复制';
+
+  @override
+  String get subagentMailCopied => '已复制';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理运行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 个子代理正在运行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 个子代理（$running 个正在运行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '这个会话还没有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '正在运行';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失败';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中断';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
   }
 
   @override
@@ -3213,7 +3405,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '添加';
+
+  @override
+  String get chatInputBarOverflowTooltip => '更多操作';
 
   @override
   String get chatInputBarVoiceInputTooltip => '语音输入';
@@ -3457,6 +3652,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mcpServerEditSheetEnabledLabel => '是否启用';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => '仅本机';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已保存，但这台服务器没能设成仅本机。';
 
   @override
   String get mcpServerEditSheetNameLabel => '名称';
@@ -3722,6 +3923,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -11411,6 +11636,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backgroundGenerating => '正在生成回复';
 
   @override
+  String get backgroundCareLetter => '正在写信';
+
+  @override
+  String get backgroundCareWorking => '正在准备来信';
+
+  @override
   String get backgroundThinking => '正在思考';
 
   @override
@@ -15052,6 +15283,66 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retry => '重试';
 
   @override
+  String get imageJobTitle => '插图';
+
+  @override
+  String get imageJobFailed => '生成失败';
+
+  @override
+  String get imageJobInterrupted => '已中断';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '发送消息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
+
+  @override
+  String get defaultModelPageImageModelTitle => '绘图模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回复里画图所用的模型；不设置就等于不启用绘图。';
+
+  @override
+  String get imageJobPanelCopy => '复制';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示词';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用时';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自动';
+
+  @override
+  String get imageJobPanelOneImage => '1 张';
+
+  @override
+  String get imageJobNotConfigured => '未配置 · 去选择';
+
+  @override
+  String get imageModelFollowGlobal => '使用默认绘图模型';
+
+  @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
 
   @override
@@ -15983,9 +16274,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatMessageWidgetReplySelection => '回复';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '用户';
 
   @override
@@ -16099,6 +16387,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '保存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '复制链接';
@@ -16293,6 +16584,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recycleBinKindWorkspaceFile => '工作区文件';
 
   @override
+  String get recycleBinKindSkill => '技能';
+
+  @override
+  String get recycleBinKindCompressionHistory => '压缩历史';
+
+  @override
+  String get recycleBinKindImageContext => '图片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '压缩设置';
+
+  @override
   String get recycleBinKindConfig => '配置';
 
   @override
@@ -16333,6 +16636,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreNoConversation => '该条目的对话已被删除，没有可以放回的位置。';
 
   @override
   String get recycleBinRestoreFailed => '恢复失败';
@@ -16438,7 +16744,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsPageLanSync => '局域网同步';
+  String get settingsPageSync => '便捷同步';
 
   @override
   String get lanSyncThisDevice => '本设备';
@@ -16514,6 +16820,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
 
   @override
+  String get lanSyncPairErrorBusy => '另一台设备正在处理另一个配对请求，请稍后再试。';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
 
   @override
@@ -16564,7 +16873,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 个文件的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -16673,6 +16982,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhasePreparing => '正在准备…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '正在发送 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '正在接收 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '正在发送变更…';
@@ -16815,12 +17137,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '已保留 $count 个工作区文件夹（开关已关闭）';
+    return '已保留 $count 个工作区文件夹（开关已关闭或含未同步文件）';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count 项删除已略过（本机内容已变更）';
   }
 
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 个会话的压缩历史、图片上下文开关或压缩设置被对端较新的版本替换';
   }
 
   @override
@@ -17656,6 +17988,468 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get backupMacKeychainAccessDenied =>
       'macOS 拒绝访问备份密码。如果出现系统提示，请允许 Cuplivo 访问。你也可以在「钥匙串访问」中检查默认钥匙串和备份密码项目的权限。';
+
+  @override
+  String get settingsPageChatOwners => '助手与群聊';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新建';
+
+  @override
+  String get chatOwnersSeparate => '分别显示';
+
+  @override
+  String get chatOwnersSectionAssistants => '助手';
+
+  @override
+  String get chatOwnersSectionGroups => '群聊';
+
+  @override
+  String get chatOwnerCreateAssistant => '新建助手';
+
+  @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
+
+  @override
+  String get groupChatTitle => '群聊';
+
+  @override
+  String get groupChatCreate => '新建群聊';
+
+  @override
+  String get groupChatCreateHint => '至少选择一位助手';
+
+  @override
+  String get groupChatNameHint => '群聊名称';
+
+  @override
+  String get groupChatChangeAvatar => '更换群头像';
+
+  @override
+  String get groupChatMembers => '成员';
+
+  @override
+  String get groupChatMembersEmpty => '还没有成员';
+
+  @override
+  String get groupChatInvite => '邀请助手';
+
+  @override
+  String get groupChatNoAssistantToInvite => '所有助手都已在这个群聊里';
+
+  @override
+  String get groupChatSave => '保存';
+
+  @override
+  String get groupChatCancel => '取消';
+
+  @override
+  String get groupChatSettingsTitle => '群聊设置';
+
+  @override
+  String get groupChatBack => '返回';
+
+  @override
+  String get groupChatOrchestration => '发言编排';
+
+  @override
+  String get groupChatDirectorTitle => '导演模型';
+
+  @override
+  String get groupChatDirectorSubtitle => '选择下一个谁来发言的模型，建议选择快速且低成本的模型';
+
+  @override
+  String get groupChatDirectorFollowDefault => '跟随默认模型';
+
+  @override
+  String get groupChatMaxTurnsTitle => '每轮最多发言';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '一条消息最多由几位成员回复';
+
+  @override
+  String get groupChatRemoveMember => '移出';
+
+  @override
+  String get groupChatRemoveMemberTitle => '移出助手';
+
+  @override
+  String get groupChatRemoveMemberContent => '该助手将不再参与这个群聊。';
+
+  @override
+  String get groupChatDelete => '删除群聊';
+
+  @override
+  String get groupChatDeleteTitle => '删除这个群聊？';
+
+  @override
+  String get groupChatDeleteContent => '群聊及其全部话题会一起移入回收站。';
+
+  @override
+  String get groupChatDeleted => '群聊已移入回收站';
+
+  @override
+  String get groupChatUnavailable => '找不到这个群聊的设置，请到回收站恢复。';
+
+  @override
+  String get groupChatNewTopic => '新话题';
+
+  @override
+  String get groupChatRemovedMember => '已删除的助手';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '导演模型不可用，已由首位成员回复一次。请检查默认模型设置。';
+
+  @override
+  String get groupChatUnavailableWarning => '这个群聊没有可用的成员。';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '导演模型';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '决定群聊里下一位发言者，建议选择快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一层';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派两层';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪个模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '继承本助手';
+
+  @override
+  String get subagentConfigTargets => '可委派的目标';
+
+  @override
+  String get subagentConfigTargetsDescription => '可作为子代理的助手';
+
+  @override
+  String get subagentConfigTargetsSelf => '本助手';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '本助手 + $count 个';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '派给本助手的分身，总是可以';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '与当前助手同提示、同模型、同工具';
+
+  @override
+  String get subagentConfigTargetsAlways => '总是';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '还可以指名';
+
+  @override
+  String get subagentConfigTargetsFooter => '不勾任何人，就是只派给本助手。';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 目标 $targets 个 · 深度 $depth';
+  }
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主对话 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提权访问';
+
+  @override
+  String get subagentEscalationAsk => '询问';
+
+  @override
+  String get subagentEscalationDeny => '始终拒绝';
+
+  @override
+  String get subagentEscalationAllow => '始终允许';
+
+  @override
+  String get remoteSyncTabLan => '局域网同步';
+
+  @override
+  String get remoteSyncTabRemote => '远程同步（实验性）';
+
+  @override
+  String get remoteSyncThisDevice => '本设备';
+
+  @override
+  String get remoteSyncStatusRunning => '运行中';
+
+  @override
+  String get remoteSyncStatusStarting => '启动中…';
+
+  @override
+  String get remoteSyncStatusStopped => '未启动';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return '启动失败：$error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get remoteSyncPairIntro => '两台设备可以在任意网络下配对：一台显示远程配对二维码，另一台扫码或粘贴地址。';
+
+  @override
+  String get remoteSyncShowCode => '显示远程配对二维码';
+
+  @override
+  String get remoteSyncEnterCode => '扫码或粘贴配对码';
+
+  @override
+  String get remoteSyncPairingCode => '远程配对码';
+
+  @override
+  String get remoteSyncAddressLabel => '远程地址';
+
+  @override
+  String get remoteSyncAddressHint => '粘贴另一台设备显示的远程地址';
+
+  @override
+  String get remoteSyncAddressNote =>
+      '远程地址是一长串字符，建议直接扫码；无法扫码时，可从另一台设备复制后粘贴到此处。';
+
+  @override
+  String get remoteSyncShowAddress => '显示地址';
+
+  @override
+  String get remoteSyncCopyAddress => '复制地址';
+
+  @override
+  String get remoteSyncAddressCopied => '远程地址已复制';
+
+  @override
+  String get remoteSyncAddressEmpty => '暂时拿不到本机的远程地址，请稍后重试。';
+
+  @override
+  String get remoteSyncPhaseConnecting => '正在通过远程隧道连接…';
+
+  @override
+  String get remoteSyncPairedDevices => '已配对设备';
+
+  @override
+  String get remoteSyncNoDevices => '还没有通过远程同步配对的设备。';
+
+  @override
+  String get remoteSyncEndpointRemote => '远程（tailcat）';
+
+  @override
+  String get remoteSyncKeySection => '远程密钥';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      '远程同步使用固定的远程身份，本机远程地址在重启后保持不变。重置密钥会更换该地址：通过远程同步配对的设备需要重新配对；局域网同步不受影响。';
+
+  @override
+  String get remoteSyncResetKey => '重置密钥';
+
+  @override
+  String get remoteSyncResetTitle => '重置远程密钥？';
+
+  @override
+  String get remoteSyncResetBody => '本机会获得新的远程地址。通过远程同步配对的设备需要重新配对；局域网同步不受影响。';
+
+  @override
+  String get remoteSyncResetDone => '远程密钥已重置';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return '重置远程密钥失败：$error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => '关于远程同步';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      '远程同步基于 tailcat，设备之间传输的数据使用 WireGuard 加密。';
+
+  @override
+  String get remoteSyncLearnMore => '了解更多';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      '大多数情况下，设备会通过 P2P 打洞直连，体验与局域网同步几乎无差别；少数打洞失败时，数据会经 Tailscale 官方 DERP 服务器中转，内容仍为 WireGuard 加密。Cuplivo 目前没有自建 DERP 服务器；如你愿意提供境内合规的 DERP 服务器，欢迎联系我们。';
+
+  @override
+  String get remoteSyncContactUs => '联系我们';
+
+  @override
+  String get remoteSyncMetadataNote => 'DERP 中继只能看到连接元数据，无法解密同步内容。';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress => '请输入有效的远程地址。';
+
+  @override
+  String get remoteSyncPairErrorUnavailable => '远程同步当前不可用，请稍后重试。';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return '远程配对失败：$error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat => '这不是远程配对二维码。';
+
+  @override
+  String get remoteSyncQrErrorBadVersion => '此远程配对二维码来自更新的版本，请先更新应用再重试。';
+
+  @override
+  String get remoteSyncQrErrorMalformed => '无法读取该远程配对二维码。';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '远程连接的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '请输入 DeepSeek Harness 的 WebUI 访问链接';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '适用于与 DeepSeek Harness 处于同一局域网，或 DeepSeek Harness 暴露在公网上。';
+
+  @override
+  String get assistantHarnessConfirm => '确认';
+
+  @override
+  String get assistantHarnessConnected => '已连接';
+
+  @override
+  String get assistantHarnessChecking => '连接中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '连接失败，请检查链接和网络后重试。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '请输入有效的 WebUI 访问链接。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '链接缺少 token，请粘贴 dsh web 打印的完整访问链接。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒绝了该链接，请确认 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '无法访问该链接，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的接口没有响应。';
+
+  @override
+  String get assistantHarnessLoadFailed => '无法加载 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '当前平台不支持内嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在浏览器中打开';
+
+  @override
+  String get assistantHarnessRetry => '重试';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '连接方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公网链接';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 插件';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填写 tailcat 地址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 侧边栏打开「远程访问」，复制 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填写「远程访问」页上显示的 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '无法建立 tailcat 隧道，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '当前平台不支持 tailcat 连接。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '扫描二维码';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本机公钥（白名单）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「远程访问 → 安全」里添加此公钥，即可只允许列表中的设备连接；不添加白名单时仅凭地址即可连接。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在准备本机公钥…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '无法准备本机公钥。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公钥已复制';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '通过插件即可远程访问：只需在 DeepSeek Harness 上安装 @ds-hu/dsh-tailcat-remote，Cuplivo 就能打开它的 WebUI，无需暴露端口。';
 
   @override
   String get storageSpaceCopyErrorDetails => '复制错误详情';
@@ -18971,6 +19765,18 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assistantEditMaxTokensHint => '无限制';
 
   @override
+  String get assistantEditDescriptionTitle => '描述';
+
+  @override
+  String get assistantEditDescriptionTip => '只作为群聊、子代理调度时参考，不使用这两个功能就无需填写。';
+
+  @override
+  String get assistantEditDescriptionHint => '例如：把需求写成 SQL 并解释执行计划';
+
+  @override
+  String get assistantEditDescriptionSet => '已填写';
+
+  @override
   String get assistantEditChatBackgroundTitle => '聊天背景';
 
   @override
@@ -18990,6 +19796,66 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get desktopNavStorageTooltip => '存储';
+
+  @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出图';
+
+  @override
+  String get markdownExportEditTab => '编辑';
+
+  @override
+  String get markdownExportPreviewTab => '预览';
+
+  @override
+  String get markdownExportHint => '粘贴 Markdown，或导入 .md 文件';
+
+  @override
+  String get markdownExportPreviewEmpty => '还没有可以预览的内容';
+
+  @override
+  String get markdownExportImport => '导入文件';
+
+  @override
+  String get markdownExportPaste => '粘贴';
+
+  @override
+  String get markdownExportTextSize => '字号';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '标准';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源码';
+
+  @override
+  String get markdownExportShowSource => '显示源码';
+
+  @override
+  String get markdownExportReducedResolution => '文档较长，已降低分辨率以保证仍然是一张图';
+
+  @override
+  String get markdownExportExportImage => '导出图片';
+
+  @override
+  String get markdownExportDropHint => '松开以导入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '只支持 Markdown 文本文件';
+
+  @override
+  String get markdownExportReadFailed => '无法读取这个文件';
+
+  @override
+  String get markdownExportNothingToPaste => '剪贴板里没有可用的内容';
 
   @override
   String get desktopNavGlobalSearchTooltip => '全局搜索';
@@ -19623,6 +20489,23 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String get backupPageTargetTitle => '备份目标';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote => '当前版本可恢复的全部内容，含群聊';
+
+  @override
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
+
+  @override
+  String get backupPageTargetKelivoNote => '可在 Kelivo 中导入，但会丢失群聊数据';
+
+  @override
   String get backupPageBackupManagementDescription =>
       '选择备份和导入的内容，适用于本地、WebDAV 和 S3。导入时保留未选中的内容。技能和工作区包含各自的文件。';
 
@@ -19651,7 +20534,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backupPageQuickPhrasesLabel => '快捷短语';
 
   @override
-  String get backupPageInstructionsLabel => '提示词注入';
+  String get backupPageInstructionsLabel => '提示词库';
 
   @override
   String get backupPageWorkspacesLabel => '工作区';
@@ -20451,6 +21334,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get bottomToolsSheetOcr => 'OCR 文字识别';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools => '这位成员的模型不能调用工具。';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => '这位成员没有启用任何工具。';
+
+  @override
   String get messageMoreSheetTitle => '更多操作';
 
   @override
@@ -20676,6 +21565,103 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String chatMessageWidgetWebFetch(String target) {
     return '读取网页: $target';
+  }
+
+  @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '派遣 $assistant：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失败';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中断';
+
+  @override
+  String get subagentMailLabel => '子代理消息';
+
+  @override
+  String get subagentMailDelegatorLabel => '委派方消息';
+
+  @override
+  String get subagentMailOpenConversation => '打开对话';
+
+  @override
+  String get subagentMailCopy => '复制';
+
+  @override
+  String get subagentMailCopied => '已复制';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理运行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 个子代理正在运行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 个子代理（$running 个正在运行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '这个会话还没有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '正在运行';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失败';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中断';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
   }
 
   @override
@@ -21192,7 +22178,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '添加';
+
+  @override
+  String get chatInputBarOverflowTooltip => '更多操作';
 
   @override
   String get chatInputBarVoiceInputTooltip => '语音输入';
@@ -21436,6 +22425,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get mcpServerEditSheetEnabledLabel => '是否启用';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => '仅本机';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已保存，但这台服务器没能设成仅本机。';
 
   @override
   String get mcpServerEditSheetNameLabel => '名称';
@@ -21701,6 +22696,30 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '决策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '决策接口';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '决策地址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空则拼在 provider 地址后';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供应商的决策模型使用独立接口，需要覆盖默认请求网址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '当前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百炼';
 
   @override
   String get modelDetailSheetInputModesLabel => '输入模式';
@@ -29390,6 +30409,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get backgroundGenerating => '正在生成回复';
 
   @override
+  String get backgroundCareLetter => '正在写信';
+
+  @override
+  String get backgroundCareWorking => '正在准备来信';
+
+  @override
   String get backgroundThinking => '正在思考';
 
   @override
@@ -33031,6 +34056,66 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get retry => '重试';
 
   @override
+  String get imageJobTitle => '插图';
+
+  @override
+  String get imageJobFailed => '生成失败';
+
+  @override
+  String get imageJobInterrupted => '已中断';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '绘图';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任务';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '发送消息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
+
+  @override
+  String get defaultModelPageImageModelTitle => '绘图模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回复里画图所用的模型；不设置就等于不启用绘图。';
+
+  @override
+  String get imageJobPanelCopy => '复制';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示词';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用时';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自动';
+
+  @override
+  String get imageJobPanelOneImage => '1 张';
+
+  @override
+  String get imageJobNotConfigured => '未配置 · 去选择';
+
+  @override
+  String get imageModelFollowGlobal => '使用默认绘图模型';
+
+  @override
   String get recoveryGuideTitle => '帮你找回聊天记录';
 
   @override
@@ -33962,9 +35047,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get chatMessageWidgetReplySelection => '回复';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '用户';
 
   @override
@@ -34078,6 +35160,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '保存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '复制链接';
@@ -34272,6 +35357,18 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get recycleBinKindWorkspaceFile => '工作区文件';
 
   @override
+  String get recycleBinKindSkill => '技能';
+
+  @override
+  String get recycleBinKindCompressionHistory => '压缩历史';
+
+  @override
+  String get recycleBinKindImageContext => '图片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '压缩设置';
+
+  @override
   String get recycleBinKindConfig => '配置';
 
   @override
@@ -34312,6 +35409,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get recycleBinRestoreNoWorkspace => '该文件所属的工作区已被删除，没有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreNoConversation => '该条目的对话已被删除，没有可以放回的位置。';
 
   @override
   String get recycleBinRestoreFailed => '恢复失败';
@@ -34417,7 +35517,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsPageLanSync => '局域网同步';
+  String get settingsPageSync => '便捷同步';
 
   @override
   String get lanSyncThisDevice => '本设备';
@@ -34493,6 +35593,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get lanSyncPairErrorUnreachable => '无法连接到该设备。请检查地址与端口，并确认两台设备在同一网络。';
 
   @override
+  String get lanSyncPairErrorBusy => '另一台设备正在处理另一个配对请求，请稍后再试。';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '对方未能出示身份，配对已中止。';
 
   @override
@@ -34543,7 +35646,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 文件或 200 MB 的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
+      '不同步 .git 与依赖/构建目录以节省时间。超过 2,000 个文件的工作区不同步内容。工作区记录始终同步，开关只控制文件：关闭后该文件夹不会被发送，也不会被同步删除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -34652,6 +35755,19 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get lanSyncPhaseExchanging => '正在对比数据…';
+
+  @override
+  String get lanSyncPhasePreparing => '正在准备…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '正在发送 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '正在接收 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '正在发送变更…';
@@ -34794,12 +35910,22 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '已保留 $count 个工作区文件夹（开关已关闭）';
+    return '已保留 $count 个工作区文件夹（开关已关闭或含未同步文件）';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '$count 项删除已略过（本机内容已变更）';
   }
 
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 条本地记录被对端更新的版本覆盖（可在回收站恢复）';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 个会话的压缩历史、图片上下文开关或压缩设置被对端较新的版本替换';
   }
 
   @override
@@ -35635,6 +36761,468 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get backupMacKeychainAccessDenied =>
       'macOS 拒绝访问备份密码。如果出现系统提示，请允许 Cuplivo 访问。你也可以在「钥匙串访问」中检查默认钥匙串和备份密码项目的权限。';
+
+  @override
+  String get settingsPageChatOwners => '助手与群聊';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新建';
+
+  @override
+  String get chatOwnersSeparate => '分别显示';
+
+  @override
+  String get chatOwnersSectionAssistants => '助手';
+
+  @override
+  String get chatOwnersSectionGroups => '群聊';
+
+  @override
+  String get chatOwnerCreateAssistant => '新建助手';
+
+  @override
+  String get recycleBinKindGroup => '群聊';
+
+  @override
+  String get recycleBinFilterGroups => '群聊';
+
+  @override
+  String get groupChatTitle => '群聊';
+
+  @override
+  String get groupChatCreate => '新建群聊';
+
+  @override
+  String get groupChatCreateHint => '至少选择一位助手';
+
+  @override
+  String get groupChatNameHint => '群聊名称';
+
+  @override
+  String get groupChatChangeAvatar => '更换群头像';
+
+  @override
+  String get groupChatMembers => '成员';
+
+  @override
+  String get groupChatMembersEmpty => '还没有成员';
+
+  @override
+  String get groupChatInvite => '邀请助手';
+
+  @override
+  String get groupChatNoAssistantToInvite => '所有助手都已在这个群聊里';
+
+  @override
+  String get groupChatSave => '保存';
+
+  @override
+  String get groupChatCancel => '取消';
+
+  @override
+  String get groupChatSettingsTitle => '群聊设置';
+
+  @override
+  String get groupChatBack => '返回';
+
+  @override
+  String get groupChatOrchestration => '发言编排';
+
+  @override
+  String get groupChatDirectorTitle => '导演模型';
+
+  @override
+  String get groupChatDirectorSubtitle => '选择下一个谁来发言的模型，建议选择快速且低成本的模型';
+
+  @override
+  String get groupChatDirectorFollowDefault => '跟随默认模型';
+
+  @override
+  String get groupChatMaxTurnsTitle => '每轮最多发言';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '一条消息最多由几位成员回复';
+
+  @override
+  String get groupChatRemoveMember => '移出';
+
+  @override
+  String get groupChatRemoveMemberTitle => '移出助手';
+
+  @override
+  String get groupChatRemoveMemberContent => '该助手将不再参与这个群聊。';
+
+  @override
+  String get groupChatDelete => '删除群聊';
+
+  @override
+  String get groupChatDeleteTitle => '删除这个群聊？';
+
+  @override
+  String get groupChatDeleteContent => '群聊及其全部话题会一起移入回收站。';
+
+  @override
+  String get groupChatDeleted => '群聊已移入回收站';
+
+  @override
+  String get groupChatUnavailable => '找不到这个群聊的设置，请到回收站恢复。';
+
+  @override
+  String get groupChatNewTopic => '新话题';
+
+  @override
+  String get groupChatRemovedMember => '已删除的助手';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '导演模型不可用，已由首位成员回复一次。请检查默认模型设置。';
+
+  @override
+  String get groupChatUnavailableWarning => '这个群聊没有可用的成员。';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '导演模型';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '决定群聊里下一位发言者，建议选择快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本会话自己的工作区里派一个分身去做完一件任务。';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允许子代理再派子代理的层数';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一层';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派两层';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪个模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '继承本助手';
+
+  @override
+  String get subagentConfigTargets => '可委派的目标';
+
+  @override
+  String get subagentConfigTargetsDescription => '可作为子代理的助手';
+
+  @override
+  String get subagentConfigTargetsSelf => '本助手';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '本助手 + $count 个';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '派给本助手的分身，总是可以';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '与当前助手同提示、同模型、同工具';
+
+  @override
+  String get subagentConfigTargetsAlways => '总是';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '还可以指名';
+
+  @override
+  String get subagentConfigTargetsFooter => '不勾任何人，就是只派给本助手。';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 目标 $targets 个 · 深度 $depth';
+  }
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主对话 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提权访问';
+
+  @override
+  String get subagentEscalationAsk => '询问';
+
+  @override
+  String get subagentEscalationDeny => '始终拒绝';
+
+  @override
+  String get subagentEscalationAllow => '始终允许';
+
+  @override
+  String get remoteSyncTabLan => '局域网同步';
+
+  @override
+  String get remoteSyncTabRemote => '远程同步（实验性）';
+
+  @override
+  String get remoteSyncThisDevice => '本设备';
+
+  @override
+  String get remoteSyncStatusRunning => '运行中';
+
+  @override
+  String get remoteSyncStatusStarting => '启动中…';
+
+  @override
+  String get remoteSyncStatusStopped => '未启动';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return '启动失败：$error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => '配对设备';
+
+  @override
+  String get remoteSyncPairIntro => '两台设备可以在任意网络下配对：一台显示远程配对二维码，另一台扫码或粘贴地址。';
+
+  @override
+  String get remoteSyncShowCode => '显示远程配对二维码';
+
+  @override
+  String get remoteSyncEnterCode => '扫码或粘贴配对码';
+
+  @override
+  String get remoteSyncPairingCode => '远程配对码';
+
+  @override
+  String get remoteSyncAddressLabel => '远程地址';
+
+  @override
+  String get remoteSyncAddressHint => '粘贴另一台设备显示的远程地址';
+
+  @override
+  String get remoteSyncAddressNote =>
+      '远程地址是一长串字符，建议直接扫码；无法扫码时，可从另一台设备复制后粘贴到此处。';
+
+  @override
+  String get remoteSyncShowAddress => '显示地址';
+
+  @override
+  String get remoteSyncCopyAddress => '复制地址';
+
+  @override
+  String get remoteSyncAddressCopied => '远程地址已复制';
+
+  @override
+  String get remoteSyncAddressEmpty => '暂时拿不到本机的远程地址，请稍后重试。';
+
+  @override
+  String get remoteSyncPhaseConnecting => '正在通过远程隧道连接…';
+
+  @override
+  String get remoteSyncPairedDevices => '已配对设备';
+
+  @override
+  String get remoteSyncNoDevices => '还没有通过远程同步配对的设备。';
+
+  @override
+  String get remoteSyncEndpointRemote => '远程（tailcat）';
+
+  @override
+  String get remoteSyncKeySection => '远程密钥';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      '远程同步使用固定的远程身份，本机远程地址在重启后保持不变。重置密钥会更换该地址：通过远程同步配对的设备需要重新配对；局域网同步不受影响。';
+
+  @override
+  String get remoteSyncResetKey => '重置密钥';
+
+  @override
+  String get remoteSyncResetTitle => '重置远程密钥？';
+
+  @override
+  String get remoteSyncResetBody => '本机会获得新的远程地址。通过远程同步配对的设备需要重新配对；局域网同步不受影响。';
+
+  @override
+  String get remoteSyncResetDone => '远程密钥已重置';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return '重置远程密钥失败：$error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => '关于远程同步';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      '远程同步基于 tailcat，设备之间传输的数据使用 WireGuard 加密。';
+
+  @override
+  String get remoteSyncLearnMore => '了解更多';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      '大多数情况下，设备会通过 P2P 打洞直连，体验与局域网同步几乎无差别；少数打洞失败时，数据会经 Tailscale 官方 DERP 服务器中转，内容仍为 WireGuard 加密。Cuplivo 目前没有自建 DERP 服务器；如你愿意提供境内合规的 DERP 服务器，欢迎联系我们。';
+
+  @override
+  String get remoteSyncContactUs => '联系我们';
+
+  @override
+  String get remoteSyncMetadataNote => 'DERP 中继只能看到连接元数据，无法解密同步内容。';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress => '请输入有效的远程地址。';
+
+  @override
+  String get remoteSyncPairErrorUnavailable => '远程同步当前不可用，请稍后重试。';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return '远程配对失败：$error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat => '这不是远程配对二维码。';
+
+  @override
+  String get remoteSyncQrErrorBadVersion => '此远程配对二维码来自更新的版本，请先更新应用再重试。';
+
+  @override
+  String get remoteSyncQrErrorMalformed => '无法读取该远程配对二维码。';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '远程连接的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '请输入 DeepSeek Harness 的 WebUI 访问链接';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '适用于与 DeepSeek Harness 处于同一局域网，或 DeepSeek Harness 暴露在公网上。';
+
+  @override
+  String get assistantHarnessConfirm => '确认';
+
+  @override
+  String get assistantHarnessConnected => '已连接';
+
+  @override
+  String get assistantHarnessChecking => '连接中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '连接失败，请检查链接和网络后重试。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '请输入有效的 WebUI 访问链接。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '链接缺少 token，请粘贴 dsh web 打印的完整访问链接。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒绝了该链接，请确认 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '无法访问该链接，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的接口没有响应。';
+
+  @override
+  String get assistantHarnessLoadFailed => '无法加载 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '当前平台不支持内嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在浏览器中打开';
+
+  @override
+  String get assistantHarnessRetry => '重试';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '连接方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公网链接';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 插件';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填写 tailcat 地址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 侧边栏打开「远程访问」，复制 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填写「远程访问」页上显示的 tailcat 地址或配对命令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '无法建立 tailcat 隧道，请检查地址和网络。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '当前平台不支持 tailcat 连接。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '扫描二维码';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本机公钥（白名单）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「远程访问 → 安全」里添加此公钥，即可只允许列表中的设备连接；不添加白名单时仅凭地址即可连接。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在准备本机公钥…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '无法准备本机公钥。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公钥已复制';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '通过插件即可远程访问：只需在 DeepSeek Harness 上安装 @ds-hu/dsh-tailcat-remote，Cuplivo 就能打开它的 WebUI，无需暴露端口。';
 
   @override
   String get storageSpaceCopyErrorDetails => '复制错误详情';
@@ -36955,6 +38543,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get assistantEditMaxTokensHint => '無限制';
 
   @override
+  String get assistantEditDescriptionTitle => '描述';
+
+  @override
+  String get assistantEditDescriptionTip => '只作為群聊、子代理調度時參考，不使用這兩個功能就無需填寫。';
+
+  @override
+  String get assistantEditDescriptionHint => '例如：把需求寫成 SQL 並解釋執行計畫';
+
+  @override
+  String get assistantEditDescriptionSet => '已填寫';
+
+  @override
   String get assistantEditChatBackgroundTitle => '聊天背景';
 
   @override
@@ -36974,6 +38574,66 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get desktopNavStorageTooltip => '儲存';
+
+  @override
+  String get toolsMenuTooltip => '工具';
+
+  @override
+  String get markdownExportTitle => 'Markdown 出圖';
+
+  @override
+  String get markdownExportEditTab => '編輯';
+
+  @override
+  String get markdownExportPreviewTab => '預覽';
+
+  @override
+  String get markdownExportHint => '貼上 Markdown，或匯入 .md 檔案';
+
+  @override
+  String get markdownExportPreviewEmpty => '尚無可預覽的內容';
+
+  @override
+  String get markdownExportImport => '匯入檔案';
+
+  @override
+  String get markdownExportPaste => '貼上';
+
+  @override
+  String get markdownExportTextSize => '字級';
+
+  @override
+  String get markdownExportTextSizeSmall => '小';
+
+  @override
+  String get markdownExportTextSizeStandard => '標準';
+
+  @override
+  String get markdownExportTextSizeLarge => '大';
+
+  @override
+  String get markdownExportHideSource => '收起源碼';
+
+  @override
+  String get markdownExportShowSource => '顯示原始碼';
+
+  @override
+  String get markdownExportReducedResolution => '文件較長，已降低解析度以確保仍是一張圖';
+
+  @override
+  String get markdownExportExportImage => '匯出圖片';
+
+  @override
+  String get markdownExportDropHint => '放開以匯入 Markdown';
+
+  @override
+  String get markdownExportUnsupportedFile => '僅支援 Markdown 文字檔';
+
+  @override
+  String get markdownExportReadFailed => '無法讀取這個檔案';
+
+  @override
+  String get markdownExportNothingToPaste => '剪貼簿裡沒有可用的內容';
 
   @override
   String get desktopNavGlobalSearchTooltip => '全域搜尋';
@@ -37607,6 +39267,23 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String get backupPageTargetTitle => '備份目標';
+
+  @override
+  String get backupPageTargetCuplivo => 'Cuplivo';
+
+  @override
+  String get backupPageTargetCuplivoNote => '目前版本可還原的全部內容，含群組聊天';
+
+  @override
+  String backupPageTargetKelivo(String version) {
+    return 'Kelivo $version+';
+  }
+
+  @override
+  String get backupPageTargetKelivoNote => '可在 Kelivo 中匯入，但會遺失群組聊天資料';
+
+  @override
   String get backupPageBackupManagementDescription =>
       '選擇備份和匯入的內容，適用於本機、WebDAV 和 S3。匯入時保留未選取的內容。技能和工作區包含各自的檔案。';
 
@@ -37635,7 +39312,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backupPageQuickPhrasesLabel => '快捷短語';
 
   @override
-  String get backupPageInstructionsLabel => '提示詞注入';
+  String get backupPageInstructionsLabel => '提示詞庫';
 
   @override
   String get backupPageWorkspacesLabel => '工作區';
@@ -38435,6 +40112,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get bottomToolsSheetOcr => 'OCR 文字辨識';
 
   @override
+  String get chatToolsEmptyModelCannotUseTools => '這位成員的模型無法呼叫工具。';
+
+  @override
+  String get chatToolsEmptyNoToolsEnabled => '這位成員沒有啟用任何工具。';
+
+  @override
   String get messageMoreSheetTitle => '更多操作';
 
   @override
@@ -38660,6 +40343,103 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String chatMessageWidgetWebFetch(String target) {
     return '讀取網頁: $target';
+  }
+
+  @override
+  String chatMessageWidgetDelegate(String label) {
+    return '派遣子代理：$label';
+  }
+
+  @override
+  String chatMessageWidgetDelegateTo(String assistant, String label) {
+    return '派遣 $assistant：$label';
+  }
+
+  @override
+  String get subagentResultCompleted => '子代理完成';
+
+  @override
+  String get subagentResultFailed => '子代理失敗';
+
+  @override
+  String get subagentResultCancelled => '子代理已取消';
+
+  @override
+  String get subagentResultInterrupted => '子代理已中斷';
+
+  @override
+  String get subagentMailLabel => '子代理訊息';
+
+  @override
+  String get subagentMailDelegatorLabel => '委派方訊息';
+
+  @override
+  String get subagentMailOpenConversation => '打開對話';
+
+  @override
+  String get subagentMailCopy => '複製';
+
+  @override
+  String get subagentMailCopied => '已複製';
+
+  @override
+  String subagentStripRunning(String elapsed, String label) {
+    return '子代理執行中（$elapsed）$label';
+  }
+
+  @override
+  String subagentStripRunningMany(int count) {
+    return '$count 個子代理正在執行';
+  }
+
+  @override
+  String subagentStripWaiting(String label) {
+    return '子代理在等你回答 · $label';
+  }
+
+  @override
+  String subagentStripCounts(int count, int running) {
+    return '$count 個子代理（$running 個正在執行）';
+  }
+
+  @override
+  String subagentStripWaitingApproval(String label) {
+    return '子代理在等你批准 · $label';
+  }
+
+  @override
+  String get subagentPanelTitle => '子代理';
+
+  @override
+  String get subagentPanelEmpty => '這個會話還沒有子代理。';
+
+  @override
+  String get subagentTag => '子代理';
+
+  @override
+  String get subagentPanelRunning => '執行中';
+
+  @override
+  String get subagentPanelWaitingAnswer => '等你回答';
+
+  @override
+  String get subagentPanelWaitingApproval => '等待批准';
+
+  @override
+  String get subagentPanelCompleted => '已完成';
+
+  @override
+  String get subagentPanelFailed => '失敗';
+
+  @override
+  String get subagentPanelCancelled => '已取消';
+
+  @override
+  String get subagentPanelInterrupted => '已中斷';
+
+  @override
+  String subagentPanelElapsed(int minutes, int seconds) {
+    return '$minutes 分 $seconds 秒';
   }
 
   @override
@@ -39176,7 +40956,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatInputBarToolsTooltip => '工具';
 
   @override
-  String get chatInputBarMoreTooltip => '更多';
+  String get chatInputBarMoreTooltip => '新增';
+
+  @override
+  String get chatInputBarOverflowTooltip => '更多操作';
 
   @override
   String get chatInputBarVoiceInputTooltip => '語音輸入';
@@ -39420,6 +41203,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get mcpServerEditSheetEnabledLabel => '是否啟用';
+
+  @override
+  String get mcpServerEditSheetLocalOnlyLabel => '僅本機';
+
+  @override
+  String get mcpServerEditSheetLocalOnlySaveFailed => '已儲存，但這台伺服器沒能設成僅本機。';
 
   @override
   String get mcpServerEditSheetNameLabel => '名稱';
@@ -39685,6 +41474,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get modelDetailSheetEmbeddingType => '嵌入';
+
+  @override
+  String get modelDetailSheetDecisionType => '決策';
+
+  @override
+  String get modelDetailSheetDecisionDialectLabel => '決策介面';
+
+  @override
+  String get modelDetailSheetDecisionUrlLabel => '決策位址';
+
+  @override
+  String get modelDetailSheetDecisionUrlHint => '留空則接在 provider 位址後';
+
+  @override
+  String get modelDetailSheetDecisionUrlHelp => '部分供應商的決策模型使用獨立介面，需要覆寫預設請求網址。';
+
+  @override
+  String get modelDetailSheetDecisionUrlFill => '填入';
+
+  @override
+  String get modelDetailSheetDecisionUrlCurrent => '目前';
+
+  @override
+  String get modelDetailSheetDecisionUrlBailian => '百煉';
 
   @override
   String get modelDetailSheetInputModesLabel => '輸入模式';
@@ -47381,6 +49194,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get backgroundGenerating => '正在生成回覆';
 
   @override
+  String get backgroundCareLetter => '正在寫信';
+
+  @override
+  String get backgroundCareWorking => '正在準備來信';
+
+  @override
   String get backgroundThinking => '正在思考';
 
   @override
@@ -51026,6 +52845,66 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get retry => '重試';
 
   @override
+  String get imageJobTitle => '插圖';
+
+  @override
+  String get imageJobFailed => '生成失敗';
+
+  @override
+  String get imageJobInterrupted => '已中斷';
+
+  @override
+  String get assistantEditLocalToolImageTitle => '繪圖';
+
+  @override
+  String get assistantEditLocalToolDelegateTitle => '子代理';
+
+  @override
+  String get assistantEditLocalToolAwaitJobTitle => '等待任務';
+
+  @override
+  String get assistantEditLocalToolSendMessageTitle => '傳送訊息';
+
+  @override
+  String get assistantEditLocalToolInterruptTitle => '停止子代理';
+
+  @override
+  String get defaultModelPageImageModelTitle => '繪圖模型';
+
+  @override
+  String get defaultModelPageImageModelSubtitle => '在回覆裡畫圖所用的模型；不設定就等於不啟用繪圖。';
+
+  @override
+  String get imageJobPanelCopy => '複製';
+
+  @override
+  String get imageJobPanelPromptLabel => '提示詞';
+
+  @override
+  String get imageJobPanelModelLabel => '模型';
+
+  @override
+  String get imageJobPanelSizeLabel => '尺寸';
+
+  @override
+  String get imageJobPanelElapsedLabel => '用時';
+
+  @override
+  String get imageJobPanelUsageLabel => '用量';
+
+  @override
+  String get imageJobPanelAuto => '自動';
+
+  @override
+  String get imageJobPanelOneImage => '1 張';
+
+  @override
+  String get imageJobNotConfigured => '未設定 · 去選擇';
+
+  @override
+  String get imageModelFollowGlobal => '使用預設繪圖模型';
+
+  @override
   String get recoveryGuideTitle => '幫你找回聊天記錄';
 
   @override
@@ -51957,9 +53836,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get chatMessageWidgetReplySelection => '回覆';
 
   @override
-  String get chatSelectionExportPdf => 'PDF';
-
-  @override
   String get messageExportSheetUser => '使用者';
 
   @override
@@ -52073,6 +53949,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get pdfExportResultDone => '完成';
+
+  @override
+  String get pdfExportResultSave => '儲存 PDF';
 
   @override
   String get sideDrawerMenuCopyLink => '複製連結';
@@ -52267,6 +54146,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get recycleBinKindWorkspaceFile => '工作區檔案';
 
   @override
+  String get recycleBinKindSkill => '技能';
+
+  @override
+  String get recycleBinKindCompressionHistory => '壓縮歷史';
+
+  @override
+  String get recycleBinKindImageContext => '圖片上下文';
+
+  @override
+  String get recycleBinKindCompressionSettings => '壓縮設定';
+
+  @override
   String get recycleBinKindConfig => '設定';
 
   @override
@@ -52307,6 +54198,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get recycleBinRestoreNoWorkspace => '該檔案所屬的工作區已被刪除，沒有可以放回的位置。';
+
+  @override
+  String get recycleBinRestoreNoConversation => '該條目的對話已被刪除，沒有可以放回的位置。';
 
   @override
   String get recycleBinRestoreFailed => '還原失敗';
@@ -52412,7 +54306,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsPageLanSync => '區域網路同步';
+  String get settingsPageSync => '便捷同步';
 
   @override
   String get lanSyncThisDevice => '本裝置';
@@ -52488,6 +54382,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lanSyncPairErrorUnreachable => '無法連線到該裝置。請檢查位址與連接埠，並確認兩台裝置在同一網路。';
 
   @override
+  String get lanSyncPairErrorBusy => '另一台裝置正在處理另一個配對請求，請稍後再試。';
+
+  @override
   String get lanSyncPairErrorNoCertificate => '對方未能出示身分，配對已中止。';
 
   @override
@@ -52538,7 +54435,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncWorkspaceTip =>
-      '不同步 .git 與相依/建置目錄以節省時間。超過 2,000 個檔案或 200 MB 的工作區不同步內容。工作區記錄始終同步，開關只控制檔案：關閉後該資料夾不會被傳送，也不會被同步刪除。';
+      '不同步 .git 與相依/建置目錄以節省時間。超過 2,000 個檔案的工作區不同步內容。工作區記錄始終同步，開關只控制檔案：關閉後該資料夾不會被傳送，也不會被同步刪除。';
 
   @override
   String lanSyncWorkspaceSyncing(Object count) {
@@ -52647,6 +54544,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get lanSyncPhaseExchanging => '正在比對資料…';
+
+  @override
+  String get lanSyncPhasePreparing => '正在準備…';
+
+  @override
+  String lanSyncPhaseSendingOf(Object bytes, Object done, Object total) {
+    return '正在傳送 $done/$total · $bytes';
+  }
+
+  @override
+  String lanSyncPhaseReceivingOf(Object bytes, Object done, Object total) {
+    return '正在接收 $done/$total · $bytes';
+  }
 
   @override
   String get lanSyncPhaseSending => '正在傳送變更…';
@@ -52789,12 +54699,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String lanSyncReportWorkspacesKept(Object count) {
-    return '已保留 $count 個工作區資料夾（開關已關閉）';
+    return '已保留 $count 個工作區資料夾（開關已關閉或含未同步檔案）';
+  }
+
+  @override
+  String lanSyncReportDeletesBlocked(Object count) {
+    return '已略過 $count 項刪除（本機內容已變更）';
   }
 
   @override
   String lanSyncReportRowsLost(Object n) {
     return '$n 條本地記錄被對端更新的版本覆蓋（可在回收站還原）';
+  }
+
+  @override
+  String lanSyncReportDocumentsReplaced(Object n) {
+    return '$n 個對話的壓縮歷史、圖片上下文開關或壓縮設定被對端較新的版本取代';
   }
 
   @override
@@ -53528,7 +55448,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupAutoEnableHint =>
-      '到期後，在應用程式處於前景時自動備份。應用程式被關閉或清除後不會繼續跑，也不會接著傳；再次開啟時若已到期，只完整備份一次。';
+      '到期後，在應用程式處於前景時自動備份。應用程式被關閉或清除後不會繼續執行，也不會接續傳輸；再次開啟時若已到期，只會完整備份一次。';
 
   @override
   String get backupAutoDestinationTitle => '自動備份到';
@@ -53576,17 +55496,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupAutoLocalDirUnavailable =>
-      '無法寫入所選資料夾，請檢查它是否仍可用，或改選一個。已儲存的位置不會被自動更改。';
+      '無法寫入所選資料夾，請檢查它是否仍可用，或改選一個。已儲存的位置不會被自動變更。';
 
   @override
   String get backupAutoLocalDirPermission =>
-      '沒有所選資料夾的寫入權限。請重新選擇資料夾。已儲存的位置不會被自動更改。';
+      '沒有所選資料夾的寫入權限。請重新選擇資料夾。已儲存的位置不會被自動變更。';
 
   @override
   String get backupAutoLocalDirFull => '磁碟空間不足，備份未完成。先前的備份都還在。';
 
   @override
-  String get backupAutoLocalBookmarkLost => '無法存取所選資料夾，請重新選擇一次。已儲存的位置不會被自動更改。';
+  String get backupAutoLocalBookmarkLost => '無法存取所選資料夾，請重新選擇一次。已儲存的位置不會被自動變更。';
 
   @override
   String get backupAutoNextTitle => '下次自動備份';
@@ -53645,7 +55565,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get backupMacKeychainNeedsUnlock =>
-      'macOS 無法解鎖登入鑰匙圈。請開啟「鑰匙串存取」，解鎖「登入」，再回到 Cuplivo 重試。';
+      'macOS 無法解鎖登入鑰匙圈。請開啟「鑰匙圈存取」，解鎖「登入」，再回到 Cuplivo 重試。';
 
   @override
   String get backupMacOpenKeychainAccess => '開啟鑰匙圈存取';
@@ -53653,6 +55573,467 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get backupMacKeychainAccessDenied =>
       'macOS 拒絕存取備份密碼。如果出現系統提示，請允許 Cuplivo 存取。你也可以在「鑰匙串存取」中檢查預設鑰匙串和備份密碼項目的權限。';
+
+  @override
+  String get settingsPageChatOwners => '助手與群組';
+
+  @override
+  String get settingsPageChatOwnersCreate => '新增';
+
+  @override
+  String get chatOwnersSeparate => '分開顯示';
+
+  @override
+  String get chatOwnersSectionAssistants => '助手';
+
+  @override
+  String get chatOwnersSectionGroups => '群組';
+
+  @override
+  String get chatOwnerCreateAssistant => '新增助手';
+
+  @override
+  String get recycleBinKindGroup => '群組';
+
+  @override
+  String get recycleBinFilterGroups => '群組';
+
+  @override
+  String get groupChatTitle => '群組聊天';
+
+  @override
+  String get groupChatCreate => '新增群組聊天';
+
+  @override
+  String get groupChatCreateHint => '至少選擇一位助手';
+
+  @override
+  String get groupChatNameHint => '群組名稱';
+
+  @override
+  String get groupChatChangeAvatar => '更換群組頭像';
+
+  @override
+  String get groupChatMembers => '成員';
+
+  @override
+  String get groupChatMembersEmpty => '尚無成員';
+
+  @override
+  String get groupChatInvite => '邀請助手';
+
+  @override
+  String get groupChatNoAssistantToInvite => '所有助手都已在此群組中';
+
+  @override
+  String get groupChatSave => '儲存';
+
+  @override
+  String get groupChatCancel => '取消';
+
+  @override
+  String get groupChatSettingsTitle => '群組設定';
+
+  @override
+  String get groupChatBack => '返回';
+
+  @override
+  String get groupChatOrchestration => '發言編排';
+
+  @override
+  String get groupChatDirectorTitle => '導演模型';
+
+  @override
+  String get groupChatDirectorSubtitle => '選擇下一位發言者的模型，建議選擇快速且低成本的模型';
+
+  @override
+  String get groupChatDirectorFollowDefault => '跟隨預設模型';
+
+  @override
+  String get groupChatMaxTurnsTitle => '每輪最多發言';
+
+  @override
+  String get groupChatMaxTurnsSubtitle => '一則訊息最多由幾位成員回覆';
+
+  @override
+  String get groupChatRemoveMember => '移出';
+
+  @override
+  String get groupChatRemoveMemberTitle => '移出助手';
+
+  @override
+  String get groupChatRemoveMemberContent => '該助手將不再參與此群組。';
+
+  @override
+  String get groupChatDelete => '刪除群組聊天';
+
+  @override
+  String get groupChatDeleteTitle => '刪除此群組聊天？';
+
+  @override
+  String get groupChatDeleteContent => '群組及其全部話題會一起移入回收站。';
+
+  @override
+  String get groupChatDeleted => '群組聊天已移入回收站';
+
+  @override
+  String get groupChatUnavailable => '找不到此群組聊天的設定，請到回收站還原。';
+
+  @override
+  String get groupChatNewTopic => '新話題';
+
+  @override
+  String get groupChatRemovedMember => '已刪除的助手';
+
+  @override
+  String get groupChatDirectorFallbackWarning =>
+      '導演模型無法使用，已由首位成員回覆一次。請檢查預設模型設定。';
+
+  @override
+  String get groupChatUnavailableWarning => '此群組聊天沒有可用的成員。';
+
+  @override
+  String get defaultModelPageDirectorModelTitle => '導演模型';
+
+  @override
+  String get defaultModelPageDirectorModelSubtitle =>
+      '決定群組聊天中下一位發言者，建議選擇快速且低成本的模型';
+
+  @override
+  String get subagentConfigSubtitle => '在本會話自己的工作區裡派一個分身去做完一件任務。';
+
+  @override
+  String get subagentConfigDepth => '深度';
+
+  @override
+  String get subagentConfigDepthDescription => '允許子代理再派子代理的層數';
+
+  @override
+  String get subagentConfigDepthOne => '子代理不可再派子代理';
+
+  @override
+  String get subagentConfigDepthTwo => '子代理可以再派一層';
+
+  @override
+  String get subagentConfigDepthThree => '子代理最多再派兩層';
+
+  @override
+  String get subagentConfigModel => '模型';
+
+  @override
+  String get subagentConfigModelDescription => '用哪個模型跑子代理';
+
+  @override
+  String get subagentConfigModelInherit => '繼承本助手';
+
+  @override
+  String get subagentConfigTargets => '可委派的目標';
+
+  @override
+  String get subagentConfigTargetsDescription => '可作為子代理的助手';
+
+  @override
+  String get subagentConfigTargetsSelf => '本助手';
+
+  @override
+  String subagentConfigTargetsSelfPlus(int count) {
+    return '本助手 + $count 個';
+  }
+
+  @override
+  String get subagentConfigTargetsSelfSection => '派給本助手的分身，總是可以';
+
+  @override
+  String get subagentConfigTargetsSelfCaption => '與目前助手同提示、同模型、同工具';
+
+  @override
+  String get subagentConfigTargetsAlways => '總是';
+
+  @override
+  String get subagentConfigTargetsOthersSection => '還可以指名';
+
+  @override
+  String get subagentConfigTargetsFooter => '不勾任何人，就是只派給本助手。';
+
+  @override
+  String subagentConfigSummaryWithTargets(
+    String model,
+    int targets,
+    int depth,
+  ) {
+    return '$model · 目標 $targets 個 · 深度 $depth';
+  }
+
+  @override
+  String subagentConfigSummary(String model, int depth) {
+    return '$model · 深度 $depth';
+  }
+
+  @override
+  String subagentViewParent(String label) {
+    return '查看主對話 · $label';
+  }
+
+  @override
+  String get subagentEscalation => '子代理提權存取';
+
+  @override
+  String get subagentEscalationAsk => '詢問';
+
+  @override
+  String get subagentEscalationDeny => '始終拒絕';
+
+  @override
+  String get subagentEscalationAllow => '始終允許';
+
+  @override
+  String get remoteSyncTabLan => '區域網路同步';
+
+  @override
+  String get remoteSyncTabRemote => '遠端同步（實驗性）';
+
+  @override
+  String get remoteSyncThisDevice => '本裝置';
+
+  @override
+  String get remoteSyncStatusRunning => '執行中';
+
+  @override
+  String get remoteSyncStatusStarting => '啟動中…';
+
+  @override
+  String get remoteSyncStatusStopped => '未啟動';
+
+  @override
+  String remoteSyncStatusFailed(Object error) {
+    return '啟動失敗：$error';
+  }
+
+  @override
+  String get remoteSyncPairSectionTitle => '配對裝置';
+
+  @override
+  String get remoteSyncPairIntro => '兩台裝置可以在任意網路下配對：一台顯示遠端配對二維碼，另一台掃碼或貼上地址。';
+
+  @override
+  String get remoteSyncShowCode => '顯示遠端配對二維碼';
+
+  @override
+  String get remoteSyncEnterCode => '掃碼或貼上配對碼';
+
+  @override
+  String get remoteSyncPairingCode => '遠端配對碼';
+
+  @override
+  String get remoteSyncAddressLabel => '遠端地址';
+
+  @override
+  String get remoteSyncAddressHint => '貼上另一台裝置顯示的遠端地址';
+
+  @override
+  String get remoteSyncAddressNote => '遠端地址是一長串字元，建議直接掃碼；無法掃碼時，可從另一台裝置複製後貼到此處。';
+
+  @override
+  String get remoteSyncShowAddress => '顯示地址';
+
+  @override
+  String get remoteSyncCopyAddress => '複製地址';
+
+  @override
+  String get remoteSyncAddressCopied => '遠端地址已複製';
+
+  @override
+  String get remoteSyncAddressEmpty => '暫時無法取得本機的遠端地址，請稍後再試。';
+
+  @override
+  String get remoteSyncPhaseConnecting => '正在透過遠端通道連線…';
+
+  @override
+  String get remoteSyncPairedDevices => '已配對裝置';
+
+  @override
+  String get remoteSyncNoDevices => '還沒有透過遠端同步配對的裝置。';
+
+  @override
+  String get remoteSyncEndpointRemote => '遠端（tailcat）';
+
+  @override
+  String get remoteSyncKeySection => '遠端金鑰';
+
+  @override
+  String get remoteSyncKeyIntro =>
+      '遠端同步使用固定的遠端身分，本機遠端地址在重新啟動後維持不變。重設金鑰會更換該地址：透過遠端同步配對的裝置需要重新配對；區域網路同步不受影響。';
+
+  @override
+  String get remoteSyncResetKey => '重設金鑰';
+
+  @override
+  String get remoteSyncResetTitle => '重設遠端金鑰？';
+
+  @override
+  String get remoteSyncResetBody => '本機會取得新的遠端地址。透過遠端同步配對的裝置需要重新配對；區域網路同步不受影響。';
+
+  @override
+  String get remoteSyncResetDone => '遠端金鑰已重設';
+
+  @override
+  String remoteSyncResetFailed(Object error) {
+    return '重設遠端金鑰失敗：$error';
+  }
+
+  @override
+  String get remoteSyncAboutSection => '關於遠端同步';
+
+  @override
+  String get remoteSyncAboutTailcat =>
+      '遠端同步基於 tailcat，裝置之間傳輸的資料使用 WireGuard 加密。';
+
+  @override
+  String get remoteSyncLearnMore => '瞭解更多';
+
+  @override
+  String get remoteSyncAboutTransport =>
+      '大多數情況下，裝置會透過 P2P 打洞直連，體驗與區域網路同步幾乎無差別；少數打洞失敗時，資料會經 Tailscale 官方 DERP 伺服器中轉，內容仍為 WireGuard 加密。Cuplivo 目前沒有自建 DERP 伺服器；如你願意提供境內合規的 DERP 伺服器，歡迎聯絡我們。';
+
+  @override
+  String get remoteSyncContactUs => '聯絡我們';
+
+  @override
+  String get remoteSyncMetadataNote => 'DERP 中繼只能看到連線中繼資料，無法解密同步內容。';
+
+  @override
+  String get remoteSyncPairErrorInvalidAddress => '請輸入有效的遠端地址。';
+
+  @override
+  String get remoteSyncPairErrorUnavailable => '遠端同步目前無法使用，請稍後再試。';
+
+  @override
+  String remoteSyncPairErrorUnknown(Object error) {
+    return '遠端配對失敗：$error';
+  }
+
+  @override
+  String get remoteSyncQrErrorNotTailcat => '這不是遠端配對二維碼。';
+
+  @override
+  String get remoteSyncQrErrorBadVersion => '此遠端配對二維碼來自較新的版本，請先更新應用程式再試一次。';
+
+  @override
+  String get remoteSyncQrErrorMalformed => '無法讀取此遠端配對二維碼。';
+
+  @override
+  String get assistantHarnessDefaultName => 'DeepSeek Harness';
+
+  @override
+  String get assistantHarnessRemoteSubtitle => '遠端連線的 DeepSeek Harness';
+
+  @override
+  String get assistantHarnessWebUiUrlLabel =>
+      '請輸入 DeepSeek Harness 的 WebUI 存取連結';
+
+  @override
+  String get assistantHarnessWebUiUrlHint => 'https://dsh-e2e.example.com';
+
+  @override
+  String get assistantHarnessWebUiUrlHelper =>
+      '適用於與 DeepSeek Harness 處於同一區域網路，或 DeepSeek Harness 暴露在公網上的情況。';
+
+  @override
+  String get assistantHarnessConfirm => '確認';
+
+  @override
+  String get assistantHarnessConnected => '已連線';
+
+  @override
+  String get assistantHarnessChecking => '連線中…';
+
+  @override
+  String get assistantHarnessConnectionFailed => '連線失敗，請檢查連結和網路後重試。';
+
+  @override
+  String get assistantHarnessInvalidUrl => '請輸入有效的 WebUI 存取連結。';
+
+  @override
+  String get assistantHarnessMissingToken =>
+      '連結缺少 token，請貼上 dsh web 輸出的完整存取連結。';
+
+  @override
+  String get assistantHarnessRejected =>
+      'DeepSeek Harness 拒絕了該連結，請確認 token 是否仍然有效。';
+
+  @override
+  String get assistantHarnessUnreachable => '無法存取該連結，請檢查位址和網路。';
+
+  @override
+  String get assistantHarnessApiUnavailable => 'DeepSeek Harness 的介面沒有回應。';
+
+  @override
+  String get assistantHarnessLoadFailed => '無法載入 DeepSeek Harness。';
+
+  @override
+  String get assistantHarnessUnsupportedPlatform => '目前平台不支援內嵌 WebView。';
+
+  @override
+  String get assistantHarnessOpenInBrowser => '在瀏覽器中開啟';
+
+  @override
+  String get assistantHarnessRetry => '重試';
+
+  @override
+  String get assistantHarnessConnectionMethodLabel => '連線方式';
+
+  @override
+  String get assistantHarnessMethodLink => '公網連結';
+
+  @override
+  String get assistantHarnessMethodTailcat => 'ds-hu 外掛';
+
+  @override
+  String get assistantHarnessTailcatAddressLabel => '填寫 tailcat 位址';
+
+  @override
+  String get assistantHarnessTailcatAddressHint =>
+      'tailcat forward tc… 18080:13080';
+
+  @override
+  String get assistantHarnessTailcatAddressHelper =>
+      '在 DeepSeek Harness 側邊欄開啟「遠端存取」，複製 tailcat 位址或配對指令。';
+
+  @override
+  String get assistantHarnessTailcatInvalidAddress =>
+      '填寫「遠端存取」頁面上顯示的 tailcat 位址或配對指令。';
+
+  @override
+  String get assistantHarnessTailcatUnavailable => '無法建立 tailcat 隧道，請檢查位址和網路。';
+
+  @override
+  String get assistantHarnessTailcatUnsupported => '目前平台不支援 tailcat 連線。';
+
+  @override
+  String get assistantHarnessTailcatOpening => '正在建立 tailcat 隧道…';
+
+  @override
+  String get assistantHarnessTailcatScanButton => '掃描 QR Code';
+
+  @override
+  String get assistantHarnessTailcatKeyLabel => '本機公鑰（白名單）';
+
+  @override
+  String get assistantHarnessTailcatKeyHelper =>
+      '在 DeepSeek Harness 的「Remote access → Security」加入此公鑰，即可只允許清單中的裝置連線；未加入白名單時僅憑位址即可連線。';
+
+  @override
+  String get assistantHarnessTailcatKeyPreparing => '正在準備本機公鑰…';
+
+  @override
+  String get assistantHarnessTailcatKeyFailed => '無法準備本機公鑰。';
+
+  @override
+  String get assistantHarnessTailcatKeyCopied => '公鑰已複製';
+
+  @override
+  String get assistantHarnessTailcatPluginNote =>
+      '透過外掛即可遠端存取：只需在 DeepSeek Harness 上安裝 @ds-hu/dsh-tailcat-remote，Cuplivo 就能開啟它的 WebUI，無需對外開放連接埠。';
 
   @override
   String get storageSpaceCopyErrorDetails => '複製錯誤詳情';

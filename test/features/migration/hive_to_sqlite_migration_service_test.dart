@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1829,7 +1830,10 @@ void main() {
           .list()
           .where(
             (file) =>
-                file is File && file.path.startsWith('${legacy.path}.retired-'),
+                file is File &&
+                p
+                    .basename(file.path)
+                    .startsWith('${p.basename(legacy.path)}.retired-'),
           )
           .cast<File>()
           .toList();
@@ -2386,7 +2390,7 @@ final class _FailHiveRetirementOnce implements RestoreDurability {
     required FileSystemEntity source,
     required String targetPath,
   }) async {
-    if (!_failed && source.path == path) {
+    if (!_failed && p.equals(source.path, path)) {
       _failed = true;
       throw const FileSystemException('injected partial retirement failure');
     }

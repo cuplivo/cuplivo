@@ -15,7 +15,8 @@ class SelectionQuickToolbar extends StatelessWidget {
     required this.onQuote,
     required this.onTranslate,
   });
-  final VoidCallback onQuote, onTranslate;
+  final VoidCallback? onQuote;
+  final VoidCallback onTranslate;
   @override
   Widget build(BuildContext context) {
     final labels = AppLocalizations.of(context)!;
@@ -46,18 +47,22 @@ class SelectionQuickToolbar extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Flexible(
-                child: _SelectionAction(
-                  onTap: onQuote,
-                  label: labels.selectionQuote,
-                  shortcut: quoteKeyboardHint,
+              if (onQuote != null) ...[
+                Flexible(
+                  child: _SelectionAction(
+                    onTap: onQuote!,
+                    label: labels.selectionQuote,
+                    shortcut: quoteKeyboardHint,
+                  ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 16,
-                color: context.appColors.hairlineStrong.withValues(alpha: .16),
-              ),
+                Container(
+                  width: 1,
+                  height: 16,
+                  color: context.appColors.hairlineStrong.withValues(
+                    alpha: .16,
+                  ),
+                ),
+              ],
               Flexible(
                 child: _SelectionAction(
                   onTap: onTranslate,

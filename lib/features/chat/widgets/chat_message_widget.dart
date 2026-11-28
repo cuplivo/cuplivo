@@ -1,4 +1,5 @@
 import '../services/conversation_find_service.dart';
+import '../models/selection_session.dart';
 import 'conversation_find_highlights.dart';
 import 'package:Cuplivo/desktop/desktop_overlay_backdrop.dart';
 import '../utils/message_reasoning_source.dart';
@@ -2528,9 +2529,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
     if (isDesktop) {
       content = AppSelectionArea(
         key: ValueKey('user_${widget.message.id}'),
-        message: widget.message,
-        sourceText: visualText,
-        sourceMap: sourceMap,
+        session: SelectionSession(
+          message: widget.message,
+          source: visualText,
+          sourceMap: sourceMap,
+        ),
         child: content,
       );
     }
@@ -3060,9 +3063,11 @@ class _ChatMessageWidgetState extends State<ChatMessageWidget> {
       markdown: enableAssistantMarkdown,
       child: RepaintBoundary(
         child: AppSelectionArea(
-          message: widget.message,
-          sourceText: visualContent,
-          sourceMap: sourceMap,
+          session: SelectionSession(
+            message: widget.message,
+            source: visualContent,
+            sourceMap: sourceMap,
+          ),
           key: ValueKey(
             contentKey.isEmpty
                 ? 'assistant_${widget.message.id}'
@@ -6363,8 +6368,11 @@ class _ChainOfThoughtReasoningStepState
         findBlock: widget.sourceOrdinal,
         markdown: enableReasoningMarkdown,
         child: AppSelectionArea(
-          message: widget.message,
-          quoteTextOnly: true,
+          session: SelectionSession(
+            message: widget.message,
+            source: source,
+            quoteTextOnly: true,
+          ),
           child: enableReasoningMarkdown
               ? RepaintBoundary(
                   child: MarkdownWithCodeHighlight(

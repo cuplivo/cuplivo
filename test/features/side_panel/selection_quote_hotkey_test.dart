@@ -8,6 +8,7 @@ import 'package:Cuplivo/core/services/browser/browser_service.dart';
 import 'package:Cuplivo/desktop/hotkeys/hotkey_event_bus.dart';
 import 'package:Cuplivo/desktop/setting/hotkeys_pane.dart';
 import 'package:Cuplivo/desktop/widgets/desktop_labeled_control.dart';
+import 'package:Cuplivo/features/chat/models/selection_session.dart';
 import 'package:Cuplivo/features/chat/widgets/conversation_find_bar.dart';
 import 'package:Cuplivo/features/chat/widgets/quote_interaction_scope.dart';
 import 'package:Cuplivo/features/side_panel/desktop_side_panel_controller.dart';
@@ -499,11 +500,14 @@ void main() {
                     child: Padding(
                       padding: const EdgeInsets.all(60),
                       child: AppSelectionArea(
-                        message: ChatMessage(
-                          id: 'message',
-                          role: 'assistant',
-                          conversationId: 'a',
-                          content: 'selected words',
+                        session: SelectionSession(
+                          message: ChatMessage(
+                            id: 'message',
+                            role: 'assistant',
+                            conversationId: 'a',
+                            content: 'selected words',
+                          ),
+                          source: 'selected words',
                         ),
                         child: const Text('selected words'),
                       ),

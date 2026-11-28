@@ -11,10 +11,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart'
     show kSecondaryMouseButton, PointerDeviceKind;
 import 'package:uuid/uuid.dart';
-import '../../core/models/chat_message.dart';
 import '../../core/models/quote_ref.dart';
+import '../../features/chat/models/selection_session.dart';
 import '../../features/chat/models/selection_snapshot.dart';
-import '../../utils/source_text_map.dart';
 import '../../features/chat/widgets/quote_chip.dart' show selectionUsesDesktop;
 import '../../features/chat/widgets/quote_interaction_scope.dart';
 import '../../features/chat/widgets/selection_quick_toolbar.dart';
@@ -48,14 +47,9 @@ class AppSelectionArea extends StatefulWidget {
   const AppSelectionArea({
     super.key,
     required this.child,
+    this.session,
     this.clipboardWriter,
     this.copyByteLimit,
-    this.message,
-    this.sourceText,
-    this.sourceOffset,
-    this.sourceMap,
-    this.onQuoteSelected,
-    this.quoteTextOnly = false,
   });
 
   final Widget child;
@@ -63,14 +57,9 @@ class AppSelectionArea extends StatefulWidget {
 
   /// Optional budget for source and plain-text previews without AST projections.
   final int? copyByteLimit;
-  final ChatMessage? message;
-  final String? sourceText;
-  final int? sourceOffset;
-  final SourceTextMap? sourceMap;
-  final VoidCallback? onQuoteSelected;
 
-  /// Capture a quote chip without linking its text to message body offsets.
-  final bool quoteTextOnly;
+  /// What this selection can do. Null leaves the platform's own menu to it.
+  final SelectionSession? session;
 
   @override
   State<AppSelectionArea> createState() => _AppSelectionAreaState();
@@ -102,7 +91,8 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
   late final _copyAction = _SelectionCopyAction(
     intercept: () =>
         _regionFocus.hasPrimaryFocus &&
-        (_hasCopyBudget || (widget.message?.quotes.isNotEmpty ?? false)),
+        (_hasCopyBudget ||
+            (widget.session?.message?.quotes.isNotEmpty ?? false)),
     copy: _copyNativeSelection,
   );
   late MarkstreamSelectionController _markdownSelection;
@@ -135,7 +125,7 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
       position.removeListener(_hideToolbarsOnScroll);
     }
     _scrollPositions.clear();
-    if (widget.message == null && _scrollScope == null) return;
+    if (widget.session == null && _scrollScope == null) return;
     context.visitAncestorElements((element) {
       if (element is StatefulElement && element.state is ScrollableState) {
         final position = (element.state as ScrollableState).position;
@@ -163,24 +153,39 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
   }
 
   SelectionSnapshot? _captureSelection() {
-    final message = widget.message;
+    final session = widget.session;
+    if (session == null) return null;
+    final message = session.message;
     final text = _markdownSelection.hasSelection
         ? _markdownSelection.selectedPlainText
         : _selectionKey.currentState?.selectedText ?? _selectedText;
-    if (message == null || text.trim().isEmpty) return null;
-    if (widget.quoteTextOnly) {
+    if (text.trim().isEmpty) return null;
+    final markdown = _markdownSelection.hasSelection
+        ? _markdownSelection.selectedMarkdown
+        : text;
+    if (message == null) {
+      // A document has no message to attribute the selection to: only the
+      // text and its Markdown matter, and neither has a message offset.
+      return SelectionSnapshot(
+        messageId: '',
+        role: '',
+        start: 0,
+        end: 0,
+        text: text,
+        markdown: markdown,
+      );
+    }
+    if (session.quoteTextOnly) {
       return SelectionSnapshot(
         messageId: message.id,
         role: message.role,
         start: 0,
         end: 0,
         text: text,
-        markdown: _markdownSelection.hasSelection
-            ? _markdownSelection.selectedMarkdown
-            : text,
+        markdown: markdown,
       );
     }
-    final source = widget.sourceText ?? message.content;
+    final source = session.source;
     final ranges =
         _markdownSelection.selections
             .expand((selection) => selection.sourceRanges)
@@ -193,9 +198,9 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
     final end = ranges.isNotEmpty
         ? ranges.map((span) => span.end).reduce((a, b) => a > b ? a : b)
         : range?.endOffset ?? start + text.length;
-    final base = widget.sourceOffset ?? message.content.indexOf(source);
+    final base = message.content.indexOf(source);
     final offset = base < 0 ? 0 : base;
-    final mappedRange = widget.sourceMap?.sourceRange(
+    final mappedRange = session.sourceMap?.sourceRange(
       start.clamp(0, source.length),
       end.clamp(0, source.length),
     );
@@ -210,7 +215,7 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
             );
       if (!selected) continue;
       final raw =
-          widget.sourceMap?.sourceRange(match.start, match.end).start ??
+          session.sourceMap?.sourceRange(match.start, match.end).start ??
           offset + match.start;
       final index = RegExp(quotePlaceholder)
           .allMatches(
@@ -240,11 +245,7 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
       start: absoluteStart,
       end: mappedRange?.end ?? offset + end.clamp(0, source.length),
       text: expandQuotes(text),
-      markdown: expandQuotes(
-        _markdownSelection.hasSelection
-            ? _markdownSelection.selectedMarkdown
-            : text,
-      ),
+      markdown: expandQuotes(markdown),
     );
   }
 
@@ -259,7 +260,7 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
   }
 
   void _scheduleQuickToolbar() {
-    if (!selectionUsesDesktop || widget.message == null) {
+    if (!selectionUsesDesktop || widget.session == null) {
       return;
     }
     // Coalesce to the latest selection. Clearing/reselecting before the frame
@@ -293,11 +294,12 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
 
   void _quote(SelectionSnapshot snapshot) {
     final actions = QuoteInteractionScope.maybeOf(context);
-    final message = widget.message;
+    final session = widget.session;
+    final message = session?.message;
     if (actions == null || message == null) return;
     _hideQuickToolbar();
     _region?.hideToolbar();
-    widget.onQuoteSelected?.call();
+    session!.onQuoteSelected?.call();
     unawaited(
       actions.onQuote(
         QuoteRef(
@@ -308,29 +310,32 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
           text: snapshot.text,
           model: message.modelId,
           createdAt: message.timestamp,
-          hasSourceRange: !widget.quoteTextOnly,
+          hasSourceRange: !session.quoteTextOnly,
         ),
       ),
     );
   }
 
   void _translate(SelectionSnapshot snapshot, Rect anchor) {
-    final message = widget.message;
-    if (message == null) return;
+    final session = widget.session;
+    if (session == null) return;
     _hideQuickToolbar();
     _region?.hideToolbar();
+    final message = session.message;
     unawaited(
       showSelectionTranslationPanel(
         context,
-        message: message,
         text: snapshot.text,
         anchor: anchor,
+        target: message == null
+            ? selectionTranslationForDocument(context)
+            : selectionTranslationForMessage(context, message),
       ),
     );
   }
 
   KeyEventResult _keyEvent(FocusNode node, KeyEvent event) {
-    if (widget.message == null) return KeyEventResult.ignored;
+    if (widget.session == null) return KeyEventResult.ignored;
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
       _hideQuickToolbar();
@@ -343,7 +348,9 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
             ? keyboard.isMetaPressed
             : keyboard.isControlPressed)) {
       final snapshot = _captureSelection();
-      if (snapshot != null && QuoteInteractionScope.maybeOf(context) != null) {
+      if (snapshot != null &&
+          widget.session!.canQuote &&
+          QuoteInteractionScope.maybeOf(context) != null) {
         _quote(snapshot);
         return KeyEventResult.handled;
       }
@@ -448,8 +455,8 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
     // Reading these anchors consumes Flutter's saved right-click position.
     final anchors = region.contextMenuAnchors;
     final snapshot = _captureSelection();
-    if (widget.message != null && snapshot != null) {
-      return _buildMessageMenu(context, region, snapshot, anchors);
+    if (widget.session != null && snapshot != null) {
+      return _buildSessionMenu(context, region, snapshot, anchors);
     }
     return AppTextSelectionToolbar(
       anchors: anchors,
@@ -502,13 +509,16 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
     );
   }
 
-  Widget _buildMessageMenu(
+  /// One menu for a message and for a document. A document has no message to
+  /// quote, so that item disappears; everything else is the same decision.
+  Widget _buildSessionMenu(
     BuildContext context,
     SelectableRegionState region,
     SelectionSnapshot snapshot,
     TextSelectionToolbarAnchors anchors,
   ) {
     final l10n = AppLocalizations.of(context)!;
+    final session = widget.session!;
     final anchor = _selectionAnchor(fallbackAnchor: anchors.primaryAnchor);
     final items = region.contextMenuButtonItems;
     final selectedMarkdown = _markdownSelection.hasSelection
@@ -548,12 +558,14 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
         unawaited(pending.catchError(_copyFailure));
       },
     );
-    final quote = ContextMenuButtonItem(
-      label: l10n.selectionQuote,
-      onPressed: QuoteInteractionScope.maybeOf(this.context) == null
-          ? null
-          : () => _quote(snapshot),
-    );
+    final quote = session.canQuote
+        ? ContextMenuButtonItem(
+            label: l10n.selectionQuote,
+            onPressed: QuoteInteractionScope.maybeOf(this.context) == null
+                ? null
+                : () => _quote(snapshot),
+          )
+        : null;
     final translate = ContextMenuButtonItem(
       label: defaultTargetPlatform == TargetPlatform.iOS
           ? l10n.selectionAiTranslateIos
@@ -568,13 +580,22 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
           type: ContextMenuButtonType.selectAll,
           onPressed: () => region.selectAll(SelectionChangedCause.toolbar),
         );
+    final shortcuts = <ContextMenuButtonItem, String>{};
+    if (quote != null) shortcuts[quote] = quoteKeyboardHint;
     if (selectionUsesDesktop) {
       if (!_contextClick) return const SizedBox.shrink();
       return AppTextSelectionToolbar(
         anchors: anchors,
-        buttonItems: [copy, markdown, rich, quote, translate, selectAll],
-        separatorsBefore: {quote, selectAll},
-        shortcuts: {quote: quoteKeyboardHint},
+        buttonItems: [
+          copy,
+          markdown,
+          rich,
+          if (quote != null) quote,
+          translate,
+          selectAll,
+        ],
+        separatorsBefore: {if (quote != null) quote, translate, selectAll},
+        shortcuts: shortcuts,
         selectionContext: region.context,
         onDismiss: () => region.hideToolbar(false),
       );
@@ -599,7 +620,7 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
         onDismiss: () => region.hideToolbar(false),
         buttonItems: [
           copy,
-          quote,
+          if (quote != null) quote,
           if (systemTranslate != null) systemTranslate,
           translate,
           for (final item in items)
@@ -618,7 +639,7 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
     ];
     final buttonItems = [
       copy,
-      quote,
+      if (quote != null) quote,
       translate,
       markdown,
       rich,
@@ -736,7 +757,9 @@ class _AppSelectionAreaState extends State<AppSelectionArea>
                 child: TapRegion(
                   onTapOutside: (_) => _hideQuickToolbar(),
                   child: SelectionQuickToolbar(
-                    onQuote: () => _quote(snapshot),
+                    onQuote: (widget.session?.canQuote ?? false)
+                        ? () => _quote(snapshot)
+                        : null,
                     onTranslate: () => _translate(snapshot, anchor),
                   ),
                 ),

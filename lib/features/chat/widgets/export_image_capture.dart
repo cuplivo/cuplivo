@@ -67,10 +67,10 @@ double? exportRatioWithinBudget(Size size, double ratio, int? maxPixels) {
 const double maxExportFullCaptureDimension = 15360;
 const double maxExportSliceHeight = 4096;
 
-/// Every full-surface export uses the same logical width and raster ratio, so a
-/// picture of a message and a picture of a pasted document agree about type size
-/// and stroke weight. Two callers depend on the agreement, so it lives here
-/// rather than beside either of them.
+/// The message export's logical width and raster ratio, and the widest a
+/// Markdown document may get. A pasted document reflows to its preview and may
+/// be narrower; the type size is the same either way, so a picture of a message
+/// and a picture of a document agree about type size and stroke weight.
 const double desktopExportLogicalWidth = 720;
 const double mobileExportLogicalWidth = 480;
 const double exportImagePixelRatio = 3;

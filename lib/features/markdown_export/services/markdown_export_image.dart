@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -22,18 +23,38 @@ typedef MarkdownExportImage = ({
 /// past that a phone, not the export, is what fails.
 const int markdownExportMaxPixels = 24 * 1000 * 1000;
 
-/// Renders [source] at the export's own width and raster ratio, writes the PNG
-/// to a temporary file, and returns it. `null` means the page went away while
-/// the diagrams were rendering, so there is nothing to show or save.
+/// The width the export rasterises.
+///
+/// [previewWidth] is what the preview last laid out at. Before a preview has
+/// laid out — the phone editor's first export — the sheet gets the column the
+/// preview will occupy: the window, minus the SafeArea's horizontal insets and
+/// the layout's own 16 px side padding.
+double markdownExportWidthFor({
+  required double? previewWidth,
+  required double maxWidth,
+  required Size window,
+  required EdgeInsets safeAreaPadding,
+}) {
+  final preview = previewWidth;
+  if (preview != null && preview > 0) return preview;
+  final contentWidth = window.width - safeAreaPadding.horizontal - 32;
+  return math.min(math.max(contentWidth, 1), maxWidth);
+}
+
+/// Renders [source] at [width] — the width the preview reported — and raster
+/// ratio, writes the PNG to a temporary file, and returns it. `null` means the
+/// page went away while the diagrams were rendering, so there is nothing to
+/// show or save.
 Future<MarkdownExportImage?> renderMarkdownExportImage(
   BuildContext context, {
   required String source,
-  required bool isDesktop,
+  required double width,
+  required double pixelRatio,
   double textScale = 1,
   ValueChanged<ExportImageProgress>? onProgress,
 }) async {
-  final config = exportRenderConfig(isDesktop: isDesktop);
-  // A diagram is a bitmap before capture or it arrives as its own source code.
+  // A diagram is a bitmap before capture, or the picture carries its failure
+  // card. It never carries the diagram's source instead.
   try {
     await preRenderDiagramCodesForExport(
       context,
@@ -47,7 +68,7 @@ Future<MarkdownExportImage?> renderMarkdownExportImage(
       ),
     );
   } catch (_) {
-    // Capture still produces the picture; the diagram degrades to code.
+    // Capture still produces the picture; the diagram shows its failure card.
   }
   if (!context.mounted) return null;
   // The input here is a file of any length, so this path states a ceiling where
@@ -58,12 +79,13 @@ Future<MarkdownExportImage?> renderMarkdownExportImage(
     context,
     MarkdownExportDocument(
       source: source,
-      width: config.width,
+      width: width,
       textScale: textScale,
+      capture: true,
     ),
     theme: Theme.of(context),
-    width: config.width,
-    pixelRatio: config.pixelRatio,
+    width: width,
+    pixelRatio: pixelRatio,
     maxPixels: markdownExportMaxPixels,
     shrinkToPixels: true,
     onProgress: onProgress,
@@ -77,6 +99,6 @@ Future<MarkdownExportImage?> renderMarkdownExportImage(
   return (
     file: file,
     preview: processed.preview,
-    reducedResolution: processed.appliedRatio < config.pixelRatio,
+    reducedResolution: processed.appliedRatio < pixelRatio,
   );
 }

@@ -1,0 +1,56 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自适应 1:1，导出跟随预览宽度</title><style>
+:root{--ink:#1d2129;--muted:#5c6470;--line:#e3e6eb;--card:#f6f7f9;--accent:#2f6fed;--warn:#b26a00;--ok:#1f7a4d;--sheet:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:var(--ink);font:14px/1.55 system-ui,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:420px;margin:0 auto;padding:14px 12px 24px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#fff}
+h1{font-size:18px;line-height:1.35;margin:10px 0 6px}
+.lead{color:var(--muted);margin:0 0 12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.pane{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px}
+.pane .label{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:10.5px;color:var(--muted);letter-spacing:.03em;margin-bottom:6px}
+.text{font-size:15.5px;line-height:1.55;margin:0;color:#222}
+.text .hl{background:#e8f0ff;border-radius:3px}
+.scale{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:#fff}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.chip.ok{color:var(--ok);border-color:#cfe8da;background:#f2faf5}
+.chip.warn{color:var(--warn);border-color:#f0dfc2;background:#fff8ec}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.split .pane{min-height:96px}
+.small{font-size:12px}.muted{color:var(--muted)}
+.why{margin:8px 0 0;padding-left:16px}
+.why li{margin:4px 0}
+.cost{border-left:3px solid #f0c36d;background:#fffaf0;padding:8px 10px;border-radius:6px;margin:8px 0 0;font-size:12.5px}
+.fid{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:12px}
+.fid div{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.fid b{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+.wrapnote{font-size:11.5px;color:var(--muted);margin-top:8px}
+.diff{border:1px dashed var(--line);border-radius:8px;padding:8px;background:#fbfcfd;margin-top:8px;font-size:11.5px;color:#4a5260}
+footer{margin-top:12px;font-size:11px;color:#8a929e;text-align:center}
+</style></head><body><div class="wrap">
+<span class="badge">决策 2 修订 · 方案 B</span>
+<h1>自适应 1:1，导出跟随预览宽度</h1><p class="lead">预览按面板宽度重排、文字 1:1，导出使用同一宽度：预览怎么换行，PNG 就怎么换行。</p>
+
+<div class="card"><h2>预览与导出同一宽度</h2>
+  <div class="pane">
+    <div class="label"><span>预览 · 592px</span><span class="chip ok">字号 15.5px · 画布 592</span></div>
+    <p class="text">周会结论：下周把导出流程拆成 <span class="hl">预览与捕获两种模式</span>，再补一条真实渲染器的集成测试。</p>
+  </div>
+  <div class="diff"><b>导出跟随同一宽度</b><br>592 逻辑像素 × 3 = 1776px。预览怎么换行，PNG 就怎么换行；不存在“预览与文件不一致”。</div>
+  <p class="wrapnote">画布宽度取面板宽度并夹在 480–720 之间；收起源码后是 720（2160px），换窗/换分栏会得到不同宽度的文件。</p>
+</div>
+<div class="card"><h2>宽度读数</h2>
+  <div class="split">
+    <div class="pane"><div class="label">50/50</div><p class="small" style="margin:0">592 · 1776px</p></div>
+    <div class="pane"><div class="label">40/60</div><p class="small" style="margin:0">710 · 2130px</p></div>
+  </div>
+  <p class="wrapnote">画布 < 480 时夹到 480，避免窄窗口导出过窄的图。</p>
+</div>
+
+<div class="card"><h2>为什么这样改</h2><ul class="why"><li>用户要的 1:1 与工具的“预览就是文件”原则同时成立。</li><li>宽度取面板宽度并夹在 480–720，窄窗口不会导出过窄的图。</li><li>代价是导出文件宽度随窗口/分栏变化，同一文档在不同窗口会得到不同宽度的 PNG。</li></ul>
+<div class="cost">代价：文件宽度不再固定；收起源码、拖窗口都会改变下一次导出的尺寸；需要把宽度显示出来。</div>
+<div class="fid"><div><b>真实</b>分栏宽度与缩放公式、720 上限、480–720 夹取</div><div><b>模拟</b>宽度读数、40/60 与 50/50 的对比</div><div><b>未展示</b>真实导出尺寸、拖拽分隔条</div></div></div>
+<footer>Markdown image · 桌面预览决策记录（字号修订）</footer>
+</div></body></html>

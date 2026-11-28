@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>桌面 Mermaid：必须出图</title><style>
+:root{--ink:#1d2129;--muted:#5c6470;--line:#e3e6eb;--card:#f6f7f9;--accent:#2f6fed;--warn:#b26a00;--ok:#1f7a4d;--sheet:#ffffff;}
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:var(--ink);font:14px/1.55 system-ui,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:420px;margin:0 auto;padding:14px 12px 24px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#fff}
+h1{font-size:18px;line-height:1.35;margin:10px 0 6px}
+.lead{color:var(--muted);margin:0 0 12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:12px}
+.sheet .title{font-weight:700;font-size:15px;margin:0 0 6px}
+.sheet p{margin:0 0 8px;font-size:13px;color:#333}
+.mermaid{border:1px solid var(--line);border-radius:8px;padding:10px;background:#fbfcfd;margin:8px 0}
+.mermaid svg{display:block;width:100%;height:auto}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.chip.ok{color:var(--ok);border-color:#cfe8da;background:#f2faf5}
+.chip.warn{color:var(--warn);border-color:#f0dfc2;background:#fff8ec}
+.chip.err{color:#a12a2a;border-color:#f0d1d1;background:#fdf3f3}
+.state{border:1px dashed var(--line);border-radius:10px;padding:10px;margin:8px 0;background:#fbfcfd}
+.state .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.spinner{width:14px;height:14px;border:2px solid #cdd4de;border-top-color:var(--accent);border-radius:50%;display:inline-block}
+.btn{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 9px;color:var(--ink);display:inline-block}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{color:var(--muted)}
+.code{font:12px/1.5 ui-monospace,Consolas,monospace;background:#0f1420;color:#d6e2ff;border-radius:8px;padding:10px;white-space:pre-wrap;margin:6px 0}
+.code.source{background:#f4f6f9;color:#3b4350;border:1px solid var(--line)}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.why{margin:8px 0 0;padding-left:16px}
+.why li{margin:4px 0}
+.cost{border-left:3px solid #f0c36d;background:#fffaf0;padding:8px 10px;border-radius:6px;margin:8px 0 0;font-size:12.5px}
+.fid{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:12px}
+.fid div{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.fid b{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+.toolbar{display:flex;gap:6px;align-items:center;background:#1f2430;color:#fff;border-radius:9px;padding:5px;font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.18);width:max-content}
+.toolbar span{padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.08)}
+.toolbar span.hot{background:rgba(47,111,237,.45)}
+.hl{background:#cfe0ff;border-radius:3px;padding:0 1px}
+.sel{position:relative;margin:10px 0 4px}
+.controls{display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.toggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.toggle span{font-size:11px;padding:3px 8px;background:#fff;color:var(--muted)}
+.toggle span.on{background:var(--accent);color:#fff}
+.split{display:grid;grid-template-columns:40% 60%;gap:8px;align-items:stretch}
+.pane{border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px;min-height:112px}
+.pane .label{font-size:10.5px;color:var(--muted);letter-spacing:.03em;margin-bottom:4px}
+.pane pre{font:11px/1.5 ui-monospace,Consolas,monospace;margin:0;color:#4a5260;white-space:pre-wrap}
+.pane .previewtext{font-size:15.4px;line-height:1.55;margin:0;color:#222}
+.pane .previewtext.small{font-size:12.7px}
+.note{font-size:11.5px;color:var(--muted);margin-top:6px}
+.scale{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:#fff}
+footer{margin-top:12px;font-size:11px;color:#8a929e;text-align:center}
+</style></head>
+<body><div class="wrap">
+  <span class="badge">决策 1 / 2 · 方案 A</span>
+  <h1>桌面 Mermaid：必须出图</h1>
+  <p class="lead">预览用实时渲染（加载 → 图片 / 失败），导出等待同一张位图；失败时给出可操作的状态，而不是静默源码。</p>
+  
+<div class="card"><h2>渲染预览（实时）</h2>
+  <div class="sheet">
+    <p class="title">流程图</p>
+    <div class="mermaid">
+      <svg viewBox="0 0 320 150" role="img" aria-label="mermaid flowchart">
+        <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5c6470"/></marker></defs>
+        <rect x="10" y="16" width="86" height="34" rx="8" fill="#eef4ff" stroke="#2f6fed"/>
+        <text x="53" y="38" text-anchor="middle" font-size="12" fill="#1d2129">开始</text>
+        <rect x="122" y="16" width="86" height="34" rx="8" fill="#fff8ec" stroke="#b26a00"/>
+        <text x="165" y="38" text-anchor="middle" font-size="12" fill="#1d2129">判断</text>
+        <rect x="234" y="16" width="76" height="34" rx="8" fill="#f2faf5" stroke="#1f7a4d"/>
+        <text x="272" y="38" text-anchor="middle" font-size="12" fill="#1d2129">结束</text>
+        <rect x="122" y="96" width="86" height="34" rx="8" fill="#f4f6f9" stroke="#8a929e"/>
+        <text x="165" y="118" text-anchor="middle" font-size="12" fill="#1d2129">不做</text>
+        <path d="M96 33 H120" stroke="#5c6470" marker-end="url(#ar)"/>
+        <path d="M208 33 H232" stroke="#5c6470" marker-end="url(#ar)"/>
+        <path d="M165 50 V94" stroke="#5c6470" marker-end="url(#ar)"/>
+        <text x="172" y="76" font-size="10" fill="#5c6470">否</text>
+      </svg>
+    </div>
+    <div class="row"><span class="chip ok">已生成 · 直接显示位图</span><span class="chip">点按可全屏</span></div>
+    <p class="small muted" style="margin-top:8px">没有“生成中”和“失败”的静默源码：预览里看到的就是导出会拿到的同一张位图。</p>
+  </div>
+</div>
+<div class="card"><h2>失败时（预览与 PNG 一致）</h2>
+  <div class="state err">
+    <div class="row"><span class="chip err">图表未能生成</span></div>
+    <p class="small" style="margin:6px 0 0">这张图没有画出来。可以重试，或复制 Mermaid 源码继续编辑。</p>
+    <div class="row" style="margin-top:6px"><span class="btn primary">重试</span><span class="btn">复制源码</span></div>
+  </div>
+  <p class="small muted">导出的 PNG 里画的是这个失败卡，而不是一段让人以为“本来就只有代码”的源码块。</p>
+</div>
+
+  <div class="card"><h2>为什么这样改</h2><ul class="why"><li>捕获模式（ExportCaptureScope）下图表块从不自己渲染，只读 MermaidImageCache；没热就退化成普通代码块。</li><li>缓存由离屏 WebView 预热；工具的单测注入了假渲染器，真实桌面桥在这条路径上没有覆盖。</li><li>聊天路径本来就有加载 / 失败态；预览借用同一套状态，失败才可见、可重试。</li></ul>
+    <div class="cost">代价：需要先把桌面离屏渲染桥定位并验证（真实渲染器测试）；Linux 仍无 WebView，只能走失败卡。</div>
+    <div class="fid">
+      <div><b>真实</b>预览 / 导出的同一棵树、捕获模式、缓存键、失败分支</div>
+      <div><b>模拟</b>图表 SVG、进度时长、重试动画</div>
+      <div><b>未展示</b>编辑区、Windows 桥的具体失败原因</div></div>
+  </div>
+  <footer>Markdown image · 桌面预览决策记录</footer>
+</div></body></html>

@@ -1,7 +1,7 @@
-// The sheet is drawn in the export's capture mode, where a diagram comes from
-// the bitmap cache or falls back to its source. The export warms that cache
-// before capturing; the preview has to do the same, or the screen shows source
-// for a picture the file renders as a diagram.
+// A diagram is a picture the preview owns: it renders itself, shows a loading
+// state while it works, and a failure card with actions when it cannot. The
+// export has no renderer of its own, so a cold cache there is the same failure.
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,10 +10,10 @@ import 'package:provider/provider.dart';
 
 import 'package:Cuplivo/core/providers/settings_provider.dart';
 import 'package:Cuplivo/features/chat/widgets/export_image_capture.dart';
+import 'package:Cuplivo/features/markdown_export/widgets/markdown_export_document.dart';
 import 'package:Cuplivo/features/markdown_export/widgets/markdown_export_preview.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
-import 'package:Cuplivo/shared/widgets/diagram_exporter.dart';
-import 'package:Cuplivo/shared/widgets/mermaid_bridge.dart';
+import 'package:Cuplivo/shared/markdown/diagram_code_blocks.dart';
 import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 
 import '../../support/business_test_harness.dart';
@@ -28,85 +28,49 @@ graph TD; A-->B;
 After the diagram.
 ''';
 
-const _diagramCode = 'graph TD; A-->B;';
-
 /// A one-pixel PNG: enough for the preview to have bytes to draw.
 const _pixelPng =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
+final _image = MermaidBitmapRenderResult.success(base64Decode(_pixelPng));
+
 void main() {
   late SettingsProvider settings;
-  final hostKey = GlobalKey();
 
   setUp(() async {
     settings = SettingsProvider(createBusinessTestPreferences());
     await settings.loaded;
-    debugDiagramExportViewFactory = null;
+    debugMermaidBitmapRenderOverride = null;
     MermaidImageCache.clear();
   });
   tearDown(() {
     settings.dispose();
-    debugDiagramExportViewFactory = null;
+    debugMermaidBitmapRenderOverride = null;
     MermaidImageCache.clear();
   });
 
-  Widget host(Widget child, {ThemeData? theme}) {
+  Widget host(Widget child) {
     return ChangeNotifierProvider<SettingsProvider>.value(
       value: settings,
       child: MaterialApp(
         locale: const Locale('en'),
-        theme: theme,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Builder(key: hostKey, builder: (_) => child),
-        ),
+        home: Scaffold(body: child),
       ),
     );
   }
 
-  Widget preview({double textScale = 1, ThemeData? theme}) {
+  Widget preview({double textScale = 1}) {
     return host(
       MarkdownExportPreview(
         source: _markdown,
-        documentWidth: desktopExportLogicalWidth,
+        maxDocumentWidth: desktopExportLogicalWidth,
         emptyHint: 'Nothing to preview yet',
         textScale: textScale,
       ),
-      theme: theme,
     );
   }
-
-  void installRenderer() {
-    debugDiagramExportViewFactory = (diagram) => MermaidViewHandle(
-      widget: const SizedBox(),
-      exportPng: () async => true,
-      exportPngBytes: () async => base64Decode(_pixelPng),
-    );
-  }
-
-  /// Frames for the offscreen render the preview starts itself: it awaits an
-  /// overlay, a bitmap and its own retry window.
-  Future<void> settleWarm(WidgetTester tester) async {
-    await tester.pump();
-    for (var i = 0; i < 12; i++) {
-      await tester.pump(const Duration(milliseconds: 200));
-    }
-  }
-
-  /// The key the export asks for, for [scheme].
-  String cacheKey(ColorScheme scheme) {
-    return diagramImageCacheKey(
-      _diagramCode,
-      scheme.brightness == Brightness.dark,
-      buildThemeVarsFromColorScheme(scheme),
-      isSvg: false,
-    );
-  }
-
-  /// The key for the palette currently on screen.
-  String screenCacheKey() =>
-      cacheKey(Theme.of(hostKey.currentContext!).colorScheme);
 
   String renderedText(WidgetTester tester) {
     return tester
@@ -115,74 +79,114 @@ void main() {
         .join('\n');
   }
 
-  testWidgets('the preview warms the cache and draws the diagram in place', (
+  /// Lets the block's 220 ms settle timer fire and the render it starts finish.
+  ///
+  /// The frame that schedules the timer comes first: a tap that retries has
+  /// only queued the rebuild, and a timed pump would start the timer after the
+  /// clock already moved past it.
+  Future<void> settleRender(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 240));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump();
+    }
+  }
+
+  testWidgets('the preview shows the generating state, never the source', (
     tester,
   ) async {
-    installRenderer();
+    final pending = Completer<MermaidBitmapRenderResult>();
+    debugMermaidBitmapRenderOverride = (_, __, ___) => pending.future;
+    try {
+      await tester.pumpWidget(preview());
+      await tester.pump();
 
-    await tester.pumpWidget(preview());
-    await settleWarm(tester);
+      // The first frame already says it is working; it does not fall back to
+      // the diagram's source while the bitmap is on its way.
+      expect(
+        find.byKey(const ValueKey('mermaid-loading-body')),
+        findsOneWidget,
+      );
+      expect(renderedText(tester).contains('A-->B'), isFalse);
 
-    expect(
-      MermaidImageCache.get(screenCacheKey()),
-      isNotNull,
-      reason: 'the preview must warm the cache, not wait for an export',
-    );
-    // Drawn on the same tree: no second build of the page is needed to see it.
-    expect(find.byType(Image), findsWidgets);
-    expect(renderedText(tester).contains('A-->B'), isFalse);
+      await tester.pump(const Duration(milliseconds: 240));
+      pending.complete(_image);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(Image), findsWidgets);
+      expect(renderedText(tester).contains('A-->B'), isFalse);
+      expect(tester.takeException(), isNull);
+    } finally {
+      if (!pending.isCompleted) pending.complete(_image);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }
   });
 
-  testWidgets('a theme change warms the diagrams again for the new palette', (
+  testWidgets('a failed render offers retry and the source, and retry works', (
     tester,
   ) async {
-    installRenderer();
-    final blue = ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E5BFF)),
-    );
-    final red = ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB3261E)),
-    );
-
-    await tester.pumpWidget(preview(theme: blue));
-    await settleWarm(tester);
-    expect(MermaidImageCache.get(cacheKey(blue.colorScheme)), isNotNull);
-
-    // The bitmap is keyed on the palette, so the new theme starts cold. The
-    // text did not change, and a preview that remembers "this text was warmed"
-    // would fall back to drawing the diagram's source.
-    await tester.pumpWidget(preview(theme: red));
-    await settleWarm(tester);
-
-    expect(
-      MermaidImageCache.get(cacheKey(red.colorScheme)),
-      isNotNull,
-      reason: 'the new palette needs its own bitmaps',
-    );
-    expect(find.byType(Image), findsWidgets);
-    expect(renderedText(tester).contains('A-->B'), isFalse);
-  });
-
-  testWidgets('a warm that filled nothing is retried by the next build', (
-    tester,
-  ) async {
-    // A renderer that never yields a bitmap: the helper gives up without
-    // saying so, which is the case that used to stick for good.
-    debugDiagramExportViewFactory = (diagram) => null;
+    debugMermaidBitmapRenderOverride = (_, __, ___) async =>
+        MermaidBitmapRenderResult.failed();
 
     await tester.pumpWidget(preview());
-    await settleWarm(tester);
-    expect(MermaidImageCache.get(screenCacheKey()), isNull);
-    // The source is what the sheet honestly shows when there is no bitmap.
-    expect(renderedText(tester).contains('A-->B'), isTrue);
+    await settleRender(tester);
 
-    // Any later build — here a type-size change — tries once more.
-    installRenderer();
-    await tester.pumpWidget(preview(textScale: 1.1));
-    await settleWarm(tester);
+    expect(find.byKey(const ValueKey('mermaid-error-body')), findsOneWidget);
+    expect(renderedText(tester).contains('A-->B'), isFalse);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Copy source'), findsOneWidget);
 
-    expect(MermaidImageCache.get(screenCacheKey()), isNotNull);
+    debugMermaidBitmapRenderOverride = (_, __, ___) async => _image;
+    await tester.tap(find.text('Retry'));
+    await settleRender(tester);
+
+    expect(find.byKey(const ValueKey('mermaid-error-body')), findsNothing);
     expect(find.byType(Image), findsWidgets);
     expect(renderedText(tester).contains('A-->B'), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a platform without a renderer shows the same card in preview', (
+    tester,
+  ) async {
+    debugMermaidBitmapRenderOverride = (_, __, ___) async =>
+        MermaidBitmapRenderResult.unsupported();
+
+    await tester.pumpWidget(preview());
+    await settleRender(tester);
+
+    // The file cannot contain this diagram either, so the preview says so
+    // instead of showing source the export would not carry.
+    expect(find.byKey(const ValueKey('mermaid-error-body')), findsOneWidget);
+    expect(renderedText(tester).contains('A-->B'), isFalse);
+    expect(find.text('Copy source'), findsOneWidget);
+    // Retrying cannot conjure a renderer.
+    expect(find.text('Retry'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a capture with a cold cache paints the failure card, not code', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(
+        SingleChildScrollView(
+          child: MarkdownExportDocument(
+            source: _markdown,
+            width: desktopExportLogicalWidth,
+            capture: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('mermaid-error-body')), findsOneWidget);
+    expect(renderedText(tester).contains('A-->B'), isFalse);
+    // A picture cannot be retried from, so the card carries no actions.
+    expect(find.text('Retry'), findsNothing);
+    expect(find.text('Copy source'), findsNothing);
   });
 }

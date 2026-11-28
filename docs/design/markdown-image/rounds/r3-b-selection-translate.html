@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>预览选区：复制 + 翻译</title><style>
+:root{--ink:#1d2129;--muted:#5c6470;--line:#e3e6eb;--card:#f6f7f9;--accent:#2f6fed;--warn:#b26a00;--ok:#1f7a4d;--sheet:#ffffff;}
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:var(--ink);font:14px/1.55 system-ui,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:420px;margin:0 auto;padding:14px 12px 24px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#fff}
+h1{font-size:18px;line-height:1.35;margin:10px 0 6px}
+.lead{color:var(--muted);margin:0 0 12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:12px}
+.sheet .title{font-weight:700;font-size:15px;margin:0 0 6px}
+.sheet p{margin:0 0 8px;font-size:13px;color:#333}
+.mermaid{border:1px solid var(--line);border-radius:8px;padding:10px;background:#fbfcfd;margin:8px 0}
+.mermaid svg{display:block;width:100%;height:auto}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.chip.ok{color:var(--ok);border-color:#cfe8da;background:#f2faf5}
+.chip.warn{color:var(--warn);border-color:#f0dfc2;background:#fff8ec}
+.chip.err{color:#a12a2a;border-color:#f0d1d1;background:#fdf3f3}
+.state{border:1px dashed var(--line);border-radius:10px;padding:10px;margin:8px 0;background:#fbfcfd}
+.state .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.spinner{width:14px;height:14px;border:2px solid #cdd4de;border-top-color:var(--accent);border-radius:50%;display:inline-block}
+.btn{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 9px;color:var(--ink);display:inline-block}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{color:var(--muted)}
+.code{font:12px/1.5 ui-monospace,Consolas,monospace;background:#0f1420;color:#d6e2ff;border-radius:8px;padding:10px;white-space:pre-wrap;margin:6px 0}
+.code.source{background:#f4f6f9;color:#3b4350;border:1px solid var(--line)}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.why{margin:8px 0 0;padding-left:16px}
+.why li{margin:4px 0}
+.cost{border-left:3px solid #f0c36d;background:#fffaf0;padding:8px 10px;border-radius:6px;margin:8px 0 0;font-size:12.5px}
+.fid{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:12px}
+.fid div{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.fid b{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+.toolbar{display:flex;gap:6px;align-items:center;background:#1f2430;color:#fff;border-radius:9px;padding:5px;font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.18);width:max-content}
+.toolbar span{padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.08)}
+.toolbar span.hot{background:rgba(47,111,237,.45)}
+.hl{background:#cfe0ff;border-radius:3px;padding:0 1px}
+.sel{position:relative;margin:10px 0 4px}
+.controls{display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.toggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.toggle span{font-size:11px;padding:3px 8px;background:#fff;color:var(--muted)}
+.toggle span.on{background:var(--accent);color:#fff}
+.split{display:grid;grid-template-columns:40% 60%;gap:8px;align-items:stretch}
+.pane{border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px;min-height:112px}
+.pane .label{font-size:10.5px;color:var(--muted);letter-spacing:.03em;margin-bottom:4px}
+.pane pre{font:11px/1.5 ui-monospace,Consolas,monospace;margin:0;color:#4a5260;white-space:pre-wrap}
+.pane .previewtext{font-size:15.4px;line-height:1.55;margin:0;color:#222}
+.pane .previewtext.small{font-size:12.7px}
+.note{font-size:11.5px;color:var(--muted);margin-top:6px}
+.scale{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:#fff}
+footer{margin-top:12px;font-size:11px;color:#8a929e;text-align:center}
+</style></head>
+<body><div class="wrap">
+  <span class="badge">决策 3 / 2 · 方案 B</span>
+  <h1>预览选区：复制 + 翻译</h1>
+  <p class="lead">在可复制的基础上，把“翻译”接进预览的选区菜单；翻译走设置里的翻译模型，不依赖某条聊天消息。</p>
+  
+<div class="card"><h2>渲染效果区：可选中 + 可翻译</h2>
+  <div class="sheet">
+    <p class="previewtext" style="margin:0">周会结论：<span class="hl">下周把导出流程拆成预览与捕获两种模式</span>，再补一条真实渲染器的集成测试。</p>
+  </div>
+  <div class="sel"><div class="toolbar"><span>复制</span><span>复制 Markdown</span><span class="hot">翻译</span><span>全选</span></div></div>
+  <p class="small muted">翻译使用设置里的翻译模型（没有消息/会话可依赖时回退到翻译工具），结果仍按应用现有的翻译面板展示。</p>
+</div>
+<div class="card"><h2>没有消息时怎么办</h2>
+  <div class="state">
+    <p class="small" style="margin:0">聊天消息的翻译入口要求 ChatMessage 来解析模型和会话；预览没有消息。两条可行路径：读设置里的翻译模型，或打开翻译工具并带入选中文本。</p>
+  </div>
+</div>
+
+  <div class="card"><h2>为什么这样改</h2><ul class="why"><li>需求明确包含翻译；只做复制会让预览的选区能力停在半路。</li><li>现有翻译面板依赖 ChatMessage；预览需要一条无消息的模型解析或“带入翻译工具”的回退。</li><li>复制仍是主路径，翻译是增量动作，不影响选区本身。</li></ul>
+    <div class="cost">代价：需要新增无消息的翻译入口（模型解析或翻译工具跳转），并处理没有配置翻译模型时的错误提示。</div>
+    <div class="fid">
+      <div><b>真实</b>AppSelectionArea 的菜单结构、聊天翻译入口、设置里的翻译模型</div>
+      <div><b>模拟</b>翻译菜单项、无消息状态卡</div>
+      <div><b>未展示</b>真实翻译请求、模型选择</div></div>
+  </div>
+  <footer>Markdown image · 桌面预览决策记录</footer>
+</div></body></html>

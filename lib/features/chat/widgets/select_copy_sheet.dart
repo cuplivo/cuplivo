@@ -5,6 +5,7 @@ import '../../intelligent_ui/host/ui_copy_actions.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/models/chat_message.dart';
+import '../models/selection_session.dart';
 import '../../../utils/source_text_map.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -153,10 +154,12 @@ class _SelectCopySheet extends StatelessWidget {
                   controller: sc,
                   primary: false,
                   child: AppSelectionArea(
-                    message: message,
-                    sourceText: content,
-                    sourceMap: sourceMap,
-                    onQuoteSelected: () => Navigator.of(context).pop(),
+                    session: SelectionSession(
+                      message: message,
+                      source: content,
+                      sourceMap: sourceMap,
+                      onQuoteSelected: () => Navigator.of(context).pop(),
+                    ),
                     copyByteLimit: UiBudgets.copyBytes,
                     child: Text.rich(
                       buildQuoteTextSpan(

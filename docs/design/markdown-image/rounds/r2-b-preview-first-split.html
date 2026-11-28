@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>预览字号：默认就给 1:1</title><style>
+:root{--ink:#1d2129;--muted:#5c6470;--line:#e3e6eb;--card:#f6f7f9;--accent:#2f6fed;--warn:#b26a00;--ok:#1f7a4d;--sheet:#ffffff;}
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:var(--ink);font:14px/1.55 system-ui,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:420px;margin:0 auto;padding:14px 12px 24px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#fff}
+h1{font-size:18px;line-height:1.35;margin:10px 0 6px}
+.lead{color:var(--muted);margin:0 0 12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:12px}
+.sheet .title{font-weight:700;font-size:15px;margin:0 0 6px}
+.sheet p{margin:0 0 8px;font-size:13px;color:#333}
+.mermaid{border:1px solid var(--line);border-radius:8px;padding:10px;background:#fbfcfd;margin:8px 0}
+.mermaid svg{display:block;width:100%;height:auto}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.chip.ok{color:var(--ok);border-color:#cfe8da;background:#f2faf5}
+.chip.warn{color:var(--warn);border-color:#f0dfc2;background:#fff8ec}
+.chip.err{color:#a12a2a;border-color:#f0d1d1;background:#fdf3f3}
+.state{border:1px dashed var(--line);border-radius:10px;padding:10px;margin:8px 0;background:#fbfcfd}
+.state .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.spinner{width:14px;height:14px;border:2px solid #cdd4de;border-top-color:var(--accent);border-radius:50%;display:inline-block}
+.btn{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 9px;color:var(--ink);display:inline-block}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{color:var(--muted)}
+.code{font:12px/1.5 ui-monospace,Consolas,monospace;background:#0f1420;color:#d6e2ff;border-radius:8px;padding:10px;white-space:pre-wrap;margin:6px 0}
+.code.source{background:#f4f6f9;color:#3b4350;border:1px solid var(--line)}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.why{margin:8px 0 0;padding-left:16px}
+.why li{margin:4px 0}
+.cost{border-left:3px solid #f0c36d;background:#fffaf0;padding:8px 10px;border-radius:6px;margin:8px 0 0;font-size:12.5px}
+.fid{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:12px}
+.fid div{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.fid b{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+.toolbar{display:flex;gap:6px;align-items:center;background:#1f2430;color:#fff;border-radius:9px;padding:5px;font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.18);width:max-content}
+.toolbar span{padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.08)}
+.toolbar span.hot{background:rgba(47,111,237,.45)}
+.hl{background:#cfe0ff;border-radius:3px;padding:0 1px}
+.sel{position:relative;margin:10px 0 4px}
+.controls{display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.toggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.toggle span{font-size:11px;padding:3px 8px;background:#fff;color:var(--muted)}
+.toggle span.on{background:var(--accent);color:#fff}
+.split{display:grid;grid-template-columns:40% 60%;gap:8px;align-items:stretch}
+.pane{border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px;min-height:112px}
+.pane .label{font-size:10.5px;color:var(--muted);letter-spacing:.03em;margin-bottom:4px}
+.pane pre{font:11px/1.5 ui-monospace,Consolas,monospace;margin:0;color:#4a5260;white-space:pre-wrap}
+.pane .previewtext{font-size:15.4px;line-height:1.55;margin:0;color:#222}
+.pane .previewtext.small{font-size:12.7px}
+.note{font-size:11.5px;color:var(--muted);margin-top:6px}
+.scale{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:#fff}
+footer{margin-top:12px;font-size:11px;color:#8a929e;text-align:center}
+</style></head>
+<body><div class="wrap">
+  <span class="badge">决策 2 / 2 · 方案 B</span>
+  <h1>预览字号：默认就给 1:1</h1>
+  <p class="lead">把桌面分栏从 50/50 改成 40/60：常见宽窗口下预览接近 1:1，“标准”不再看起来偏小；仍显示比例。</p>
+  
+<div class="card"><h2>桌面分栏：预览优先 40 / 60</h2>
+  <div class="split">
+    <div class="pane">
+      <div class="label">编辑 · 474px</div>
+      <pre># 周会纪要
+
+- 决议一
+- 决议二</pre>
+    </div>
+    <div class="pane">
+      <div class="label">预览 · 710px · 约 99%</div>
+      <p class="previewtext">周会纪要 · 11-07</p>
+      <p class="previewtext" style="font-size:15.4px">正文按接近 1:1 显示，和 Kelivo 里其他正文大小一致。</p>
+    </div>
+  </div>
+  <p class="note">1440 宽窗口：内容区上限 1200，40/60 后预览 710px ÷ 720 ≈ 99%。窄窗口仍会缩放；收起源码仍是 1:1。</p>
+</div>
+<div class="card"><h2>窄窗口仍保留比例提示</h2>
+  <div class="controls"><span class="scale">适合宽度 · 79%</span><span class="chip">窗口 1000px</span></div>
+  <p class="small muted" style="margin:0">分栏本身不能保证 1:1；低于 760px 时上下堆叠，预览反而回到整宽。</p>
+</div>
+
+  <div class="card"><h2>为什么这样改</h2><ul class="why"><li>分栏宽度直接决定缩放：592px ÷ 720 = 82%；710px ÷ 720 ≈ 99%。</li><li>编辑区只写 Markdown，40% 通常够用；预览是这个工具的产品面，值得更大。</li><li>低于 760px 的窗口自动上下堆叠，预览反而拿到整宽，不需要额外模式。</li></ul>
+    <div class="cost">代价：编辑区变窄；1000px 左右窗口仍会缩放；需要改默认布局与相关测试。</div>
+    <div class="fid">
+      <div><b>真实</b>分栏宽度与缩放公式、720 画布、15.5px 正文</div>
+      <div><b>模拟</b>40/60 比例、99% 标签、窄窗口比例</div>
+      <div><b>未展示</b>拖拽分隔条、编辑区滚动</div></div>
+  </div>
+  <footer>Markdown image · 桌面预览决策记录</footer>
+</div></body></html>

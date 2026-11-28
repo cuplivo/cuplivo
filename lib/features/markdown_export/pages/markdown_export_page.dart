@@ -43,6 +43,10 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
   bool _sourceCollapsed = false;
   bool _exporting = false;
 
+  /// The width the preview last laid the sheet out at. The export rasterises
+  /// the same width, so the PNG breaks its lines where the screen does.
+  double? _previewWidth;
+
   /// What the preview draws, and the text the last notification carried.
   ///
   /// A caret move notifies the controller without changing a character, so the
@@ -98,9 +102,9 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    // The export width is fixed by the platform, not by the window: a narrow
-    // desktop window still produces the same-size picture.
-    final documentWidth = exportRenderConfig(isDesktop: _isDesktop).width;
+    // The platform sets the widest the sheet may get, not its width: the
+    // preview reflows below that, and the export follows it.
+    final maxDocumentWidth = exportRenderConfig(isDesktop: _isDesktop).width;
 
     if (_isDesktop) {
       final layout = MarkdownExportDesktopLayout(
@@ -115,7 +119,8 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
             setState(() => _sourceCollapsed = !_sourceCollapsed),
         onExport: _startExport,
         busy: _exporting,
-        documentWidth: documentWidth,
+        maxDocumentWidth: maxDocumentWidth,
+        onDocumentWidthChanged: (width) => _previewWidth = width,
         textScale: _textSize.scale,
       );
       // The drop target stays mounted even when another desktop tab is on
@@ -158,12 +163,21 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
           controller: _controller,
           previewSource: _previewSource,
           mode: _mode,
-          onModeChanged: (mode) => setState(() => _mode = mode),
+          onModeChanged: (mode) {
+            setState(() {
+              _mode = mode;
+              // While the editor is up the preview is gone; a width it reported
+              // before a rotation would be stale. Fall back to the screen's own
+              // width until the next preview lays out again.
+              if (mode == MarkdownExportMode.edit) _previewWidth = null;
+            });
+          },
           onImport: () => unawaited(_importFile()),
           onPaste: () => unawaited(_paste()),
           onExport: _startExport,
           busy: _exporting,
-          documentWidth: documentWidth,
+          maxDocumentWidth: maxDocumentWidth,
+          onDocumentWidthChanged: (width) => _previewWidth = width,
           textScale: _textSize.scale,
         ),
       ),
@@ -274,10 +288,21 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
 
   void _startExport() => unawaited(_export());
 
+  /// The sheet width the export rasterises: whatever the preview last used.
+  /// Before a preview has laid out — the mobile editor's first export — the
+  /// screen's own content width is what the preview will get.
+  double get _exportWidth => markdownExportWidthFor(
+    previewWidth: _previewWidth,
+    maxWidth: exportRenderConfig(isDesktop: _isDesktop).width,
+    window: MediaQuery.sizeOf(context),
+    safeAreaPadding: MediaQuery.paddingOf(context),
+  );
+
   Future<void> _export() async {
     if (_controller.text.trim().isEmpty || _exporting) return;
     final l10n = AppLocalizations.of(context)!;
     final source = _controller.text;
+    final config = exportRenderConfig(isDesktop: _isDesktop);
     setState(() => _exporting = true);
     MarkdownExportImage? exported;
     try {
@@ -285,7 +310,8 @@ class _MarkdownExportPageState extends State<MarkdownExportPage> {
         exported = await renderMarkdownExportImage(
           context,
           source: source,
-          isDesktop: _isDesktop,
+          width: _exportWidth,
+          pixelRatio: config.pixelRatio,
           textScale: _textSize.scale,
           onProgress: (value) => progress.value = value,
         );

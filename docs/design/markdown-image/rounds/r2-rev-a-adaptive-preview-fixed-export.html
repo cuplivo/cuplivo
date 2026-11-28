@@ -1,0 +1,55 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自适应 1:1，导出固定 720</title><style>
+:root{--ink:#1d2129;--muted:#5c6470;--line:#e3e6eb;--card:#f6f7f9;--accent:#2f6fed;--warn:#b26a00;--ok:#1f7a4d;--sheet:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:var(--ink);font:14px/1.55 system-ui,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:420px;margin:0 auto;padding:14px 12px 24px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#fff}
+h1{font-size:18px;line-height:1.35;margin:10px 0 6px}
+.lead{color:var(--muted);margin:0 0 12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.pane{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px}
+.pane .label{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:10.5px;color:var(--muted);letter-spacing:.03em;margin-bottom:6px}
+.text{font-size:15.5px;line-height:1.55;margin:0;color:#222}
+.text .hl{background:#e8f0ff;border-radius:3px}
+.scale{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:#fff}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+.chip.ok{color:var(--ok);border-color:#cfe8da;background:#f2faf5}
+.chip.warn{color:var(--warn);border-color:#f0dfc2;background:#fff8ec}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.split .pane{min-height:96px}
+.small{font-size:12px}.muted{color:var(--muted)}
+.why{margin:8px 0 0;padding-left:16px}
+.why li{margin:4px 0}
+.cost{border-left:3px solid #f0c36d;background:#fffaf0;padding:8px 10px;border-radius:6px;margin:8px 0 0;font-size:12.5px}
+.fid{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:12px}
+.fid div{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.fid b{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+.wrapnote{font-size:11.5px;color:var(--muted);margin-top:8px}
+.diff{border:1px dashed var(--line);border-radius:8px;padding:8px;background:#fbfcfd;margin-top:8px;font-size:11.5px;color:#4a5260}
+footer{margin-top:12px;font-size:11px;color:#8a929e;text-align:center}
+</style></head><body><div class="wrap">
+<span class="badge">决策 2 修订 · 方案 A</span>
+<h1>自适应 1:1，导出固定 720</h1><p class="lead">预览按面板宽度重排、文字始终 1:1；导出继续使用固定的 720 画布，换行位置可能与预览不同。</p>
+
+<div class="card"><h2>预览：按面板宽度重排，文字 1:1</h2>
+  <div class="pane">
+    <div class="label"><span>预览 · 592px</span><span class="chip ok">字号 15.5px</span></div>
+    <p class="text">周会结论：下周把导出流程拆成 <span class="hl">预览与捕获两种模式</span>，再补一条真实渲染器的集成测试。</p>
+  </div>
+  <div class="diff"><b>导出仍是 720px</b><br>预览在 592px 处换行，PNG 在 720px 处换行。文字大小一致，但同一句话可能断在不同位置。</div>
+  <p class="wrapnote">文件宽度稳定：720 逻辑像素 × 3 = 2160px，不随窗口变化。</p>
+</div>
+<div class="card"><h2>收起源码之后</h2>
+  <div class="pane">
+    <div class="label"><span>预览 · 720px（上限）</span><span class="chip">1:1</span></div>
+    <p class="text">面板变宽到 1200px 时，预览仍停在 720px，不会把文字放大；导出与预览的换行一致。</p>
+  </div>
+</div>
+
+<div class="card"><h2>为什么这样改</h2><ul class="why"><li>同一份文档在预览里按阅读宽度换行，不再整体缩小。</li><li>导出宽度稳定，仍然是 2160px 宽的一张图。</li><li>代价是预览不再逐行等于 PNG——这是“读起来舒服”换“所见即所得”的一步。</li></ul>
+<div class="cost">代价：预览与文件可能换行不同；用户若拿预览检查版式，会被误导。</div>
+<div class="fid"><div><b>真实</b>面板宽度、15.5px 正文、720 画布的换行差异</div><div><b>模拟</b>另一宽度下的换行对比</div><div><b>未展示</b>完整窗口、编辑区</div></div></div>
+<footer>Markdown image · 桌面预览决策记录（字号修订）</footer>
+</div></body></html>

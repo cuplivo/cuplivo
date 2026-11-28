@@ -53,6 +53,61 @@ void main() {
     expect(desktopExportLogicalWidth, greaterThan(mobileExportLogicalWidth));
   });
 
+  group('markdownExportWidthFor', () {
+    test('follows the preview, then the phone column inside its insets', () {
+      expect(
+        markdownExportWidthFor(
+          previewWidth: 592,
+          maxWidth: desktopExportLogicalWidth,
+          window: const Size(1400, 900),
+          safeAreaPadding: EdgeInsets.zero,
+        ),
+        592,
+        reason: 'the preview is the authority once it has laid out',
+      );
+      expect(
+        markdownExportWidthFor(
+          previewWidth: null,
+          maxWidth: mobileExportLogicalWidth,
+          window: const Size(360, 800),
+          safeAreaPadding: EdgeInsets.zero,
+        ),
+        328,
+        reason: 'a phone column is the screen minus the layout padding',
+      );
+      expect(
+        markdownExportWidthFor(
+          previewWidth: null,
+          maxWidth: desktopExportLogicalWidth,
+          window: const Size(400, 800),
+          safeAreaPadding: const EdgeInsets.symmetric(horizontal: 44),
+        ),
+        280,
+        reason: 'a notched landscape phone loses its horizontal insets',
+      );
+      expect(
+        markdownExportWidthFor(
+          previewWidth: null,
+          maxWidth: mobileExportLogicalWidth,
+          window: const Size(800, 360),
+          safeAreaPadding: const EdgeInsets.symmetric(horizontal: 44),
+        ),
+        mobileExportLogicalWidth,
+        reason: 'the platform cap still applies',
+      );
+      expect(
+        markdownExportWidthFor(
+          previewWidth: 0,
+          maxWidth: mobileExportLogicalWidth,
+          window: const Size(360, 800),
+          safeAreaPadding: EdgeInsets.zero,
+        ),
+        328,
+        reason: 'a zero report is not a width',
+      );
+    });
+  });
+
   group('exportRatioWithinBudget', () {
     const budget = markdownExportMaxPixels;
 
@@ -101,7 +156,8 @@ void main() {
         onPaste: () {},
         onExport: onExport,
         busy: false,
-        documentWidth: mobileExportLogicalWidth,
+        maxDocumentWidth: mobileExportLogicalWidth,
+        onDocumentWidthChanged: (_) {},
         textScale: 1,
       ),
     );
@@ -189,7 +245,7 @@ void main() {
         const Scaffold(
           body: MarkdownExportPreview(
             source: '## 周会纪要 · 11-07\n\n渲染抽成一个页面。',
-            documentWidth: mobileExportLogicalWidth,
+            maxDocumentWidth: mobileExportLogicalWidth,
             emptyHint: 'Nothing to preview yet',
           ),
         ),
@@ -208,7 +264,7 @@ void main() {
         const Scaffold(
           body: MarkdownExportPreview(
             source: '   ',
-            documentWidth: mobileExportLogicalWidth,
+            maxDocumentWidth: mobileExportLogicalWidth,
             emptyHint: 'Nothing to preview yet',
           ),
         ),
@@ -217,6 +273,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Nothing to preview yet'), findsOneWidget);
+  });
+
+  testWidgets('the preview reports the width the export should rasterise', (
+    tester,
+  ) async {
+    double? reported;
+    await tester.pumpWidget(
+      _host(
+        settings,
+        Center(
+          child: SizedBox(
+            width: 500,
+            child: MarkdownExportPreview(
+              source: '## 周会纪要',
+              maxDocumentWidth: desktopExportLogicalWidth,
+              emptyHint: 'Nothing to preview yet',
+              onDocumentWidthChanged: (width) => reported = width,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(reported, 500);
   });
 
   Widget desktopLayout({
@@ -237,7 +318,8 @@ void main() {
       onToggleSource: onToggleSource ?? () {},
       onExport: onExport ?? () {},
       busy: false,
-      documentWidth: desktopExportLogicalWidth,
+      maxDocumentWidth: desktopExportLogicalWidth,
+      onDocumentWidthChanged: (_) {},
       textScale: 1,
     );
   }
@@ -345,6 +427,70 @@ void main() {
     },
   );
 
+  testWidgets('the preview reflows at the pane width and keeps text 1:1', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 1000);
+    addTearDown(tester.view.reset);
+    try {
+      final controller = TextEditingController(
+        text: '# 周会纪要\n\n${'A sentence that wraps. ' * 30}',
+      );
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        _host(settings, desktopLayout(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+
+      // The pane is narrower than the cap, so the sheet is the pane: it
+      // reflows instead of being shrunk into it.
+      final splitWidth = tester
+          .getSize(find.byType(MarkdownExportDocument))
+          .width;
+      expect(splitWidth, lessThan(desktopExportLogicalWidth));
+      expect(
+        find.descendant(
+          of: find.byType(MarkdownExportPreview),
+          matching: find.byType(FittedBox),
+        ),
+        findsNothing,
+      );
+
+      double glyphHeight() {
+        final paragraph = renderedParagraphsWith('A sentence').first;
+        final index = paragraph.text.toPlainText().indexOf('A');
+        return paragraph
+            .getBoxesForSelection(
+              TextSelection(baseOffset: index, extentOffset: index + 1),
+            )
+            .first
+            .toRect()
+            .height;
+      }
+
+      final splitGlyph = glyphHeight();
+      await tester.pumpWidget(
+        _host(
+          settings,
+          desktopLayout(controller: controller, sourceCollapsed: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // With the source out of the way the sheet stops at the cap rather than
+      // growing with the window, and the glyph stays the same size.
+      expect(
+        tester.getSize(find.byType(MarkdownExportDocument)).width,
+        desktopExportLogicalWidth,
+      );
+      expect(glyphHeight(), splitGlyph);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('a larger type size grows the sheet, not the canvas', (
     tester,
   ) async {
@@ -362,6 +508,7 @@ void main() {
                   source: '# Heading\n\n${'A sentence that wraps. ' * 24}',
                   width: 320,
                   textScale: textScale,
+                  capture: true,
                 ),
               ),
             ),

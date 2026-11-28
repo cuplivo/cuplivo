@@ -1,0 +1,57 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>选区：只做复制</title><style>
+:root{--ink:#1d2129;--muted:#5c6470;--line:#e3e6eb;--accent:#2f6fed;--codebg:#0f1420;--sheet:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:var(--ink);font:14px/1.55 system-ui,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:440px;margin:0 auto;padding:14px 12px 24px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#fff}
+h1{font-size:18px;line-height:1.35;margin:10px 0 6px}
+.lead{color:var(--muted);margin:0 0 12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:12px}
+.previewtext{font-size:15.5px;line-height:1.55;margin:0;color:#222}
+.hl{background:#cfe0ff;border-radius:3px;padding:0 1px}
+.chipbar{display:flex;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px;width:max-content;box-shadow:0 4px 14px rgba(16,24,40,.12);margin:8px 0 0 24px}
+.chipbar span{font-size:12.5px;padding:4px 9px;border-radius:6px;color:var(--ink)}
+.chipbar span.hot{background:rgba(47,111,237,.12);color:#1a4fb8}
+.divider{width:1px;height:16px;background:var(--line)}
+.menu{width:184px;background:#fff;border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 22px rgba(16,24,40,.16);padding:5px;margin:8px 0 0 auto}
+.menu div{font-size:12.5px;padding:5px 9px;border-radius:6px;display:flex;justify-content:space-between;gap:10px}
+.menu div:hover{background:#f2f5fa}
+.menu .k{color:#8a929e;font-size:10.5px}
+.menu .sep{height:1px;background:var(--line);margin:4px 2px;padding:0}
+.pseudo{background:var(--codebg);color:#d7e3ff;border-radius:10px;padding:11px;overflow-x:auto;margin:6px 0 0}
+.pseudo pre{margin:0;font:11.5px/1.55 ui-monospace,Consolas,"Cascadia Mono",monospace;white-space:pre}
+.pseudo .c{color:#7f8ea8}
+.pseudo .k{color:#8fc7ff}
+.pseudo .s{color:#a8e6a1}
+.note{font-size:11.5px;color:var(--muted);margin-top:8px}
+.why{margin:8px 0 0;padding-left:16px}
+.why li{margin:4px 0}
+.cost{border-left:3px solid #f0c36d;background:#fffaf0;padding:8px 10px;border-radius:6px;margin:8px 0 0;font-size:12.5px}
+.fid{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:12px}
+.fid div{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.fid b{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+footer{margin-top:12px;font-size:11px;color:#8a929e;text-align:center}
+</style></head><body><div class="wrap">
+<span class="badge">决策 3 修订 · 方案 B</span>
+<h1>选区：只做复制</h1><p class="lead">给预览套上通用选区，只提供复制/复制 Markdown/全选；不引入翻译，也不改 AppSelectionArea 的主逻辑。</p>
+
+<div class="card"><h2>只有复制，没有翻译</h2>
+  <div class="sheet">
+    <p class="previewtext">周会结论：<span class="hl">下周把导出流程拆成预览与捕获两种模式</span>，再补一条真实渲染器的集成测试。</p>
+  </div>
+  <div class="menu" style="margin:8px 0 0 0">
+    <div>复制<span class="k">Ctrl C</span></div>
+    <div>复制 Markdown</div>
+    <div>全选<span class="k">Ctrl A</span></div>
+  </div>
+  <p class="note">没有翻译 chip，也没有右键的“翻译”；选区能力停在复制。</p>
+</div>
+
+<div class="card"><h2>为什么这样改</h2><ul class="why"><li>最小改动，风险最低。</li><li>但和 ChatMessage 的选区体验不一致：预览没有翻译 chip。</li><li>后续补翻译仍然要回到同一个 SelectionSession 改造。</li></ul>
+<div class="cost">代价：不满足“复制/翻译/其他功能”里的翻译；预览仍比消息少一层能力。</div>
+<div class="fid"><div><b>真实</b>AppSelectionArea 的通用菜单、FittedBox 下的选区</div><div><b>模拟</b>菜单项、选区高亮</div><div><b>未展示</b>翻译链路、模型解析</div></div></div>
+<footer>Markdown image · 选区决策记录（修订）</footer>
+</div></body></html>

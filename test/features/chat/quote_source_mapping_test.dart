@@ -12,6 +12,7 @@ import 'package:Cuplivo/core/providers/tts_provider.dart';
 import 'package:Cuplivo/core/services/chat/chat_service.dart';
 import 'package:Cuplivo/features/chat/widgets/chat_message_widget.dart';
 import 'package:Cuplivo/features/chat/controllers/quote_editing_controller.dart';
+import 'package:Cuplivo/features/chat/models/selection_session.dart';
 import 'package:Cuplivo/features/chat/widgets/quote_chip.dart';
 import 'package:Cuplivo/features/chat/widgets/quote_interaction_scope.dart';
 import 'package:Cuplivo/features/chat/widgets/select_copy_sheet.dart';
@@ -253,7 +254,8 @@ void main() {
         await tester.pumpAndSettle();
         final body = find.byWidgetPredicate(
           (widget) =>
-              widget is AppSelectionArea && widget.sourceText == 'Answer only',
+              widget is AppSelectionArea &&
+              widget.session?.source == 'Answer only',
         );
         expect(body, findsOneWidget);
         tester
@@ -312,7 +314,10 @@ void main() {
           QuoteInteractionScope(
             controller: actions,
             child: AppSelectionArea(
-              message: message,
+              session: SelectionSession(
+                message: message,
+                source: message.content,
+              ),
               child: QuoteRenderScope(
                 source: source,
                 quotes: refs,
@@ -507,7 +512,7 @@ void main() {
       await tester.pumpAndSettle();
       final areas = find.byWidgetPredicate(
         (widget) =>
-            widget is AppSelectionArea && widget.sourceText == 'same text',
+            widget is AppSelectionArea && widget.session?.source == 'same text',
       );
       expect(areas, findsNWidgets(2));
       final second = tester.state<SelectableRegionState>(

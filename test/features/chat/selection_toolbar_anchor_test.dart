@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/providers/settings_provider.dart';
+import 'package:Cuplivo/features/chat/models/selection_session.dart';
 import 'package:Cuplivo/features/chat/widgets/selection_quick_toolbar.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/markdown/markdown_with_code_highlight.dart';
@@ -47,11 +48,14 @@ Future<ScrollController> _mount(WidgetTester tester) async {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppSelectionArea(
-                    message: ChatMessage(
-                      id: 'm',
-                      role: 'assistant',
-                      conversationId: 'c',
-                      content: _source,
+                    session: SelectionSession(
+                      message: ChatMessage(
+                        id: 'm',
+                        role: 'assistant',
+                        conversationId: 'c',
+                        content: _source,
+                      ),
+                      source: _source,
                     ),
                     child: const MarkdownWithCodeHighlight(text: _source),
                   ),

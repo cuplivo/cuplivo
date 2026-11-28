@@ -22,7 +22,8 @@ class MarkdownExportMobileLayout extends StatelessWidget {
     required this.onPaste,
     required this.onExport,
     required this.busy,
-    required this.documentWidth,
+    required this.maxDocumentWidth,
+    required this.onDocumentWidthChanged,
     required this.textScale,
   });
 
@@ -37,7 +38,11 @@ class MarkdownExportMobileLayout extends StatelessWidget {
   final VoidCallback onPaste;
   final VoidCallback onExport;
   final bool busy;
-  final double documentWidth;
+
+  /// The widest the sheet may get. A phone is narrower, so the sheet reflows to
+  /// the screen instead of shrinking; the export follows that width.
+  final double maxDocumentWidth;
+  final ValueChanged<double> onDocumentWidthChanged;
   final double textScale;
 
   @override
@@ -75,9 +80,10 @@ class MarkdownExportMobileLayout extends StatelessWidget {
                     )
                   : MarkdownExportPreview(
                       source: previewSource,
-                      documentWidth: documentWidth,
+                      maxDocumentWidth: maxDocumentWidth,
                       emptyHint: l10n.markdownExportPreviewEmpty,
                       textScale: textScale,
+                      onDocumentWidthChanged: onDocumentWidthChanged,
                     ),
             ),
           ),

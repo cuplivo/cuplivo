@@ -2,6 +2,7 @@ import 'package:Cuplivo/features/intelligent_ui/catalog/ui_budgets.dart';
 import 'package:flutter/material.dart';
 import '../../../icons/lucide_adapter.dart';
 import '../../../core/models/chat_message.dart';
+import '../models/selection_session.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/widgets/app_selection_area.dart';
 import '../../../shared/widgets/ios_tactile.dart';
@@ -97,10 +98,12 @@ class _SelectCopyPageState extends State<SelectCopyPage> {
                   : Scrollbar(
                       child: SingleChildScrollView(
                         child: AppSelectionArea(
-                          message: widget.message,
-                          sourceText: text,
-                          sourceMap: snapshot.data?.copySourceMap,
-                          onQuoteSelected: () => Navigator.of(context).pop(),
+                          session: SelectionSession(
+                            message: widget.message,
+                            source: text,
+                            sourceMap: snapshot.data?.copySourceMap,
+                            onQuoteSelected: () => Navigator.of(context).pop(),
+                          ),
                           copyByteLimit: UiBudgets.copyBytes,
                           child: Text.rich(
                             buildQuoteTextSpan(

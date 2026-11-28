@@ -178,43 +178,65 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('an HTML source export completes and shows no preview controls', (
+    tester,
+  ) async {
+    final settings = SettingsProvider(createBusinessTestPreferences());
+    await settings.loaded;
+    await settings.setAutoCollapseCodeBlock(true);
+    addTearDown(settings.dispose);
+    final source =
+        '```html\n<!DOCTYPE html>\n<html><body>\n${List.filled(70, '<p>line</p>').join('\n')}\n</body></html>\n```';
+    await tester.pumpWidget(
+      _host(
+        settings,
+        buildExportCaptureRootForTesting(
+          theme: ThemeData.light(),
+          child: _markdown(source),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(MarkstreamCodeBlock), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(MarkstreamCodeContent)).height,
+      greaterThan(600),
+    );
+    expect(find.byType(MarkstreamActionButton), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
-    'HTML and an uncached diagram export complete source without preview controls',
+    'an uncached diagram export paints its failure card, not source',
     (tester) async {
       MermaidImageCache.clear();
       final settings = SettingsProvider(createBusinessTestPreferences());
       await settings.loaded;
-      await settings.setAutoCollapseCodeBlock(true);
       addTearDown(settings.dispose);
-      for (final (language, code) in [
-        (
-          'html',
-          '<!DOCTYPE html>\n<html><body>\n${List.filled(70, '<p>line</p>').join('\n')}\n</body></html>',
-        ),
-        (
-          'mermaid',
-          'graph TD\n${List.generate(70, (i) => 'A$i-->A${i + 1}').join('\n')}',
-        ),
-      ]) {
-        final source = '```$language\n$code\n```';
-        await tester.pumpWidget(
-          _host(
-            settings,
-            buildExportCaptureRootForTesting(
-              theme: ThemeData.light(),
-              child: _markdown(source),
-            ),
+      final code =
+          'graph TD\n${List.generate(70, (i) => 'A$i-->A${i + 1}').join('\n')}';
+      await tester.pumpWidget(
+        _host(
+          settings,
+          buildExportCaptureRootForTesting(
+            theme: ThemeData.light(),
+            child: _markdown('```mermaid\n$code\n```'),
           ),
-        );
-        await tester.pumpAndSettle();
-        expect(find.byType(MarkstreamCodeBlock), findsOneWidget);
-        expect(
-          tester.getSize(find.byType(MarkstreamCodeContent)).height,
-          greaterThan(600),
-        );
-        expect(find.byType(MarkstreamActionButton), findsNothing);
-        expect(tester.takeException(), isNull);
-      }
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The export warmed the cache before it asked for this tree; still cold
+      // means the diagram could not be drawn, and the picture says so instead
+      // of passing its source off as the content.
+      expect(find.byKey(const ValueKey('mermaid-error-body')), findsOneWidget);
+      expect(find.byType(MarkstreamCodeBlock), findsNothing);
+      expect(find.byType(MarkstreamCodeContent), findsNothing);
+      // A picture cannot be retried or copied from.
+      expect(find.text('Retry'), findsNothing);
+      expect(find.text('Copy source'), findsNothing);
+      expect(find.byType(MarkstreamActionButton), findsNothing);
+      expect(tester.takeException(), isNull);
     },
   );
 }

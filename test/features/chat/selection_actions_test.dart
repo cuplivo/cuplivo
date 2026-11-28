@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:Cuplivo/core/models/chat_message.dart';
 import 'package:Cuplivo/core/models/quote_ref.dart';
+import 'package:Cuplivo/features/chat/models/selection_session.dart';
 import 'package:Cuplivo/features/chat/widgets/quote_interaction_scope.dart';
 import 'package:Cuplivo/features/chat/widgets/selection_quick_toolbar.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
@@ -55,19 +56,25 @@ void main() {
                     padding: const EdgeInsets.all(60),
                     child: ValueListenableBuilder<String>(
                       valueListenable: text,
-                      builder: (context, value, _) => AppSelectionArea(
-                        message: ChatMessage(
+                      builder: (context, value, _) {
+                        final message = ChatMessage(
                           id: 'stream',
                           role: 'assistant',
                           conversationId: 'c',
                           content: value,
                           isStreaming: true,
-                        ),
-                        child: MarkdownWithCodeHighlight(
-                          text: value,
-                          streaming: true,
-                        ),
-                      ),
+                        );
+                        return AppSelectionArea(
+                          session: SelectionSession(
+                            message: message,
+                            source: value,
+                          ),
+                          child: MarkdownWithCodeHighlight(
+                            text: value,
+                            streaming: true,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -150,7 +157,10 @@ void main() {
                 child: Column(
                   children: [
                     AppSelectionArea(
-                      message: message,
+                      session: SelectionSession(
+                        message: message,
+                        source: message.content,
+                      ),
                       child: const Text(
                         'alpha beta gamma',
                         style: TextStyle(fontSize: 18),

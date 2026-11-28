@@ -12,6 +12,7 @@ import 'package:Cuplivo/features/chat/pages/image_viewer_page.dart';
 import 'package:Cuplivo/icons/lucide_adapter.dart';
 import 'package:Cuplivo/l10n/app_localizations.dart';
 import 'package:Cuplivo/shared/widgets/snackbar.dart';
+import 'package:Cuplivo/shared/widgets/ios_text_button.dart';
 import 'package:Cuplivo/shared/widgets/mermaid_bridge.dart';
 import 'package:Cuplivo/shared/widgets/mermaid_image_cache.dart';
 import 'package:Cuplivo/shared/widgets/export_capture_scope.dart';
@@ -108,6 +109,7 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
     final themeVars = buildThemeVarsFromColorScheme(cs);
 
     final exporting = ExportCaptureScope.of(context);
+    final mayRenderDiagram = ExportCaptureScope.diagramsMayRender(context);
     final cacheKey = _cacheKey(widget.code, isDark, themeVars);
     final themedCachedBytes = MermaidImageCache.get(cacheKey);
     final legacyCachedBytes = widget.isSvg
@@ -129,7 +131,7 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
       cacheKey,
     );
     final hasRenderableCode = widget.code.trim().isNotEmpty;
-    if (!exporting &&
+    if (mayRenderDiagram &&
         hasRenderableCode &&
         exactCachedBytes == null &&
         !_bitmapRenderingUnsupported &&
@@ -143,28 +145,23 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
       );
     }
     final hasImage = displayBytes != null && displayBytes.isNotEmpty;
-    if (exporting && !hasImage) {
-      return MarkstreamCodeBlock(
-        node: widget.node,
-        theme: widget.theme,
-        extensions: const MarkstreamExtensions.empty(),
-        options: const CodeBlockOptions(),
-        labels: MarkstreamLabels(unnamedCode: l10n.markdownCodeLabel),
-        highlighter: KelivoCodeHighlighter.forTheme(widget.theme),
-        exporting: true,
-      );
-    }
     final showLoading =
         !hasImage &&
         !_suppressBitmapLoading &&
         !_bitmapRenderingUnsupported &&
         !renderFailedForCurrentCode &&
         (widget.streaming || _renderQueued || _renderingBitmap);
+    // A capture may not start a renderer, so a cold cache there is a failure
+    // rather than a wait: the export warmed it before it asked for this tree.
+    // The document preview shows the same card when this platform has no
+    // renderer at all, so the picture it promises does not turn back into
+    // source; a chat message keeps its code view instead.
     final showError =
         !hasImage &&
-        !_bitmapRenderingUnsupported &&
-        renderFailedForCurrentCode &&
-        _selectedTab == _MermaidTab.image;
+        hasRenderableCode &&
+        _selectedTab == _MermaidTab.image &&
+        (renderFailedForCurrentCode ||
+            (exporting && (!mayRenderDiagram || _bitmapRenderingUnsupported)));
 
     return Container(
       width: double.infinity,
@@ -187,9 +184,8 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
             imageSelected: _selectedTab == _MermaidTab.image,
             onImage: () => setState(() => _selectedTab = _MermaidTab.image),
             onCode: () => setState(() => _selectedTab = _MermaidTab.code),
-            actions: exporting
-                ? const []
-                : [
+            actions: mayRenderDiagram
+                ? [
                     DiagramAction(
                       theme: widget.theme,
                       icon: Lucide.Copy,
@@ -214,7 +210,8 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
                           ? null
                           : () => _openMermaidImageViewer(context, actionBytes),
                     ),
-                  ],
+                  ]
+                : const [],
           ),
           SizedBox(
             key: const ValueKey('mermaid-preview-body'),
@@ -238,6 +235,7 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
                   cacheKey: cacheKey,
                   showLoading: showLoading,
                   showError: showError,
+                  allowActions: mayRenderDiagram,
                 ),
               ),
             ),
@@ -255,10 +253,9 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
     required String cacheKey,
     required bool showLoading,
     required bool showError,
+    required bool allowActions,
   }) {
-    if (_selectedTab == _MermaidTab.code ||
-        _bitmapRenderingUnsupported ||
-        widget.code.trim().isEmpty) {
+    if (_selectedTab == _MermaidTab.code || widget.code.trim().isEmpty) {
       return _buildMermaidCodeView(context, isDark);
     }
 
@@ -288,6 +285,10 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
       return _MermaidErrorView(
         key: const ValueKey('mermaid-error-body'),
         colors: colors,
+        onRetry: allowActions && !_bitmapRenderingUnsupported
+            ? _retryBitmapRender
+            : null,
+        onCopySource: allowActions ? () => _copyMermaidCode(context) : null,
       );
     }
 
@@ -496,6 +497,15 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
     }
   }
 
+  /// Forgets the failed attempt so the next build queues the render again. The
+  /// failure card is the only caller; a block that succeeded never shows it.
+  void _retryBitmapRender() {
+    setState(() {
+      _failedBitmapRenderKeys.clear();
+      _suppressBitmapLoading = false;
+    });
+  }
+
   void _markBitmapRenderingUnsupported() {
     if (!mounted) return;
     _streamingRenderDebounce?.cancel();
@@ -535,9 +545,24 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
   ) async {
     final exportBytes = handle.exportPngBytes;
     if (exportBytes == null) return MermaidBitmapRenderResult.unsupported();
+    // Read the scope before waiting: it says which surface this is, and the
+    // context must not be touched after an async gap.
+    final documentPreview = ExportCaptureScope.of(context);
     await WidgetsBinding.instance.endOfFrame;
-    await Future<void>.delayed(const Duration(milliseconds: 120));
-    for (var i = 0; i < 4; i++) {
+    // The document preview promises the picture the export will rasterise, so
+    // it waits exactly as long as the export's prewarm does; a chat message is
+    // its own surface and answers sooner. Without this, a slow render could
+    // show a failure card on screen while the PNG ends up with the diagram.
+    await Future<void>.delayed(
+      documentPreview
+          ? const Duration(milliseconds: 500)
+          : const Duration(milliseconds: 120),
+    );
+    final attempts = documentPreview ? 8 : 4;
+    final retryDelay = documentPreview
+        ? const Duration(milliseconds: 200)
+        : const Duration(milliseconds: 120);
+    for (var i = 0; i < attempts; i++) {
       try {
         // The native bridge waits for Mermaid's render-complete event and
         // bounds its own waits. Timing out here leaves an export in flight
@@ -552,7 +577,7 @@ class KelivoDiagramBlockState extends State<KelivoDiagramBlock> {
         }
         // Mermaid/WebView can report readiness before pixel capture is available.
       }
-      await Future<void>.delayed(const Duration(milliseconds: 120));
+      await Future<void>.delayed(retryDelay);
     }
     return MermaidBitmapRenderResult.failed();
   }
@@ -708,24 +733,55 @@ class _MermaidLoadingViewState extends State<_MermaidLoadingView>
 }
 
 class _MermaidErrorView extends StatelessWidget {
-  const _MermaidErrorView({super.key, required this.colors});
+  const _MermaidErrorView({
+    super.key,
+    required this.colors,
+    this.onRetry,
+    this.onCopySource,
+  });
 
   final MarkstreamColors colors;
+
+  /// Null in a capture: a picture cannot be retried or copied from.
+  final VoidCallback? onRetry;
+  final VoidCallback? onCopySource;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final actions = <Widget>[
+      if (onRetry != null)
+        IosTextButton(
+          label: l10n.retry,
+          icon: Lucide.RotateCw,
+          onPressed: onRetry,
+        ),
+      if (onCopySource != null)
+        IosTextButton(
+          label: l10n.genuiCopySource,
+          icon: Lucide.Copy,
+          onPressed: onCopySource,
+        ),
+    ];
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Lucide.ImageOff, size: 48, color: colors.ink3),
+          Icon(Lucide.ImageOff, size: 40, color: colors.ink3),
           const SizedBox(height: 8),
           Text(
             l10n.mermaidGenerationFailedHint,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, height: 1.35, color: colors.ink2),
           ),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 4,
+              children: actions,
+            ),
+          ],
         ],
       ),
     );

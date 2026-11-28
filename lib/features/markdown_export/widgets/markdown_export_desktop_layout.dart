@@ -23,7 +23,8 @@ class MarkdownExportDesktopLayout extends StatelessWidget {
     required this.onToggleSource,
     required this.onExport,
     required this.busy,
-    required this.documentWidth,
+    required this.maxDocumentWidth,
+    required this.onDocumentWidthChanged,
     required this.textScale,
   });
 
@@ -44,7 +45,11 @@ class MarkdownExportDesktopLayout extends StatelessWidget {
   final VoidCallback onToggleSource;
   final VoidCallback onExport;
   final bool busy;
-  final double documentWidth;
+
+  /// The widest the sheet may get. It reflows below this; the export follows
+  /// the width the preview reports.
+  final double maxDocumentWidth;
+  final ValueChanged<double> onDocumentWidthChanged;
   final double textScale;
 
   @override
@@ -116,9 +121,10 @@ class MarkdownExportDesktopLayout extends StatelessWidget {
                     builder: (context, constraints) {
                       final preview = MarkdownExportPreview(
                         source: previewSource,
-                        documentWidth: documentWidth,
+                        maxDocumentWidth: maxDocumentWidth,
                         emptyHint: l10n.markdownExportPreviewEmpty,
                         textScale: textScale,
+                        onDocumentWidthChanged: onDocumentWidthChanged,
                       );
                       if (sourceCollapsed) return preview;
                       final editor = MarkdownExportEditor(

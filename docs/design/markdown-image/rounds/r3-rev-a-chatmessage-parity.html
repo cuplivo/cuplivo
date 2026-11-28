@@ -1,0 +1,125 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>选区：和 ChatMessage 同一套交互</title><style>
+:root{--ink:#1d2129;--muted:#5c6470;--line:#e3e6eb;--accent:#2f6fed;--codebg:#0f1420;--sheet:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:#eef1f5;color:var(--ink);font:14px/1.55 system-ui,"Segoe UI","Microsoft YaHei",sans-serif}
+.wrap{max-width:440px;margin:0 auto;padding:14px 12px 24px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#fff}
+h1{font-size:18px;line-height:1.35;margin:10px 0 6px}
+.lead{color:var(--muted);margin:0 0 12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:12px}
+.previewtext{font-size:15.5px;line-height:1.55;margin:0;color:#222}
+.hl{background:#cfe0ff;border-radius:3px;padding:0 1px}
+.chipbar{display:flex;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px;width:max-content;box-shadow:0 4px 14px rgba(16,24,40,.12);margin:8px 0 0 24px}
+.chipbar span{font-size:12.5px;padding:4px 9px;border-radius:6px;color:var(--ink)}
+.chipbar span.hot{background:rgba(47,111,237,.12);color:#1a4fb8}
+.divider{width:1px;height:16px;background:var(--line)}
+.menu{width:184px;background:#fff;border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 22px rgba(16,24,40,.16);padding:5px;margin:8px 0 0 auto}
+.menu div{font-size:12.5px;padding:5px 9px;border-radius:6px;display:flex;justify-content:space-between;gap:10px}
+.menu div:hover{background:#f2f5fa}
+.menu .k{color:#8a929e;font-size:10.5px}
+.menu .sep{height:1px;background:var(--line);margin:4px 2px;padding:0}
+.pseudo{background:var(--codebg);color:#d7e3ff;border-radius:10px;padding:11px;overflow-x:auto;margin:6px 0 0}
+.pseudo pre{margin:0;font:11.5px/1.55 ui-monospace,Consolas,"Cascadia Mono",monospace;white-space:pre}
+.pseudo .c{color:#7f8ea8}
+.pseudo .k{color:#8fc7ff}
+.pseudo .s{color:#a8e6a1}
+.note{font-size:11.5px;color:var(--muted);margin-top:8px}
+.why{margin:8px 0 0;padding-left:16px}
+.why li{margin:4px 0}
+.cost{border-left:3px solid #f0c36d;background:#fffaf0;padding:8px 10px;border-radius:6px;margin:8px 0 0;font-size:12.5px}
+.fid{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px;font-size:12px}
+.fid div{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.fid b{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+footer{margin-top:12px;font-size:11px;color:#8a929e;text-align:center}
+</style></head><body><div class="wrap">
+<span class="badge">决策 3 修订 · 方案 A</span>
+<h1>选区：和 ChatMessage 同一套交互</h1><p class="lead">选中浮出翻译 chip，右键复制/复制 Markdown/翻译/全选；预览没有消息，所以只有“引用”消失，其余共用同一条逻辑。</p>
+
+<div class="card"><h2>选中后：浮出翻译 chip</h2>
+  <div class="sheet">
+    <p class="previewtext">周会结论：<span class="hl">下周把导出流程拆成预览与捕获两种模式</span>，再补一条真实渲染器的集成测试。</p>
+  </div>
+  <div class="chipbar"><span class="hot">翻译</span></div>
+</div>
+<div class="card"><h2>右键：复制 / 翻译 / 全选</h2>
+  <div style="display:flex;justify-content:flex-end"><div class="menu">
+    <div>复制<span class="k">Ctrl C</span></div>
+    <div>复制 Markdown</div>
+    <div class="sep"></div>
+    <div>翻译<span class="k">Ctrl T</span></div>
+    <div class="sep"></div>
+    <div>全选<span class="k">Ctrl A</span></div>
+  </div></div>
+  <p class="note">没有“引用”：预览没有消息，引用动作不出现。其余与 ChatMessage 共用同一套菜单与悬浮条。</p>
+</div>
+<div class="card"><h2>统一后的逻辑（伪代码）</h2>
+<div class="pseudo"><pre><span class="c">// 一份选区会话：消息和预览共用</span>
+<span class="k">sealed class</span> SelectionSession {
+  String get sourceText;              <span class="c">// 选中范围的 Markdown 源</span>
+  SourceTextMap? get sourceMap;
+  <span class="k">bool</span> get canQuote;                  <span class="c">// 只有消息能引用</span>
+  ({String? provider, String? model,
+    String? conversation}) get translation;
+}
+
+<span class="c">// 聊天消息：和现在完全一致</span>
+SelectionSession messageSession(ChatMessage m) =&gt; (
+  sourceText: m.content, sourceMap: m.sourceMap,
+  canQuote: <span class="k">true</span>,
+  translation: (
+    provider: settings.translateModelProvider
+              ?? conversationModel(m).providerKey,
+    model:     settings.translateModelId
+              ?? conversationModel(m).modelId,
+    conversation: m.conversationId,
+  ),
+);
+
+<span class="c">// 预览：同一条链，只是没有消息可引用</span>
+SelectionSession previewSession(String source) =&gt; (
+  sourceText: source, sourceMap: <span class="k">null</span>,
+  canQuote: <span class="k">false</span>,
+  translation: (
+    provider: settings.translateModelProvider
+              ?? currentConversationModel.providerKey,
+    model:     settings.translateModelId
+              ?? currentConversationModel.modelId,
+    conversation: currentConversation?.id,   <span class="c">// 没有会话 → null</span>
+  ),
+);
+</pre></div>
+<div class="pseudo" style="margin-top:8px"><pre><span class="c">// AppSelectionArea：菜单/悬浮条只问 session，不再问 message != null</span>
+Widget _quickBar(SelectionSession s, SelectionSnapshot snap) =&gt;
+  SelectionQuickToolbar(
+    onQuote: s.canQuote ? () =&gt; _quote(s, snap) : <span class="k">null</span>,
+    onTranslate: () =&gt; _translate(s, snap),
+  );
+
+List&lt;ContextMenuButtonItem&gt; _menu(SelectionSession s) =&gt; [
+  copy(s.selectedText),
+  copyMarkdown(s.selectedMarkdown),
+  copyRich(s),
+  <span class="k">if</span> (s.canQuote) quote(s),      <span class="c">// 预览没有</span>
+  translate(s),
+  selectAll,
+];
+
+<span class="c">// 翻译面板不再强制 ChatMessage，只接它真正需要的三元组</span>
+showSelectionTranslationPanel(
+  text: snapshot.text, anchor: anchor,
+  providerKey: s.translation.provider,
+  modelId: s.translation.model,
+  conversationId: s.translation.conversation, <span class="c">// 预览可为 null</span>
+);
+</pre></div>
+<p class="note">English: one selection session; the preview supplies no message, so quote disappears and translation resolves through the same chain, with a nullable conversation id.</p>
+</div>
+
+<div class="card"><h2>为什么这样改</h2><ul class="why"><li>统一的是菜单、悬浮条、翻译入口；分身的是“能不能引用”和翻译模型从哪来。</li><li>翻译面板不再强制 ChatMessage，只接收 provider/model/conversation；预览的 conversation 可为 null。</li><li>伪代码就是实现边界：一个 SelectionSession，聊天和预览各造一份。</li></ul>
+<div class="cost">代价：需要把 AppSelectionArea 从“message != null”改成“session”，并给预览补一份翻译目标解析。</div>
+<div class="fid"><div><b>真实</b>AppSelectionArea 的菜单/悬浮条、聊天翻译面板、设置里的翻译模型</div><div><b>模拟</b>翻译 chip、右键菜单、伪代码</div><div><b>未展示</b>真实翻译请求、没有翻译模型时的错误提示</div></div></div>
+<footer>Markdown image · 选区决策记录（修订）</footer>
+</div></body></html>

@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/reasoning_request.dart';
 import '../../../core/providers/assistant_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/services/api/chat_api_service.dart';
@@ -24,12 +25,32 @@ import '../../settings/widgets/language_select_sheet.dart';
 import '../controllers/selection_translation_controller.dart';
 import 'quote_chip.dart' show selectionUsesDesktop;
 
-Future<void> showSelectionTranslationPanel(
-  BuildContext context, {
-  required ChatMessage message,
-  required String text,
-  required Rect anchor,
-}) async {
+/// Where a selection's translation runs: the model to ask, the conversation
+/// whose provider session it belongs to, and the reasoning preference.
+///
+/// A rendered document has no message, so its conversation may be null; the
+/// request still runs against the selected model.
+@immutable
+class SelectionTranslationTarget {
+  const SelectionTranslationTarget({
+    this.providerKey,
+    this.modelId,
+    this.conversationId,
+    this.reasoning = ReasoningRequest.off,
+  });
+
+  final String? providerKey;
+  final String? modelId;
+  final String? conversationId;
+  final ReasoningRequest reasoning;
+}
+
+/// A message's translation target: the configured translation override, or the
+/// model the conversation is already using.
+SelectionTranslationTarget selectionTranslationForMessage(
+  BuildContext context,
+  ChatMessage message,
+) {
   final settings = context.read<SettingsProvider>();
   final chat = context.read<ChatService>();
   final conversation = chat.getConversation(message.conversationId);
@@ -41,10 +62,52 @@ Future<void> showSelectionTranslationPanel(
     conversation: conversation,
     assistant: assistant,
   );
-  final providerKey = settings.translateModelProvider ?? current.providerKey;
-  final model = settings.translateModelId ?? current.modelId;
+  return SelectionTranslationTarget(
+    providerKey: settings.translateModelProvider ?? current.providerKey,
+    modelId: settings.translateModelId ?? current.modelId,
+    conversationId: message.conversationId,
+    reasoning: settings.translateGenerationReasoningFor(assistant),
+  );
+}
+
+/// A document's translation target: the same chain, but the conversation is
+/// whatever is open behind the tool, and may be absent.
+SelectionTranslationTarget selectionTranslationForDocument(
+  BuildContext context,
+) {
+  final settings = context.read<SettingsProvider>();
+  final chat = context.read<ChatService>();
+  final conversationId = chat.currentConversationId;
+  final conversation = conversationId == null
+      ? null
+      : chat.getConversation(conversationId);
+  final assistant = context
+      .read<AssistantProvider>()
+      .resolveConversationAssistant(conversation?.assistantId);
+  final current = resolveChatModel(
+    settings,
+    conversation: conversation,
+    assistant: assistant,
+  );
+  return SelectionTranslationTarget(
+    providerKey: settings.translateModelProvider ?? current.providerKey,
+    modelId: settings.translateModelId ?? current.modelId,
+    conversationId: conversationId,
+    reasoning: settings.translateGenerationReasoningFor(assistant),
+  );
+}
+
+Future<void> showSelectionTranslationPanel(
+  BuildContext context, {
+  required String text,
+  required Rect anchor,
+  required SelectionTranslationTarget target,
+}) async {
+  final settings = context.read<SettingsProvider>();
+  final providerKey = target.providerKey;
+  final model = target.modelId;
   final prompt = settings.translatePrompt;
-  final reasoning = settings.translateGenerationReasoningFor(assistant);
+  final reasoning = target.reasoning;
   final labels = AppLocalizations.of(context)!;
   final controller = SelectionTranslationController(
     text: text,
@@ -54,7 +117,7 @@ Future<void> showSelectionTranslationPanel(
         throw StateError(labels.homePagePleaseSetupTranslateModel);
       }
       final stream = ChatApiService.sendMessageStream(
-        conversationId: message.conversationId,
+        conversationId: target.conversationId,
         config: settings.getProviderConfig(providerKey),
         modelId: model,
         messages: [
